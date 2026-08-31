@@ -1,7 +1,7 @@
 "use client";
 
-import FeeDisplay from "./FeeDisplay";
-import { Button } from "./ui/button";
+import FeeDisplay from "../FeeDisplay";
+import { Button } from "../ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface TransactionSummaryProps {

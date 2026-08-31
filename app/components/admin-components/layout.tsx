@@ -1,21 +1,33 @@
 // app/components/admin-components/layout.tsx
 'use client'
-import React from 'react'
+
+import React, { useEffect, useState } from 'react'
 import AdminSidebar from '@/app/components/admin-components/AdminSideBar'
-import AdminTopbar from '@/app/components/admin-components/AdminHeader'
+import { ThemeProvider } from 'next-themes'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <AdminSidebar />
-      <div className="lg:ml-64">
-        <AdminTopbar />
-        <main className="p-4 md:p-6">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
-        </main>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <div className="min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">
+        <AdminSidebar />
+        <div className="lg:ml-64">
+          <main className="p-4 md:p-6 min-h-[calc(100vh-4rem)]">
+            <div className="max-w-7xl mx-auto">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ThemeProvider>
   )
 }

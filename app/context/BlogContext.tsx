@@ -1,4 +1,4 @@
-// app/context/BlogContext.tsx
+ // app/context/BlogContext.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
@@ -85,6 +85,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
   const isFetchingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
   
   const CACHE_KEY = 'blog_cache_data';
   const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
@@ -163,11 +164,6 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     }
     return false;
   }, [loadFromCache, getRemainingCooldown]);
-
-  const shouldFetchBlogData = useCallback(() => {
-    if (!pathname) return false;
-    return pathname.startsWith('/blog') || pathname === '/dashboard';
-  }, [pathname]);
 
   const transformPosts = useCallback((data: any): BlogPost[] => {
     const posts = data.posts || data;
@@ -261,7 +257,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       return;
     }
     
-    console.log('🔄 Fetching fresh data...');
+    console.log('🔄 Fetching fresh blog data...');
     isFetchingRef.current = true;
     setIsLoading(true);
     setError(null);
@@ -327,7 +323,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
         setIsInitialized(true);
         setCooldownRemaining(COOLDOWN_MS);
 
-        console.log('✅ Data fetched and cached. Next fetch available in 5 minutes.');
+        console.log('✅ Blog data fetched and cached. Next fetch available in 5 minutes.');
 
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
@@ -335,7 +331,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
           return;
         }
         
-        console.error('❌ Error fetching posts:', err);
+        console.error('❌ Error fetching blog posts:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch posts');
         
         // Try to load from cache on error
@@ -438,10 +434,10 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     };
   }, [getRemainingCooldown]);
 
-  // ✅ Initial load - runs once globally
+  // ✅ Initial load - ALWAYS fetch on mount, regardless of pathname
   useEffect(() => {
     // Skip if already initialized globally
-    if (globalInitialized) {
+    if (globalInitialized && hasInitializedRef.current) {
       console.log('⏭️ Already initialized globally, loading from cache...');
       loadDataFromCache();
       return;
@@ -450,11 +446,11 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     console.log('🚀 Initializing BlogProvider');
     isMountedRef.current = true;
     
-    // Try to load from cache
+    // Try to load from cache first
     const hasCache = loadDataFromCache();
     
-    // Only fetch if no cache and we're on a blog page
-    if (!hasCache && shouldFetchBlogData()) {
+    // Only fetch if no cache
+    if (!hasCache && !globalInitialized) {
       // Check if we can fetch (not on cooldown)
       if (canFetch()) {
         console.log('📡 No cache found, fetching...');
@@ -468,6 +464,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     }
     
     globalInitialized = true;
+    hasInitializedRef.current = true;
     
     return () => {
       isMountedRef.current = false;
@@ -475,7 +472,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
         abortControllerRef.current.abort();
       }
     };
-  }, []);
+  }, []); // ✅ Remove shouldFetch dependency - always fetch on mount
 
   // ✅ Cleanup
   useEffect(() => {

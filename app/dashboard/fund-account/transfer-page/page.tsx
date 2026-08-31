@@ -4,7 +4,7 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
-import Transfer from "@/app/components/Transfer";
+import Transfer from "@/app/components/transfer-components/Transfer";
 import { useState } from "react";
 
 export default function TransferPage() {

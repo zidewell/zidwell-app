@@ -1,4 +1,4 @@
-// AirtimePurchase.tsx
+// app/components/AirtimePurchase.tsx
 "use client";
 
 import Swal from "sweetalert2";
@@ -96,6 +96,7 @@ export default function AirtimePurchase() {
   const [isOpen, setIsOpen] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [isCustomAmount, setIsCustomAmount] = useState(false);
@@ -272,7 +273,16 @@ export default function AirtimePurchase() {
     : selectedAmount || 0;
 
   const purchaseAirtime = async (pinCode: string) => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log("Already submitting, ignoring duplicate request");
+      return;
+    }
+
     if (!validateForm()) return;
+
+    // Generate unique idempotency key
+    const idempotencyKey = `AIRTIME-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${userData?.id}`;
 
     const payload = {
       userId: userData?.id,
@@ -280,39 +290,51 @@ export default function AirtimePurchase() {
       amount: finalAmount,
       network: selectedProvider?.id,
       phoneNumber: phoneNumber.trim(),
-      merchantTxRef: `AIRTIME-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      merchantTxRef: idempotencyKey,
       senderName: userData?.fullName || "Zidwell User",
     };
 
     try {
+      setIsSubmitting(true);
       setLoading(true);
 
       const response = await fetch("/api/buy-airtime", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Transaction failed");
+        throw new Error(data.message || data.error || "Transaction failed");
       }
 
-      if (data.zidCoinBalance !== undefined) {
+      // Update user data with new balance
+      if (data.balance_after !== undefined) {
         setUserData((prev: any) => {
-          const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
+          const updated = { 
+            ...prev, 
+            walletBalance: data.balance_after,
+            zidcoinBalance: data.zidCoinBalance || prev?.zidcoinBalance 
+          };
           localStorage.setItem("userData", JSON.stringify(updated));
           return updated;
         });
       }
 
+      // Save beneficiary if checked
       if (saveBeneficiary && !selectedSavedBeneficiary) {
         await saveBeneficiaryToProfile();
       }
 
+      // Close PIN popover
       setIsOpen(false);
 
+      // Reset form
       setPhoneNumber("");
       setPin(Array(inputCount).fill(""));
       setSelectedProvider(null);
@@ -322,18 +344,38 @@ export default function AirtimePurchase() {
       setSaveBeneficiary(false);
       setSelectedSavedBeneficiary(null);
 
-      Swal.fire({
-        icon: "success",
-        title: "Airtime Purchase Successful",
-        text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
-        confirmButtonColor: "var(--color-accent-yellow)",
-      });
+      // Show success message
+      if (data.idempotent) {
+        Swal.fire({
+          icon: "info",
+          title: "Transaction Already Processed",
+          text: `This transaction was already completed. Transaction ID: ${data.transactionId}`,
+          confirmButtonColor: "var(--color-accent-yellow)",
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Airtime Purchase Successful",
+          text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
+          confirmButtonColor: "var(--color-accent-yellow)",
+        });
+      }
 
       return { success: true };
     } catch (error: any) {
       console.error("Purchase error:", error);
+      
+      // Show error message
+      Swal.fire({
+        icon: "error",
+        title: "Purchase Failed",
+        text: error.message || "Transaction failed. Please try again.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+      });
+      
       throw error;
     } finally {
+      setIsSubmitting(false);
       setLoading(false);
     }
   };
@@ -372,6 +414,7 @@ export default function AirtimePurchase() {
         }}
         error={pinError}
         onClearError={() => setPinError(null)}
+        isLoading={isSubmitting}
       />
 
       <div className="flex items-start space-x-4">
@@ -396,9 +439,7 @@ export default function AirtimePurchase() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Purchase Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Network Provider Selection */}
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-(--text-primary)">
@@ -455,7 +496,6 @@ export default function AirtimePurchase() {
             </CardContent>
           </Card>
 
-          {/* Phone Number Input */}
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
               <CardTitle className="text-(--text-primary)">
@@ -588,7 +628,6 @@ export default function AirtimePurchase() {
             </CardContent>
           </Card>
 
-          {/* Amount Selection */}
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>
               <CardTitle className="text-(--text-primary)">
@@ -654,7 +693,6 @@ export default function AirtimePurchase() {
           </Card>
         </div>
 
-        {/* Purchase Summary */}
         <div className="lg:col-span-1">
           <Card className="sticky top-6 bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardHeader>

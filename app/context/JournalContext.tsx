@@ -16,6 +16,7 @@ export function JournalProvider({ children }: { children: ReactNode }) {
     journalStore.error,
     journalStore.updateTrigger,
     journalStore.unifiedEntries,
+    journalStore.walletBalance,
     journalStore.getAllTimeSummary,
     journalStore.getTodaySummary,
     journalStore.getWeekSummary,

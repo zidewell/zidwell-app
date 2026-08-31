@@ -406,7 +406,7 @@ const RegisterForm = () => {
               </Label>
               <Input
                 id="phone"
-                placeholder="08012345678"
+                placeholder="08**********"
                 inputMode="numeric"
                 maxLength={11}
                 value={phone}

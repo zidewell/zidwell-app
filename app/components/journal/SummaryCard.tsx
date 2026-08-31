@@ -1,3 +1,5 @@
+// app/components/journal/SummaryCard.tsx
+
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 

@@ -21,6 +21,7 @@ import {
   generateSoftwareAppSchema,
   generateLocalBusinessSchema,
 } from "@/lib/seo";
+import { BlogProvider } from "./context/BlogContext";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -61,7 +62,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: "Zidwell",
-    startupImage: "/splash/launch.png",
   },
   formatDetection: {
     telephone: false,
@@ -73,13 +73,13 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "any" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
       { url: "/apple-touch-icon.png" },
-      { url: "/icons/icon-152x152.png", sizes: "152x152", type: "image/png" },
-      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-152x152.png", sizes: "152x152", type: "image/png" },
+      { url: "/icon-192x192.png", sizes: "192x192", type: "image/png" },
     ],
     shortcut: "/favicon.ico",
   },
@@ -125,24 +125,7 @@ export default function RootLayout({
           }}
         />
 
-        {/* Service Worker Registration for PWA */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('ServiceWorker registration successful');
-                    })
-                    .catch(function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
-                    });
-                });
-              }
-            `,
-          }}
-        />
+        {/* Service Worker Registration handled by next-pwa automatically */}
 
         {/* ✅ GLOBAL Structured Data (valid on every page) */}
         <script
@@ -176,9 +159,6 @@ export default function RootLayout({
         {/* Preload critical resources */}
         <link rel="preload" href="/logo.png" as="image" type="image/png" />
         <link rel="preload" href="/images/og-image.png" as="image" type="image/png" />
-
-        {/* iOS launch image */}
-        <link rel="apple-touch-startup-image" href="/splash/launch.png" />
       </head>
       <body
         className="bg-(--bg-primary) text-(--text-primary) antialiased"
@@ -209,6 +189,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
+                <BlogProvider>
               <SessionRestore>
                 <SessionWatcher>
                   <AuthChecker>
@@ -226,6 +207,7 @@ export default function RootLayout({
                   </AuthChecker>
                 </SessionWatcher>
               </SessionRestore>
+              </BlogProvider>
             </UserProvider>
           </ThemeWrapper>
         </ThemeProvider>

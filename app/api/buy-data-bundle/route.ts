@@ -21,6 +21,7 @@ const baseUrl =
     : process.env.NEXT_PUBLIC_BASE_URL;
 
 const userCache = new Map();
+const idempotencyCache = new Map();
 
 async function getCachedUser(userId: string) {
   const cacheKey = `user_${userId}`;
@@ -41,6 +42,15 @@ async function getCachedUser(userId: string) {
   return user;
 }
 
+async function getCurrentExternalResponse(transactionId: string) {
+  const { data } = await supabase
+    .from("transactions")
+    .select("external_response")
+    .eq("id", transactionId)
+    .single();
+  return data?.external_response || {};
+}
+
 async function sendEmailNotification(
   userId: string,
   status: "success" | "failed" | "pending",
@@ -49,6 +59,8 @@ async function sendEmailNotification(
   network: string,
   transactionId?: string | null,
   errorDetail?: string,
+  beforeBalance?: number,
+  afterBalance?: number,
 ) {
   try {
     const { data: user, error } = await supabase
@@ -61,10 +73,13 @@ async function sendEmailNotification(
     const subject =
       status === "success"
         ? `Data Purchase Successful - ₦${amount} ${network}`
+        : status === "pending"
+        ? `Data Purchase Pending - ₦${amount} ${network}`
         : `Data Purchase Failed - ₦${amount} ${network}`;
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
 
     await transporter.sendMail({
       from: `"Zidwell" <${process.env.EMAIL_USER}>`,
@@ -80,7 +95,7 @@ async function sendEmailNotification(
             <tr><td><img src="${headerImageUrl}" style="width:100%;" /></td></tr>
             <tr><td style="padding:24px;">
                 <p>${greeting}</p>
-                <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">${status === "success" ? "✅ Data Purchase Successful" : "❌ Data Purchase Failed"}</h3>
+                <h3 style="color: ${status === "success" ? "#22c55e" : status === "pending" ? "#f59e0b" : "#ef4444"};">${status === "success" ? "✅ Data Purchase Successful" : status === "pending" ? "⏳ Data Purchase Pending" : "❌ Data Purchase Failed"}</h3>
                 <div style="background:#f8fafc; padding:15px; border-radius:8px; margin:15px 0;">
                     <p><strong>Amount:</strong> ₦${amount}</p>
                     <p><strong>Network:</strong> ${network}</p>
@@ -88,6 +103,7 @@ async function sendEmailNotification(
                     <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
                     ${status === "failed" ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>` : ""}
                 </div>
+              
                 <p>Thank you for using Zidwell!</p>
             </td></tr>
             <tr><td><img src="${footerImageUrl}" style="width:100%;" /></td></tr>
@@ -119,21 +135,18 @@ export async function POST(req: NextRequest) {
   let amount: number | undefined;
   let phoneNumber: string | undefined;
   let network: string | undefined;
+  let beforeBalance: number | undefined;
+  let afterBalance: number | undefined;
+  let deductionCommitted = false;
 
   try {
-    const token = await getNombaToken();
-    console.log("🔑 Nomba token obtained successfully", token);
-    if (!token) {
-      const response = NextResponse.json(
-        { error: "Unable to authenticate with Nomba", logout: true },
-        { status: 401 },
-      );
-      if (newTokens)
-        return createAuthResponse(await response.json(), newTokens);
-      return response;
-    }
-
     const body = await req.json();
+    
+    const idempotencyKey = req.headers.get("Idempotency-Key") || 
+                           req.headers.get("idempotency-key") ||
+                           body.merchantTxRef ||
+                           body.idempotencyKey;
+
     userId = body.userId;
     amount = body.amount;
     phoneNumber = body.phoneNumber;
@@ -156,19 +169,76 @@ export async function POST(req: NextRequest) {
 
     const finalMerchantTxRef =
       merchantTxRef ||
+      idempotencyKey ||
       `DATA-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Check idempotency cache
+    if (idempotencyCache.has(finalMerchantTxRef)) {
+      console.log(`🔄 Idempotency: Returning cached response for ${finalMerchantTxRef}`);
+      const cachedResponse = idempotencyCache.get(finalMerchantTxRef);
+      if (newTokens) {
+        return createAuthResponse(cachedResponse, newTokens);
+      }
+      return NextResponse.json(cachedResponse);
+    }
+
+    // Check for existing transaction using "reference" column
+    const { data: existingTx, error: findError } = await supabase
+      .from("transactions")
+      .select("id, status, amount, balance_before, balance_after, external_response")
+      .eq("reference", finalMerchantTxRef)
+      .maybeSingle();
+
+    if (!findError && existingTx) {
+      console.log(`🔄 Idempotency: Found existing transaction ${existingTx.id}`);
+      const responseData = {
+        success: true,
+        message: `Transaction already processed`,
+        status: existingTx.status,
+        transactionId: existingTx.id,
+        amount: existingTx.amount,
+        balance_before: existingTx.balance_before,
+        balance_after: existingTx.balance_after,
+        external_response: existingTx.external_response,
+        idempotent: true,
+      };
+      
+      idempotencyCache.set(finalMerchantTxRef, responseData);
+      setTimeout(() => idempotencyCache.delete(finalMerchantTxRef), 10 * 60 * 1000);
+      
+      if (newTokens) {
+        return createAuthResponse(responseData, newTokens);
+      }
+      return NextResponse.json(responseData);
+    }
+
+    const token = await getNombaToken();
+    console.log("🔑 Nomba token obtained successfully");
+    if (!token) {
+      const response = NextResponse.json(
+        { error: "Unable to authenticate with Nomba", logout: true },
+        { status: 401 },
+      );
+      if (newTokens) return createAuthResponse(await response.json(), newTokens);
+      return response;
+    }
+
     const parsedAmount = Number(amount);
     const cachedUser = await getCachedUser(userId);
-    if (!cachedUser)
+    if (!cachedUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, cachedUser.transaction_pin);
-    if (!isValid)
+    if (!isValid) {
       return NextResponse.json(
         { message: "Invalid transaction PIN" },
         { status: 401 },
       );
+    }
+
+    beforeBalance = cachedUser.wallet_balance;
 
     if (cachedUser.wallet_balance < parsedAmount) {
       return NextResponse.json(
@@ -177,6 +247,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ Call Nomba API FIRST before creating transaction
+    let nombaResponse;
+    try {
+      nombaResponse = await axios.post(
+        `${process.env.NOMBA_URL}/v1/bill/data`,
+        {
+          amount: parsedAmount,
+          phoneNumber,
+          network,
+          merchantTxRef: finalMerchantTxRef,
+          senderName: senderName || "Zidwell User",
+        },
+        {
+          headers: {
+            accountId: process.env.NOMBA_ACCOUNT_ID!,
+            Authorization: `Bearer ${token}`,
+            "Idempotency-Key": finalMerchantTxRef,
+          },
+          timeout: 30000,
+        },
+      );
+    } catch (nombaError: any) {
+      console.error("Nomba API Error:", nombaError.message);
+      
+      // Just return error, no transaction created yet
+      return NextResponse.json(
+        { error: "Payment provider error", detail: nombaError.message },
+        { status: 502 },
+      );
+    }
+
+    // ✅ Now call the RPC to deduct balance (this will create the transaction)
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
@@ -188,38 +290,27 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    if (rpcError || rpcResult[0].status !== "OK") {
+    if (rpcError || !rpcResult || rpcResult[0].status !== "OK") {
+      console.error("Deduction failed:", rpcError);
+      
+      // Nomba succeeded but deduction failed - this is a critical error
+      // We need to handle this manually
       return NextResponse.json(
-        { message: "Insufficient wallet balance" },
-        { status: 400 },
+        { error: "Transaction failed during processing", detail: rpcError?.message },
+        { status: 500 },
       );
     }
 
     transactionId = rpcResult[0].tx_id;
+    deductionCommitted = true;
+    afterBalance = rpcResult[0].new_balance || beforeBalance - parsedAmount;
 
-    const response = await axios.post(
-      `${process.env.NOMBA_URL}/v1/bill/data`,
-      {
-        amount: parsedAmount,
-        phoneNumber,
-        network,
-        merchantTxRef: finalMerchantTxRef,
-        senderName: senderName || "Zidwell User",
-      },
-      {
-        headers: {
-          accountId: process.env.NOMBA_ACCOUNT_ID!,
-          Authorization: `Bearer ${token}`,
-        },
-        timeout: 30000,
-      },
-    );
-
-    const responseCode = response.data?.code?.toString();
-    const nombaStatus = response.data?.status;
-    const responseDescription = response.data?.description || "";
-    let transactionStatus = "success";
-    let emailStatus: "success" | "pending" | "failed" = "success";
+    // Determine status from Nomba response
+    const responseCode = nombaResponse.data?.code?.toString();
+    const nombaStatus = nombaResponse.data?.status;
+    const responseDescription = nombaResponse.data?.description || "";
+    let transactionStatus = "pending";
+    let emailStatus: "success" | "pending" | "failed" = "pending";
 
     if (responseCode === "00" && responseDescription === "SUCCESS") {
       transactionStatus = "success";
@@ -242,20 +333,39 @@ export async function POST(req: NextRequest) {
       emailStatus = "pending";
     }
 
+    // ✅ Update the transaction (created by RPC) with Nomba response
     await supabase
       .from("transactions")
       .update({
         status: transactionStatus,
-        external_response: response.data,
+        balance_before: beforeBalance,
+        balance_after: afterBalance,
+        deducted_at: new Date().toISOString(),
         merchant_tx_ref: finalMerchantTxRef,
+        phone_number: phoneNumber,
+        network: network,
+        external_response: {
+          nomba_response: nombaResponse.data,
+          status: transactionStatus,
+          completed_at: transactionStatus === "success" ? new Date().toISOString() : null,
+          merchant_tx_ref: finalMerchantTxRef,
+          balance_before: beforeBalance,
+          balance_after: afterBalance,
+        },
       })
       .eq("id", transactionId);
-    await supabase.rpc("award_zidcoin_cashback", {
-      p_user_id: userId,
-      p_transaction_id: transactionId,
-      p_transaction_type: "data",
-      p_amount: amount,
-    });
+
+    // Award cashback on success
+    if (transactionStatus === "success") {
+      await supabase.rpc("award_zidcoin_cashback", {
+        p_user_id: userId,
+        p_transaction_id: transactionId,
+        p_transaction_type: "data",
+        p_amount: amount,
+      });
+    }
+
+    // Send email notification
     await sendEmailNotification(
       userId,
       emailStatus,
@@ -263,6 +373,9 @@ export async function POST(req: NextRequest) {
       phoneNumber,
       network,
       transactionId,
+      undefined,
+      beforeBalance,
+      afterBalance,
     );
 
     const responseData = {
@@ -271,17 +384,45 @@ export async function POST(req: NextRequest) {
       status: transactionStatus,
       zidCoinBalance: cachedUser?.zidcoin_balance,
       transactionId,
+      balance_before: beforeBalance,
+      balance_after: afterBalance,
+      amount: parsedAmount,
+      idempotent: false,
     };
+
+    // Cache response for idempotency
+    idempotencyCache.set(finalMerchantTxRef, responseData);
+    setTimeout(() => idempotencyCache.delete(finalMerchantTxRef), 10 * 60 * 1000);
+
     if (newTokens) return createAuthResponse(responseData, newTokens);
     return NextResponse.json(responseData);
+    
   } catch (error: any) {
     console.error("Data Purchase Error:", error.message);
-    if (userId && amount && transactionId)
+    
+    // ✅ Only refund if deduction was committed
+    if (userId && amount && transactionId && deductionCommitted) {
       await supabase.rpc("refund_wallet_balance", {
         user_id: userId,
         amt: Number(amount),
       });
-    if (userId && amount && phoneNumber && network)
+      
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: {
+            ...(await getCurrentExternalResponse(transactionId)),
+            error: error.message,
+            refunded: true,
+            refunded_at: new Date().toISOString(),
+            failed_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", transactionId);
+    }
+    
+    if (userId && amount && phoneNumber && network) {
       await sendEmailNotification(
         userId,
         "failed",
@@ -290,7 +431,11 @@ export async function POST(req: NextRequest) {
         network,
         transactionId,
         error.message,
+        beforeBalance,
+        beforeBalance,
       );
+    }
+    
     return NextResponse.json(
       { error: "Data purchase failed", detail: error.message },
       { status: 500 },
@@ -327,17 +472,21 @@ export async function GET(req: NextRequest) {
     else if (merchantTxRef) query = query.eq("merchant_tx_ref", merchantTxRef);
 
     const { data: transaction, error } = await query.single();
-    if (error)
+    if (error) {
       return NextResponse.json(
         { message: "Transaction not found" },
         { status: 404 },
       );
+    }
 
     const responseData = {
       transactionId: transaction.id,
       status: transaction.status,
       amount: transaction.amount,
       createdAt: transaction.created_at,
+      balance_before: transaction.balance_before,
+      balance_after: transaction.balance_after,
+      externalResponse: transaction.external_response,
     };
     if (newTokens) return createAuthResponse(responseData, newTokens);
     return NextResponse.json(responseData);

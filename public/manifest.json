@@ -3,9 +3,12 @@
   "short_name": "Zidwell",
   "description": "All-in-one finance and business management platform for Nigerian SMEs",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#FDC020",
+  "categories": ["finance", "business", "productivity"],
   "icons": [
     {
       "src": "/icon-48x48.png",
@@ -66,6 +69,52 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Go to your dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Send Money",
+      "short_name": "Send",
+      "description": "Send money to someone",
+      "url": "/send",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Pay Bills",
+      "short_name": "Bills",
+      "description": "Pay your bills",
+      "url": "/pay",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/og-image.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }

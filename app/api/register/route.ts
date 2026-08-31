@@ -298,7 +298,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ 12. Send welcome email (non-blocking)
-    (async () => {
+  (async () => {
       try {
         const baseUrl =
           process.env.NODE_ENV === "development"
@@ -317,16 +317,19 @@ export async function POST(req: NextRequest) {
                 </div>
                 <div style="padding: 30px;">
                   <h2 style="color: #333;">Hi ${fullName},</h2>
-                  <p style="color: #666; line-height: 1.6;">Congratulations! Your Zidwell account is ready.</p>
-                  ${businessName ? `<p style="color: #666; line-height: 1.6;">Your business "${businessName}" has been registered successfully.</p>` : ""}
-                  <p style="color: #666; line-height: 1.6;">Here's what you get with your free trial:</p>
-                  <ul style="color: #666; line-height: 1.6;">
-                    <li>✨ <strong>10 Free Invoices</strong> to get started</li>
-                    <li>✨ <strong>10 Free Receipts</strong> for your records</li>
-                    <li>✨ <strong>30-day free trial</strong> of Tax Calculator</li>
-                    <li>✨ <strong>₦20 Zidcoin</strong> welcome bonus 🎁</li>
+                  <p style="color: #666; line-height: 1.6;">Your Free plan account is ready!</p>
+                  ${businessName ? `<p style="color: #666;">Business: <strong>${businessName}</strong></p>` : ""}
+                  
+                  <p style="color: #666; line-height: 1.6;">Here's what you get:</p>
+                  <ul style="color: #666; line-height: 2; padding-left: 20px;">
+                    <li>📄 5 free invoices</li>
+                    <li>🧾 5 free receipts</li>
+                    <li>🧮 30-day free Tax Calculator trial</li>
+                    <li>🎁 ₦20 Zidcoin bonus</li>
                   </ul>
-                  <p style="color: #666; line-height: 1.6;">Your tax calculator trial starts today and will expire on <strong>${trialEndsAt.toLocaleDateString()}</strong>.</p>
+                  
+                  <p style="color: #666;">Trial expires: <strong>${trialEndsAt.toLocaleDateString()}</strong></p>
+
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${baseUrl}/dashboard" 
                        style="background: #FDC020; color: white; padding: 12px 24px; border-radius: 8px; 
@@ -334,7 +337,8 @@ export async function POST(req: NextRequest) {
                       Go to Dashboard
                     </a>
                   </div>
-                  <p style="color: #999; font-size: 12px; margin-top: 20px;">
+                  
+                  <p style="color: #999; font-size: 12px;">
                     If you didn't create this account, please ignore this email.
                   </p>
                 </div>
