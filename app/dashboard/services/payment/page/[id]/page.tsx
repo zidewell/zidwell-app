@@ -78,6 +78,11 @@ const PageDetail = () => {
   const [showQRModal, setShowQRModal] = useState(false);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Card Payment states
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
@@ -322,6 +327,7 @@ const PageDetail = () => {
   };
 
   const getPaymentPageUrl = () => {
+    if (!isMounted) return `/pay/${page?.slug ?? ""}`;
     return `${window.location.origin}/pay/${page?.slug}`;
   };
 

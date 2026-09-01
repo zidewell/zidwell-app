@@ -840,7 +840,13 @@ export default function CreatePage() {
     }
   };
 
-  const pageUrl = `${window.location.origin}/pay/${createdSlug}`;
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const pageUrl = isMounted ? `${window.location.origin}/pay/${createdSlug}` : "";
   const copyPageUrl = () => copyToClipboard(pageUrl, setCopied);
   const previewPage = () => router.push(`/pay/${createdSlug}`);
 
@@ -1135,7 +1141,7 @@ export default function CreatePage() {
                     <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
                       <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
                       <code className="text-sm font-mono text-(--text-primary) break-all">
-                        {window.location.origin}/pay/{generateSlug()}
+                        {isMounted ? `${window.location.origin}/pay/${generateSlug()}` : `/pay/${generateSlug()}`}
                       </code>
                     </div>
                     {pageType === "school" && schoolClass && (

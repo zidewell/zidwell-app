@@ -497,8 +497,8 @@ export function useJournalStore() {
 
   // Calculate unified entries with correct amount logic
   const unifiedEntries: UnifiedTransaction[] = useMemo(() => {
-    const hiddenWalletEntries = JSON.parse(localStorage.getItem(`hidden_wallet_entries_${userId}`) || '[]');
-    const walletCategoryOverrides = JSON.parse(localStorage.getItem(`wallet_category_overrides_${userId}`) || '{}');
+    const hiddenWalletEntries = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(`hidden_wallet_entries_${userId}`) || '[]') : [];
+    const walletCategoryOverrides = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(`wallet_category_overrides_${userId}`) || '{}') : {};
     
     const walletEntries: UnifiedTransaction[] = walletTransactions
       .filter(tx => {

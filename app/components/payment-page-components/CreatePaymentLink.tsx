@@ -211,7 +211,7 @@ const CreatePaymentLink = () => {
     return `${baseSlug}-${identifier}`;
   };
 
-  const pageUrl = `${window.location.origin}/pay/${createdSlug}`;
+  const pageUrl = isMounted ? `${window.location.origin}/pay/${createdSlug}` : "";
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -447,7 +447,7 @@ const CreatePaymentLink = () => {
               <div className="flex items-center gap-2 bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
                 <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
                 <code className="text-sm font-mono text-[var(--text-primary)] break-all">
-                  {window.location.origin}/pay/{generateFinalSlug()}
+                  {isMounted ? `${window.location.origin}/pay/${generateFinalSlug()}` : `/pay/${generateFinalSlug()}`}
                 </code>
               </div>
               <p className="text-xs text-[var(--text-secondary)] mt-2">
