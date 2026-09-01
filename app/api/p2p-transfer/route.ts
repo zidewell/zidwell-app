@@ -68,8 +68,8 @@ async function sendP2PSuccessEmailNotification(
       html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
-    // Attach receipt PDF for successful P2P transactions
     if (receiptHtml && transactionId) {
+      console.log(`📎 Attempting to attach receipt for P2P transaction ${transactionId}`);
       try {
         const logo = getLogoBase64();
         let finalHtml = receiptHtml;
@@ -461,7 +461,6 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-    // Update sender transaction with full names and success status
     await supabase
       .from("transactions")
       .update({
@@ -543,7 +542,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Generate receipt HTML for sender email
     const transactionIdForReceipt = transactionId || linkedTransactionId;
     const receiptHtml = generateTransferReceipt({
       transactionId: transactionIdForReceipt,
@@ -583,6 +581,8 @@ export async function POST(req: NextRequest) {
         invoicePaymentData?.invoice_reference,
       ).catch((err) => logger.error("Receiver email failed", err)),
     ]);
+
+ 
 
     const responseData = {
       message: "P2P transfer completed successfully.",
