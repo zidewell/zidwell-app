@@ -52,6 +52,8 @@ const PROTECTED_ROUTES = [
   "/app",
 ];
 
+const DEV_MODE = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
+
 export default function AuthChecker({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -75,7 +77,7 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
   };
 
   const redirectToLogin = () => {
-    if (redirectingRef.current || isPublicRoute() || loading) return;
+    if (redirectingRef.current || isPublicRoute() || loading || DEV_MODE) return;
     redirectingRef.current = true;
 
     console.log(`🔒 AuthChecker: Redirecting to login from ${pathname}`);
@@ -105,6 +107,10 @@ export default function AuthChecker({ children }: { children: React.ReactNode })
       const response = await originalFetch(...args);
       
       if (response.status === 401 && requiresAuth()) {
+        if (DEV_MODE) {
+          console.log('🔓 Dev mode: skipping logout on 401');
+          return response;
+        }
         redirectToLogin();
         throw new Error('Session expired');
       }

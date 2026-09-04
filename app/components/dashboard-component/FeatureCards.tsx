@@ -170,13 +170,13 @@ const getFeatures = (userEmail?: string | null) => {
   if (canAccessPaymentPage(userEmail)) {
     baseFeatures.push({
       id: 12,
-      title: "Payment Page",
-      desc: "Accept payments online",
+      title: "Online Store",
+      desc: "Buy products online",
       icon: CreditCard,
       color: "bg-[#3b82f6] text-white",
       link: "/dashboard/services/payment/dashboard",
       requiredTier: "growth",
-      featureKey: "payment_pages",
+      featureKey: "online_store",
       type: "payment",
     });
   }

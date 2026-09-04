@@ -52,7 +52,8 @@ const ALLOWED_PAYMENT_EMAILS = new Set([
   "ebrusikefavour@gmail.com",
   "skillfidelafrica@gmail.com",
   "abbalolo360@gmail.com",
-  "boluwatife525@gmail.com"
+  "boluwatife525@gmail.com",
+  "verifiedaboki@gmail.com",
 ]);
 
 const canAccessPaymentPage = (userEmail?: string | null) => {
@@ -96,7 +97,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     };
   }, [open, isMobile]);
 
-  const NavItem = ({ item, isActive }: { item: any; isActive: boolean }) => {
+  const NavItem = ({ item, isActive, protected: isProtected = false }: { item: any; isActive: boolean; protected?: boolean }) => {
     const protectedLinks = [
       "/dashboard/fund-account",
       "/dashboard/fund-account/transfer-page",
@@ -105,9 +106,10 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       "/dashboard/services/buy-power",
       "/dashboard/services/buy-cable-tv",
       "/dashboard/services/create-invoice",
+      "/dashboard/services/payment/dashboard",
     ];
 
-    const isProtected = protectedLinks.includes(item.href);
+    const shouldProtect = isProtected || protectedLinks.includes(item.href);
 
     const commonClassName = `flex items-center gap-4 p-3 rounded-md text-sm font-bold uppercase tracking-wide border-2 transition-all duration-150 ${
       isActive
@@ -115,7 +117,21 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         : "border-transparent text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary) hover:border-(--border-color) hover:shadow-[2px_2px_0px_var(--border-color)]"
     }`;
 
-    if (isProtected) {
+    // ✅ For Online Store, use regular Link if user has access, otherwise use ProtectedLink
+    if (item.href === "/dashboard/services/payment/dashboard") {
+      if (canAccessPaymentPage(userData?.email)) {
+        return (
+          <Link href={item.href} onClick={onClose} className={commonClassName}>
+            <item.icon className="w-5 h-5 shrink-0" />
+            <span className="font-medium">{item.name}</span>
+          </Link>
+        );
+      }
+      // If user doesn't have access, don't render the link at all
+      return null;
+    }
+
+    if (shouldProtect) {
       return (
         <ProtectedLink
           href={item.href}
@@ -248,11 +264,15 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           {showPaymentPage && (
             <NavItem
               item={{
-                name: "Payment Pages",
+                name: "Online Store",
                 href: "/dashboard/services/payment/dashboard",
                 icon: CreditCard,
               }}
-              isActive={pathname === "/dashboard/services/payment"}
+              isActive={
+                pathname === "/dashboard/services/payment/dashboard" ||
+                pathname?.startsWith("/dashboard/services/payment/dashboard/") ||
+                pathname?.startsWith("/dashboard/store/")
+              }
             />
           )}
           <NavItem

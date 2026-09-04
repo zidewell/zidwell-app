@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { useUserContextData } from '@/app/context/userData';
 
+const DEV_MODE = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
+
 export function SessionRestore({ children }: { children: React.ReactNode }) {
   const { setUserData, loading, userData } = useUserContextData();
   const restoreAttempted = useRef(false);
@@ -27,7 +29,8 @@ export function SessionRestore({ children }: { children: React.ReactNode }) {
             const data = await validateRes.json().catch(() => ({}));
             
             // Don't clear for concurrent login — we now allow multiple devices
-            if (validateRes.status === 401 || validateRes.status === 403) {
+            // In dev mode, just warn but don't clear
+            if (!DEV_MODE && (validateRes.status === 401 || validateRes.status === 403)) {
               console.warn('🚫 SessionRestore: Session invalid, clearing local data');
               localStorage.removeItem('userData');
               document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
@@ -35,6 +38,8 @@ export function SessionRestore({ children }: { children: React.ReactNode }) {
               document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
               document.cookie = "sb-session-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
               return;
+            } else if (DEV_MODE) {
+              console.warn('🔓 Dev mode: session invalid but keeping session active');
             }
           }
 

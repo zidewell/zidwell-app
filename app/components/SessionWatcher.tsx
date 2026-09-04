@@ -4,6 +4,9 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUserContextData } from '@/app/context/userData';
 
+// In development, session never times out; in production, 15 min
+const SESSION_TIMEOUT = process.env.NEXT_PUBLIC_NODE_ENV === "development" ? -1 : 15 * 60 * 1000; // -1 = disabled
+
 const PUBLIC_ROUTES = [
   "/auth/login",
   "/auth/signup",
@@ -17,7 +20,7 @@ const PUBLIC_ROUTES = [
   "/contact",
 ];
 
-const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const SESSION_RISK_THRESHOLD = 60;
 
 export default function SessionWatcher({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

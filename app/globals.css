@@ -166,6 +166,12 @@
   }
 }
 
+@layer utilities {
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-widest;
+  }
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
