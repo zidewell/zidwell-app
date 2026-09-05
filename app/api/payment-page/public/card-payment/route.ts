@@ -58,19 +58,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fee calculation
-    const fee = Math.min(finalAmount * 0.02, 2000);
+    // Fee calculation - 4% no cap
+    const FEE_PERCENTAGE = 0.04;
     const numberOfStudents = metadata?.numberOfStudents || 1;
     const totalForCustomer = finalAmount * numberOfStudents;
+    const fee = totalForCustomer * FEE_PERCENTAGE;
+    const netAmount = totalForCustomer - fee;
     const orderReference = generateOrderReference(page.id);
+
+    // Get store slug from metadata
+    const storeSlug = page.metadata?.storeSlug || metadata?.storeSlug || '';
 
     // Prepare payment record
     const paymentData: any = {
       payment_page_id: page.id,
       user_id: page.user_id,
       amount: totalForCustomer,
-      fee: fee * numberOfStudents,
-      net_amount: (finalAmount - fee) * numberOfStudents,
+      fee: fee,
+      net_amount: netAmount,
       status: "pending",
       customer_name: customerName,
       customer_email: customerEmail,
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
       payment_type: metadata?.isInstallment ? "installment" : "full",
       total_amount: metadata?.totalAmount || finalAmount,
       payment_method: "card_payment",
-      metadata: metadata,
+      metadata: { ...metadata, storeSlug },
     };
 
     // Add student tracking for school payments
@@ -119,10 +124,10 @@ export async function POST(request: Request) {
 
     const sessionId = `${payment.id}_${Date.now()}`;
 
-    // Create checkout - CARD ONLY
+    // Create checkout
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/payment-page/callback?session_id=${sessionId}`,
+        callbackUrl: `${baseUrl}/api/webhook?session_id=${sessionId}`,
         customerEmail: customerEmail,
         amount: totalForCustomer.toString(),
         currency: "NGN",
@@ -135,6 +140,7 @@ export async function POST(request: Request) {
           paymentPageId: page.id,
           paymentId: payment.id,
           pageSlug: pageSlug,
+          storeSlug: storeSlug,
         },
       },
       tokenizeCard: false,
@@ -157,22 +163,16 @@ export async function POST(request: Request) {
       throw new Error(data.description || "Failed to create checkout");
     }
 
-    // If returnUrl is provided, redirect to that URL with checkout link
-    if (returnUrl) {
-      return NextResponse.json({
-        success: true,
-        checkoutLink: data.data.checkoutLink,
-        orderReference: orderReference,
-        amount: totalForCustomer,
-        redirectUrl: returnUrl,
-      });
-    }
+    // Build redirect URL
+    const redirectUrl = returnUrl || `${baseUrl}/store/${storeSlug}/${page.slug}`;
 
     return NextResponse.json({
       success: true,
       checkoutLink: data.data.checkoutLink,
       orderReference: orderReference,
       amount: totalForCustomer,
+      redirectUrl: redirectUrl,
+      storeSlug: storeSlug,
     });
   } catch (error: any) {
     console.error("Card payment error:", error);

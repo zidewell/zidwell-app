@@ -1,5 +1,3 @@
-// app/api/webhook/services/card-payment.service.ts
-
 import { createClient } from "@supabase/supabase-js";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 
@@ -146,10 +144,12 @@ export async function processCardPaymentWebhook(
               <p>You've received a card payment for <strong>${payment.payment_pages?.title}</strong>.</p>
               <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
                 <p><strong>Amount:</strong> ₦${payment.amount.toLocaleString()}</p>
+                <p><strong>Fee (4%):</strong> ₦${payment.fee.toLocaleString()}</p>
+                <p><strong>Net Credited:</strong> ₦${payment.net_amount.toLocaleString()}</p>
                 <p><strong>Customer:</strong> ${payment.customer_name}</p>
                 <p><strong>Email:</strong> ${payment.customer_email}</p>
               </div>
-              <p>Funds have been added to your page balance.</p>
+              <p>Funds have been added to your page balance after 4% fee deduction.</p>
               <img src="${baseUrl}/zidwell-footer.png" style="width: 100%; margin-top: 20px;" />
             </div>
           `,
@@ -163,6 +163,8 @@ export async function processCardPaymentWebhook(
     console.log("🎉 ========== CARD PAYMENT PROCESSING COMPLETED ==========");
     console.log(`   Payment ID: ${payment.id}`);
     console.log(`   Amount: ₦${payment.amount.toLocaleString()}`);
+    console.log(`   Fee (4%): ₦${payment.fee.toLocaleString()}`);
+    console.log(`   Net: ₦${payment.net_amount.toLocaleString()}`);
     console.log(`   Customer: ${payment.customer_name} (${payment.customer_email})`);
 
     return {

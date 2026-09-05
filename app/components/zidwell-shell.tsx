@@ -6,16 +6,38 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
-import { Store } from "lucide-react";
+import {
+  Plus,
+  Eye,
+  CreditCard,
+  TrendingUp,
+  Wallet,
+  ArrowUpRight,
+  MoreHorizontal,
+  Pencil,
+  ExternalLink,
+  QrCode,
+  Link2,
+  Trash2,
+  EyeOff,
+  Store,
+  Package,
+  Coins,
+  Users,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  RefreshCw,
+  Waves,
+} from "lucide-react";
 
 export const STORE_LINKS = [
-  { label: "Products", href: "/store/products" },
-  { label: "Transactions", href: "/store/transactions" },
-  { label: "Customers", href: "/store/customers" },
-  { label: "Bookkeeping", href: "/store/bookkeeping" },
-  { label: "Store Wallet", href: "/store/wallet" },
-  { label: "Analytics", href: "/store/analytics" },
-  { label: "Settings", href: "/store/settings" },
+ { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
+  { label: "Products", href: "/store/products", icon: Package },
+  { label: "Transactions", href: "/store/transactions", icon: CreditCard },
+  { label: "Customers", href: "/store/customers", icon: Users },
+  { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
+  { label: "Settings", href: "/store/settings", icon: Settings },
 ] as const;
 
 export function StoreNav({ pathname }: { pathname: string }) {

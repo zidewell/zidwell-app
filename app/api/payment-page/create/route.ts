@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
-import { 
-  isBVNVerified, 
-  getUserBVNFromNomba, 
-  createPaymentPageVirtualAccount 
-} from "@/lib/nomba-virtual-account";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -90,7 +85,6 @@ export async function POST(request: Request) {
 
     // Validate page type specific requirements
     if (pageType === "link") {
-      // For link pages with fixed amount, price is required
       if (metadata?.linkConfig?.amountMode === "fixed" && (!price || price <= 0)) {
         return NextResponse.json(
           { error: "Amount is required for fixed amount payment link" },
@@ -117,29 +111,26 @@ export async function POST(request: Request) {
       }
     }
 
-    // BVN Verification - REQUIRED FOR ALL PAGE TYPES
-    console.log("🔍 Checking BVN verification for user:", user.id);
-    const hasVerifiedBVN = await isBVNVerified(user.id);
-    if (!hasVerifiedBVN) {
+    // ✅ CHECK: User must have an ACTIVE store to create a payment page
+    const { data: store, error: storeError } = await supabase
+      .from("online_stores")
+      .select("id, is_active, activation_paid")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (storeError || !store) {
       return NextResponse.json(
-        { 
-          error: "BVN verification required before creating payment pages",
-          requiresBvnVerification: true,
-        },
+        { error: "You need to create and activate a store first" },
         { status: 400 }
       );
     }
 
-    // Get user's BVN - REQUIRED FOR ALL PAGE TYPES
-    console.log("🔍 Fetching user BVN...");
-    const userBVN = await getUserBVNFromNomba(user.id);
-    if (!userBVN) {
+    if (!store.is_active || !store.activation_paid) {
       return NextResponse.json(
-        { error: "Unable to retrieve your BVN. Please contact support." },
+        { error: "Your store must be activated before creating payment pages" },
         { status: 400 }
       );
     }
-    console.log("✅ BVN retrieved:", userBVN.substring(0, 4) + "****");
 
     // Upload images
     let uploadedCoverImage = null;
@@ -193,44 +184,7 @@ export async function POST(request: Request) {
       finalPriceType = "open";
     }
 
-    // ============================================
-    // CREATE VIRTUAL ACCOUNT FOR ALL PAGE TYPES
-    // ============================================
-    console.log("🏦 Creating virtual account for page type:", pageType);
-    
-    const tempPageId = crypto.randomUUID();
-    const className = pageType === "school" && metadata?.className ? metadata.className : undefined;
-    
-    const virtualAccount = await createPaymentPageVirtualAccount(
-      tempPageId,
-      title,
-      userBVN,
-      className
-    );
-    
-    if (!virtualAccount) {
-      console.error("❌ Failed to create virtual account");
-      return NextResponse.json(
-        { error: "Failed to create payment account. Please try again." },
-        { status: 500 }
-      );
-    }
-    
-    console.log(`✅ Virtual account created: ${virtualAccount.accountNumber}`);
-
-    // Add virtual account to metadata
-    finalMetadata.virtual_account = {
-      accountNumber: virtualAccount.accountNumber,
-      bankName: virtualAccount.bankName,
-      accountName: virtualAccount.accountName,
-      bankAccountName: virtualAccount.bankAccountName,
-      accountRef: virtualAccount.accountRef,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      type: "payment_page",
-    };
-
-    // Insert payment page
+    // ✅ NO VIRTUAL ACCOUNT CREATION - Just insert the page
     console.log("💾 Saving payment page to database...");
     
     const { data: page, error: pageError } = await supabase
@@ -269,34 +223,10 @@ export async function POST(request: Request) {
 
     console.log(`✅ Payment page created: ${page.id}`);
 
-    // Update virtual account reference
-    const updatedVirtualAccount = {
-      ...finalMetadata.virtual_account,
-      paymentPageId: page.id,
-      accountRef: `PPL-${page.id.replace(/-/g, '').substring(0, 20)}`,
-    };
-    
-    await supabase
-      .from("payment_pages")
-      .update({
-        metadata: {
-          ...finalMetadata,
-          virtual_account: updatedVirtualAccount,
-        }
-      })
-      .eq("id", page.id);
-
-    console.log("🎉 Payment page creation complete!");
-
     const responseData = {
       success: true,
       message: "Payment page created successfully!",
       slug: page.slug,
-      virtualAccount: {
-        accountNumber: virtualAccount.accountNumber,
-        bankName: virtualAccount.bankName,
-        accountName: virtualAccount.accountName,
-      },
       page: {
         id: page.id,
         title: page.title,

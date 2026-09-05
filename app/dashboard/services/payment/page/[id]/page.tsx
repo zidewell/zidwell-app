@@ -37,8 +37,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
+import { useUserContextData } from "@/app/context/userData";
+import { useVerificationModal } from "@/app/context/verificationModalContext";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
+import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
@@ -64,7 +67,9 @@ const PageDetail = () => {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
-  const { pages, getPageDetails, withdrawFromPage } = useStore();
+  const { pages, getPageDetails, withdrawFromPage, store } = useStore();
+  const { userData } = useUserContextData();
+  const { openVerificationModal, isOpen } = useVerificationModal();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState<any>(null);
   const [payments, setPayments] = useState<any[]>([]);
@@ -79,16 +84,10 @@ const PageDetail = () => {
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
-  // Card Payment states
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
-    "card" | "transfer"
-  >("transfer");
-  const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const [selectedStudentForCard, setSelectedStudentForCard] =
-    useState<any>(null);
-
   // Customer search for payment links
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+
+  const isVerified = userData?.bvnVerification === "verified";
 
   useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
@@ -133,7 +132,6 @@ const PageDetail = () => {
 
       if (data && data.length > 0) {
         console.log("📊 Payments loaded:", data.length, "records");
-        console.log("📊 First payment:", data[0]);
         setPayments(data);
       } else {
         console.log("📊 No payments found");
@@ -165,6 +163,35 @@ const PageDetail = () => {
   };
 
   const handleWithdraw = async () => {
+    // Check BVN before allowing withdrawal
+    if (!isVerified) {
+      await Swal.fire({
+        icon: "warning",
+        title: "BVN Verification Required",
+        html: `
+          <div class="text-left">
+            <p class="font-medium">You need to verify your BVN before you can withdraw funds.</p>
+            <p class="text-sm text-gray-600 mt-2">This is required for security and regulatory compliance.</p>
+            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p class="text-xs text-blue-600 dark:text-blue-400">
+                💡 Your BVN is encrypted and securely stored. It will only be used for identity verification.
+              </p>
+            </div>
+          </div>
+        `,
+        confirmButtonColor: "#F5B81B",
+        confirmButtonText: "Verify BVN Now",
+        showCancelButton: true,
+        cancelButtonText: "Cancel",
+        cancelButtonColor: "#6b7280",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          openVerificationModal();
+        }
+      });
+      return;
+    }
+
     try {
       const { value: amount, isConfirmed } = await Swal.fire<number>({
         title: "Withdraw Funds",
@@ -322,7 +349,8 @@ const PageDetail = () => {
   };
 
   const getPaymentPageUrl = () => {
-    return `${window.location.origin}/pay/${page?.slug}`;
+    const storeSlug = page?.metadata?.storeSlug || store?.slug || '';
+    return `${window.location.origin}/store/${storeSlug}/${page?.slug}`;
   };
 
   const getEmbedCode = () => {
@@ -388,89 +416,16 @@ const PageDetail = () => {
     }
   };
 
-  const handleCardPayment = async (student?: any) => {
-    if (page.page_type === "school" && !student && selectedStudentForCard) {
-      student = selectedStudentForCard;
-    }
-
-    setProcessingCardPayment(true);
-
-    try {
-      const metadata: any = {
-        pageType: page.page_type,
-        pageTitle: page.title,
-        paymentType: "full",
-      };
-
-      let amount = page.price;
-      let customerName = "Customer";
-
-      if (page.page_type === "school" && student) {
-        metadata.selectedStudents = [student.name];
-        metadata.numberOfStudents = 1;
-        metadata.childName = student.name;
-        metadata.parentName = "Customer";
-        customerName = `Parent of ${student.name}`;
-        amount = page.price;
-      }
-
-      const response = await fetch("/api/payment-page/public/card-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pageSlug: page.slug,
-          customerName: customerName,
-          customerEmail: "customer@example.com",
-          customerPhone: "",
-          amount: amount,
-          metadata: metadata,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error);
-      }
-
-      window.open(data.checkoutLink, "_blank", "width=500,height=700");
-
-      await Swal.fire({
-        icon: "info",
-        title: "Payment Window Opened",
-        text: "Complete your card payment in the new window.",
-        timer: 3000,
-        showConfirmButton: false,
-      });
-
-      setTimeout(() => {
-        refreshData();
-      }, 5000);
-    } catch (error: any) {
-      console.error("Card payment error:", error);
-      await Swal.fire({
-        icon: "error",
-        title: "Payment Failed",
-        text:
-          error.message || "Could not initiate card payment. Please try again.",
-      });
-    } finally {
-      setProcessingCardPayment(false);
-    }
-  };
-
   // ============================================================
   // PAYMENT LINK CONFIG - Get redirect URL and success message
   // ============================================================
   const getPaymentLinkConfig = () => {
-    // Check multiple possible locations for link config
     if (page?.metadata?.linkConfig) {
       return page.metadata.linkConfig;
     }
     if (page?.linkConfig) {
       return page.linkConfig;
     }
-    // Check if it's stored as a string that needs parsing
     if (page?.metadata?.linkConfigData) {
       try {
         return typeof page.metadata.linkConfigData === 'string' 
@@ -490,20 +445,12 @@ const PageDetail = () => {
   // PAYMENT LINK CUSTOMERS - Extract customer data from payments
   // ============================================================
   const customers = useMemo(() => {
-    console.log("📊 Computing customers from payments, count:", payments.length);
-    console.log("📊 Page type:", page?.page_type);
-    console.log("📊 Page metadata:", page?.metadata);
-    console.log("📊 Link config:", linkConfig);
-    
     if (!payments || payments.length === 0) {
-      console.log("📊 No payments to process");
       return [];
     }
 
-    console.log("📊 Processing payments:", payments);
     const customerMap = new Map();
 
-    // Build a map of field IDs to labels from the page config
     const fieldIdToLabel: Record<string, string> = {};
     if (linkConfig?.customFields) {
       linkConfig.customFields.forEach((field: any) => {
@@ -512,11 +459,9 @@ const PageDetail = () => {
     }
 
     payments.forEach((payment) => {
-      // Use email as the primary key, fallback to name, then use a unique ID
       const email = payment.customer_email;
       const name = payment.customer_name || "Anonymous";
       
-      // Create a unique key - prefer email, then name, then payment ID
       let key = email;
       if (!key || key === "null" || key === "undefined") {
         key = name;
@@ -524,40 +469,25 @@ const PageDetail = () => {
       if (!key || key === "Anonymous") {
         key = `customer-${payment.id}`;
       }
-      // Ensure key is a string
       key = String(key);
 
-      console.log(`📊 Processing payment: ${payment.id}, customer: ${name}, email: ${email}, key: ${key}`);
-
       if (!customerMap.has(key)) {
-        // Get custom fields from metadata
         const customFields = payment.metadata?.customFields || {};
-        
-        // Format custom fields with proper labels
         const formattedCustomFields: Record<string, any> = {};
         
         Object.entries(customFields).forEach(([fieldKey, value]) => {
           if (value !== undefined && value !== null && value !== '') {
-            // Get the label from the page config, or use the key as fallback
             const label = fieldIdToLabel[fieldKey] || fieldKey;
             formattedCustomFields[label] = value;
           }
         });
 
-        // Get narration and reference from multiple possible locations
         const narration = payment.metadata?.narration || null;
         const referenceCode = payment.metadata?.referenceCode || 
                             payment.metadata?.transfer_reference || 
                             payment.transfer_reference || 
                             payment.order_reference || 
                             null;
-
-        console.log(`📊 Creating customer: ${name}`, { 
-          customFields: formattedCustomFields,
-          narration: narration,
-          referenceCode: referenceCode,
-          paymentMethod: payment.payment_method
-        });
 
         customerMap.set(key, {
           name: name,
@@ -580,7 +510,6 @@ const PageDetail = () => {
       customer.totalPaid += amount;
       customer.payments.push(payment);
 
-      // Update first/last payment dates
       const paymentDate = payment.paid_at || payment.created_at || new Date().toISOString();
       if (paymentDate > customer.lastPayment) {
         customer.lastPayment = paymentDate;
@@ -590,63 +519,8 @@ const PageDetail = () => {
       }
     });
 
-    // Sort customers by total paid (highest first)
-    const result = Array.from(customerMap.values()).sort((a, b) => b.totalPaid - a.totalPaid);
-    console.log("📊 Final customers:", result);
-    console.log("📊 Customers count:", result.length);
-    
-    // If no customers were created but we have payments, create a fallback
-    if (result.length === 0 && payments.length > 0) {
-      console.error("⚠️ WARNING: No customers created despite having payments!");
-      console.log("📊 Payment data:", payments);
-      
-      // Create fallback customers from each payment
-      const fallbackMap = new Map();
-      payments.forEach((payment, index) => {
-        const fallbackKey = `fallback-${index}`;
-        const name = payment.customer_name || `Customer ${index + 1}`;
-        const amount = payment.total_amount || payment.amount || 0;
-        
-        fallbackMap.set(fallbackKey, {
-          name: name,
-          email: payment.customer_email || null,
-          phone: payment.customer_phone || null,
-          totalPaid: amount,
-          payments: [payment],
-          firstPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
-          lastPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
-          customFields: {},
-          referenceCode: payment.metadata?.transfer_reference || payment.transfer_reference || null,
-          narration: payment.metadata?.narration || null,
-          paymentMethod: payment.payment_method || null,
-          hasNarration: !!payment.metadata?.narration,
-        });
-      });
-      
-      const fallbackResult = Array.from(fallbackMap.values());
-      console.log("📊 Fallback customers created:", fallbackResult);
-      return fallbackResult;
-    }
-    
-    return result;
+    return Array.from(customerMap.values()).sort((a, b) => b.totalPaid - a.totalPaid);
   }, [payments, page, linkConfig]);
-
-  // Debug useEffect to log customer data
-  useEffect(() => {
-    console.log("🔍 Debug Info:");
-    console.log("  - Page type:", page?.page_type);
-    console.log("  - Link config:", linkConfig);
-    console.log("  - Payments count:", payments.length);
-    console.log("  - Customers count:", customers.length);
-    console.log("  - Customers:", customers);
-    console.log("  - Customer search query:", customerSearchQuery);
-    
-    if (payments.length > 0 && customers.length === 0) {
-      console.warn("⚠️ We have payments but no customers! Check the grouping logic.");
-      console.log("First payment:", payments[0]);
-      console.log("Page metadata:", page?.metadata);
-    }
-  }, [page, linkConfig, payments, customers, customerSearchQuery]);
 
   const filteredCustomers = customers.filter((customer) => {
     const query = customerSearchQuery.toLowerCase().trim();
@@ -712,13 +586,11 @@ const PageDetail = () => {
   );
   const totalExpected = students.length * (page.price || 0);
 
-  // Total from payments
   const totalPaymentsAmount = payments.reduce(
     (sum, p) => sum + (p.amount || 0),
     0,
   );
 
-  // Check if we should show customers section (for link pages OR any page with payments)
   const showCustomersSection = page.page_type === "link" || payments.length > 0;
 
   return (
@@ -760,14 +632,14 @@ const PageDetail = () => {
                     className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
                     alt={page.title}
                   />
-                ) : page.logo ? (
+                ) : page.productImages && page.productImages.length > 0 ? (
                   <img
-                    src={page.logo}
+                    src={page.productImages[0]}
                     className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
                     alt={page.title}
                   />
                 ) : (
-                  <div className="h-12 w-12 md:h-16 md:w-16 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center">
+                  <div className="h-12 w-12 md:h-16 w-16 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center">
                     <CreditCard className="h-6 w-6 text-[var(--text-secondary)]" />
                   </div>
                 )}
@@ -778,7 +650,6 @@ const PageDetail = () => {
                   <p className="text-sm text-[var(--text-secondary)]">
                     {typeLabels[page.page_type] || page.page_type || "Payment Page"}
                   </p>
-                  {/* Show link config info if it's a payment link */}
                   {(page.page_type === "link" || linkConfig) && (
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       {linkConfig && (
@@ -816,7 +687,7 @@ const PageDetail = () => {
                     <Edit2 className="h-4 w-4 mr-1" /> Edit
                   </Button>
                 </Link>
-                <Link href={`/pay/${page.slug}`} target="_blank">
+                <Link href={getPaymentPageUrl()} target="_blank">
                   <Button
                     variant="default"
                     size="sm"
@@ -914,7 +785,7 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* QR Code & Embed Code - Compact Buttons */}
+            {/* QR Code & Embed Code */}
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
@@ -941,61 +812,6 @@ const PageDetail = () => {
                 Copy Link
               </Button>
             </div>
-
-            {/* Virtual Account Info */}
-            {page.metadata?.virtual_account && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start gap-3">
-                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                      Payment Account
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Bank
-                        </p>
-                        <p className="font-medium text-[var(--text-primary)] break-words">
-                          {page.metadata.virtual_account.bankName}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Account Number
-                        </p>
-                        <p
-                          className="font-mono font-bold text-[var(--text-primary)] break-words cursor-pointer hover:text-[var(--color-accent-yellow)]"
-                          onClick={() =>
-                            copyToClipboard(
-                              page.metadata.virtual_account.accountNumber,
-                              "Account Number",
-                            )
-                          }
-                        >
-                          {page.metadata.virtual_account.accountNumber}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-600 dark:text-blue-400">
-                          Account Name
-                        </p>
-                        <p className="text-[var(--text-primary)] truncate">
-                          {page.metadata.virtual_account.bankAccountName}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                      💡 Ask customers to add{" "}
-                      <strong className="text-blue-800 dark:text-blue-300">
-                        {page.page_type === "school" ? "student name" : "narration code"}
-                      </strong>{" "}
-                      as narration
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* ============================================================ */}
             {/* PAYMENT LINK - CUSTOMERS SECTION */}
@@ -1035,33 +851,12 @@ const PageDetail = () => {
                   </div>
                 </div>
 
-                {/* Debug: Show raw data if no customers but payments exist */}
-                {customers.length === 0 && payments.length > 0 && (
-                  <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-400">
-                      ⚠️ Found {payments.length} payment(s) but no customers were created.
-                      Check console for debug logs.
-                    </p>
-                    <button
-                      onClick={() => {
-                        console.log("📊 Raw payments data:", payments);
-                        console.log("📊 Page data:", page);
-                        console.log("📊 Link config:", linkConfig);
-                      }}
-                      className="mt-2 text-xs bg-yellow-100 dark:bg-yellow-800 px-3 py-1 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-700 transition-colors"
-                    >
-                      Log Debug Info
-                    </button>
-                  </div>
-                )}
-
                 {customers.length === 0 ? (
                   <div className="p-8 text-center text-[var(--text-secondary)]">
                     {payments.length > 0 ? (
                       <>
                         <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
                         <p>No customers could be extracted from payments</p>
-                        <p className="text-xs mt-1">Check the console for debug information</p>
                       </>
                     ) : (
                       <>
@@ -1116,31 +911,12 @@ const PageDetail = () => {
                               </span>
                             </div>
 
-                            {/* Reference Code & Narration */}
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              {customer.referenceCode && (
-                                <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  📋 Ref: {customer.referenceCode}
-                                </span>
-                              )}
-                              {customer.narration && (
-                                <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                                  customer.narration.includes('PL') || customer.narration.length === 6
-                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                }`}>
-                                  <FileText className="h-3 w-3" />
-                                  Narration: {customer.narration}
-                                </span>
-                              )}
-                              {!customer.narration && customer.paymentMethod === 'virtual_account' && (
-                                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
-                                  No narration
-                                </span>
-                              )}
-                            </div>
+                            {customer.referenceCode && (
+                              <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                📋 Ref: {customer.referenceCode}
+                              </span>
+                            )}
 
-                            {/* Custom Fields */}
                             {customer.customFields && Object.keys(customer.customFields).length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {Object.entries(customer.customFields)
@@ -1167,7 +943,6 @@ const PageDetail = () => {
                           </div>
                         </div>
 
-                        {/* Payment History - Expanded view */}
                         {customer.payments.length > 0 && (
                           <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
                             <div className="flex flex-wrap gap-2">
@@ -1254,153 +1029,6 @@ const PageDetail = () => {
                     <p className="text-xs text-[var(--text-secondary)]">Unpaid</p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* ============================================================ */}
-            {/* SCHOOL - Payment Method Selector */}
-            {/* ============================================================ */}
-            {page.page_type === "school" && unpaidStudents.length > 0 && (
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
-                <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                  Payment Methods
-                </h3>
-
-                <div className="flex gap-3 mb-4">
-                  <button
-                    onClick={() => setSelectedPaymentMethod("transfer")}
-                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
-                      selectedPaymentMethod === "transfer"
-                        ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
-                        : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
-                    }`}
-                  >
-                    <Banknote className="h-5 w-5 mx-auto mb-1 text-[var(--color-accent-yellow)]" />
-                    <p className="font-medium text-sm">Bank Transfer</p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Pay with virtual account
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => setSelectedPaymentMethod("card")}
-                    className={`flex-1 p-3 rounded-xl border-2 transition-all ${
-                      selectedPaymentMethod === "card"
-                        ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
-                        : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
-                    }`}
-                  >
-                    <CreditCard className="h-5 w-5 mx-auto mb-1 text-[var(--color-accent-yellow)]" />
-                    <p className="font-medium text-sm">Card Payment</p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Pay with credit/debit card
-                    </p>
-                  </button>
-                </div>
-
-                {selectedPaymentMethod === "transfer" &&
-                  page.metadata?.virtual_account && (
-                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                      <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
-                        Transfer to this account:
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-blue-600 dark:text-blue-400">
-                            Bank:
-                          </span>
-                          <span className="font-medium">
-                            {page.metadata.virtual_account.bankName}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-blue-600 dark:text-blue-400">
-                            Account Number:
-                          </span>
-                          <span
-                            className="font-mono font-bold cursor-pointer hover:text-[var(--color-accent-yellow)]"
-                            onClick={() =>
-                              copyToClipboard(
-                                page.metadata.virtual_account.accountNumber,
-                                "Account Number",
-                              )
-                            }
-                          >
-                            {page.metadata.virtual_account.accountNumber}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-blue-600 dark:text-blue-400">
-                            Account Name:
-                          </span>
-                          <span className="font-medium">
-                            {page.metadata.virtual_account.bankAccountName}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {selectedPaymentMethod === "card" && (
-                  <div className="mt-4">
-                    <p className="text-sm text-[var(--text-secondary)] mb-3">
-                      Select a student to pay with card:
-                    </p>
-                    <div className="space-y-2">
-                      {unpaidStudents.map((student: any) => (
-                        <div
-                          key={student.name}
-                          onClick={() => setSelectedStudentForCard(student)}
-                          className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedStudentForCard?.name === student.name
-                              ? "border-[var(--color-accent-yellow)] bg-[var(--color-accent-yellow)]/10"
-                              : "border-[var(--border-color)] hover:border-[var(--color-accent-yellow)]/50"
-                          }`}
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">{student.name}</p>
-                              {student.className && (
-                                <p className="text-xs text-[var(--text-secondary)]">
-                                  Class: {student.className}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-[var(--color-accent-yellow)]">
-                                ₦{(page.price || 0).toLocaleString()}
-                              </p>
-                              {student.remainingAmount > 0 &&
-                                student.remainingAmount < (page.price || 0) && (
-                                  <p className="text-xs text-yellow-500">
-                                    Remaining: ₦
-                                    {student.remainingAmount.toLocaleString()}
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {selectedStudentForCard && (
-                      <Button
-                        onClick={() =>
-                          handleCardPayment(selectedStudentForCard)
-                        }
-                        disabled={processingCardPayment}
-                        className="w-full mt-4 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                      >
-                        {processingCardPayment ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <CreditCard className="h-4 w-4 mr-2" />
-                        )}
-                        Pay ₦{(page.price || 0).toLocaleString()} with Card
-                      </Button>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
@@ -1782,7 +1410,7 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* Withdraw Button */}
+            {/* Withdraw Button with BVN Check */}
             {page.pageBalance > 0 && (
               <div className="bg-gradient-to-r from-[var(--color-ink)] to-[#1a5c40] rounded-xl p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1808,6 +1436,13 @@ const PageDetail = () => {
                     {withdrawing ? "Processing..." : "Withdraw Funds"}
                   </Button>
                 </div>
+                
+                {/* Show BVN badge if not verified */}
+                {!isVerified && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <BVNVerificationBadge variant="withdrawal" />
+                  </div>
+                )}
               </div>
             )}
           </div>

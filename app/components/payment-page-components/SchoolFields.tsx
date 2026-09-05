@@ -108,8 +108,6 @@ const SchoolFields = ({
     
     if (!validation.isValid && value) {
       setClassNameError({ show: true, message: validation.message });
-      // Optionally auto-clean the value
-      // setClassName(validation.cleanedValue);
     } else {
       setClassNameError({ show: false, message: "" });
     }
@@ -331,10 +329,8 @@ const SchoolFields = ({
     URL.revokeObjectURL(url);
   };
 
-  // Calculate fee information
+  // Calculate total from fee breakdown
   const totalAmount = calculateTotal();
-  const feeAmount = Math.min(totalAmount * 0.02, 2000);
-  const creatorReceives = totalAmount - feeAmount;
 
   return (
     <div className="space-y-6">
@@ -431,33 +427,16 @@ const SchoolFields = ({
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Fee Item
         </Button>
 
-        {/* Total and Fee Information */}
+        {/* ✅ ONLY SHOW TOTAL AMOUNT - NO FEE INFORMATION */}
         {totalAmount > 0 && (
           <div className="mt-4 p-4 bg-[var(--color-accent-yellow)]/10 rounded-xl border border-[var(--color-accent-yellow)]/20">
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-center">
               <span className="text-sm font-semibold text-[var(--text-primary)]">
                 Total Amount:
               </span>
               <span className="text-xl font-bold text-[var(--color-accent-yellow)]">
                 ₦{totalAmount.toLocaleString()}
               </span>
-            </div>
-            
-            <div className="space-y-2 pt-3 border-t border-[var(--color-accent-yellow)]/20">
-              <div className="flex justify-between text-sm">
-                <span className="text-[var(--text-secondary)]">Fee (2%):</span>
-                <span className="font-medium text-[var(--destructive)]">- ₦{feeAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm font-semibold pt-2 border-t border-dashed border-[var(--color-accent-yellow)]/20">
-                <span className="text-[var(--text-primary)]">You Receive:</span>
-                <span className="text-[var(--color-lemon-green)]">₦{creatorReceives.toLocaleString()}</span>
-              </div>
-            </div>
-            
-            <div className="mt-3 p-2 bg-[var(--color-accent-yellow)]/5 rounded-lg">
-              <p className="text-xs text-[var(--text-secondary)]">
-                Parents pay exactly ₦{totalAmount.toLocaleString()}. The 2% fee is deducted from your payout.
-              </p>
             </div>
           </div>
         )}

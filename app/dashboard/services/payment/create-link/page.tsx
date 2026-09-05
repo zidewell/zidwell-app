@@ -1,14 +1,11 @@
-
 "use client";
 
 import CreatePaymentLink from "@/app/components/payment-page-components/CreatePaymentLink";
-
-
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import { useState } from "react";
 
-export default function DataPage() {
+export default function CreateLinkPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (

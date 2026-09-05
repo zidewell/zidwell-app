@@ -1,4 +1,3 @@
-// app/api/payment-page/withdraw/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
@@ -7,7 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +25,30 @@ export async function POST(request: Request) {
       const response = NextResponse.json({ error: "Please login to withdraw funds", logout: true }, { status: 401 });
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
+    }
+
+    // ✅ CHECK: User must have verified BVN to withdraw
+    const { data: dbUser, error: userError } = await supabase
+      .from("users")
+      .select("bvn_verification")
+      .eq("id", user.id)
+      .single();
+
+    if (userError || !dbUser) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    if (dbUser.bvn_verification !== "verified") {
+      return NextResponse.json(
+        { 
+          error: "BVN verification required to withdraw funds",
+          requiresBvnVerification: true,
+        },
+        { status: 403 }
+      );
     }
 
     // Call the withdraw function

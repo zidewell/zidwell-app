@@ -6,6 +6,81 @@ import { usePathname, useRouter } from "next/navigation";
 
 export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto" | "link";
 
+// ============================================================
+// STUDENT INTERFACE
+// ============================================================
+export interface Student {
+  name: string;
+  className: string;
+  regNumber?: string;
+  paid?: boolean;
+  isPartiallyPaid?: boolean;
+  paidAmount?: number;
+  parentName?: string;
+  remainingBalance?: number;
+  totalAmount?: number;
+}
+
+// ============================================================
+// FEE ITEM INTERFACE
+// ============================================================
+export interface FeeItem {
+  label: string;
+  amount: number;
+  description?: string;
+}
+
+// ============================================================
+// VARIANT INTERFACE
+// ============================================================
+export interface Variant {
+  name: string;
+  price: number;
+  sku?: string;
+  stock?: number;
+}
+
+// ============================================================
+// CUSTOM FIELD INTERFACE
+// ============================================================
+export interface CustomField {
+  id: string;
+  label: string;
+  type: "text" | "number" | "date" | "dropdown" | "checkbox" | "paragraph";
+  required: boolean;
+  options?: string[];
+}
+
+// ============================================================
+// LINK CONFIG INTERFACE
+// ============================================================
+export interface LinkConfig {
+  currency: "NGN" | "USD" | "GBP" | "EUR";
+  amountMode: "fixed" | "variable";
+  active: boolean;
+  brandColor: string;
+  buttonColor: string;
+  buttonText: string;
+  successMessage: string;
+  thankYouMessage: string;
+  redirectUrl?: string;
+  altRedirectUrl?: string;
+  referenceCode?: string;
+  collectName: boolean;
+  collectEmail: boolean;
+  collectPhone: boolean;
+  nameRequired: boolean;
+  emailRequired: boolean;
+  phoneRequired: boolean;
+  customFields: CustomField[];
+  qrColor: string;
+  qrBackground: string;
+  qrFrame: "round" | "rounded" | "square";
+}
+
+// ============================================================
+// STORE DATA INTERFACE
+// ============================================================
 export interface StoreData {
   id: string;
   name: string;
@@ -19,7 +94,7 @@ export interface StoreData {
   streetAddress: string;
   locationEnabled: boolean;
   isActive: boolean;
-  is_active?: boolean; // For compatibility
+  is_active?: boolean;
   activation_paid?: boolean;
   createdAt: string;
   ownerId: string;
@@ -29,6 +104,9 @@ export interface StoreData {
   totalViews: number;
 }
 
+// ============================================================
+// PAYMENT PAGE INTERFACE
+// ============================================================
 export interface PaymentPage {
   id: string;
   title: string;
@@ -51,6 +129,9 @@ export interface PaymentPage {
   metadata: any;
 }
 
+// ============================================================
+// STORE CONTEXT TYPE INTERFACE
+// ============================================================
 interface StoreContextType {
   store: StoreData | null;
   pages: PaymentPage[];
@@ -158,23 +239,46 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => { creatingStoreRef.current = creatingStore; }, [creatingStore]);
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
+  // ✅ FIXED: Include ALL payment-related paths
   const shouldFetchStore = useCallback(() => {
     const path = pathnameRef.current;
-    return path?.includes('/dashboard/services/payment/dashboard') || 
-           path?.includes('/store/');
+    return path?.includes('/dashboard/services/payment/') || 
+           path?.includes('/store/') ||
+           path?.includes('/dashboard/services/payment/dashboard') ||
+           path?.includes('/dashboard/services/payment/create') ||
+           path?.includes('/dashboard/services/payment/create-link');
   }, []);
 
   // Check if user has a store
   const checkStoreExists = useCallback(async (): Promise<boolean> => {
-    if (storeRef.current) return true;
-    if (hasCheckedStoreRef.current && !storeRef.current) return false;
-    if (creatingStoreRef.current || storeCreationRef.current) return false;
+    // ✅ If we already have store data in state, return true
+    if (storeRef.current) {
+      console.log("✅ Store already exists in state:", storeRef.current.id);
+      return true;
+    }
 
+    // ✅ If we've already checked and no store, return false
+    if (hasCheckedStoreRef.current && !storeRef.current) {
+      console.log("❌ Already checked, no store found");
+      return false;
+    }
+
+    // ✅ If creating store, return false
+    if (creatingStoreRef.current || storeCreationRef.current) {
+      console.log("⏳ Store creation in progress");
+      return false;
+    }
+
+    // ✅ If there's already a promise in progress, return it
     if (storeCheckPromiseRef.current) {
+      console.log("⏳ Store check already in progress");
       return await storeCheckPromiseRef.current;
     }
 
+    // ✅ Create new promise for store check
     storeCheckPromiseRef.current = (async (): Promise<boolean> => {
+      console.log("🔍 Checking if store exists...");
+      
       try {
         const response = await fetch("/api/store", {
           cache: 'no-store',
@@ -184,32 +288,44 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           }
         });
 
+        console.log("📡 API Response status:", response.status);
+
         if (response.status === 404) {
+          console.log("❌ No store found (404)");
           hasCheckedStoreRef.current = true;
+          setStore(null);
           return false;
         }
 
-        if (response.ok) {
-          const data = await response.json();
-          const hasStoreData = data.store !== null && data.store !== undefined;
-
-          if (hasStoreData) {
-            const mappedStore = mapDbStoreToStoreData(data.store);
-            setStore(mappedStore);
-            lastFetchTime.current = Date.now();
-          } else {
-            setStore(null);
-          }
-
+        if (!response.ok) {
+          console.error("❌ API error:", response.status);
           hasCheckedStoreRef.current = true;
-          return hasStoreData;
+          setStore(null);
+          return false;
         }
 
-        hasCheckedStoreRef.current = true;
-        return false;
+        const data = await response.json();
+        console.log("📦 Store data received:", data);
+
+        const hasStoreData = data.store !== null && data.store !== undefined;
+
+        if (hasStoreData) {
+          const mappedStore = mapDbStoreToStoreData(data.store);
+          console.log("✅ Mapped store:", mappedStore);
+          setStore(mappedStore);
+          lastFetchTime.current = Date.now();
+          hasCheckedStoreRef.current = true;
+          return true;
+        } else {
+          console.log("❌ No store in response data");
+          setStore(null);
+          hasCheckedStoreRef.current = true;
+          return false;
+        }
       } catch (error) {
-        console.error("Error checking store:", error);
+        console.error("❌ Error checking store:", error);
         hasCheckedStoreRef.current = true;
+        setStore(null);
         return false;
       } finally {
         storeCheckPromiseRef.current = null;
@@ -222,29 +338,38 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchStore = useCallback(async (force = false): Promise<void> => {
+    console.log("🔄 fetchStore called, force:", force);
+    console.log("Current store:", storeRef.current);
+    
     if (storeRef.current && !force) {
+      console.log("✅ Store already loaded, skipping fetch");
       return;
     }
 
     if (creatingStoreRef.current || storeCreationRef.current) {
+      console.log("⏳ Store creation in progress, skipping fetch");
       return;
     }
 
     if (fetchStoreInProgress.current) {
+      console.log("⏳ Store fetch already in progress");
       return;
     }
 
     const now = Date.now();
     if (!force && now - lastFetchTime.current < FETCH_COOLDOWN && storeRef.current) {
+      console.log("⏳ Store fetch cooldown, skipping");
       return;
     }
 
     if (!shouldFetchStore()) {
+      console.log("ℹ️ Not on a page that needs store data");
       setLoading(false);
       setInitialFetchDone(true);
       return;
     }
 
+    console.log("🚀 Starting store fetch...");
     fetchStoreInProgress.current = true;
 
     try {
@@ -256,7 +381,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
+      console.log("📡 fetchStore API response status:", response.status);
+
       if (response.status === 404) {
+        console.log("❌ No store found (404) in fetchStore");
         setStore(null);
         hasCheckedStoreRef.current = true;
         setLoading(false);
@@ -269,8 +397,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
+      console.log("📦 fetchStore data:", data);
 
       if (!data.store) {
+        console.log("❌ No store in fetchStore response");
         setStore(null);
         hasCheckedStoreRef.current = true;
         setLoading(false);
@@ -279,11 +409,13 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const mappedStore = mapDbStoreToStoreData(data.store);
+      console.log("✅ fetchStore mapped:", mappedStore);
       setStore(mappedStore);
       hasCheckedStoreRef.current = true;
       lastFetchTime.current = Date.now();
     } catch (error) {
-      console.error("Error fetching store:", error);
+      console.error("❌ Error fetching store:", error);
+      setStore(null);
     } finally {
       setLoading(false);
       setInitialFetchDone(true);
@@ -292,30 +424,41 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [shouldFetchStore]);
 
   const fetchPages = useCallback(async (force = false): Promise<void> => {
+    console.log("🔄 fetchPages called, force:", force);
+    
     const hasStore = await checkStoreExists();
+    console.log("Has store for pages:", hasStore);
 
     if (!hasStore) {
+      console.log("❌ No store, setting pages to empty");
       setPages([]);
       return;
     }
 
     if (creatingStoreRef.current || storeCreationRef.current) {
+      console.log("⏳ Store creation in progress, skipping pages fetch");
       return;
     }
 
-    if (fetchPagesInProgress.current) return;
+    if (fetchPagesInProgress.current) {
+      console.log("⏳ Pages fetch already in progress");
+      return;
+    }
 
     const now = Date.now();
     if (!force && now - lastFetchTime.current < FETCH_COOLDOWN && pagesRef.current.length > 0) {
+      console.log("⏳ Pages fetch cooldown, skipping");
       return;
     }
 
     if (!shouldFetchStore()) {
+      console.log("ℹ️ Not on a page that needs store data");
       setLoading(false);
       setInitialFetchDone(true);
       return;
     }
 
+    console.log("🚀 Starting pages fetch...");
     fetchPagesInProgress.current = true;
 
     try {
@@ -327,15 +470,18 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         }
       });
 
+      console.log("📡 fetchPages API response status:", response.status);
+
       if (!response.ok) {
         throw new Error(`Failed to fetch pages: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log("📦 Pages data:", data);
       setPages(data.pages || []);
       lastFetchTime.current = Date.now();
     } catch (error) {
-      console.error("Error fetching pages:", error);
+      console.error("❌ Error fetching pages:", error);
       setPages([]);
       throw error;
     } finally {
@@ -346,6 +492,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [shouldFetchStore, checkStoreExists]);
 
   const createStore = async (storeData: any): Promise<StoreData> => {
+    console.log("🏪 Creating store with data:", storeData);
     storeCreationRef.current = true;
     setCreatingStore(true);
 
@@ -356,11 +503,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(storeData),
       });
 
+      console.log("📡 createStore response status:", response.status);
+
       const rawResponse = await response.text();
+      console.log("📦 createStore raw response:", rawResponse);
+      
       let data;
       try {
         data = JSON.parse(rawResponse);
       } catch (e) {
+        console.error("❌ Failed to parse response:", rawResponse);
         throw new Error("Invalid response from server");
       }
 
@@ -369,10 +521,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const mappedStore = mapDbStoreToStoreData(data.store);
+      console.log("✅ Store created successfully:", mappedStore);
+      
       setStore(mappedStore);
       hasCheckedStoreRef.current = true;
       lastFetchTime.current = Date.now();
-
       fetchStoreInProgress.current = false;
 
       setTimeout(() => {
@@ -388,7 +541,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
       return mappedStore!;
     } catch (error) {
-      console.error("Error creating store:", error);
+      console.error("❌ Error creating store:", error);
       storeCreationRef.current = false;
       setCreatingStore(false);
       throw error;
@@ -430,10 +583,24 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const createPage = async (pageData: any): Promise<any> => {
     try {
+      const finalPageData = {
+        ...pageData,
+        coverImage: pageData.coverImage || (pageData.productImages && pageData.productImages.length > 0 ? pageData.productImages[0] : null),
+        logo: null,
+      };
+
+      console.log("📦 Creating page with data:", {
+        title: finalPageData.title,
+        pageType: finalPageData.pageType,
+        productImagesCount: finalPageData.productImages?.length || 0,
+        price: finalPageData.price,
+        priceType: finalPageData.priceType,
+      });
+
       const response = await fetch("/api/payment-page/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pageData),
+        body: JSON.stringify(finalPageData),
       });
 
       const rawResponse = await response.text();
@@ -441,6 +608,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       try {
         data = JSON.parse(rawResponse);
       } catch (e) {
+        console.error("Failed to parse response:", rawResponse);
         throw new Error("Invalid response from server");
       }
 
@@ -569,13 +737,27 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     let isMounted = true;
 
     const loadData = async () => {
-      if (creatingStoreRef.current || storeCreationRef.current) return;
+      console.log("🚀 Initial loadData called");
+      console.log("Pathname:", pathnameRef.current);
+      
+      if (creatingStoreRef.current || storeCreationRef.current) {
+        console.log("⏳ Store creation in progress, skipping initial load");
+        return;
+      }
+      
       if (shouldFetchStore()) {
+        console.log("✅ Should fetch store, checking...");
         const hasStore = await checkStoreExists();
+        console.log("Has store result:", hasStore);
+        
         if (hasStore && isMounted) {
+          console.log("✅ Store exists, fetching pages...");
           await fetchPages();
+        } else {
+          console.log("❌ No store found, not fetching pages");
         }
       } else {
+        console.log("ℹ️ Not on a page that needs store data, setting loading to false");
         setLoading(false);
         setInitialFetchDone(true);
       }
@@ -604,9 +786,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname, initialFetchDone]);
 
   // ✅ CORRECTED: Calculate hasStore and hasPendingActivation
-  // A store is active if isActive is true AND activation_paid is true
   const hasStore = store !== null && store.isActive === true && store.activation_paid === true;
-  // A store is pending activation if it exists but is not active OR not paid
   const hasPendingActivation = store !== null && (store.isActive === false || store.activation_paid === false);
 
   console.log("📊 Store state:", { 
@@ -644,4 +824,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </StoreContext.Provider>
   );
+};
+
+// ============================================================
+// ✅ EXPORTED: Helper function to check if a page type is an investment type
+// ============================================================
+export const isInvestmentType = (pageType: PageType): boolean => {
+  return ["real_estate", "stock", "savings", "crypto"].includes(pageType);
 };

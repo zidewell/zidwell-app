@@ -10,8 +10,6 @@ const getSupabaseAdmin = () =>
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("🔵 Secure logout API called");
-
     const cookieStore = await cookies();
     const accessToken = cookieStore.get("sb-access-token")?.value;
 
@@ -21,8 +19,8 @@ export async function POST(req: NextRequest) {
       const user = userData?.user;
 
       if (user) {
-        // ─── FIX: Fetch latest open session, then update by ID ───
-        const { data: latestSession, error: fetchErr } = await supabase
+        // Update login history
+        const { data: latestSession } = await supabase
           .from("login_history")
           .select("id")
           .eq("user_id", user.id)
@@ -31,41 +29,31 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .single();
 
-        if (fetchErr) {
-          console.error("Error fetching latest session:", fetchErr);
-        }
-
         if (latestSession?.id) {
-          const { error: updateErr } = await supabase
+          await supabase
             .from("login_history")
             .update({ logout_time: new Date().toISOString() })
             .eq("id", latestSession.id);
-
-          if (updateErr) {
-            console.error("Error updating login_history:", updateErr);
-          }
         }
 
-        // ─── INVALIDATE SESSION IN DB ───
-        const { error: userUpdateErr } = await supabase
+        // Clear session in database
+        await supabase
           .from("users")
           .update({
             current_session_id: null,
             current_session_expires_at: null,
           })
           .eq("id", user.id);
-
-        if (userUpdateErr) {
-          console.error("Error clearing user session:", userUpdateErr);
-        }
       }
     }
 
+    // Create response
     const res = NextResponse.json(
       { success: true, message: "Logged out successfully" },
       { status: 200 }
     );
 
+    // Clear all cookies
     const cookiesToClear = [
       "sb-access-token",
       "sb-refresh-token",
@@ -77,28 +65,23 @@ export async function POST(req: NextRequest) {
       "sb-session-id",
     ];
 
-    cookiesToClear.forEach((cookieName) => {
-      res.cookies.set(cookieName, "", {
+    cookiesToClear.forEach((name) => {
+      res.cookies.set(name, "", {
         path: "/",
         maxAge: 0,
-        httpOnly:
-          cookieName !== "sb-client-session" && cookieName !== "sb-login-time",
+        httpOnly: name !== "sb-client-session" && name !== "sb-login-time",
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
       });
     });
 
-    console.log("✅ Secure logout successful");
     return res;
   } catch (error) {
     console.error("Logout error:", error);
-
+    
+    // Still clear cookies even on error
     const res = NextResponse.json(
-      {
-        success: true,
-        message: "Logged out",
-        warning: "Error during server logout",
-      },
+      { success: true, message: "Logged out" },
       { status: 200 }
     );
 

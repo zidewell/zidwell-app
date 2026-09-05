@@ -15,7 +15,7 @@ export async function PUT(
   try {
     const { id } = await params;
     
-    // Check authentication - pass the request properly
+    // Check authentication
     const authResult = await isAuthenticatedWithRefresh(req);
     const { user, newTokens } = authResult;
     
@@ -38,13 +38,14 @@ export async function PUT(
       priceType, 
       price, 
       installmentCount, 
-      metadata 
+      metadata,
+      isPublished // ✅ Added this field
     } = body;
 
-    // Validate required fields
-    if (!title) {
+    // Validate required fields (title is required, but for toggle we might only send isPublished)
+    if (!title && isPublished === undefined) {
       return NextResponse.json(
-        { error: "Title is required" },
+        { error: "Title or isPublished is required" },
         { status: 400 }
       );
     }
@@ -64,32 +65,36 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Prepare update data
+    // Prepare update data - only include fields that are provided
     const updateData: any = {
-      title,
-      description: description || "",
-      cover_image: coverImage || null,
-      logo: logo || null,
-      product_images: productImages || [],
-      price_type: priceType,
-      price: price || 0,
       updated_at: new Date().toISOString(),
     };
 
+    // ✅ Only add fields if they are provided (not undefined)
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description || "";
+    if (coverImage !== undefined) updateData.cover_image = coverImage || null;
+    if (logo !== undefined) updateData.logo = logo || null;
+    if (productImages !== undefined) updateData.product_images = productImages || [];
+    if (priceType !== undefined) updateData.price_type = priceType;
+    if (price !== undefined) updateData.price = price || 0;
+    if (isPublished !== undefined) updateData.is_published = isPublished;
+    
     if (priceType === "installment" && installmentCount) {
       updateData.installment_count = installmentCount;
     }
 
-    // Preserve existing virtual account info in metadata
-    const existingMetadata = existingPage.metadata || {};
-    const updatedMetadata = {
-      ...existingMetadata,
-      ...metadata,
-      // Preserve virtual account if it exists
-      virtual_account: existingMetadata.virtual_account,
-    };
-    
-    updateData.metadata = updatedMetadata;
+    // Handle metadata - preserve existing if not provided
+    if (metadata !== undefined) {
+      const existingMetadata = existingPage.metadata || {};
+      const updatedMetadata = {
+        ...existingMetadata,
+        ...metadata,
+        // Preserve virtual account if it exists
+        virtual_account: existingMetadata.virtual_account,
+      };
+      updateData.metadata = updatedMetadata;
+    }
 
     // Update the page
     const { data: page, error: updateError } = await supabase

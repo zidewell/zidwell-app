@@ -133,6 +133,29 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  // ✅ Helper to save user data with store to localStorage
+  const saveUserDataToLocalStorage = (profile: any) => {
+    try {
+      const userDataToSave = {
+        ...profile,
+        store: profile.store || null,
+        hasStore: profile.hasStore || false,
+        storeIsActive: profile.storeIsActive || false,
+        storePendingActivation: profile.storePendingActivation || false,
+      };
+      localStorage.setItem("userData", JSON.stringify(userDataToSave));
+      
+      // ✅ Also cache store data separately for quick access
+      if (profile.store) {
+        localStorage.setItem("zidwell_store_data", JSON.stringify(profile.store));
+        localStorage.setItem("zidwell_store_timestamp", Date.now().toString());
+        console.log("💾 Store data cached on login:", profile.store.slug);
+      }
+    } catch (error) {
+      console.error("Failed to save user data to localStorage:", error);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -205,6 +228,9 @@ const LoginForm = () => {
       const { profile, isVerified, sessionEstablished } = result;
       if (!profile) throw new Error("User profile not found.");
 
+      // ✅ Save user data with store to localStorage
+      saveUserDataToLocalStorage(profile);
+
       setUserData(profile);
       localStorage.setItem("userData", JSON.stringify(profile));
 
@@ -238,16 +264,6 @@ const LoginForm = () => {
         });
       }
 
-      // ─── NEW DEVICE NOTICE ───
-      if (result.security?.newDevice && !result.security?.isKnownDevice) {
-        console.log("New device detected - user should verify");
-      }
-
-      // ─── CONCURRENT SESSION NOTICE ───
-      if (result.concurrentSessionInvalidated) {
-        console.log("Previous device session was invalidated");
-      }
-
       await new Promise((resolve) => setTimeout(resolve, 300));
 
       const sessionCookie = Cookies.get("sb-client-session");
@@ -267,6 +283,7 @@ const LoginForm = () => {
         router.replace(targetUrl);
       }
 
+      // Fire and forget background tasks
       Promise.allSettled([
         (async () => {
           await fetch("/api/activity/last-login", {
@@ -278,25 +295,23 @@ const LoginForm = () => {
             }),
           }).catch(console.error);
         })(),
-      ]).catch((err) => console.error("Background operations failed:", err));
+      ]).catch(() => {});
 
       if (process.env.NODE_ENV === "production") {
-        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-          console.error("Failed to send login notification:", err),
-        );
+        sendLoginNotificationWithDeviceInfo(profile).catch(() => {});
       }
 
       setTimeout(() => {
         Swal.fire({
           icon: "success",
           title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
+          text: `Hello, ${profile.fullName || profile.email?.split("@")[0] || "User"}`,
           toast: true,
           position: "top-end",
           showConfirmButton: false,
           timer: 2000,
           timerProgressBar: true,
-        }).catch(console.error);
+        }).catch(() => {});
       }, 100);
     } catch (err: any) {
       clearTimeout(timeoutId);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useStore } from "@/app/context/StoreContext";
 import { useUserContextData } from "@/app/context/userData";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import PinPopOver from "@/app/components/PinPopOver";
+import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 
 const ACTIVATION_FEE_NAIRA = 2000;
 
@@ -137,7 +138,9 @@ function Benefit({ text }: { text: string }) {
   );
 }
 
-// ✅ Congratulations Modal Component with canvas-confetti
+// ============================================================
+// ✅ CONGRATULATIONS MODAL - FIXED
+// ============================================================
 function CongratulationsModal({ 
   isOpen, 
   onClose, 
@@ -151,30 +154,35 @@ function CongratulationsModal({
 }) {
   useEffect(() => {
     if (isOpen) {
+      console.log("🎉 CongratulationsModal opened for:", storeName);
       triggerConfetti();
     }
-  }, [isOpen]);
+  }, [isOpen, storeName]);
 
   const triggerConfetti = () => {
     const end = Date.now() + 3000;
     const colors = [
-      "var(--color-accent-yellow)",
       "#FDC020",
       "#eab308",
       "#ca8a04",
       "#f59e0b",
       "#d97706",
+      "#22c55e",
+      "#3b82f6",
+      "#ef4444",
+      "#8b5cf6",
     ];
+    
     const frame = () => {
       confetti({
-        particleCount: 4,
+        particleCount: 5,
         angle: 60,
         spread: 55,
         origin: { x: 0 },
         colors,
       });
       confetti({
-        particleCount: 4,
+        particleCount: 5,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
@@ -183,94 +191,107 @@ function CongratulationsModal({
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: colors,
+      });
+    }, 150);
   };
 
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    >
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        initial={{ scale: 0.8, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.8, opacity: 0, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative max-w-md w-full bg-[#1a1a1a] rounded-3xl border border-gray-800 p-8 text-center shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.8, opacity: 0, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative max-w-md w-full bg-card rounded-3xl border border-border p-8 text-center shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+        {/* ✅ No close button - user must use action buttons */}
+
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#e1bf46]/20 rounded-full blur-2xl" />
+            <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-[#e1bf46]/10">
+              <PartyPopper className="size-12 text-[#e1bf46]" />
+            </div>
+          </div>
+        </div>
+
+        <h2 className="font-display text-3xl font-bold text-white">
+          🎉 Store Activated!
+        </h2>
+        
+        <p className="mt-3 text-gray-400">
+          Your store <span className="font-semibold text-[#e1bf46]">"{storeName}"</span> is now live and ready to accept payments!
+        </p>
+
+        <div className="mt-6 p-4 rounded-2xl bg-[#0e0e0e] border border-gray-800 text-left space-y-2">
+          <div className="flex items-center gap-3 text-sm">
+            <Check className="size-4 text-green-500 shrink-0" />
+            <span className="text-gray-300">Your store is now publicly visible</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <Check className="size-4 text-green-500 shrink-0" />
+            <span className="text-gray-300">You can now accept card payments</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <Check className="size-4 text-green-500 shrink-0" />
+            <span className="text-gray-300">Your business wallet is ready to receive funds</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <Check className="size-4 text-green-500 shrink-0" />
+            <span className="text-gray-300">Create unlimited payment pages &amp; products</span>
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          <button
+            onClick={onGoToDashboard}
+            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#e1bf46] px-6 py-4 text-base font-bold text-[#023528] hover:opacity-90 transition-opacity"
+          >
+            <Rocket className="size-5" />
+            Go to Store Dashboard
+          </button>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+            className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-gray-400 hover:bg-[#2a2a2a] transition-colors"
           >
-            <X className="size-5" />
+            I'll check it out later
           </button>
-
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gold/20 rounded-full blur-2xl" />
-              <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gold/10">
-                <PartyPopper className="size-12 text-gold" />
-              </div>
-            </div>
-          </div>
-
-          <h2 className="font-display text-3xl font-bold text-foreground">
-            🎉 Store Activated!
-          </h2>
-          
-          <p className="mt-3 text-muted-foreground">
-            Your store <span className="font-semibold text-foreground">"{storeName}"</span> is now live and ready to accept payments!
-          </p>
-
-          <div className="mt-6 p-4 rounded-2xl bg-muted/30 border border-border text-left space-y-2">
-            <div className="flex items-center gap-3 text-sm">
-              <Check className="size-4 text-green-500 shrink-0" />
-              <span>Your store is now publicly visible</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Check className="size-4 text-green-500 shrink-0" />
-              <span>You can now accept card &amp; transfer payments</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Check className="size-4 text-green-500 shrink-0" />
-              <span>Your business wallet is ready to receive funds</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              <Check className="size-4 text-green-500 shrink-0" />
-              <span>Create unlimited payment pages &amp; products</span>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-3">
-            <button
-              onClick={onGoToDashboard}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gold px-6 py-4 text-base font-bold text-gold-foreground hover:opacity-90 transition-opacity"
-            >
-              <Rocket className="size-5" />
-              Go to Store Dashboard
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-            >
-              I'll check it out later
-            </button>
-          </div>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }
 
 export function CreateStoreForm() {
   const router = useRouter();
-  const { createStore, creatingStore, store, fetchStore } = useStore();
+const { 
+  createStore, 
+  creatingStore, 
+  store, 
+  fetchStore, 
+  updateStoreCache,  
+  refreshStore,     
+  clearStoreCache    
+} = useStore();
   const { userData, balance, setUserData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
@@ -301,22 +322,14 @@ export function CreateStoreForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const isAutofillRef = useRef(false);
 
-  // ✅ If user has an active store, show alert and redirect
+  // If user has an active store, redirect
   useEffect(() => {
     if (hasActiveStore) {
-      Swal.fire({
-        icon: "info",
-        title: "Store Already Activated",
-        text: "You already have an active store. Redirecting to your dashboard...",
-        timer: 2000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
       router.push("/dashboard/services/payment/dashboard");
     }
   }, [hasActiveStore, router]);
 
-  // ✅ Load store data when there's a pending activation
+  // Load store data when there's a pending activation
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
       console.log("🔄 Loading pending store data for activation...");
@@ -336,15 +349,6 @@ export function CreateStoreForm() {
       
       setHasLoadedStoreData(true);
       setStep(4);
-      
-      Swal.fire({
-        icon: "info",
-        title: "Store Already Created",
-        text: "Your store has been created but not activated. Please complete the activation process.",
-        timer: 3000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-      });
       
       getWalletBalance(true);
     }
@@ -560,112 +564,142 @@ export function CreateStoreForm() {
   }, [validateStep]);
 
   const goToDashboard = useCallback(() => {
+    console.log("🚀 Go to Dashboard clicked, closing modal");
     setShowCongratulations(false);
     router.push("/dashboard/services/payment/dashboard");
   }, [router]);
 
-  // ✅ Handle PIN confirmation - creates or activates store
-  const handlePinConfirm = async (code: string) => {
-    setIsPinLoading(true);
-    setPinError(null);
+ // In CreateStoreForm component - the handlePinConfirm function
+const handlePinConfirm = async (code: string) => {
+  setIsPinLoading(true);
+  setPinError(null);
 
-    try {
-      const keywordsArray = formData.keywords
-        .split(",")
-        .map((k) => k.trim())
-        .filter((k) => k.length > 0);
+  try {
+    const keywordsArray = formData.keywords
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
 
-      const storeData = {
-        name: formData.name.trim(),
-        slug: formData.slug.trim(),
-        description: formData.description.trim(),
-        keywords: keywordsArray,
-        cacNumber: formData.cacNumber.trim() || undefined,
-        country: formData.country,
-        state: formData.state.trim(),
-        city: formData.city.trim(),
-        streetAddress: formData.streetAddress.trim(),
-        locationEnabled: formData.locationEnabled,
+    const storeData = {
+      name: formData.name.trim(),
+      slug: formData.slug.trim(),
+      description: formData.description.trim(),
+      keywords: keywordsArray,
+      cacNumber: formData.cacNumber.trim() || undefined,
+      country: formData.country,
+      state: formData.state.trim(),
+      city: formData.city.trim(),
+      streetAddress: formData.streetAddress.trim(),
+      locationEnabled: formData.locationEnabled,
+    };
+
+    console.log("📦 Sending storeData to API:", storeData);
+
+    const response = await fetch("/api/store/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pin: code,
+        storeData: storeData,
+      }),
+    });
+
+    const data = await response.json();
+    console.log("📡 API Response:", data);
+
+    if (!response.ok) {
+      if (response.status === 403 && data.locked) {
+        throw {
+          message: data.error,
+          locked: data.locked,
+          lockedUntil: data.lockedUntil,
+          attempts: data.attempts,
+        };
+      }
+      throw new Error(data.error || "Activation failed");
+    }
+
+    // ✅ After successful activation, update the store cache
+    if (data.store) {
+      const mappedStore = {
+        id: data.store.id,
+        name: data.store.name,
+        slug: data.store.slug,
+        description: data.store.description || "",
+        keywords: data.store.keywords || [],
+        cacNumber: data.store.cac_number,
+        country: data.store.country || "Nigeria",
+        state: data.store.state || "",
+        city: data.store.city || "",
+        streetAddress: data.store.street_address || "",
+        locationEnabled: data.store.location_enabled !== false,
+        isActive: true,
+        is_active: true,
+        activation_paid: true,
+        createdAt: data.store.created_at || new Date().toISOString(),
+        ownerId: userData?.id || "",
+        walletBalance: data.store.wallet_balance || 0,
+        totalRevenue: data.store.total_revenue || 0,
+        totalOrders: data.store.total_orders || 0,
+        totalViews: data.store.total_views || 0,
       };
 
-      console.log("📦 Sending storeData to API:", storeData);
-
-      const response = await fetch("/api/store/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pin: code,
-          storeData: storeData,
-        }),
+      // ✅ Update the store in context and cache
+      updateStoreCache(mappedStore);
+      
+      console.log("✅ Store cached after activation:", mappedStore.slug);
+      console.log("📊 Store data cached:", {
+        id: mappedStore.id,
+        name: mappedStore.name,
+        slug: mappedStore.slug,
+        isActive: mappedStore.isActive,
+        activation_paid: mappedStore.activation_paid,
       });
-
-      const data = await response.json();
-      console.log("📡 API Response:", data);
-
-      if (!response.ok) {
-        if (response.status === 403 && data.locked) {
-          throw {
-            message: data.error,
-            locked: data.locked,
-            lockedUntil: data.lockedUntil,
-            attempts: data.attempts,
-          };
-        }
-        throw new Error(data.error || "Activation failed");
-      }
-
-      // ✅ Close PIN popover
-      setIsPinOpen(false);
-      setPin(Array(4).fill(""));
-      
-      // ✅ Set activated store name
-      const storeName = data.store?.name || formData.name.trim() || "Your Store";
-      setActivatedStoreName(storeName);
-      
-      // ✅ Refresh store data
-      await fetchStore(true);
-      await getWalletBalance(true);
-      
-      // ✅ Show success message with SweetAlert
-      await Swal.fire({
-        icon: "success",
-        title: "🎉 Store Activated!",
-        text: `Your store "${storeName}" has been activated successfully!`,
-        confirmButtonColor: "var(--color-accent-yellow)",
-        confirmButtonText: "Go to Dashboard",
-      });
-      
-      // ✅ Show congratulations modal with confetti
-      setShowCongratulations(true);
-      
-    } catch (error: any) {
-      console.error("❌ Activation error:", error);
-      
-      if (error.locked) {
-        // Show locked PIN error
-        await Swal.fire({
-          icon: "error",
-          title: "PIN Locked",
-          text: error.message || "Your PIN has been locked. Please reset your PIN.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-        });
-        throw error;
-      } else if (error.message?.includes("PIN")) {
-        // Show PIN error - let PinPopOver handle it
-        throw error;
-      } else {
-        // Show general error
-        await Swal.fire({
-          icon: "error",
-          title: "Activation Failed",
-          text: error.message || "Something went wrong. Please try again.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-        });
-      }
-    } finally {
-      setIsPinLoading(false);
     }
-  };
+
+    setIsPinOpen(false);
+    setPin(Array(4).fill(""));
+    
+    const storeName = data.store?.name || formData.name.trim() || "Your Store";
+    console.log("🏪 Store activated:", storeName);
+    
+    // ✅ Set the store name and show modal
+    setActivatedStoreName(storeName);
+    
+    // ✅ Refresh store data from API (will also update cache)
+    await refreshStore();
+    await getWalletBalance(true);
+    
+    // ✅ Show the congratulations modal
+    console.log("🎉 Showing congratulations modal for:", storeName);
+    setShowCongratulations(true);
+    
+  } catch (error: any) {
+    console.error("❌ Activation error:", error);
+    
+    if (error.locked) {
+      await Swal.fire({
+        icon: "error",
+        title: "PIN Locked",
+        text: error.message || "Your PIN has been locked. Please reset your PIN.",
+        confirmButtonColor: "#e1bf46",
+      });
+      throw error;
+    } else if (error.message?.includes("PIN")) {
+      throw error;
+    } else {
+      await Swal.fire({
+        icon: "error",
+        title: "Activation Failed",
+        text: error.message || "Something went wrong. Please try again.",
+        confirmButtonColor: "#e1bf46",
+      });
+    }
+  } finally {
+    setIsPinLoading(false);
+  }
+};
+
 
   const handleActivate = useCallback(async () => {
     if (!hasPendingActivation) {
@@ -674,7 +708,7 @@ export function CreateStoreForm() {
           icon: "warning",
           title: "Incomplete Form",
           text: "Please complete all required fields before proceeding.",
-          confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonColor: "#e1bf46",
         });
         return;
       }
@@ -690,7 +724,7 @@ export function CreateStoreForm() {
         icon: "warning",
         title: "Insufficient Balance",
         text: `You need ₦${ACTIVATION_FEE_NAIRA.toLocaleString()} to activate your store. Please fund your wallet first.`,
-        confirmButtonColor: "var(--color-accent-yellow)",
+        confirmButtonColor: "#e1bf46",
         confirmButtonText: "Add Funds",
       }).then((result) => {
         if (result.isConfirmed) {
@@ -708,8 +742,9 @@ export function CreateStoreForm() {
 
   const isWorking = isCreating || creatingStore || isActivating;
 
+  // If active store, return null (will redirect via useEffect)
   if (hasActiveStore) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   const renderStepContent = useCallback(() => {
@@ -1022,7 +1057,7 @@ export function CreateStoreForm() {
               </div>
               <div className="mt-5 pt-5 border-t border-background/15 space-y-2 text-sm">
                 <Benefit text="Publish your public store page" />
-                <Benefit text="Accept card & transfer payments" />
+                <Benefit text="Accept card payments" />
                 <Benefit text="Free business wallet to receive funds" />
                 <Benefit text="Unlimited payment pages & products" />
               </div>
@@ -1158,12 +1193,18 @@ export function CreateStoreForm() {
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4">
-      <CongratulationsModal
-        isOpen={showCongratulations}
-        onClose={() => setShowCongratulations(false)}
-        storeName={activatedStoreName}
-        onGoToDashboard={goToDashboard}
-      />
+      {/* ✅ Congratulations Modal with AnimatePresence for smooth transitions */}
+      <AnimatePresence>
+        <CongratulationsModal
+          isOpen={showCongratulations}
+          onClose={() => {
+            console.log("🔴 Closing modal - I'll check it out later");
+            setShowCongratulations(false);
+          }}
+          storeName={activatedStoreName}
+          onGoToDashboard={goToDashboard}
+        />
+      </AnimatePresence>
 
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -1182,106 +1223,144 @@ export function CreateStoreForm() {
         </p>
       </div>
 
-      {!hasPendingActivation && (
-        <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto px-2">
-          {[
-            { n: 1, label: "Brand" },
-            { n: 2, label: "Location" },
-            { n: 3, label: "Review" },
-            { n: 4, label: "Activate" },
-          ].map((s, i, arr) => (
-            <div key={s.n} className="flex items-center">
-              <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors",
-                    s.n === step && "bg-gold text-gold-foreground",
-                    s.n < step && "bg-green-500/20 text-green-500",
-                    s.n > step && "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {s.n < step ? <Check className="size-4" /> : s.n}
-                </div>
-                <span className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground hidden sm:block">
-                  {s.label}
-                </span>
-              </div>
-              {i < arr.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 w-8 sm:w-12 mx-1 sm:mx-2",
-                    s.n < step ? "bg-green-500/50" : "bg-muted"
-                  )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ⚠️ BVN BADGE - Store creation - CANNOT BE DISMISSED */}
+      <BVNVerificationBadge variant="store" className="mb-6" dismissable={false} />
 
-      {hasPendingActivation && (
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-sm font-medium">
-            <AlertCircle className="size-4" />
-            Pending Activation
-          </div>
-          <h2 className="font-display text-2xl font-bold mt-4">Step 4: Activate Your Store</h2>
-          <p className="text-sm text-muted-foreground">
-            Your store "{formData.name}" has been created. Pay the activation fee to publish it.
+      {/* If not verified, show locked state - NO WAY TO SKIP */}
+      {!isVerified ? (
+        <div className="bg-[#1a1a1a] rounded-3xl border border-gray-800 p-8 text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Verify Your BVN First
+          </h2>
+          <p className="text-gray-400 mb-6 max-w-md mx-auto">
+            You need to verify your BVN before you can create a store and start 
+            accepting payments. It only takes a few minutes.
           </p>
-        </div>
-      )}
-
-      <motion.div
-        key={step}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className="rounded-3xl border border-border bg-card p-6"
-      >
-        {renderStepContent()}
-
-        <div className="flex justify-between mt-6 pt-6 border-t border-border">
-          <button
-            onClick={handleBack}
-            className={cn(
-              "rounded-2xl px-6 py-2.5 text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2",
-              (step === 1 || hasPendingActivation) && "invisible"
-            )}
-          >
-            <ArrowLeft className="size-4" />
-            Back
-          </button>
-          <div className="flex gap-3">
-            {step === 1 && !hasPendingActivation && (
-              <button
-                onClick={handleNext}
-                className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
-              >
-                Next <ChevronRight className="size-4" />
-              </button>
-            )}
-
-            {step === 2 && !hasPendingActivation && (
-              <button
-                onClick={handleNext}
-                className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
-              >
-                Next <ChevronRight className="size-4" />
-              </button>
-            )}
-
-            {step === 3 && !hasPendingActivation && (
-              <button
-                onClick={handleGoToActivation}
-                className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
-              >
-                Proceed to Activation <ChevronRight className="size-4" />
-              </button>
-            )}
+          <p className="text-sm text-red-400 mb-4 font-medium">
+            ⚠️ This step is required. You cannot create a store without BVN verification.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={openVerificationModal}
+              className="bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold rounded-2xl px-6 py-3 flex items-center gap-2"
+            >
+              <Shield className="h-4 w-4 mr-2" />
+              Verify BVN Now
+            </button>
+          </div>
+          <div className="mt-6 p-4 bg-blue-900/20 rounded-xl border border-blue-800/30 text-left">
+            <p className="text-xs text-blue-400">
+              💡 <strong>Why do I need to verify my BVN?</strong> BVN verification helps us 
+              ensure the security of your funds and comply with financial regulations. 
+              Your BVN is encrypted and securely stored.
+            </p>
           </div>
         </div>
-      </motion.div>
+      ) : (
+        <>
+          {!hasPendingActivation && (
+            <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto px-2">
+              {[
+                { n: 1, label: "Brand" },
+                { n: 2, label: "Location" },
+                { n: 3, label: "Review" },
+                { n: 4, label: "Activate" },
+              ].map((s, i, arr) => (
+                <div key={s.n} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors",
+                        s.n === step && "bg-gold text-gold-foreground",
+                        s.n < step && "bg-green-500/20 text-green-500",
+                        s.n > step && "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {s.n < step ? <Check className="size-4" /> : s.n}
+                    </div>
+                    <span className="mt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground hidden sm:block">
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < arr.length - 1 && (
+                    <div
+                      className={cn(
+                        "h-0.5 w-8 sm:w-12 mx-1 sm:mx-2",
+                        s.n < step ? "bg-green-500/50" : "bg-muted"
+                      )}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {hasPendingActivation && (
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 text-sm font-medium">
+                <AlertCircle className="size-4" />
+                Pending Activation
+              </div>
+              <h2 className="font-display text-2xl font-bold mt-4">Step 4: Activate Your Store</h2>
+              <p className="text-sm text-muted-foreground">
+                Your store "{formData.name}" has been created. Pay the activation fee to publish it.
+              </p>
+            </div>
+          )}
+
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="rounded-3xl border border-border bg-card p-6"
+          >
+            {renderStepContent()}
+
+            <div className="flex justify-between mt-6 pt-6 border-t border-border">
+              <button
+                onClick={handleBack}
+                className={cn(
+                  "rounded-2xl px-6 py-2.5 text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2",
+                  (step === 1 || hasPendingActivation) && "invisible"
+                )}
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </button>
+              <div className="flex gap-3">
+                {step === 1 && !hasPendingActivation && (
+                  <button
+                    onClick={handleNext}
+                    className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    Next <ChevronRight className="size-4" />
+                  </button>
+                )}
+
+                {step === 2 && !hasPendingActivation && (
+                  <button
+                    onClick={handleNext}
+                    className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    Next <ChevronRight className="size-4" />
+                  </button>
+                )}
+
+                {step === 3 && !hasPendingActivation && (
+                  <button
+                    onClick={handleGoToActivation}
+                    className="rounded-2xl bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    Proceed to Activation <ChevronRight className="size-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
 
       <PinPopOver
         isOpen={isPinOpen}

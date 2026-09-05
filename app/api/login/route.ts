@@ -124,7 +124,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ONLY hard-block: admin explicitly blocked the account
     if (userProfile.is_blocked) {
       return NextResponse.json(
         {
@@ -152,7 +151,6 @@ export async function POST(request: NextRequest) {
       location: `${location.city}, ${location.country}`,
     });
 
-    // ─── DEVELOPMENT BYPASS ───
     const isDevLocalhost =
       process.env.NODE_ENV === "development" &&
       (ip === "127.0.0.1" || ip === "::1" || ip === "unknown");
@@ -167,27 +165,18 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    // ─── BEST PRACTICE: NEVER BLOCK A CORRECT-PASSWORD LOGIN BASED ON HEURISTICS ───
-    // We log suspicious activity, alert the user via email, and flag the session,
-    // but we always allow the login. If you want step-up auth (email/SMS code),
-    // implement it here instead of returning 403.
     const isSuspicious = securityContext.riskScore > 30;
 
     if (isSuspicious) {
       console.warn(
         `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`
       );
-      // TODO: Send security alert email here if you have email service configured
-      // await sendSecurityAlertEmail(userProfile.full_name, securityContext, false);
     }
 
     // ─── GENERATE UNIQUE SESSION TOKEN ───
     const sessionToken = generateSessionId();
     const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // BEST PRACTICE: Allow multiple concurrent sessions.
-    // We store the latest session token for tracking, but we do NOT invalidate
-    // previous sessions here. Each device maintains its own Supabase JWT session.
     try {
       await supabaseAdmin
         .from("users")
@@ -216,6 +205,50 @@ export async function POST(request: NextRequest) {
     }
 
     const displayName = businessData?.business_name || userProfile.full_name;
+
+    // ─── ✅ FETCH STORE DATA (Optimized - non-blocking) ───
+    let storeData = null;
+    try {
+      // Quick query, not blocking the login flow
+      const { data: store, error: storeError } = await supabaseAdmin
+        .from("online_stores")
+        .select("id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at")
+        .eq("owner_id", userId)
+        .maybeSingle();
+
+      if (!storeError && store) {
+        storeData = {
+          id: store.id,
+          owner_id: userId,
+          name: store.name,
+          slug: store.slug,
+          description: store.description || "",
+          keywords: store.keywords || [],
+          cac_number: store.cac_number,
+          logo_url: store.logo_url,
+          cover_url: store.cover_url,
+          country: store.country || "Nigeria",
+          state: store.state || "",
+          city: store.city || "",
+          street_address: store.street_address || "",
+          location_enabled: store.location_enabled !== false,
+          is_active: store.is_active || false,
+          activation_paid: store.activation_paid || false,
+          activated_at: store.activated_at,
+          activation_reference: store.activation_reference,
+          wallet_balance: store.wallet_balance || 0,
+          total_revenue: store.total_revenue || 0,
+          total_orders: store.total_orders || 0,
+          total_views: store.total_views || 0,
+          created_at: store.created_at,
+          updated_at: store.updated_at,
+        };
+        console.log("✅ Store data fetched:", storeData.slug);
+      }
+    } catch (storeFetchError) {
+      // Silent fail - store data is optional and shouldn't block login
+      console.debug("Store fetch skipped or failed (non-critical):", storeFetchError);
+    }
 
     // ─── SET COOKIES ───
     const cookieStore = await cookies();
@@ -265,54 +298,58 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // ─── LOG SUCCESSFUL LOGIN ───
-    try {
-      await supabase.from("login_history").insert({
-        user_id: userId,
-        ip_address: ip,
-        country: location.country,
-        city: location.city,
-        region: location.region,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        timezone: location.timezone,
-        user_agent: device.userAgent,
-        device_fingerprint: device.fingerprint,
-        platform: device.platform,
-        screen_resolution: device.screenResolution,
-        is_suspicious: isSuspicious,
-        suspicious_reasons: securityContext.reasons,
-        is_successful: true,
-        session_id: access_token.slice(-16),
-        session_token: sessionToken,
-      });
-    } catch (e: any) {
-      console.error("Failed to log successful login:", e.message || e);
-    }
-
-    // ─── UPDATE TRUSTED DEVICES ───
-    if (device.fingerprint) {
+    // ─── LOG SUCCESSFUL LOGIN (fire and forget) ───
+    Promise.resolve().then(async () => {
       try {
-        await supabase.from("trusted_devices").upsert(
-          {
-            user_id: userId,
-            device_fingerprint: device.fingerprint,
-            device_name: `${device.platform} - ${device.userAgent?.split(" ").slice(-1)[0] || "Browser"}`,
-            last_location: `${location.city}, ${location.country}`,
-            last_ip: ip,
-            last_used: new Date().toISOString(),
-            is_trusted: !isSuspicious,
-          },
-          {
-            onConflict: "user_id,device_fingerprint",
-          }
-        );
+        await supabase.from("login_history").insert({
+          user_id: userId,
+          ip_address: ip,
+          country: location.country,
+          city: location.city,
+          region: location.region,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timezone: location.timezone,
+          user_agent: device.userAgent,
+          device_fingerprint: device.fingerprint,
+          platform: device.platform,
+          screen_resolution: device.screenResolution,
+          is_suspicious: isSuspicious,
+          suspicious_reasons: securityContext.reasons,
+          is_successful: true,
+          session_id: access_token.slice(-16),
+          session_token: sessionToken,
+        });
       } catch (e) {
-        console.error("Failed to update trusted devices:", e);
+        // Silent fail - login history is non-critical
       }
+    });
+
+    // ─── UPDATE TRUSTED DEVICES (fire and forget) ───
+    if (device.fingerprint) {
+      Promise.resolve().then(async () => {
+        try {
+          await supabase.from("trusted_devices").upsert(
+            {
+              user_id: userId,
+              device_fingerprint: device.fingerprint,
+              device_name: `${device.platform} - ${device.userAgent?.split(" ").slice(-1)[0] || "Browser"}`,
+              last_location: `${location.city}, ${location.country}`,
+              last_ip: ip,
+              last_used: new Date().toISOString(),
+              is_trusted: !isSuspicious,
+            },
+            {
+              onConflict: "user_id,device_fingerprint",
+            }
+          );
+        } catch (e) {
+          // Silent fail
+        }
+      });
     }
 
-    // ─── RESPONSE ───
+    // ─── ✅ RESPONSE WITH PROFILE AND STORE DATA ───
     const profile = {
       id: userProfile.id,
       fullName: displayName,
@@ -333,11 +370,16 @@ export async function POST(request: NextRequest) {
       subscriptionExpiresAt: userProfile.subscription_expires_at,
       isBlocked: userProfile.is_blocked,
       pinSet: userProfile.pin_set,
+      // ✅ Store data included in profile (non-blocking)
+      store: storeData,
+      hasStore: storeData !== null,
+      storeIsActive: storeData?.is_active === true && storeData?.activation_paid === true,
+      storePendingActivation: storeData !== null && (storeData.is_active === false || storeData.activation_paid === false),
     };
 
     const responseTime = Date.now() - startTime;
     console.log(
-      `✅ Secure login completed in ${responseTime}ms for ${email} (Risk: ${securityContext.riskScore})`
+      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ''}`
     );
 
     return NextResponse.json({

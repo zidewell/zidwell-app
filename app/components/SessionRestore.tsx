@@ -1,9 +1,8 @@
-'use client';
+// app/components/SessionRestore.tsx
+"use client";
 
 import { useEffect, useRef } from 'react';
 import { useUserContextData } from '@/app/context/userData';
-
-const DEV_MODE = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
 
 export function SessionRestore({ children }: { children: React.ReactNode }) {
   const { setUserData, loading, userData } = useUserContextData();
@@ -11,65 +10,52 @@ export function SessionRestore({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const restoreSession = async () => {
+      // Skip if already have user data or restore attempted
       if (userData || restoreAttempted.current || loading) return;
       
       restoreAttempted.current = true;
 
+      // Check if we have a session cookie
       const hasSession = document.cookie.includes('sb-client-session=true');
       const hasSessionId = document.cookie.includes('sb-session-id=');
       
-      if (hasSession && hasSessionId) {
-        try {
-          const validateRes = await fetch('/api/auth/validate-session', {
-            credentials: 'include',
-            headers: { 'Cache-Control': 'no-cache' }
-          });
+      if (!hasSession || !hasSessionId) {
+        // No session, clear any stale data
+        localStorage.removeItem('userData');
+        return;
+      }
 
-          if (!validateRes.ok) {
-            const data = await validateRes.json().catch(() => ({}));
-            
-            // Don't clear for concurrent login — we now allow multiple devices
-            // In dev mode, just warn but don't clear
-            if (!DEV_MODE && (validateRes.status === 401 || validateRes.status === 403)) {
-              console.warn('🚫 SessionRestore: Session invalid, clearing local data');
-              localStorage.removeItem('userData');
-              document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-              document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-              document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-              document.cookie = "sb-session-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-              return;
-            } else if (DEV_MODE) {
-              console.warn('🔓 Dev mode: session invalid but keeping session active');
-            }
-          }
+      try {
+        // Validate session first
+        const validateRes = await fetch('/api/auth/validate-session', {
+          credentials: 'include',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
 
-          if (!validateRes.ok) {
-            throw new Error('Session invalid');
-          }
-
-          const response = await fetch('/api/user/me', {
-            credentials: 'include',
-            headers: {
-              'Cache-Control': 'no-cache'
-            }
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData && userData.id) {
-              setUserData(userData);
-              localStorage.setItem('userData', JSON.stringify(userData));
-              console.log('✅ Session restored successfully');
-            }
-          } else if (response.status === 401) {
-            document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-            document.cookie = "sb-session-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-          }
-        } catch (error) {
-          console.error('Failed to restore session:', error);
+        if (!validateRes.ok) {
+          // Session invalid, clear data
+          localStorage.removeItem('userData');
+          document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          return;
         }
+
+        // Fetch user data
+        const response = await fetch('/api/user/me', {
+          credentials: 'include',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          if (userData && userData.id) {
+            setUserData(userData);
+            localStorage.setItem('userData', JSON.stringify(userData));
+            console.log('✅ Session restored successfully');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore session:', error);
+        // Don't clear on network error - let the user retry
       }
     };
 
