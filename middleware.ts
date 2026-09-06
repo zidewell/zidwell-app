@@ -705,7 +705,7 @@
 //     "/auth/:path*",
 //   ],
 // };
-
+// middleware.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -753,12 +753,17 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
+// ─── UPDATED PUBLIC PATHS ───
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
+  "/auth/verify",              // ✅ Added: Email verification endpoint
+  "/auth/verify-success",      // ✅ Added: Verification success page
+  "/api/auth/verify",          // ✅ Added: API verification route
+  "/api/auth/resend-verification", // ✅ Added: Resend verification API
 ];
 
 // ─── FAST ROUTE MATCHING ───
@@ -894,6 +899,7 @@ export async function middleware(req: NextRequest) {
   
   // Bypass auth for public paths and static files
   if (shouldBypassAuth(currentPath)) {
+    console.log(`✅ Public path: ${currentPath} - bypassing auth`);
     return NextResponse.next();
   }
   

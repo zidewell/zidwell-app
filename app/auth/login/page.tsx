@@ -26,13 +26,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, UserPlus } from "lucide-react";
 import { useUserContextData } from "@/app/context/userData";
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
-
-// ─── DEVICE FINGERPRINTING ───
 
 interface DeviceInfo {
   userAgent: string;
@@ -133,6 +131,38 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  const handleResendVerification = async (emailToResend: string) => {
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToResend }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await Swal.fire({
+          icon: "success",
+          title: "Verification Email Sent!",
+          text: "Please check your inbox and spam folder.",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonText: "OK",
+        });
+      } else {
+        throw new Error(data.error || "Failed to resend verification");
+      }
+    } catch (error: any) {
+      await Swal.fire({
+        icon: "error",
+        title: "Failed to Resend",
+        text: error.message || "Please try again later.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        confirmButtonText: "OK",
+      });
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -175,13 +205,75 @@ const LoginForm = () => {
       const result = await res.json();
 
       if (!res.ok) {
+        // ✅ Check if user doesn't exist
+        if (res.status === 404 || result.error?.toLowerCase().includes("not found") || result.userNotFound) {
+          Swal.close();
+          const { value: action } = await Swal.fire({
+            icon: "info",
+            title: "Account Not Found",
+            html: `
+              <div class="text-left">
+                <p class="mb-2">We couldn't find an account with this email address:</p>
+                <p class="font-bold text-(--color-accent-yellow) text-lg">${email}</p>
+                <p class="mt-4 text-sm text-(--text-secondary)">Would you like to create a new account?</p>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "Create Account",
+            showCancelButton: true,
+            cancelButtonText: "Try Again",
+            cancelButtonColor: "#6b7280",
+            reverseButtons: true,
+          });
+
+          if (action) {
+            router.push("/auth/signup");
+          }
+          setLoading(false);
+          return;
+        }
+
         throw new Error(result.error || "Invalid email or password");
+      }
+
+      // ─── HANDLE UNVERIFIED EMAIL ───
+      if (result.requiresVerification) {
+        Swal.close();
+        
+        const { value: action } = await Swal.fire({
+          icon: "warning",
+          title: "Email Not Verified",
+          html: `
+            <div class="text-left">
+              <p class="mb-2">Please verify your email address before logging in.</p>
+              <p class="text-sm text-(--text-secondary) mb-2">
+                We sent a verification link to: <strong class="text-(--color-accent-yellow)">${email}</strong>
+              </p>
+              <div class="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
+                <p class="text-blue-700">💡 Didn't receive the email?</p>
+                <p class="text-blue-600 text-xs mt-1">Check your spam folder or click "Resend Email" below.</p>
+              </div>
+            </div>
+          `,
+          confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonText: "I'll check my email",
+          showCancelButton: true,
+          cancelButtonText: "Resend Email",
+          cancelButtonColor: "#6b7280",
+          reverseButtons: true,
+        });
+
+        if (action === false || action === "cancel") {
+          await handleResendVerification(email);
+        }
+        setLoading(false);
+        return;
       }
 
       // ─── HANDLE BLOCKED LOGIN ───
       if (result.blocked) {
         Swal.close();
-        Swal.fire({
+        await Swal.fire({
           icon: "warning",
           title: "Login Blocked",
           html: `
@@ -226,21 +318,16 @@ const LoginForm = () => {
 
       // ─── SUSPICIOUS LOGIN WARNING ───
       if (result.security?.isSuspicious) {
-        Swal.fire({
+        await Swal.fire({
           icon: "warning",
           title: "Unusual Login Detected",
-          text: `Login from ${result.security.location.city}, ${result.security.location.country}. A security alert has been sent to your email.`,
+          text: `Login from ${result.security.location?.city || "unknown location"}, ${result.security.location?.country || ""}. A security alert has been sent to your email.`,
           toast: true,
           position: "top-end",
           showConfirmButton: false,
           timer: 5000,
           timerProgressBar: true,
         });
-      }
-
-      // ─── NEW DEVICE NOTICE ───
-      if (result.security?.newDevice && !result.security?.isKnownDevice) {
-        console.log("New device detected - user should verify");
       }
 
       // ─── CONCURRENT SESSION NOTICE ───
@@ -261,12 +348,7 @@ const LoginForm = () => {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
 
-      if (process.env.NODE_ENV === "production") {
-        window.location.replace(targetUrl);
-      } else {
-        router.replace(targetUrl);
-      }
-
+      // ─── BACKGROUND TASKS ───
       Promise.allSettled([
         (async () => {
           await fetch("/api/activity/last-login", {
@@ -278,19 +360,28 @@ const LoginForm = () => {
             }),
           }).catch(console.error);
         })(),
+        (async () => {
+          if (process.env.NODE_ENV === "production") {
+            await sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
+              console.error("Failed to send login notification:", err),
+            );
+          }
+        })(),
       ]).catch((err) => console.error("Background operations failed:", err));
 
+      // ─── NAVIGATE ───
       if (process.env.NODE_ENV === "production") {
-        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-          console.error("Failed to send login notification:", err),
-        );
+        window.location.replace(targetUrl);
+      } else {
+        router.replace(targetUrl);
       }
 
+      // ─── WELCOME BACK TOAST ───
       setTimeout(() => {
         Swal.fire({
           icon: "success",
           title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
+          text: `Hello, ${profile.fullName || profile.email?.split("@")[0] || "User"}`,
           toast: true,
           position: "top-end",
           showConfirmButton: false,
@@ -306,12 +397,12 @@ const LoginForm = () => {
         "Invalid email or password. Please check your credentials and try again.";
 
       if (err.name === "AbortError") {
-        errorMessage = "Please check your internet connection and try again.";
+        errorMessage = "Request timed out. Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }
 
-      Swal.fire({
+      await Swal.fire({
         icon: "error",
         title: "Login Failed",
         text: errorMessage,
@@ -502,8 +593,9 @@ const LoginForm = () => {
                 Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/signup"
-                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors"
+                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors inline-flex items-center gap-1"
                 >
+                  <UserPlus className="h-3 w-3" />
                   Sign up
                 </Link>
               </p>
