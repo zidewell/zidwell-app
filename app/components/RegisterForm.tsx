@@ -388,26 +388,26 @@ const VerificationModal = ({
               Close
             </button>
             <button
-              onClick={() => {
-                window.location.href = "https://mail.google.com";
-              }}
-              style={{
-                flex: 1,
-                padding: "0.5rem 1rem",
-                borderRadius: "0.5rem",
-                border: "none",
-                background: "var(--color-accent-yellow)",
-                color: "var(--color-ink)",
-                fontSize: "0.875rem",
-                fontWeight: "600",
-                cursor: "pointer",
-                transition: "opacity 0.2s",
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
-            >
-              Open Gmail
-            </button>
+  onClick={() => {
+    window.open("https://mail.google.com", "_blank");
+  }}
+  style={{
+    flex: 1,
+    padding: "0.5rem 1rem",
+    borderRadius: "0.5rem",
+    border: "none",
+    background: "var(--color-accent-yellow)",
+    color: "var(--color-ink)",
+    fontSize: "0.875rem",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "opacity 0.2s",
+  }}
+  onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
+  onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+>
+  Open Gmail
+</button>
           </div>
 
           {/* Footer */}
