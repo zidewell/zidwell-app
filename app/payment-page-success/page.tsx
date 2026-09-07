@@ -8,15 +8,11 @@ import { motion } from "framer-motion";
 import {
   CheckCircle,
   ArrowLeft,
-  Download,
   Copy,
   Check,
   Mail,
-  Clock,
-  Banknote,
   User,
   Calendar,
-  ExternalLink,
   Home,
   FileText,
 } from "lucide-react";
@@ -33,9 +29,18 @@ interface PaymentDetails {
   confirmed_at: string;
   custom_fields: Record<string, any>;
   students: string[];
+  redirectUrl?: string;
 }
 
-// Wrap the component that uses useSearchParams in Suspense
+interface PaymentMetadata {
+  customFields?: Record<string, any>;
+  selectedStudents?: string[];
+  redirectUrl?: string;
+  pageTitle?: string;
+  pageType?: string;
+  [key: string]: any;
+}
+
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -47,6 +52,7 @@ function PaymentSuccessContent() {
   const [payment, setPayment] = useState<PaymentDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (reference) {
@@ -58,28 +64,62 @@ function PaymentSuccessContent() {
 
   const fetchPaymentDetails = async () => {
     try {
-      const response = await fetch(`/api/payment-page/public/confirm-payment?reference=${reference}`);
+      const response = await fetch(`/api/payment-page/status?reference=${reference}`);
       const data = await response.json();
 
-      console.log(data, "data from confirm-payment API");
+      console.log("📊 Payment status response:", data);
 
-      if (data.found && data.payment) {
+      if (data.success && data.payment) {
+        const paymentData = data.payment;
+        
+        let parsedMetadata: PaymentMetadata = {};
+        let customFields: Record<string, any> = {};
+        let students: string[] = [];
+        
+        if (paymentData.metadata) {
+          if (typeof paymentData.metadata === 'string') {
+            try {
+              parsedMetadata = JSON.parse(paymentData.metadata) as PaymentMetadata;
+            } catch (e) {
+              parsedMetadata = {};
+            }
+          } else {
+            parsedMetadata = paymentData.metadata as PaymentMetadata;
+          }
+          
+          // ✅ Safely access properties with optional chaining
+          customFields = parsedMetadata.customFields || {};
+          students = parsedMetadata.selectedStudents || [];
+          
+          // Also check for direct student_name
+          if (students.length === 0 && paymentData.student_name) {
+            students = [paymentData.student_name];
+          }
+        }
+
         setPayment({
-          id: data.payment.id,
-          amount: data.payment.amount,
-          status: data.payment.status,
-          customer_name: data.payment.customer_name || "Customer",
-          customer_email: data.payment.customer_email || "",
-          created_at: data.payment.created_at,
-          confirmed_at: data.payment.confirmed_at,
-          custom_fields: data.payment.custom_fields || {},
-          students: data.payment.students || [],
+          id: paymentData.id,
+          amount: paymentData.amount || paymentData.total_amount || 0,
+          status: paymentData.status,
+          customer_name: paymentData.customer_name || "Customer",
+          customer_email: paymentData.customer_email || "",
+          created_at: paymentData.created_at,
+          confirmed_at: paymentData.confirmed_at || paymentData.paid_at,
+          custom_fields: customFields,
+          students: students,
         });
+
+        // Store redirect URL from metadata
+        if (paymentData.redirectUrl) {
+          setRedirectUrl(paymentData.redirectUrl);
+        } else if (parsedMetadata.redirectUrl) {
+          setRedirectUrl(parsedMetadata.redirectUrl);
+        }
       } else {
-        setError("Payment not found");
+        setError(data.error || "Payment not found");
       }
     } catch (err) {
-      console.error("Error fetching payment:", err);
+      console.error("❌ Error fetching payment:", err);
       setError("Failed to load payment details");
     } finally {
       setLoading(false);
@@ -106,6 +146,14 @@ function PaymentSuccessContent() {
 
   const formatCurrency = (amount: number) => {
     return `₦${amount?.toLocaleString() || "0"}`;
+  };
+
+  const handleRedirect = () => {
+    if (redirectUrl) {
+      router.push(redirectUrl);
+    } else {
+      router.push("/");
+    }
   };
 
   if (loading) {
@@ -334,12 +382,13 @@ function PaymentSuccessContent() {
 
             {/* Actions */}
             <div className="flex flex-col gap-3 pt-2">
-              <Link href="/">
-                <Button className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold">
-                  <Home className="h-4 w-4 mr-2" />
-                  Return Home
-                </Button>
-              </Link>
+              <Button
+                onClick={handleRedirect}
+                className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                {redirectUrl ? "Continue" : "Return Home"}
+              </Button>
             </div>
 
             {/* Footer */}
