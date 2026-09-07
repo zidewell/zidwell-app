@@ -283,15 +283,12 @@ function CongratulationsModal({
 
 export function CreateStoreForm() {
   const router = useRouter();
-const { 
-  createStore, 
-  creatingStore, 
-  store, 
-  fetchStore, 
-  updateStoreCache,  
-  refreshStore,     
-  clearStoreCache    
-} = useStore();
+  const { 
+    createStore, 
+    creatingStore, 
+    store, 
+    fetchStore 
+  } = useStore();
   const { userData, balance, setUserData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
@@ -569,137 +566,100 @@ const {
     router.push("/dashboard/services/payment/dashboard");
   }, [router]);
 
- // In CreateStoreForm component - the handlePinConfirm function
-const handlePinConfirm = async (code: string) => {
-  setIsPinLoading(true);
-  setPinError(null);
+  // In CreateStoreForm component - the handlePinConfirm function
+  const handlePinConfirm = async (code: string) => {
+    setIsPinLoading(true);
+    setPinError(null);
 
-  try {
-    const keywordsArray = formData.keywords
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k.length > 0);
+    try {
+      const keywordsArray = formData.keywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0);
 
-    const storeData = {
-      name: formData.name.trim(),
-      slug: formData.slug.trim(),
-      description: formData.description.trim(),
-      keywords: keywordsArray,
-      cacNumber: formData.cacNumber.trim() || undefined,
-      country: formData.country,
-      state: formData.state.trim(),
-      city: formData.city.trim(),
-      streetAddress: formData.streetAddress.trim(),
-      locationEnabled: formData.locationEnabled,
-    };
-
-    console.log("📦 Sending storeData to API:", storeData);
-
-    const response = await fetch("/api/store/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pin: code,
-        storeData: storeData,
-      }),
-    });
-
-    const data = await response.json();
-    console.log("📡 API Response:", data);
-
-    if (!response.ok) {
-      if (response.status === 403 && data.locked) {
-        throw {
-          message: data.error,
-          locked: data.locked,
-          lockedUntil: data.lockedUntil,
-          attempts: data.attempts,
-        };
-      }
-      throw new Error(data.error || "Activation failed");
-    }
-
-    // ✅ After successful activation, update the store cache
-    if (data.store) {
-      const mappedStore = {
-        id: data.store.id,
-        name: data.store.name,
-        slug: data.store.slug,
-        description: data.store.description || "",
-        keywords: data.store.keywords || [],
-        cacNumber: data.store.cac_number,
-        country: data.store.country || "Nigeria",
-        state: data.store.state || "",
-        city: data.store.city || "",
-        streetAddress: data.store.street_address || "",
-        locationEnabled: data.store.location_enabled !== false,
-        isActive: true,
-        is_active: true,
-        activation_paid: true,
-        createdAt: data.store.created_at || new Date().toISOString(),
-        ownerId: userData?.id || "",
-        walletBalance: data.store.wallet_balance || 0,
-        totalRevenue: data.store.total_revenue || 0,
-        totalOrders: data.store.total_orders || 0,
-        totalViews: data.store.total_views || 0,
+      const storeData = {
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        description: formData.description.trim(),
+        keywords: keywordsArray,
+        cacNumber: formData.cacNumber.trim() || undefined,
+        country: formData.country,
+        state: formData.state.trim(),
+        city: formData.city.trim(),
+        streetAddress: formData.streetAddress.trim(),
+        locationEnabled: formData.locationEnabled,
       };
 
-      // ✅ Update the store in context and cache
-      updateStoreCache(mappedStore);
+      console.log("📦 Sending storeData to API:", storeData);
+
+      const response = await fetch("/api/store/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin: code,
+          storeData: storeData,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("📡 API Response:", data);
+
+      if (!response.ok) {
+        if (response.status === 403 && data.locked) {
+          throw {
+            message: data.error,
+            locked: data.locked,
+            lockedUntil: data.lockedUntil,
+            attempts: data.attempts,
+          };
+        }
+        throw new Error(data.error || "Activation failed");
+      }
+
+      // ✅ After successful activation, refresh the store data
+      await fetchStore(true);
       
-      console.log("✅ Store cached after activation:", mappedStore.slug);
-      console.log("📊 Store data cached:", {
-        id: mappedStore.id,
-        name: mappedStore.name,
-        slug: mappedStore.slug,
-        isActive: mappedStore.isActive,
-        activation_paid: mappedStore.activation_paid,
-      });
+      setIsPinOpen(false);
+      setPin(Array(4).fill(""));
+      
+      const storeName = data.store?.name || formData.name.trim() || "Your Store";
+      console.log("🏪 Store activated:", storeName);
+      
+      // ✅ Set the store name and show modal
+      setActivatedStoreName(storeName);
+      
+      // ✅ Refresh wallet balance
+      await getWalletBalance(true);
+      
+      // ✅ Show the congratulations modal
+      console.log("🎉 Showing congratulations modal for:", storeName);
+      setShowCongratulations(true);
+      
+    } catch (error: any) {
+      console.error("❌ Activation error:", error);
+      
+      if (error.locked) {
+        await Swal.fire({
+          icon: "error",
+          title: "PIN Locked",
+          text: error.message || "Your PIN has been locked. Please reset your PIN.",
+          confirmButtonColor: "#e1bf46",
+        });
+        throw error;
+      } else if (error.message?.includes("PIN")) {
+        throw error;
+      } else {
+        await Swal.fire({
+          icon: "error",
+          title: "Activation Failed",
+          text: error.message || "Something went wrong. Please try again.",
+          confirmButtonColor: "#e1bf46",
+        });
+      }
+    } finally {
+      setIsPinLoading(false);
     }
-
-    setIsPinOpen(false);
-    setPin(Array(4).fill(""));
-    
-    const storeName = data.store?.name || formData.name.trim() || "Your Store";
-    console.log("🏪 Store activated:", storeName);
-    
-    // ✅ Set the store name and show modal
-    setActivatedStoreName(storeName);
-    
-    // ✅ Refresh store data from API (will also update cache)
-    await refreshStore();
-    await getWalletBalance(true);
-    
-    // ✅ Show the congratulations modal
-    console.log("🎉 Showing congratulations modal for:", storeName);
-    setShowCongratulations(true);
-    
-  } catch (error: any) {
-    console.error("❌ Activation error:", error);
-    
-    if (error.locked) {
-      await Swal.fire({
-        icon: "error",
-        title: "PIN Locked",
-        text: error.message || "Your PIN has been locked. Please reset your PIN.",
-        confirmButtonColor: "#e1bf46",
-      });
-      throw error;
-    } else if (error.message?.includes("PIN")) {
-      throw error;
-    } else {
-      await Swal.fire({
-        icon: "error",
-        title: "Activation Failed",
-        text: error.message || "Something went wrong. Please try again.",
-        confirmButtonColor: "#e1bf46",
-      });
-    }
-  } finally {
-    setIsPinLoading(false);
-  }
-};
-
+  };
 
   const handleActivate = useCallback(async () => {
     if (!hasPendingActivation) {
