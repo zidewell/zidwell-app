@@ -4,11 +4,16 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { Switch } from "@/app/components/ui/switch";
-import type { Variant } from "@/app/hooks/useStore"; 
+
+// Define a local variant type for this component
+interface VariantOption {
+  name: string;
+  options: string[];
+}
 
 interface Props {
-  variants: Variant[];
-  setVariants: (v: Variant[]) => void;
+  variants: VariantOption[];
+  setVariants: (v: VariantOption[]) => void;
   requiresShipping: boolean;
   setRequiresShipping: (v: boolean) => void;
   price?: number;
