@@ -707,6 +707,7 @@
 // };
 // 
 // middleware.ts
+
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
 import { 
@@ -736,17 +737,13 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-const storeRequiredRoutes = [
+// Store dashboard routes (not public store pages)
+const storeDashboardRoutes = [
   "/dashboard/services/payment/create",
   "/dashboard/services/payment/create-link",
   "/dashboard/services/payment/edit",
   "/dashboard/services/payment/page",
   "/dashboard/services/payment/settings",
-  "/store/products",
-  "/store/transactions",
-  "/store/customers",
-  "/store/analytics",
-  "/store/settings",
 ];
 
 export const ALLOWED_PAYMENT_EMAILS = new Set([
@@ -773,12 +770,13 @@ const publicPaths = [
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
+  "/",
 ];
 
 // ─── FAST ROUTE MATCHING ───
 
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
-const storeRequiredSet = new Set(storeRequiredRoutes);
+const storeDashboardSet = new Set(storeDashboardRoutes);
 const premiumRoutesMap = new Map(premiumRoutes.map(route => [route.path, route.requiredTier]));
 
 function getRequiredTier(pathname: string): string | null {
@@ -795,8 +793,8 @@ function requiresPaymentEmailRestriction(pathname: string): boolean {
          pathname.startsWith("/dashboard/services/payment/");
 }
 
-function requiresStore(pathname: string): boolean {
-  for (const route of storeRequiredSet) {
+function requiresStoreDashboard(pathname: string): boolean {
+  for (const route of storeDashboardSet) {
     if (pathname.startsWith(route)) {
       return true;
     }
@@ -804,29 +802,58 @@ function requiresStore(pathname: string): boolean {
   return false;
 }
 
-function shouldBypassAuth(pathname: string): boolean {
-  // Static files
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest)$/)) {
-    return true;
-  }
-  // Public routes
-  if (publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'))) {
-    return true;
-  }
-  // Public store pages (allow anyone to view stores)
+function isPublicStorePage(pathname: string): boolean {
+  // Public store home: /store/[storeSlug]
   if (pathname.match(/^\/store\/[^\/]+$/)) {
     return true;
   }
+  // Public product page: /store/[storeSlug]/[productSlug]
   if (pathname.match(/^\/store\/[^\/]+\/[^\/]+$/)) {
     return true;
   }
+  // Public payment link: /store/[storeSlug]/link/[linkSlug]
   if (pathname.match(/^\/store\/[^\/]+\/link\/[^\/]+$/)) {
     return true;
   }
+  return false;
+}
+
+function shouldBypassAuth(pathname: string): boolean {
+  // Static files
+  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json)$/)) {
+    return true;
+  }
+  
+  // Public auth routes
+  if (publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'))) {
+    return true;
+  }
+  
+  // Public store pages - NO AUTH REQUIRED
+  if (isPublicStorePage(pathname)) {
+    return true;
+  }
+  
   // Payment pages (public)
   if (pathname.match(/^\/pay\/[^\/]+$/)) {
     return true;
   }
+  
+  // ✅ Payment status page (public)
+  if (pathname.startsWith("/payment-page/status")) {
+    return true;
+  }
+  
+  // ✅ Payment callback from Nomba (public)
+  if (pathname.startsWith("/payment/callback")) {
+    return true;
+  }
+  
+  // ✅ Payment success page (public)
+  if (pathname.startsWith("/payment-page-success")) {
+    return true;
+  }
+  
   return false;
 }
 
@@ -951,7 +978,13 @@ export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
   
-  // Bypass auth for public paths and static files
+  // FIRST: Check if this is a public store page - bypass auth completely
+  if (isPublicStorePage(currentPath)) {
+    console.log(`🌐 Public store page: ${currentPath} - no auth required`);
+    return NextResponse.next();
+  }
+  
+  // Check for other bypass paths
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
@@ -1015,7 +1048,6 @@ export async function middleware(req: NextRequest) {
   const sessionIdCookie = req.cookies.get("sb-session-id")?.value;
 
   // ─── CLIENT SESSION BYPASS ───
-  // Allow access for 5 seconds after login while cookies are being set
   if (clientSession === "true" && !accessToken && !refreshToken) {
     if (loginTime && (Date.now() - parseInt(loginTime) < 5000)) {
       console.log("🟢 Recent login detected (within 5s), allowing temporary access");
@@ -1075,17 +1107,15 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // Add timeout for token validation
   const tokenValidationPromise = validateTokenAndGetUser(accessToken);
   const timeoutPromise = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 8000); // 8 second timeout
+    setTimeout(() => resolve(null), 8000);
   });
   
   const tokenResult = await Promise.race([tokenValidationPromise, timeoutPromise]);
   
   if (!tokenResult) {
     console.log("⏱️ Token validation timed out or failed - allowing access (network may be slow)");
-    // Don't redirect on timeout - allow access and let client handle it
     return refreshedResponse || NextResponse.next();
   }
 
@@ -1099,7 +1129,7 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // ─── GET USER DETAILS (with timeout) ───
+  // ─── GET USER DETAILS ───
   const userDetailsPromise = getUserWithDetails(tokenResult.id);
   const userTimeoutPromise = new Promise<null>((resolve) => {
     setTimeout(() => resolve(null), 8000);
@@ -1108,8 +1138,7 @@ export async function middleware(req: NextRequest) {
   const userDetails = await Promise.race([userDetailsPromise, userTimeoutPromise]);
   
   if (!userDetails) {
-    console.log("⏱️ User details fetch timed out - allowing access (network may be slow)");
-    // Don't redirect on timeout - allow access
+    console.log("⏱️ User details fetch timed out - allowing access");
     return refreshedResponse || NextResponse.next();
   }
 
@@ -1121,7 +1150,7 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // ─── SESSION VALIDATION (with timeout) ───
+  // ─── SESSION VALIDATION ───
   const sessionPromise = getSupabaseAdmin()
     .from('users')
     .select('current_session_id, current_session_expires_at')
@@ -1134,22 +1163,17 @@ export async function middleware(req: NextRequest) {
   
   const { data: sessionData } = await Promise.race([sessionPromise, sessionTimeoutPromise]) as any;
 
-  // Check if user has a session in the database
-  const dbSessionId = (sessionData as any)?.current_session_id as string | null;
-  const dbSessionExpires = (sessionData as any)?.current_session_expires_at as string | null;
-
-  // Only validate session if we got data back
   if (sessionData) {
-    // If user has a session ID in DB but no session cookie, they logged out
+    const dbSessionId = (sessionData as any)?.current_session_id as string | null;
+    const dbSessionExpires = (sessionData as any)?.current_session_expires_at as string | null;
+
     if (dbSessionId && !sessionIdCookie) {
       console.log("❌ Session ID cookie missing - user logged out on another device");
       return redirectToLogin(req, true);
     }
 
-    // If session IDs don't match, user logged in elsewhere
     if (dbSessionId && sessionIdCookie && dbSessionId !== sessionIdCookie) {
       console.warn(`🚫 Session mismatch. DB: ${dbSessionId.slice(0,8)}... Cookie: ${sessionIdCookie.slice(0,8)}...`);
-      
       const res = redirectToLogin(req, true);
       res.cookies.set("login_error", "Your session was invalidated because you logged in on another device", {
         httpOnly: false,
@@ -1160,13 +1184,11 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    // Check if session expired
     if (dbSessionExpires && new Date(dbSessionExpires) < new Date()) {
       console.log("⏰ Session expired in database");
       return redirectToLogin(req, true);
     }
   } else {
-    // If session validation timed out, allow access but log it
     console.log("⏱️ Session validation timed out - allowing access");
   }
 
@@ -1185,9 +1207,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/auth/blocked?reason=geo", req.url));
   }
 
-  // ─── ✅ STORE REQUIRED ROUTES CHECK ───
-  if (requiresStore(currentPath)) {
-    console.log(`🏪 Checking store access for: ${currentPath}`);
+  // ─── STORE DASHBOARD ROUTES CHECK ───
+  if (requiresStoreDashboard(currentPath)) {
+    console.log(`🏪 Checking store dashboard access for: ${currentPath}`);
     
     try {
       const supabase = getSupabaseAdmin();
@@ -1209,7 +1231,6 @@ export async function middleware(req: NextRequest) {
         return redirectNoStore(req);
       }
 
-      // If store check timed out, allow access but log it
       if (!store) {
         console.log("⏱️ Store check timed out - allowing access");
         return refreshedResponse || NextResponse.next();
@@ -1229,10 +1250,9 @@ export async function middleware(req: NextRequest) {
         return response;
       }
 
-      console.log(`✅ Store access granted for ${currentPath}`);
+      console.log(`✅ Store dashboard access granted for ${currentPath}`);
     } catch (error) {
       console.error("❌ Store check error:", error);
-      // On error, allow access instead of blocking
       return refreshedResponse || NextResponse.next();
     }
   }
@@ -1293,5 +1313,9 @@ export const config = {
     "/blog/admin/:path*",
     "/auth/:path*",
     "/store/:path*",
+    "/pay/:path*",
+    "/payment-page/status",
+    "/payment/callback",
+    "/payment-page-success",
   ],
 };

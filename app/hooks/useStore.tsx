@@ -217,6 +217,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [creatingStore, setCreatingStore] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const { userData } = useUserContextData();
   const pathname = usePathname();
 
@@ -231,7 +232,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const lastFetchTime = useRef<number>(0);
   const fetchStoreInProgress = useRef(false);
   const fetchPagesInProgress = useRef(false);
-  const FETCH_COOLDOWN = 10000;
+  const FETCH_COOLDOWN = 5000; // ✅ Reduced to 5 seconds
 
   // Sync refs with state
   useEffect(() => { storeRef.current = store; }, [store]);
@@ -294,6 +295,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           console.log("❌ No store found (404)");
           hasCheckedStoreRef.current = true;
           setStore(null);
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
           return false;
         }
 
@@ -301,6 +305,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           console.error("❌ API error:", response.status);
           hasCheckedStoreRef.current = true;
           setStore(null);
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
           return false;
         }
 
@@ -315,22 +322,29 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           setStore(mappedStore);
           lastFetchTime.current = Date.now();
           hasCheckedStoreRef.current = true;
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
           return true;
         } else {
           console.log("❌ No store in response data");
           setStore(null);
           hasCheckedStoreRef.current = true;
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
           return false;
         }
       } catch (error) {
         console.error("❌ Error checking store:", error);
         hasCheckedStoreRef.current = true;
         setStore(null);
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
         return false;
       } finally {
         storeCheckPromiseRef.current = null;
-        setLoading(false);
-        setInitialFetchDone(true);
       }
     })();
 
@@ -366,6 +380,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       console.log("ℹ️ Not on a page that needs store data");
       setLoading(false);
       setInitialFetchDone(true);
+      setInitialLoadComplete(true);
       return;
     }
 
@@ -389,6 +404,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         hasCheckedStoreRef.current = true;
         setLoading(false);
         setInitialFetchDone(true);
+        setInitialLoadComplete(true);
         return;
       }
 
@@ -405,6 +421,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         hasCheckedStoreRef.current = true;
         setLoading(false);
         setInitialFetchDone(true);
+        setInitialLoadComplete(true);
         return;
       }
 
@@ -413,12 +430,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setStore(mappedStore);
       hasCheckedStoreRef.current = true;
       lastFetchTime.current = Date.now();
+      setLoading(false);
+      setInitialFetchDone(true);
+      setInitialLoadComplete(true);
     } catch (error) {
       console.error("❌ Error fetching store:", error);
       setStore(null);
-    } finally {
       setLoading(false);
       setInitialFetchDone(true);
+      setInitialLoadComplete(true);
+    } finally {
       fetchStoreInProgress.current = false;
     }
   }, [shouldFetchStore]);
@@ -426,12 +447,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const fetchPages = useCallback(async (force = false): Promise<void> => {
     console.log("🔄 fetchPages called, force:", force);
     
+    // ✅ Check if we have a store first
     const hasStore = await checkStoreExists();
     console.log("Has store for pages:", hasStore);
 
     if (!hasStore) {
       console.log("❌ No store, setting pages to empty");
       setPages([]);
+      setLoading(false);
+      setInitialFetchDone(true);
+      setInitialLoadComplete(true);
       return;
     }
 
@@ -448,6 +473,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     const now = Date.now();
     if (!force && now - lastFetchTime.current < FETCH_COOLDOWN && pagesRef.current.length > 0) {
       console.log("⏳ Pages fetch cooldown, skipping");
+      setLoading(false);
+      setInitialFetchDone(true);
+      setInitialLoadComplete(true);
       return;
     }
 
@@ -455,6 +483,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       console.log("ℹ️ Not on a page that needs store data");
       setLoading(false);
       setInitialFetchDone(true);
+      setInitialLoadComplete(true);
       return;
     }
 
@@ -483,10 +512,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("❌ Error fetching pages:", error);
       setPages([]);
-      throw error;
     } finally {
       setLoading(false);
       setInitialFetchDone(true);
+      setInitialLoadComplete(true);
       fetchPagesInProgress.current = false;
     }
   }, [shouldFetchStore, checkStoreExists]);
@@ -730,15 +759,18 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     pageDetailsCache.clear();
     lastFetchTime.current = 0;
     hasCheckedStoreRef.current = false;
+    setInitialLoadComplete(false);
   };
 
-  // === Initial fetch with stable deps ===
+  // ✅ FIXED: Initial fetch with proper async/await and state management
   useEffect(() => {
     let isMounted = true;
+    let isFirstRun = true;
 
     const loadData = async () => {
       console.log("🚀 Initial loadData called");
       console.log("Pathname:", pathnameRef.current);
+      console.log("Should fetch store:", shouldFetchStore());
       
       if (creatingStoreRef.current || storeCreationRef.current) {
         console.log("⏳ Store creation in progress, skipping initial load");
@@ -747,40 +779,87 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       
       if (shouldFetchStore()) {
         console.log("✅ Should fetch store, checking...");
-        const hasStore = await checkStoreExists();
-        console.log("Has store result:", hasStore);
         
-        if (hasStore && isMounted) {
-          console.log("✅ Store exists, fetching pages...");
-          await fetchPages();
-        } else {
-          console.log("❌ No store found, not fetching pages");
+        try {
+          // First check if store exists
+          const hasStore = await checkStoreExists();
+          console.log("Has store result:", hasStore);
+          
+          if (hasStore && isMounted) {
+            console.log("✅ Store exists, fetching pages...");
+            await fetchPages();
+          } else {
+            console.log("❌ No store found, not fetching pages");
+            if (isMounted) {
+              setPages([]);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error in initial load:", error);
+          if (isMounted) {
+            setLoading(false);
+            setInitialFetchDone(true);
+            setInitialLoadComplete(true);
+          }
         }
       } else {
         console.log("ℹ️ Not on a page that needs store data, setting loading to false");
-        setLoading(false);
-        setInitialFetchDone(true);
+        if (isMounted) {
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
+        }
       }
     };
 
+    // ✅ Execute load immediately
     loadData();
 
-    return () => { isMounted = false; };
+    // ✅ Set a safety timeout to ensure loading state is cleared
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && !initialLoadComplete) {
+        console.log("⏰ Safety timeout: forcing loading complete");
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+      }
+    }, 5000);
+
+    return () => { 
+      isMounted = false;
+      clearTimeout(safetyTimeout);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === Re-fetch on pathname change only ===
+  // ✅ FIXED: Re-fetch on pathname change with proper state management
   useEffect(() => {
     if (creatingStoreRef.current || storeCreationRef.current) return;
 
     if (shouldFetchStore() && initialFetchDone) {
-      if (!hasCheckedStoreRef.current || storeRef.current) {
+      console.log("🔄 Pathname changed, re-fetching data...");
+      
+      // Only fetch if we haven't already loaded or if we need to refresh
+      if (!storeRef.current && !hasCheckedStoreRef.current) {
         fetchStore();
-        if (storeRef.current) fetchPages();
+      }
+      
+      // If store exists, fetch pages
+      if (storeRef.current || hasCheckedStoreRef.current) {
+        // Check if we need to fetch pages
+        const shouldFetchPages = !pagesRef.current.length || 
+                                  pagesRef.current.length === 0 ||
+                                  initialLoadComplete;
+        
+        if (shouldFetchPages) {
+          fetchPages();
+        }
       }
     } else if (!shouldFetchStore() && !initialFetchDone) {
+      console.log("ℹ️ Not on a page that needs store data, setting loading to false");
       setLoading(false);
       setInitialFetchDone(true);
+      setInitialLoadComplete(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, initialFetchDone]);
@@ -794,7 +873,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     isActive: store?.isActive,
     activation_paid: store?.activation_paid,
     hasStore,
-    hasPendingActivation
+    hasPendingActivation,
+    loading,
+    initialLoadComplete,
+    pagesCount: pages.length,
+    pathname,
   });
 
   return (

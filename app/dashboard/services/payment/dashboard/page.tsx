@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -52,6 +52,7 @@ import Swal from "sweetalert2";
 export const STORE_LINKS = [
   { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
   { label: "Products", href: "/store/products", icon: Package },
+  { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
   { label: "Transactions", href: "/store/transactions", icon: CreditCard },
   { label: "Customers", href: "/store/customers", icon: Users },
   { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
@@ -60,7 +61,7 @@ export const STORE_LINKS = [
 
 export function StoreNav({ pathname }: { pathname: string }) {
   return (
-    <div className="flex items-center gap-6 overflow-x-auto px-5 py-3 sm:px-8 border-b border-border">
+    <div className="flex items-center gap-6 overflow-x-auto px-5 py-3 sm:px-8 border-b border-border bg-card/50 backdrop-blur-sm">
       <nav className="flex items-center gap-1">
         {STORE_LINKS.map((link) => {
           const active = pathname === link.href || pathname?.startsWith(link.href + '/');
@@ -111,7 +112,7 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "rounded-[2rem] border border-border p-7 transition-all",
+        "rounded-[2rem] border border-border p-7 transition-all bg-card shadow-sm",
         highlight ? "bg-foreground text-background" : "bg-card",
         empty && "opacity-50"
       )}
@@ -158,7 +159,7 @@ function StatCard({
   );
 }
 
-// Payment Page Card Component with Working Toggle
+// Payment Page Card Component
 function PaymentPageCard({ page, index, storeSlug, onRefresh }: { 
   page: any; 
   index: number; 
@@ -172,7 +173,6 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
     return `/store/${storeSlug || ''}/${page.slug || page.id}`;
   };
 
-  // ✅ Get full URL with origin
   const getFullPageUrl = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const path = getPageUrl();
@@ -181,7 +181,6 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 
   const isActive = page.isPublished === true;
 
-  // Strip HTML tags from description
   const stripHtml = (html: string) => {
     if (!html) return "No description";
     if (typeof window !== 'undefined') {
@@ -197,7 +196,6 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
     router.push(`/dashboard/services/payment/edit/${page.id}`);
   };
 
-  // ✅ Toggle Active/Inactive
   const handleToggleActive = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -274,7 +272,6 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
     }
   };
 
-  // ✅ Copy full URL with origin
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
     const fullUrl = getFullPageUrl();
@@ -299,7 +296,7 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
       onClick={() => router.push(`/dashboard/services/payment/page/${page.id}`)}
-      className="group flex flex-col rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer"
+      className="group flex flex-col rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
     >
       <div className="relative flex h-40 items-center justify-center rounded-[1.5rem] bg-muted/30">
         {page.coverImage ? (
@@ -340,7 +337,7 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+          <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-card border-border shadow-xl">
             <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
               <Pencil className="size-4 mr-2" /> Edit page
             </DropdownMenuItem>
@@ -378,7 +375,7 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
         <p className="eyebrow text-muted-foreground">
           {page.pageType || "Payment"}
         </p>
-        <h3 className="mt-1 font-display text-lg font-bold leading-tight">
+        <h3 className="mt-1 font-display text-lg font-bold leading-tight text-foreground">
           {page.title}
         </h3>
         <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
@@ -427,7 +424,6 @@ function Greeting({ storeName, firstName }: { storeName?: string; firstName?: st
   }, []);
 
   const displayName = firstName || "there";
-  const storeSlug = storeName ? storeName.toLowerCase().replace(/\s+/g, '-') : '';
 
   return (
     <motion.div
@@ -450,13 +446,12 @@ function Greeting({ storeName, firstName }: { storeName?: string; firstName?: st
           )}
         </div>
       </div>
-     
     </motion.div>
   );
 }
 
 // ============================================================
-// MAIN DASHBOARD COMPONENT
+// MAIN DASHBOARD COMPONENT - SCALABLE
 // ============================================================
 export default function PaymentDashboardPage() {
   const router = useRouter();
@@ -481,8 +476,16 @@ export default function PaymentDashboardPage() {
   const [filteredPages, setFilteredPages] = useState<any[]>([]);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
+  
+  // Refs for scalability - prevent multiple simultaneous calls
+  const isRefreshingRef = useRef(false);
+  const lastRefreshTime = useRef(0);
+  const MIN_REFRESH_INTERVAL = 2000; // 2 seconds minimum between refreshes
 
-  // Show loader first, then check store status
+  // ============================================================
+  // STEP 1: Check store status on mount
+  // ============================================================
   useEffect(() => {
     let isMounted = true;
     
@@ -506,26 +509,47 @@ export default function PaymentDashboardPage() {
       }
     };
     
-    const timer = setTimeout(() => {
-      checkStoreStatus();
-    }, 300);
+    checkStoreStatus();
     
     return () => {
       isMounted = false;
-      clearTimeout(timer);
     };
   }, [fetchStore]);
 
-  // Load pages when store is active
+  // ============================================================
+  // STEP 2: Load pages when store is active
+  // ============================================================
   useEffect(() => {
-    if (hasStore && isStoreCheckComplete && !isLoading) {
-      fetchPages().finally(() => {
-        setInitialLoadComplete(true);
-      });
-    }
+    let isMounted = true;
+    
+    const loadPages = async () => {
+      if (hasStore && isStoreCheckComplete && !isLoading) {
+        try {
+          await fetchPages();
+          if (isMounted) {
+            setInitialLoadComplete(true);
+            setDataReady(true);
+          }
+        } catch (error) {
+          console.error("Error loading pages:", error);
+          if (isMounted) {
+            setInitialLoadComplete(true);
+            setDataReady(true);
+          }
+        }
+      }
+    };
+    
+    loadPages();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [hasStore, isStoreCheckComplete, isLoading, fetchPages]);
 
-  // Filter pages based on selected period
+  // ============================================================
+  // STEP 3: Filter pages based on selected period
+  // ============================================================
   useEffect(() => {
     if (pages.length === 0) {
       setFilteredPages([]);
@@ -559,8 +583,27 @@ export default function PaymentDashboardPage() {
     setFilteredPages(filtered);
   }, [pages, period, range]);
 
+  // ============================================================
+  // STEP 4: Handle refresh with throttling for scalability
+  // ============================================================
   const handleRefresh = useCallback(async () => {
+    // Prevent multiple simultaneous refreshes
+    if (isRefreshingRef.current) {
+      console.log("⏳ Refresh already in progress, skipping");
+      return;
+    }
+
+    // Throttle refreshes to prevent API overload
+    const now = Date.now();
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) {
+      console.log("⏳ Refresh throttled, skipping");
+      return;
+    }
+
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
+    lastRefreshTime.current = now;
+
     try {
       await refreshPages();
       toast.success("Pages refreshed");
@@ -568,14 +611,23 @@ export default function PaymentDashboardPage() {
       toast.error("Failed to refresh pages");
     } finally {
       setIsRefreshing(false);
+      isRefreshingRef.current = false;
     }
   }, [refreshPages]);
 
   const handlePageRefresh = useCallback(() => {
+    // Throttle page refresh
+    const now = Date.now();
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) {
+      return;
+    }
+    lastRefreshTime.current = now;
     refreshPages();
   }, [refreshPages]);
 
+  // ============================================================
   // Calculate metrics from real data
+  // ============================================================
   const metrics = useMemo(() => {
     const totalBalance = filteredPages.reduce((sum, p) => sum + (p.pageBalance || 0), 0);
     const totalRevenue = filteredPages.reduce((sum, p) => sum + (p.totalRevenue || 0), 0);
@@ -595,12 +647,13 @@ export default function PaymentDashboardPage() {
     };
   }, [filteredPages]);
 
-  // ✅ Show full page loader only during initial auth check
+  // ============================================================
+  // SHOW LOADER UNTIL DATA IS READY
+  // ============================================================
   if (isLoading || loading || !isStoreCheckComplete) {
     return <Loader />;
   }
 
-  // If no store OR pending activation - show CreateStoreForm
   if (!hasStore || hasPendingActivation) {
     return (
       <div className="min-h-screen bg-background">
@@ -615,10 +668,24 @@ export default function PaymentDashboardPage() {
     );
   }
 
-  // Store exists and is active - show full dashboard
-  const isEmpty = filteredPages.length === 0;
+  if (!dataReady || !initialLoadComplete) {
+    return (
+      <div className="min-h-screen bg-background">
+        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="lg:pl-72 min-h-screen flex flex-col">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+            <Loader />
+          </main>
+        </div>
+      </div>
+    );
+  }
 
-  // Get user's first name for greeting
+  // ============================================================
+  // RENDER DASHBOARD WITH DATA
+  // ============================================================
+  const isEmpty = filteredPages.length === 0;
   const firstName = userData?.full_name?.split(' ')[0] || userData?.first_name || '';
   const storeName = store?.name || '';
   const storeSlug = store?.slug || '';
@@ -630,201 +697,189 @@ export default function PaymentDashboardPage() {
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         
-        {/* Store Navigation */}
         <StoreNav pathname={pathname || ''} />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          {/* ✅ Show component loader while pages are loading */}
-          {!initialLoadComplete && filteredPages.length === 0 ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader />
-            </div>
-          ) : (
-            <>
-              {/* Header with Greeting */}
-              <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
-                <div>
-                  <p className="eyebrow text-muted-foreground">Online Store</p>
-                  <Greeting storeName={storeName} firstName={firstName} />
-                  <div className="mt-7 flex items-center gap-3 w-full">
-                    {/* ✅ Visit storefront - outline style */}
-                    <a
-                      href={`/store/${storeSlug}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-transparent px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
-                    >
-                      <ExternalLink className="size-4" />
-                      Visit storefront
-                    </a>
-                    {/* ✅ Add New product - solid primary style */}
-                    <button
-                      onClick={() => router.push("/dashboard/services/payment/create")}
-                      className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
-                    >
-                      <Plus className="size-4" /> Add New product
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <DateFilter
-                    value={period}
-                    onChange={setPeriod}
-                    range={range}
-                    onRangeChange={setRange}
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleRefresh}
-                      disabled={isRefreshing}
-                      className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors"
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "size-4",
-                          isRefreshing && "animate-spin"
-                        )}
-                      />
-                    </button>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Metrics update with this period
-                    </p>
-                  </div>
-                </div>
+          {/* Header with Greeting */}
+          <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
+            <div>
+              <p className="eyebrow text-muted-foreground">Online Store</p>
+              <Greeting storeName={storeName} firstName={firstName} />
+              <div className="mt-7 flex items-center gap-3 w-full">
+                <a
+                  href={`/store/${storeSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-transparent px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
+                >
+                  <ExternalLink className="size-4" />
+                  Visit storefront
+                </a>
+                <button
+                  onClick={() => router.push("/dashboard/services/payment/create")}
+                  className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
+                >
+                  <Plus className="size-4" /> Add New product
+                </button>
               </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <DateFilter
+                value={period}
+                onChange={setPeriod}
+                range={range}
+                onRangeChange={setRange}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
+                >
+                  <RefreshCw
+                    className={cn(
+                      "size-4",
+                      isRefreshing && "animate-spin"
+                    )}
+                  />
+                </button>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Click to refresh
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {/* Primary Metrics */}
-              <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard
-                  label="Total balance"
-                  value={isEmpty ? "₦0" : `₦${metrics.totalBalance.toLocaleString()}`}
-                  delta="0%"
-                  icon={Coins}
-                  highlight
-                  empty={isEmpty}
-                />
-                <StatCard
-                  label="Total revenue"
-                  value={isEmpty ? "₦0" : `₦${metrics.totalRevenue.toLocaleString()}`}
-                  delta="0%"
-                  icon={TrendingUp}
-                  empty={isEmpty}
-                />
-                <StatCard
-                  label="Total payments"
-                  value={isEmpty ? "0" : metrics.totalPayments.toLocaleString()}
-                  delta="0%"
-                  icon={CreditCard}
-                  empty={isEmpty}
-                />
-                <StatCard
-                  label="Page views"
-                  value={isEmpty ? "0" : metrics.totalViews.toLocaleString()}
-                  delta="0%"
-                  icon={Eye}
-                  empty={isEmpty}
-                />
-              </section>
+          {/* Primary Metrics */}
+          <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Total balance"
+              value={isEmpty ? "₦0" : `₦${metrics.totalBalance.toLocaleString()}`}
+              delta="0%"
+              icon={Coins}
+              highlight
+              empty={isEmpty}
+            />
+            <StatCard
+              label="Total revenue"
+              value={isEmpty ? "₦0" : `₦${metrics.totalRevenue.toLocaleString()}`}
+              delta="0%"
+              icon={TrendingUp}
+              empty={isEmpty}
+            />
+            <StatCard
+              label="Total payments"
+              value={isEmpty ? "0" : metrics.totalPayments.toLocaleString()}
+              delta="0%"
+              icon={CreditCard}
+              empty={isEmpty}
+            />
+            <StatCard
+              label="Page views"
+              value={isEmpty ? "0" : metrics.totalViews.toLocaleString()}
+              delta="0%"
+              icon={Eye}
+              empty={isEmpty}
+            />
+          </section>
 
-              {/* Secondary Metrics */}
-              <section className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                {[
-                  {
-                    label: "Average order value",
-                    value: isEmpty ? "₦0" : `₦${Math.round(metrics.avgOrder).toLocaleString()}`,
-                  },
-                  {
-                    label: "Conversion rate",
-                    value: isEmpty ? "0%" : "3.2%",
-                  },
-                  {
-                    label: "Active pages",
-                    value: isEmpty ? "0" : metrics.activePages.toLocaleString(),
-                  },
-                  {
-                    label: "Total pages",
-                    value: isEmpty ? "0" : metrics.pageCount.toLocaleString(),
-                  },
-                ].map((s) => (
-                  <div key={s.label} className={cn(
-                    "rounded-[2rem] p-7",
-                    isEmpty ? "bg-muted/30 border border-border" : "bg-muted"
-                  )}>
-                    <p className="eyebrow text-muted-foreground">{s.label}</p>
-                    <p className="mt-2 font-display text-3xl font-bold tracking-tight">
-                      {s.value}
-                    </p>
+          {/* Secondary Metrics */}
+          <section className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              {
+                label: "Average order value",
+                value: isEmpty ? "₦0" : `₦${Math.round(metrics.avgOrder).toLocaleString()}`,
+              },
+              {
+                label: "Conversion rate",
+                value: isEmpty ? "0%" : "3.2%",
+              },
+              {
+                label: "Active pages",
+                value: isEmpty ? "0" : metrics.activePages.toLocaleString(),
+              },
+              {
+                label: "Total pages",
+                value: isEmpty ? "0" : metrics.pageCount.toLocaleString(),
+              },
+            ].map((s) => (
+              <div key={s.label} className={cn(
+                "rounded-[2rem] p-7 bg-card border border-border shadow-sm",
+                isEmpty ? "bg-muted/30 border border-border" : "bg-card"
+              )}>
+                <p className="eyebrow text-muted-foreground">{s.label}</p>
+                <p className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground">
+                  {s.value}
+                </p>
+              </div>
+            ))}
+          </section>
+
+          {/* Page Grid or Empty State */}
+          <section className="mt-20">
+            {isEmpty ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card rounded-3xl border border-border shadow-sm">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50">
+                  <Package className="size-12 text-muted-foreground/40" />
+                </div>
+                <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
+                  No pages yet
+                </h3>
+                <p className="mt-2 max-w-md text-muted-foreground">
+                  Create your first payment page to start collecting money from your customers.
+                </p>
+                <button
+                  onClick={() => router.push("/dashboard/services/payment/create")}
+                  className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  <Plus className="size-4" />
+                  Create Payment Page
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className="eyebrow text-muted-foreground">Collection</p>
+                    <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl text-foreground">
+                      Your Store Products
+                    </h2>
                   </div>
-                ))}
-              </section>
-
-              {/* Page Grid or Empty State */}
-              <section className="mt-20">
-                {isEmpty ? (
-                  <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50">
-                      <Package className="size-12 text-muted-foreground/40" />
-                    </div>
-                    <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
-                      No pages yet
-                    </h3>
-                    <p className="mt-2 max-w-md text-muted-foreground">
-                      Create your first payment page to start collecting money from your customers.
-                    </p>
+                  <p className="text-base font-medium text-muted-foreground">
+                    {filteredPages.filter((p) => p.isPublished === true).length} active pages
+                  </p>
+                </div>
+                <div className="mt-8">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                    {/* Add Page Button */}
                     <button
                       onClick={() => router.push("/dashboard/services/payment/create")}
-                      className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+                      className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
                     >
-                      <Plus className="size-4" />
-                      Create Payment Page
+                      <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                        <Plus className="size-6" strokeWidth={2.6} />
+                      </span>
+                      <span className="font-display text-base font-bold">
+                        Add page
+                      </span>
+                      <span className="max-w-[180px] text-center text-sm">
+                        Create a new payment page
+                      </span>
                     </button>
+                    {filteredPages.map((page, i) => (
+                      <PaymentPageCard 
+                        key={page.id} 
+                        page={page} 
+                        index={i} 
+                        storeSlug={storeSlug}
+                        onRefresh={handlePageRefresh}
+                      />
+                    ))}
                   </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap items-end justify-between gap-4">
-                      <div>
-                        <p className="eyebrow text-muted-foreground">Collection</p>
-                        <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
-                          Your Store Products
-                        </h2>
-                      </div>
-                      <p className="text-base font-medium text-muted-foreground">
-                        {filteredPages.filter((p) => p.isPublished === true).length} active pages
-                      </p>
-                    </div>
-                    <div className="mt-8">
-                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                        {/* Add Page Button */}
-                        <button
-                          onClick={() => router.push("/dashboard/services/payment/create")}
-                          className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground"
-                        >
-                          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                            <Plus className="size-6" strokeWidth={2.6} />
-                          </span>
-                          <span className="font-display text-base font-bold">
-                            Add page
-                          </span>
-                          <span className="max-w-[180px] text-center text-sm">
-                            Create a new payment page
-                          </span>
-                        </button>
-                        {filteredPages.map((page, i) => (
-                          <PaymentPageCard 
-                            key={page.id} 
-                            page={page} 
-                            index={i} 
-                            storeSlug={storeSlug}
-                            onRefresh={handlePageRefresh}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </section>
-            </>
-          )}
+                </div>
+              </>
+            )}
+          </section>
         </main>
       </div>
     </div>

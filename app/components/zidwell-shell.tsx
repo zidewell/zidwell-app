@@ -34,6 +34,7 @@ import {
 export const STORE_LINKS = [
  { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
   { label: "Products", href: "/store/products", icon: Package },
+  { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
   { label: "Transactions", href: "/store/transactions", icon: CreditCard },
   { label: "Customers", href: "/store/customers", icon: Users },
   { label: "Analytics", href: "/store/analytics", icon: BarChart3 },

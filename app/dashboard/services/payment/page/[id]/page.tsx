@@ -5,35 +5,35 @@ import { useParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import {
   ArrowLeft,
+  Users,
   Eye,
-  TrendingUp,
-  Copy,
   Wallet,
-  ExternalLink,
-  GraduationCap,
-  CheckCircle2,
-  Shield,
   DollarSign,
-  Loader2,
-  User,
-  RefreshCw,
-  Edit2,
+  GraduationCap,
+  CheckCircle,
   Clock,
   AlertCircle,
-  Check,
-  Banknote,
   Search,
-  XCircle,
+  X,
+  Copy,
   QrCode,
   Code2,
   Download,
-  CreditCard,
-  Link2,
-  Users,
+  ExternalLink,
+  Edit2,
+  RefreshCw,
+  Loader2,
+  User,
   Mail,
   Phone,
   Calendar,
   FileText,
+  TrendingUp,
+  Banknote,
+  CreditCard,
+  Link2,
+  Shield,
+  Check,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useStore } from "@/app/hooks/useStore";
@@ -69,23 +69,21 @@ const PageDetail = () => {
   const router = useRouter();
   const { pages, getPageDetails, withdrawFromPage, store } = useStore();
   const { userData } = useUserContextData();
-  const { openVerificationModal, isOpen } = useVerificationModal();
+  const { openVerificationModal } = useVerificationModal();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState<any>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [assigningPayment, setAssigningPayment] = useState<string | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<
-    Record<string, string>
-  >({});
+  const [selectedStudent, setSelectedStudent] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [showQRModal, setShowQRModal] = useState(false);
   const [showEmbedModal, setShowEmbedModal] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
-
-  // Customer search for payment links
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"all" | "paid" | "partial" | "unpaid">("all");
 
   const isVerified = userData?.bvnVerification === "verified";
 
@@ -131,10 +129,8 @@ const PageDetail = () => {
       }
 
       if (data && data.length > 0) {
-        console.log("📊 Payments loaded:", data.length, "records");
         setPayments(data);
       } else {
-        console.log("📊 No payments found");
         setPayments([]);
       }
     } catch (error) {
@@ -163,7 +159,6 @@ const PageDetail = () => {
   };
 
   const handleWithdraw = async () => {
-    // Check BVN before allowing withdrawal
     if (!isVerified) {
       await Swal.fire({
         icon: "warning",
@@ -172,11 +167,6 @@ const PageDetail = () => {
           <div class="text-left">
             <p class="font-medium">You need to verify your BVN before you can withdraw funds.</p>
             <p class="text-sm text-gray-600 mt-2">This is required for security and regulatory compliance.</p>
-            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p class="text-xs text-blue-600 dark:text-blue-400">
-                💡 Your BVN is encrypted and securely stored. It will only be used for identity verification.
-              </p>
-            </div>
           </div>
         `,
         confirmButtonColor: "#F5B81B",
@@ -197,7 +187,7 @@ const PageDetail = () => {
         title: "Withdraw Funds",
         html: `
           <div class="text-left">
-            <p class="mb-2">Available balance: <strong>₦${(page.pageBalance || 0).toLocaleString()}</strong></p>
+            <p class="mb-2">Available balance: <strong>₦${(page?.pageBalance || 0).toLocaleString()}</strong></p>
             <p class="text-sm text-gray-600">Minimum withdrawal: ₦1,000</p>
             <p class="text-sm text-gray-600">Withdrawal fee: ₦200</p>
           </div>
@@ -208,7 +198,7 @@ const PageDetail = () => {
         inputValue: "1000",
         inputAttributes: {
           min: "1000",
-          max: String(page.pageBalance || 0),
+          max: String(page?.pageBalance || 0),
           step: "100",
         },
         showCancelButton: true,
@@ -223,8 +213,8 @@ const PageDetail = () => {
           if (numAmount < 1000) {
             return "Minimum withdrawal amount is ₦1,000";
           }
-          if (numAmount > (page.pageBalance || 0)) {
-            return `Maximum withdrawal amount is ₦${(page.pageBalance || 0).toLocaleString()}`;
+          if (numAmount > (page?.pageBalance || 0)) {
+            return `Maximum withdrawal amount is ₦${(page?.pageBalance || 0).toLocaleString()}`;
           }
           return null;
         },
@@ -232,7 +222,6 @@ const PageDetail = () => {
 
       if (isConfirmed && amount) {
         setWithdrawing(true);
-
         const withdrawAmount = Number(amount);
 
         Swal.fire({
@@ -244,7 +233,7 @@ const PageDetail = () => {
           },
         });
 
-        await withdrawFromPage(page.id, withdrawAmount);
+        await withdrawFromPage(page?.id, withdrawAmount);
 
         await Swal.fire({
           icon: "success",
@@ -265,12 +254,7 @@ const PageDetail = () => {
       await Swal.fire({
         icon: "error",
         title: "Withdrawal Failed",
-        html: `
-          <div class="text-left">
-            <p>${error.message || "Please try again later."}</p>
-            <p class="text-sm text-gray-600 mt-2">If the problem persists, contact support.</p>
-          </div>
-        `,
+        html: `<p>${error.message || "Please try again later."}</p>`,
         confirmButtonColor: "#F5B81B",
       });
     } finally {
@@ -298,9 +282,7 @@ const PageDetail = () => {
     try {
       const response = await fetch("/api/payment-page/assign-payment", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           paymentId,
           studentName,
@@ -333,7 +315,6 @@ const PageDetail = () => {
 
       await loadPayments(page.id);
       await loadPageDetails();
-
       setSelectedStudent((prev) => ({ ...prev, [paymentId]: "" }));
     } catch (error: any) {
       console.error("Error assigning payment:", error);
@@ -355,22 +336,7 @@ const PageDetail = () => {
 
   const getEmbedCode = () => {
     const pageUrl = getPaymentPageUrl();
-    return `<a
-  href="${pageUrl}"
-  target="_blank"
-  rel="noopener noreferrer"
-  style="
-    display:inline-block;
-    padding:12px 24px;
-    background:#2563eb;
-    color:white;
-    text-decoration:none;
-    border-radius:8px;
-    font-weight:600;
-  "
->
-  Pay Now
-</a>`;
+    return `<a href="${pageUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;background:#2563eb;color:white;text-decoration:none;border-radius:8px;font-weight:600;">Pay Now</a>`;
   };
 
   const copyEmbedCode = async () => {
@@ -392,7 +358,7 @@ const PageDetail = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `qrcode-${page.slug}.svg`;
+      a.download = `qrcode-${page?.slug}.svg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -416,23 +382,15 @@ const PageDetail = () => {
     }
   };
 
-  // ============================================================
-  // PAYMENT LINK CONFIG - Get redirect URL and success message
-  // ============================================================
   const getPaymentLinkConfig = () => {
-    if (page?.metadata?.linkConfig) {
-      return page.metadata.linkConfig;
-    }
-    if (page?.linkConfig) {
-      return page.linkConfig;
-    }
+    if (page?.metadata?.linkConfig) return page.metadata.linkConfig;
+    if (page?.linkConfig) return page.linkConfig;
     if (page?.metadata?.linkConfigData) {
       try {
         return typeof page.metadata.linkConfigData === 'string' 
           ? JSON.parse(page.metadata.linkConfigData) 
           : page.metadata.linkConfigData;
       } catch (e) {
-        console.error("Error parsing linkConfigData:", e);
         return null;
       }
     }
@@ -441,16 +399,10 @@ const PageDetail = () => {
 
   const linkConfig = getPaymentLinkConfig();
 
-  // ============================================================
-  // PAYMENT LINK CUSTOMERS - Extract customer data from payments
-  // ============================================================
   const customers = useMemo(() => {
-    if (!payments || payments.length === 0) {
-      return [];
-    }
+    if (!payments || payments.length === 0) return [];
 
     const customerMap = new Map();
-
     const fieldIdToLabel: Record<string, string> = {};
     if (linkConfig?.customFields) {
       linkConfig.customFields.forEach((field: any) => {
@@ -482,13 +434,6 @@ const PageDetail = () => {
           }
         });
 
-        const narration = payment.metadata?.narration || null;
-        const referenceCode = payment.metadata?.referenceCode || 
-                            payment.metadata?.transfer_reference || 
-                            payment.transfer_reference || 
-                            payment.order_reference || 
-                            null;
-
         customerMap.set(key, {
           name: name,
           email: email,
@@ -498,10 +443,9 @@ const PageDetail = () => {
           firstPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
           lastPayment: payment.paid_at || payment.created_at || new Date().toISOString(),
           customFields: formattedCustomFields,
-          referenceCode: referenceCode,
-          narration: narration,
+          referenceCode: payment.metadata?.referenceCode || payment.transfer_reference || payment.order_reference || null,
+          narration: payment.metadata?.narration || null,
           paymentMethod: payment.payment_method || null,
-          hasNarration: !!narration,
         });
       }
 
@@ -520,459 +464,570 @@ const PageDetail = () => {
     });
 
     return Array.from(customerMap.values()).sort((a, b) => b.totalPaid - a.totalPaid);
-  }, [payments, page, linkConfig]);
+  }, [payments, linkConfig]);
 
-  const filteredCustomers = customers.filter((customer) => {
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchQuery.trim()) return customers;
     const query = customerSearchQuery.toLowerCase().trim();
-    if (!query) return true;
-    return (
-      customer.name.toLowerCase().includes(query) ||
-      (customer.email && customer.email.toLowerCase().includes(query)) ||
-      (customer.phone && customer.phone.includes(query))
+    return customers.filter((customer) => {
+      return (
+        customer.name.toLowerCase().includes(query) ||
+        (customer.email && customer.email.toLowerCase().includes(query)) ||
+        (customer.phone && customer.phone.includes(query))
+      );
+    });
+  }, [customers, customerSearchQuery]);
+
+  const studentPaymentMap = useMemo(() => {
+    const map = new Map<string, { paidAmount: number; parentName?: string; lastPaidAt?: string; payments: any[] }>();
+    
+    payments.forEach((payment) => {
+      let studentName = null;
+      
+      if (payment.student_name) {
+        studentName = payment.student_name;
+      } else if (payment.metadata?.selectedStudents && payment.metadata.selectedStudents.length > 0) {
+        studentName = payment.metadata.selectedStudents[0];
+      } else if (payment.metadata?.matched_student) {
+        studentName = payment.metadata.matched_student;
+      } else if (payment.metadata?.assigned_student) {
+        studentName = payment.metadata.assigned_student;
+      }
+      
+      if (studentName) {
+        const existing = map.get(studentName) || { paidAmount: 0, parentName: null, lastPaidAt: null, payments: [] };
+        existing.paidAmount += (payment.amount || 0);
+        existing.payments.push(payment);
+        
+        if (payment.customer_name && !existing.parentName) {
+          existing.parentName = payment.customer_name;
+        }
+        
+        const paymentDate = payment.paid_at || payment.confirmed_at || payment.created_at;
+        if (paymentDate && (!existing.lastPaidAt || paymentDate > existing.lastPaidAt)) {
+          existing.lastPaidAt = paymentDate;
+        }
+        
+        map.set(studentName, existing);
+      }
+    });
+    
+    return map;
+  }, [payments]);
+
+  const studentsWithStatus = useMemo(() => {
+    const rawStudents = page?.metadata?.students || [];
+    
+    if (!rawStudents || rawStudents.length === 0) {
+      return [];
+    }
+    
+    return rawStudents.map((student: any) => {
+      const totalAmount = page?.price || 0;
+      const studentName = student.name || student.studentName || "";
+      
+      const paymentData = studentPaymentMap.get(studentName);
+      const paidAmount = paymentData?.paidAmount || Number(student.paidAmount) || 0;
+      const parentName = paymentData?.parentName || student.parentName || null;
+      const lastPaidAt = paymentData?.lastPaidAt || student.lastPaidAt || student.paidAt || null;
+      const paymentCount = paymentData?.payments?.length || 0;
+      
+      const isFullyPaid = paidAmount >= totalAmount && totalAmount > 0;
+      const isPartiallyPaid = paidAmount > 0 && !isFullyPaid && totalAmount > 0;
+      const remainingAmount = Math.max(0, totalAmount - paidAmount);
+      const percentage = totalAmount > 0 ? Math.min(100, (paidAmount / totalAmount) * 100) : 0;
+      
+      return {
+        ...student,
+        name: studentName,
+        className: student.className || student.class || "",
+        regNumber: student.regNumber || student.regNumber || "",
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        isFullyPaid,
+        isPartiallyPaid,
+        percentage,
+        parentName: parentName || student.parentName || null,
+        paidAt: lastPaidAt,
+        paymentCount,
+        payments: paymentData?.payments || [],
+      };
+    });
+  }, [page?.metadata?.students, page?.price, studentPaymentMap]);
+
+  let filteredStudents = studentsWithStatus;
+  
+  if (searchQuery) {
+    filteredStudents = filteredStudents.filter((s: any) =>
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  }
+  
+  if (activeTab === "paid") {
+    filteredStudents = filteredStudents.filter((s: any) => s.isFullyPaid);
+  } else if (activeTab === "partial") {
+    filteredStudents = filteredStudents.filter((s: any) => s.isPartiallyPaid);
+  } else if (activeTab === "unpaid") {
+    filteredStudents = filteredStudents.filter((s: any) => !s.isFullyPaid && !s.isPartiallyPaid);
+  }
+
+  const fullyPaidCount = studentsWithStatus.filter((s: any) => s.isFullyPaid).length;
+  const partiallyPaidCount = studentsWithStatus.filter((s: any) => s.isPartiallyPaid).length;
+  const unpaidCount = studentsWithStatus.filter((s: any) => !s.isFullyPaid && !s.isPartiallyPaid).length;
+
+  const totalCollected = studentsWithStatus.reduce((sum: number, s: any) => sum + (s.paidAmount || 0), 0);
+  const totalExpected = studentsWithStatus.length * (page?.price || 0);
+
+  const unassignedPayments = payments.filter((p) => {
+    return !p.student_name && !p.metadata?.matched_student && !p.metadata?.assigned_student && (!p.metadata?.selectedStudents || p.metadata.selectedStudents.length === 0);
   });
+
+  const totalPaymentsAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  const pageType = page?.pageType || page?.page_type || "";
+  const isSchoolPage = pageType === "school";
+  const showCustomersSection = pageType === "link" || payments.length > 0;
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-yellow)]" />
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
       </div>
     );
   }
 
-  const students = page.metadata?.students || [];
-
-  const studentsWithStatus = students.map((student: any) => {
-    const totalAmount = page.price || 0;
-    const paidAmount = student.paidAmount || 0;
-    const isFullyPaid = paidAmount >= totalAmount;
-    const isPartiallyPaid = paidAmount > 0 && !isFullyPaid;
-
-    return {
-      ...student,
-      totalAmount,
-      paidAmount,
-      isFullyPaid,
-      isPartiallyPaid,
-      remainingAmount: totalAmount - paidAmount,
-    };
-  });
-
-  const filteredStudents = studentsWithStatus.filter((student: any) =>
-    student.name?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const assignedPayments = payments.filter((p) => {
-    const metadata = p.metadata || {};
-    return metadata.matched_student || metadata.assigned_student;
-  });
-
-  const unassignedPayments = payments.filter((p) => {
-    const metadata = p.metadata || {};
-    return !metadata.matched_student && !metadata.assigned_student;
-  });
-
-  const paidStudents = studentsWithStatus.filter((s: any) => s.isFullyPaid);
-  const partiallyPaidStudents = studentsWithStatus.filter(
-    (s: any) => s.isPartiallyPaid,
-  );
-  const unpaidStudents = studentsWithStatus.filter(
-    (s: any) => !s.isFullyPaid && !s.isPartiallyPaid,
-  );
-
-  const totalCollected = studentsWithStatus.reduce(
-    (sum: number, s: any) => sum + (s.paidAmount || 0),
-    0,
-  );
-  const totalExpected = students.length * (page.price || 0);
-
-  const totalPaymentsAmount = payments.reduce(
-    (sum, p) => sum + (p.amount || 0),
-    0,
-  );
-
-  const showCustomersSection = page.page_type === "link" || payments.length > 0;
-
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="lg:pl-72 min-h-screen flex flex-col">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => router.back()}
-                className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
               <button
                 onClick={refreshData}
                 disabled={refreshing}
-                className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
-                <RefreshCw
-                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-                />{" "}
-                Refresh
+                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
               </button>
             </div>
 
             {/* Page Info */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-4">
-                {page.coverImage ? (
-                  <img
-                    src={page.coverImage}
-                    className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
-                    alt={page.title}
-                  />
-                ) : page.productImages && page.productImages.length > 0 ? (
-                  <img
-                    src={page.productImages[0]}
-                    className="h-12 w-12 md:h-16 md:w-16 rounded-xl object-cover"
-                    alt={page.title}
-                  />
-                ) : (
-                  <div className="h-12 w-12 md:h-16 w-16 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-[var(--text-secondary)]" />
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                    {page.title}
-                  </h1>
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    {typeLabels[page.page_type] || page.page_type || "Payment Page"}
-                  </p>
-                  {(page.page_type === "link" || linkConfig) && (
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      {linkConfig && (
-                        <>
-                          <span className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-2 py-0.5 rounded-full">
-                            {linkConfig.amountMode === "fixed" ? "Fixed" : "Variable"} Amount
-                          </span>
-                          {linkConfig.redirectUrl && (
-                            <span className="text-xs bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <Link2 className="h-3 w-3" />
-                              Redirect: {linkConfig.redirectUrl}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      <span className="text-xs bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {customers.length} Customers
-                      </span>
-                      <span className="text-xs bg-purple-500/10 text-purple-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" />
-                        {payments.length} Payments
-                      </span>
-                    </div>
+                <div className="h-14 w-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                  {page.coverImage ? (
+                    <img src={page.coverImage} className="h-full w-full object-cover" alt={page.title} />
+                  ) : (
+                    <CreditCard className="h-6 w-6 text-gray-400" />
                   )}
                 </div>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">{page.title}</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {typeLabels[pageType] || pageType || "Payment Page"}
+                  </p>
+                </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <Link href={`/dashboard/services/payment/edit/${page.id}`}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                  >
+                  <Button variant="outline" size="sm" className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">
                     <Edit2 className="h-4 w-4 mr-1" /> Edit
                   </Button>
                 </Link>
                 <Link href={getPaymentPageUrl()} target="_blank">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                  >
+                  <Button size="sm" className="bg-yellow-500 text-black hover:bg-yellow-600">
                     <ExternalLink className="h-4 w-4 mr-1" /> View
                   </Button>
                 </Link>
               </div>
             </div>
 
-            {/* Stats Cards */}
+            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
-                <Eye className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
-                <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                  {page.pageViews || 0}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">Views</p>
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                <Eye className="h-5 w-5 text-gray-400 mb-2" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{page.pageViews || 0}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Views</p>
               </div>
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
-                <DollarSign className="h-4 w-4 text-[var(--color-lemon-green)] mb-2" />
-                <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                  ₦{(page.page_type === "link" ? totalPaymentsAmount : totalCollected).toLocaleString()}
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                <DollarSign className="h-5 w-5 text-green-500 mb-2" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  ₦{(pageType === "link" ? totalPaymentsAmount : totalCollected).toLocaleString()}
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  Collected
-                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Collected</p>
               </div>
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
-                <Wallet className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
-                <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                <Wallet className="h-5 w-5 text-yellow-500 mb-2" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
                   ₦{(page.pageBalance || 0).toLocaleString()}
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">Balance</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Balance</p>
               </div>
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-color)]">
-                <Users className="h-4 w-4 text-[var(--color-accent-yellow)] mb-2" />
-                <p className="text-xl md:text-2xl font-bold text-[var(--text-primary)]">
-                  {page.page_type === "link" ? customers.length : payments.length}
+              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                <Users className="h-5 w-5 text-blue-500 mb-2" />
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {pageType === "link" ? customers.length : payments.length}
                 </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {page.page_type === "link" ? "Customers" : "Payments"}
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {pageType === "link" ? "Customers" : "Payments"}
                 </p>
               </div>
             </div>
 
-            {/* Payment Link Config Details */}
-            {(page.page_type === "link" || linkConfig) && linkConfig && (
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
-                <h3 className="font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                  Payment Link Configuration
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Redirect URL</p>
-                    <p className="text-sm text-[var(--text-primary)] break-all">
-                      {linkConfig.redirectUrl || "Not set"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Alternative Redirect</p>
-                    <p className="text-sm text-[var(--text-primary)] break-all">
-                      {linkConfig.altRedirectUrl || "Not set"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Success Message</p>
-                    <p className="text-sm text-[var(--text-primary)]">
-                      {linkConfig.successMessage || "Payment successful!"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Thank You Message</p>
-                    <p className="text-sm text-[var(--text-primary)]">
-                      {linkConfig.thankYouMessage || "Thank you for your payment!"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Collect Customer Info</p>
-                    <div className="flex gap-3 text-sm text-[var(--text-primary)]">
-                      <span>{linkConfig.collectName !== false ? "✅ Name" : "❌ Name"}</span>
-                      <span>{linkConfig.collectEmail !== false ? "✅ Email" : "❌ Email"}</span>
-                      <span>{linkConfig.collectPhone !== false ? "✅ Phone" : "❌ Phone"}</span>
+            {/* School Section */}
+            {isSchoolPage && (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+                      <h2 className="font-semibold text-gray-900 dark:text-white">
+                        Students ({studentsWithStatus.length})
+                      </h2>
                     </div>
+                    {studentsWithStatus.length > 0 && (
+                      <div className="flex gap-1">
+                        {["all", "paid", "partial", "unpaid"].map((tab) => {
+                          const labels = {
+                            all: `All (${studentsWithStatus.length})`,
+                            paid: `Paid (${fullyPaidCount})`,
+                            partial: `Partial (${partiallyPaidCount})`,
+                            unpaid: `Pending (${unpaidCount})`,
+                          };
+                          const isActive = activeTab === tab;
+                          return (
+                            <button
+                              key={tab}
+                              onClick={() => setActiveTab(tab as any)}
+                              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                                isActive
+                                  ? "bg-yellow-500 text-black font-medium"
+                                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              }`}
+                            >
+                              {labels[tab as keyof typeof labels]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-xs text-[var(--text-secondary)]">Custom Fields</p>
-                    <p className="text-sm text-[var(--text-primary)]">
-                      {linkConfig.customFields?.length || 0} field(s)
-                    </p>
-                  </div>
+                  {studentsWithStatus.length > 0 && (
+                    <div className="mt-3 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search student..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full sm:w-64 pl-9 pr-8 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                      />
+                      {searchQuery && (
+                        <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {studentsWithStatus.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <GraduationCap className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400">No students added yet</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Add students in page settings</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Progress */}
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-600 dark:text-gray-400">Progress</span>
+                        <span className="text-gray-900 dark:text-white font-medium">
+                          ₦{totalCollected.toLocaleString()} / ₦{totalExpected.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-yellow-500 rounded-full transition-all"
+                          style={{ width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Student List */}
+                    <div className="divide-y divide-gray-200 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
+                      {filteredStudents.length === 0 && searchQuery && (
+                        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                          <Search className="h-10 w-10 mx-auto mb-2 text-gray-300 dark:text-gray-700" />
+                          <p>No students found matching "{searchQuery}"</p>
+                          <button onClick={() => setSearchQuery("")} className="text-yellow-600 hover:underline mt-2 text-sm">
+                            Clear search
+                          </button>
+                        </div>
+                      )}
+
+                      {filteredStudents.length === 0 && !searchQuery && activeTab !== "all" && (
+                        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                          <p>No students in this category</p>
+                          <button onClick={() => setActiveTab("all")} className="text-yellow-600 hover:underline mt-2 text-sm">
+                            View all
+                          </button>
+                        </div>
+                      )}
+
+                      {filteredStudents.map((student: any, idx: number) => {
+                        const isFullyPaid = student.isFullyPaid;
+                        const isPartiallyPaid = student.isPartiallyPaid;
+
+                        return (
+                          <div key={idx} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900 dark:text-white">{student.name}</span>
+                                  {isFullyPaid && (
+                                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <CheckCircle className="h-3 w-3" /> Paid
+                                    </span>
+                                  )}
+                                  {isPartiallyPaid && (
+                                    <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Clock className="h-3 w-3" /> Partial
+                                    </span>
+                                  )}
+                                  {!isFullyPaid && !isPartiallyPaid && (
+                                    <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Clock className="h-3 w-3" /> Pending
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {student.className && <span>Class: {student.className}</span>}
+                                  {student.regNumber && <span>Reg: {student.regNumber}</span>}
+                                  {student.parentName && <span>Parent: {student.parentName}</span>}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                {isFullyPaid ? (
+                                  <span className="font-semibold text-green-600 dark:text-green-400">
+                                    ₦{student.totalAmount.toLocaleString()}
+                                  </span>
+                                ) : isPartiallyPaid ? (
+                                  <div>
+                                    <span className="font-semibold text-yellow-600 dark:text-yellow-400">
+                                      ₦{student.paidAmount.toLocaleString()}
+                                    </span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                                      / ₦{student.totalAmount.toLocaleString()}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="font-semibold text-gray-500 dark:text-gray-400">
+                                    ₦{student.totalAmount.toLocaleString()}
+                                  </span>
+                                )}
+                                {student.paymentCount > 0 && (
+                                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                                    {student.paymentCount} payment{student.paymentCount > 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {isPartiallyPaid && (
+                              <div className="mt-2 w-full max-w-xs ml-auto">
+                                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-yellow-500 rounded-full transition-all"
+                                    style={{ width: `${student.percentage}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Unassigned Payments */}
+                    {unassignedPayments.length > 0 && (
+                      <div className="border-t border-gray-200 dark:border-gray-800 p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <AlertCircle className="h-5 w-5 text-yellow-600" />
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            Unassigned Payments ({unassignedPayments.length})
+                          </h3>
+                        </div>
+                        <div className="space-y-3">
+                          {unassignedPayments.map((payment: any) => {
+                            const paymentAmount = payment.amount || 0;
+                            const senderName = payment.customer_name || "Unknown";
+                            const paymentDate = payment.paid_at || payment.created_at;
+                            const availableStudents = studentsWithStatus.filter((s: any) => !s.isFullyPaid);
+
+                            return (
+                              <div key={payment.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div>
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    ₦{paymentAmount.toLocaleString()} - {senderName}
+                                  </p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {new Date(paymentDate).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <select
+                                    value={selectedStudent[payment.id] || ""}
+                                    onChange={(e) =>
+                                      setSelectedStudent((prev) => ({
+                                        ...prev,
+                                        [payment.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="px-3 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                  >
+                                    <option value="">Assign to...</option>
+                                    {availableStudents.map((student: any) => (
+                                      <option key={student.name} value={student.name}>
+                                        {student.name} (Remaining: ₦{student.remainingAmount.toLocaleString()})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <Button
+                                    onClick={() =>
+                                      assignPaymentToStudent(
+                                        payment.id,
+                                        selectedStudent[payment.id],
+                                        paymentAmount,
+                                      )
+                                    }
+                                    disabled={!selectedStudent[payment.id] || assigningPayment === payment.id}
+                                    size="sm"
+                                    className="bg-yellow-500 text-black hover:bg-yellow-600"
+                                  >
+                                    {assigningPayment === payment.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4 mr-1" />
+                                    )}
+                                    Assign
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {unassignedPayments.length === 0 && payments.length > 0 && (
+                      <div className="border-t border-gray-200 dark:border-gray-800 p-6 text-center">
+                        <CheckCircle className="h-6 w-6 text-green-500 mx-auto mb-2" />
+                        <p className="text-green-600 dark:text-green-400">All payments assigned</p>
+                      </div>
+                    )}
+
+                    {payments.length === 0 && (
+                      <div className="border-t border-gray-200 dark:border-gray-800 p-12 text-center">
+                        <Banknote className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+                        <p className="text-gray-500 dark:text-gray-400">No payments yet</p>
+                        <p className="text-sm text-gray-400 dark:text-gray-500">Share your page to start receiving payments</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
-            {/* QR Code & Embed Code */}
-            <div className="flex flex-wrap gap-3">
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 onClick={() => setShowQRModal(true)}
-                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <QrCode className="h-4 w-4 mr-2" />
-                QR Code
+                <QrCode className="h-4 w-4 mr-2" /> QR Code
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowEmbedModal(true)}
-                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <Code2 className="h-4 w-4 mr-2" />
-                Embed Code
+                <Code2 className="h-4 w-4 mr-2" /> Embed
               </Button>
               <Button
                 variant="outline"
                 onClick={() => copyToClipboard(getPaymentPageUrl(), "Payment link")}
-                className="border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)] hover:text-[var(--color-accent-yellow)]"
+                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Link
+                <Copy className="h-4 w-4 mr-2" /> Copy Link
               </Button>
             </div>
 
-            {/* ============================================================ */}
-            {/* PAYMENT LINK - CUSTOMERS SECTION */}
-            {/* ============================================================ */}
+            {/* Customers */}
             {showCustomersSection && (
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                <div className="p-4 border-b border-[var(--border-color)]">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <Users className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <Users className="h-5 w-5 text-gray-500" />
                       Customers ({customers.length})
-                      {payments.length > 0 && (
-                        <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                          from {payments.length} payment{payments.length > 1 ? 's' : ''}
-                        </span>
-                      )}
                     </h3>
-
-                    <div className="relative w-full sm:w-64">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         type="text"
                         placeholder="Search customers..."
                         value={customerSearchQuery}
                         onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)]"
+                        className="pl-9 pr-8 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                       />
-                      {customerSearchQuery && (
-                        <button
-                          onClick={() => setCustomerSearchQuery("")}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
-                        >
-                          <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
 
                 {customers.length === 0 ? (
-                  <div className="p-8 text-center text-[var(--text-secondary)]">
-                    {payments.length > 0 ? (
-                      <>
-                        <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                        <p>No customers could be extracted from payments</p>
-                      </>
-                    ) : (
-                      <>
-                        <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                        <p>No customers yet</p>
-                        <p className="text-xs mt-1">Share your payment link to start receiving payments</p>
-                      </>
-                    )}
+                  <div className="p-12 text-center">
+                    <Users className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400">No customers yet</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
+                  <div className="divide-y divide-gray-200 dark:divide-gray-800 max-h-[400px] overflow-y-auto">
                     {filteredCustomers.map((customer, idx) => (
-                      <div key={idx} className="p-4 hover:bg-[var(--bg-secondary)]/50 transition-colors">
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-[var(--text-primary)]">
-                                {customer.name}
-                              </p>
-                              {customer.email && (
-                                <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  <Mail className="h-3 w-3" />
-                                  {customer.email}
-                                </span>
-                              )}
-                              {customer.phone && (
-                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  <Phone className="h-3 w-3" />
-                                  {customer.phone}
-                                </span>
-                              )}
-                              {customer.paymentMethod && (
-                                <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  <CreditCard className="h-3 w-3" />
-                                  {customer.paymentMethod}
-                                </span>
-                              )}
+                      <div key={idx} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{customer.name}</p>
+                            <div className="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              {customer.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {customer.email}</span>}
+                              {customer.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {customer.phone}</span>}
+                              <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(customer.firstPayment).toLocaleDateString()}</span>
                             </div>
-
-                            <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
-                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                First: {new Date(customer.firstPayment).toLocaleDateString()}
-                              </span>
-                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Last: {new Date(customer.lastPayment).toLocaleDateString()}
-                              </span>
-                              <span className="text-[var(--text-secondary)] flex items-center gap-1">
-                                <FileText className="h-3 w-3" />
-                                {customer.payments.length} payment(s)
-                              </span>
-                            </div>
-
-                            {customer.referenceCode && (
-                              <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                📋 Ref: {customer.referenceCode}
-                              </span>
-                            )}
-
-                            {customer.customFields && Object.keys(customer.customFields).length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {Object.entries(customer.customFields)
-                                  .filter(([key]) => !['customAmount', 'name', 'email', 'phone'].includes(key))
-                                  .map(([key, value]) => (
-                                    <span
-                                      key={key}
-                                      className="text-xs bg-[var(--bg-secondary)] px-2 py-1 rounded border border-[var(--border-color)]"
-                                    >
-                                      <strong>{key}:</strong> {String(value) || 'N/A'}
-                                    </span>
-                                  ))}
-                              </div>
-                            )}
                           </div>
-
-                          <div className="text-right shrink-0">
-                            <p className="text-xl font-bold text-[var(--color-lemon-green)]">
+                          <div className="text-right">
+                            <p className="font-semibold text-green-600 dark:text-green-400">
                               ₦{customer.totalPaid.toLocaleString()}
                             </p>
-                            <p className="text-xs text-[var(--text-secondary)]">
-                              Total Paid
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              {customer.payments.length} payment{customer.payments.length > 1 ? 's' : ''}
                             </p>
                           </div>
                         </div>
-
-                        {customer.payments.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
-                            <div className="flex flex-wrap gap-2">
-                              {customer.payments.slice(0, 3).map((payment: any, pIdx: number) => (
-                                <div
-                                  key={pIdx}
-                                  className="text-xs bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-color)]"
-                                >
-                                  <span className="font-medium text-[var(--color-accent-yellow)]">
-                                    ₦{payment.amount?.toLocaleString()}
-                                  </span>
-                                  <span className="text-[var(--text-secondary)] ml-1">
-                                    {new Date(payment.created_at).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              ))}
-                              {customer.payments.length > 3 && (
-                                <span className="text-xs text-[var(--text-secondary)] flex items-center">
-                                  +{customer.payments.length - 3} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ))}
-
                     {filteredCustomers.length === 0 && customerSearchQuery && (
-                      <div className="p-8 text-center text-[var(--text-secondary)]">
-                        <p>No customers found matching "{customerSearchQuery}"</p>
+                      <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                        No customers found matching "{customerSearchQuery}"
                       </div>
                     )}
                   </div>
@@ -980,453 +1035,19 @@ const PageDetail = () => {
               </div>
             )}
 
-            {/* ============================================================ */}
-            {/* SCHOOL - Progress Summary */}
-            {/* ============================================================ */}
-            {page.page_type === "school" && (
-              <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] p-5">
-                <h3 className="font-semibold text-[var(--text-primary)] mb-3">
-                  Payment Progress
-                </h3>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-[var(--text-secondary)]">
-                    Overall Progress
-                  </span>
-                  <span className="text-[var(--text-primary)]">
-                    ₦{totalCollected.toLocaleString()} of ₦
-                    {totalExpected.toLocaleString()}
-                  </span>
-                </div>
-                <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
-                    style={{
-                      width: `${totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0}%`,
-                    }}
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-                  <div>
-                    <p className="text-xl md:text-2xl font-bold text-[var(--color-lemon-green)]">
-                      {paidStudents.length}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Fully Paid
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xl md:text-2xl font-bold text-yellow-500">
-                      {partiallyPaidStudents.length}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Partially Paid
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xl md:text-2xl font-bold text-[var(--text-secondary)]">
-                      {unpaidStudents.length}
-                    </p>
-                    <p className="text-xs text-[var(--text-secondary)]">Unpaid</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ============================================================ */}
-            {/* SCHOOL - Unassigned Payments Section */}
-            {/* ============================================================ */}
-            {page.page_type === "school" && unassignedPayments.length > 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800 overflow-hidden">
-                <div className="p-4 border-b border-yellow-200 dark:border-yellow-800 bg-yellow-100 dark:bg-yellow-900/30">
-                  <h3 className="font-semibold text-yellow-800 dark:text-yellow-400 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Unassigned Payments ({unassignedPayments.length})
-                  </h3>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-500/80 mt-1">
-                    These payments don't have a student name. Please assign them
-                    to the correct student.
-                  </p>
-                </div>
-                <div className="divide-y divide-yellow-200 dark:divide-yellow-800 max-h-[500px] overflow-y-auto custom-scrollbar">
-                  {unassignedPayments.map((payment: any) => {
-                    const bankName =
-                      page.metadata?.virtual_account?.bankName || "Nombank MFB";
-                    const accountNumber =
-                      page.metadata?.virtual_account?.accountNumber || "N/A";
-                    const narration = payment.metadata?.narration || "";
-                    const paymentAmount = payment.amount || 0;
-                    const senderName = payment.customer_name || "Unknown";
-                    const paymentDate = payment.paid_at || payment.created_at;
-
-                    let suggestedStudent = null;
-                    if (narration) {
-                      const lowerNarration = narration.toLowerCase();
-                      const matchingStudent = unpaidStudents.find((s) =>
-                        lowerNarration.includes(s.name.toLowerCase()),
-                      );
-                      if (matchingStudent) {
-                        suggestedStudent = matchingStudent.name;
-                      }
-                    }
-
-                    return (
-                      <div key={payment.id} className="p-4">
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <p className="font-bold text-[var(--color-accent-yellow)] text-lg">
-                                ₦{paymentAmount.toLocaleString()}
-                              </p>
-                              <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                Unassigned
-                              </span>
-                            </div>
-                            <p className="text-xs text-[var(--text-secondary)]">
-                              {new Date(paymentDate).toLocaleDateString()} at{" "}
-                              {new Date(paymentDate).toLocaleTimeString()}
-                            </p>
-                            <div className="mt-2 space-y-1">
-                              <div className="flex items-center gap-2 text-sm flex-wrap">
-                                <User className="h-3 w-3 text-yellow-600 dark:text-yellow-500 shrink-0" />
-                                <span className="text-[var(--text-primary)]">
-                                  Sender: {senderName}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm flex-wrap">
-                                <Banknote className="h-3 w-3 text-yellow-600 dark:text-yellow-500 shrink-0" />
-                                <span className="text-[var(--text-primary)]">
-                                  Bank: {bankName}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm flex-wrap">
-                                <Shield className="h-3 w-3 text-yellow-600 dark:text-yellow-500 shrink-0" />
-                                <span className="text-[var(--text-primary)] font-mono">
-                                  Account: {accountNumber}
-                                </span>
-                              </div>
-                              {narration && (
-                                <div className="mt-2 p-2 bg-[var(--bg-secondary)] rounded-lg">
-                                  <p className="text-xs text-[var(--text-secondary)] break-words">
-                                    📝 Narration: "{narration}"
-                                  </p>
-                                  {suggestedStudent && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                      💡 Suggested student: {suggestedStudent}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="w-full md:w-72 mt-4 md:mt-0">
-                            <label className="text-xs text-[var(--text-secondary)] block mb-2">
-                              Assign to student:
-                            </label>
-                            <div className="flex gap-2">
-                              <select
-                                value={
-                                  selectedStudent[payment.id] ||
-                                  suggestedStudent ||
-                                  ""
-                                }
-                                onChange={(e) =>
-                                  setSelectedStudent((prev) => ({
-                                    ...prev,
-                                    [payment.id]: e.target.value,
-                                  }))
-                                }
-                                className="flex-1 px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--color-accent-yellow)]"
-                              >
-                                <option value="">Select student...</option>
-                                {unpaidStudents.map((student: any) => (
-                                  <option
-                                    key={student.name}
-                                    value={student.name}
-                                  >
-                                    {student.name} (Remaining: ₦
-                                    {student.remainingAmount.toLocaleString()})
-                                  </option>
-                                ))}
-                              </select>
-                              <Button
-                                onClick={() =>
-                                  assignPaymentToStudent(
-                                    payment.id,
-                                    selectedStudent[payment.id] ||
-                                      suggestedStudent,
-                                    paymentAmount,
-                                  )
-                                }
-                                disabled={
-                                  (!selectedStudent[payment.id] &&
-                                    !suggestedStudent) ||
-                                  assigningPayment === payment.id
-                                }
-                                size="sm"
-                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 whitespace-nowrap"
-                              >
-                                {assigningPayment === payment.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <Check className="h-4 w-4 mr-1" /> Assign
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                            {unpaidStudents.length === 0 && (
-                              <p className="text-xs text-red-500 dark:text-red-400 mt-2">
-                                No available students to assign
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {page.page_type === "school" && unassignedPayments.length === 0 && payments.length > 0 && (
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
-                <CheckCircle2 className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                <p className="text-green-700 dark:text-green-400">
-                  All payments have been assigned to students!
-                </p>
-              </div>
-            )}
-
-            {page.page_type === "school" && payments.length === 0 && (
-              <div className="bg-gray-50 dark:bg-gray-900/20 rounded-xl p-8 text-center border border-gray-200 dark:border-gray-800">
-                <Banknote className="h-12 w-12 mx-auto mb-3 text-gray-400 opacity-50" />
-                <p className="text-gray-600 dark:text-gray-400">
-                  No payments have been made yet
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Share your payment page to start receiving payments
-                </p>
-              </div>
-            )}
-
-            {/* ============================================================ */}
-            {/* SCHOOL - Students & Assigned Payments */}
-            {/* ============================================================ */}
-            {page.page_type === "school" && (
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Student List */}
-                <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                  <div className="p-4 border-b border-[var(--border-color)]">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                        <GraduationCap className="h-4 w-4 text-[var(--color-accent-yellow)]" />
-                        All Students ({students.length})
-                      </h3>
-
-                      <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
-                        <input
-                          type="text"
-                          placeholder="Search student..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-8 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:border-[var(--color-accent-yellow)]"
-                        />
-                        {searchQuery && (
-                          <button
-                            onClick={() => setSearchQuery("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2"
-                          >
-                            <XCircle className="h-4 w-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
-                    {filteredStudents.length === 0 ? (
-                      <div className="p-8 text-center text-[var(--text-secondary)]">
-                        {searchQuery ? (
-                          <>
-                            <Search className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                            <p>No students found matching "{searchQuery}"</p>
-                          </>
-                        ) : (
-                          <>
-                            <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                            <p>No students added yet</p>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      filteredStudents.map((student: any, idx: number) => {
-                        const totalAmount = student.totalAmount;
-                        const paidAmount = student.paidAmount;
-                        const percentage =
-                          totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
-
-                        return (
-                          <div key={idx} className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <p className="font-medium text-[var(--text-primary)]">
-                                  {student.name}
-                                </p>
-                                {student.className && (
-                                  <p className="text-xs text-[var(--text-secondary)]">
-                                    📚 Class: {student.className}
-                                  </p>
-                                )}
-                                {student.regNumber && (
-                                  <p className="text-xs text-[var(--text-secondary)]">
-                                    🔢 Reg: {student.regNumber}
-                                  </p>
-                                )}
-                              </div>
-                              {student.isFullyPaid ? (
-                                <span className="text-xs bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
-                                  <CheckCircle2 className="h-3 w-3" /> PAID
-                                </span>
-                              ) : student.isPartiallyPaid ? (
-                                <span className="text-xs bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
-                                  <Clock className="h-3 w-3" /> PARTIAL
-                                </span>
-                              ) : (
-                                <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full whitespace-nowrap">
-                                  PENDING
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-3">
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className="text-[var(--text-secondary)]">
-                                  Paid {paidAmount.toLocaleString()} of{" "}
-                                  {totalAmount.toLocaleString()}
-                                </span>
-                                <span className="text-[var(--color-accent-yellow)]">
-                                  {percentage.toFixed(0)}%
-                                </span>
-                              </div>
-                              <div className="w-full h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-[var(--color-accent-yellow)] rounded-full transition-all duration-300"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {student.parentName && (
-                              <p className="text-xs text-[var(--text-secondary)] mt-2">
-                                Paid by: {student.parentName}
-                              </p>
-                            )}
-                            {student.paidAt && (
-                              <p className="text-xs text-[var(--text-secondary)] mt-1">
-                                {new Date(student.paidAt).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {/* Assigned Payments */}
-                <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
-                  <div className="p-4 border-b border-[var(--border-color)]">
-                    <h3 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[var(--color-lemon-green)]" />
-                      Assigned Payments ({assignedPayments.length})
-                    </h3>
-                  </div>
-                  <div className="divide-y divide-[var(--border-color)] max-h-[600px] overflow-y-auto custom-scrollbar">
-                    {assignedPayments.length === 0 ? (
-                      <div className="p-8 text-center text-[var(--text-secondary)]">
-                        <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                        <p>No assigned payments yet</p>
-                      </div>
-                    ) : (
-                      assignedPayments.map((payment: any) => {
-                        const matchedStudent =
-                          payment.metadata?.matched_student ||
-                          payment.metadata?.assigned_student;
-                        const narration = payment.metadata?.narration || "";
-                        const totalFee =
-                          (payment.metadata?.app_fee || 0) +
-                          (payment.metadata?.nomba_fee || 0);
-                        const paymentDate = payment.paid_at || payment.created_at;
-
-                        return (
-                          <div key={payment.id} className="p-4">
-                            <div className="flex justify-between items-start mb-2 flex-wrap gap-2">
-                              <div>
-                                <p className="font-bold text-[var(--color-lemon-green)] text-lg">
-                                  ₦{payment.amount?.toLocaleString()}
-                                </p>
-                                <p className="text-xs text-[var(--text-secondary)]">
-                                  {new Date(paymentDate).toLocaleDateString()} at{" "}
-                                  {new Date(paymentDate).toLocaleTimeString()}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() =>
-                                  copyToClipboard(payment.id, "Payment ID")
-                                }
-                                className="text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </button>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-sm">
-                              <User className="h-3 w-3 text-[var(--color-accent-yellow)]" />
-                              <span className="text-[var(--text-primary)]">
-                                {payment.customer_name || "Anonymous"}
-                              </span>
-                            </div>
-
-                            {matchedStudent && (
-                              <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                <p className="text-xs text-green-700 dark:text-green-400 break-words">
-                                  ✓ Assigned to: <strong>{matchedStudent}</strong>
-                                </p>
-                              </div>
-                            )}
-
-                            {totalFee > 0 && (
-                              <div className="mt-2 text-xs text-[var(--text-secondary)]">
-                                <span>Fee: ₦{totalFee.toLocaleString()}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Withdraw Button with BVN Check */}
+            {/* Withdraw */}
             {page.pageBalance > 0 && (
-              <div className="bg-gradient-to-r from-[var(--color-ink)] to-[#1a5c40] rounded-xl p-5">
+              <div className="bg-gray-900 dark:bg-gray-800 rounded-xl p-6 text-white">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <p className="text-sm text-white/80">Available Balance</p>
-                    <p className="text-2xl md:text-3xl font-bold text-white">
-                      ₦{page.pageBalance.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-white/60 mt-1">
-                      Withdraw to main wallet (₦200 fee)
-                    </p>
+                    <p className="text-sm text-gray-400">Available Balance</p>
+                    <p className="text-3xl font-bold">₦{page.pageBalance.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 mt-1">Withdraw to wallet (₦200 fee)</p>
                   </div>
                   <Button
                     onClick={handleWithdraw}
                     disabled={withdrawing}
-                    className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 font-semibold"
+                    className="bg-yellow-500 text-black hover:bg-yellow-600 font-medium"
                   >
                     {withdrawing ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -1436,10 +1057,8 @@ const PageDetail = () => {
                     {withdrawing ? "Processing..." : "Withdraw Funds"}
                   </Button>
                 </div>
-                
-                {/* Show BVN badge if not verified */}
                 {!isVerified && (
-                  <div className="mt-4 pt-4 border-t border-white/10">
+                  <div className="mt-4 pt-4 border-t border-gray-700">
                     <BVNVerificationBadge variant="withdrawal" />
                   </div>
                 )}
@@ -1449,116 +1068,58 @@ const PageDetail = () => {
         </main>
       </div>
 
-      {/* QR Code Modal */}
+      {/* QR Modal */}
       {showQRModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-md w-full border border-[var(--border-color)]">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                <QrCode className="h-5 w-5 text-[var(--color-accent-yellow)]" />
-                QR Code
-              </h3>
-              <button
-                onClick={() => setShowQRModal(false)}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                <XCircle className="h-5 w-5" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">QR Code</h3>
+              <button onClick={() => setShowQRModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex flex-col items-center">
-              <div className="bg-white p-4 rounded-xl mb-4">
-                <img
-                  src={`/api/payment-page/qrcode?url=${encodeURIComponent(getPaymentPageUrl())}`}
-                  alt="Payment Page QR Code"
-                  className="w-48 h-48"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23999'%3EQR Code%3C/text%3E%3C/svg%3E";
-                  }}
-                />
-              </div>
-              <p className="text-sm text-[var(--text-secondary)] text-center mb-4">
-                Scan this QR code with your phone camera to open the payment page
+              <img
+                src={`/api/payment-page/qrcode?url=${encodeURIComponent(getPaymentPageUrl())}`}
+                alt="QR Code"
+                className="w-48 h-48 bg-white rounded-xl p-2"
+              />
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
+                Scan to open payment page
               </p>
-              <div className="flex gap-3 w-full">
-                <Button
-                  onClick={downloadQRCode}
-                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-                <Button
-                  onClick={() => {
-                    copyToClipboard(getPaymentPageUrl(), "Payment link");
-                    setShowQRModal(false);
-                  }}
-                  variant="outline"
-                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)]"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy Link
-                </Button>
-              </div>
+              <Button
+                onClick={downloadQRCode}
+                className="mt-4 bg-yellow-500 text-black hover:bg-yellow-600 w-full"
+              >
+                <Download className="h-4 w-4 mr-2" /> Download
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Embed Code Modal */}
+      {/* Embed Modal */}
       {showEmbedModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-2xl p-6 max-w-md w-full border border-[var(--border-color)]">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-                <Code2 className="h-5 w-5 text-[var(--color-accent-yellow)]" />
-                Embed Code
-              </h3>
-              <button
-                onClick={() => setShowEmbedModal(false)}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                <XCircle className="h-5 w-5" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Embed Code</h3>
+              <button onClick={() => setShowEmbedModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mb-3">
-              Copy this code to embed the payment button on your website:
-            </p>
-            <div className="bg-[var(--bg-secondary)] rounded-lg p-3 mb-4 overflow-x-auto">
-              <code className="text-xs font-mono text-[var(--text-primary)] break-all whitespace-pre-wrap">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 overflow-x-auto">
+              <code className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all whitespace-pre-wrap">
                 {getEmbedCode()}
               </code>
             </div>
-            <div className="flex gap-3">
-              <Button
-                onClick={copyEmbedCode}
-                className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-              >
-                {copiedEmbed ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4 mr-2 text-green-600" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Code
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowEmbedModal(false)}
-                variant="outline"
-                className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:border-[var(--color-accent-yellow)]"
-              >
-                Close
-              </Button>
-            </div>
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                💡 <strong>Pro tip:</strong> Paste this code into your website's HTML where you want the payment button to appear.
-              </p>
-            </div>
+            <Button
+              onClick={copyEmbedCode}
+              className="bg-yellow-500 text-black hover:bg-yellow-600 w-full"
+            >
+              {copiedEmbed ? <CheckCircle className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+              {copiedEmbed ? "Copied!" : "Copy Code"}
+            </Button>
           </div>
         </div>
       )}
@@ -1568,15 +1129,24 @@ const PageDetail = () => {
           width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: var(--bg-secondary);
+          background: #f1f1f1;
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: var(--color-accent-yellow);
+          background: #d1d5db;
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #c9a832;
+          background: #9ca3af;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-track {
+          background: #1f2937;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #4b5563;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #6b7280;
         }
       `}</style>
     </div>

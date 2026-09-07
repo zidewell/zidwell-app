@@ -11,7 +11,6 @@ interface StoreProductPageProps {
   params: Promise<{ storeSlug: string; productSlug: string }>;
 }
 
-// Generate metadata for SEO
 export async function generateMetadata({ params }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
 
@@ -61,9 +60,6 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
 export default async function StoreProductPage({ params }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
 
-  console.log("🔍 Looking for store:", storeSlug);
-  console.log("🔍 Looking for product:", productSlug);
-
   // ✅ Step 1: Fetch store by slug
   const { data: store, error: storeError } = await supabase
     .from("online_stores")
@@ -78,7 +74,6 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     notFound();
   }
 
-  // ✅ Ensure store is an object
   const storeData = Array.isArray(store) ? store[0] : store;
   
   if (!storeData) {
@@ -88,7 +83,6 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
 
   console.log("✅ Store found:", storeData.name);
   console.log("📦 Store owner_id:", storeData.owner_id);
-  console.log("📦 Store current total_views:", storeData.total_views || 0);
 
   // ✅ Step 2: Fetch product by slug
   const { data: page, error: pageError } = await supabase
@@ -109,51 +103,8 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
   }
 
   console.log("✅ Product found:", page.title);
+  console.log("📦 Product ID:", page.id);
   console.log("📦 Product user_id:", page.user_id);
-  console.log("📦 Product current page_views:", page.page_views || 0);
-
-  // ✅ Step 3: Increment page views - using await to ensure it completes
-  // We'll increment the views and also get the updated value
-  let updatedPageViews = (page.page_views || 0) + 1;
-  let updatedStoreViews = (storeData.total_views || 0) + 1;
-
-  try {
-    // Increment page_views in payment_pages
-    const { data: updatedPage, error: pageUpdateError } = await supabase
-      .from("payment_pages")
-      .update({ 
-        page_views: updatedPageViews
-      })
-      .eq("id", page.id)
-      .select("page_views")
-      .single();
-
-    if (pageUpdateError) {
-      console.error("❌ Error updating product page_views:", pageUpdateError);
-    } else {
-      console.log("✅ Product page_views updated to:", updatedPage?.page_views);
-      updatedPageViews = updatedPage?.page_views || updatedPageViews;
-    }
-
-    // Increment total_views in online_stores
-    const { data: updatedStore, error: storeUpdateError } = await supabase
-      .from("online_stores")
-      .update({ 
-        total_views: updatedStoreViews
-      })
-      .eq("id", storeData.id)
-      .select("total_views")
-      .single();
-
-    if (storeUpdateError) {
-      console.error("❌ Error updating store total_views:", storeUpdateError);
-    } else {
-      console.log("✅ Store total_views updated to:", updatedStore?.total_views);
-      updatedStoreViews = updatedStore?.total_views || updatedStoreViews;
-    }
-  } catch (error) {
-    console.error("❌ Error incrementing views:", error);
-  }
 
   // ✅ Parse product_images
   let productImages: string[] = [];
@@ -188,7 +139,7 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     }
   }
 
-  // ✅ Create a clean page object with the updated view count
+  // ✅ Create a clean page object with the current view count
   const cleanPage = {
     id: page.id,
     title: page.title,
@@ -206,19 +157,13 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     pageBalance: page.page_balance || 0,
     totalRevenue: page.total_revenue || 0,
     totalPayments: page.total_payments || 0,
-    pageViews: updatedPageViews, // ✅ Use the updated value
+    pageViews: page.page_views || 0,
     isActive: page.is_active || false,
     isPublished: page.is_published || false,
     publishedAt: page.published_at || null,
     createdAt: page.created_at || null,
     updatedAt: page.updated_at || null,
   };
-
-  console.log("📦 Product images:", productImages);
-  console.log("📦 Metadata parsed:", parsedMetadata);
-  console.log("📦 Students in metadata:", parsedMetadata?.students);
-  console.log("📦 Page type mapped:", cleanPage.pageType);
-  console.log("📦 Final page views:", cleanPage.pageViews);
 
   // ✅ Pass store data and clean page data to client
   return <StoreProductClient page={cleanPage} store={storeData} />;

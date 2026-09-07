@@ -1,3 +1,5 @@
+// app/api/payment-page/public/card-payment/route.ts
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
@@ -69,6 +71,25 @@ export async function POST(request: Request) {
     // Get store slug from metadata
     const storeSlug = page.metadata?.storeSlug || metadata?.storeSlug || '';
 
+    // ✅ Get redirect URL from page metadata or link config
+    const linkConfig = page.metadata?.linkConfig || {};
+    const pageRedirectUrl = linkConfig.redirectUrl || page.metadata?.redirectUrl || null;
+    
+    // ✅ Build success redirect URL
+    let successRedirectUrl = returnUrl || pageRedirectUrl || `/store/${storeSlug}/${page.slug}`;
+    
+    // ✅ If it's a payment link with redirect URL, use it
+    if (page.page_type === "link" && pageRedirectUrl) {
+      successRedirectUrl = pageRedirectUrl;
+    }
+
+    // ✅ If it's a school page, use the store product page
+    if (page.page_type === "school") {
+      successRedirectUrl = `/store/${storeSlug}/${page.slug}`;
+    }
+
+    console.log(`🔗 Success redirect URL: ${successRedirectUrl}`);
+
     // Prepare payment record
     const paymentData: any = {
       payment_page_id: page.id,
@@ -84,7 +105,11 @@ export async function POST(request: Request) {
       payment_type: metadata?.isInstallment ? "installment" : "full",
       total_amount: metadata?.totalAmount || finalAmount,
       payment_method: "card_payment",
-      metadata: { ...metadata, storeSlug },
+      metadata: { 
+        ...metadata, 
+        storeSlug,
+        redirectUrl: successRedirectUrl, // ✅ Store redirect URL in metadata
+      },
     };
 
     // Add student tracking for school payments
@@ -124,10 +149,13 @@ export async function POST(request: Request) {
 
     const sessionId = `${payment.id}_${Date.now()}`;
 
+    // ✅ Build callback URL that redirects to the success page
+    const callbackUrl = `${baseUrl}/payment/callback?session_id=${sessionId}`;
+
     // Create checkout
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/webhook?session_id=${sessionId}`,
+        callbackUrl: callbackUrl,
         customerEmail: customerEmail,
         amount: totalForCustomer.toString(),
         currency: "NGN",
@@ -141,6 +169,7 @@ export async function POST(request: Request) {
           paymentId: payment.id,
           pageSlug: pageSlug,
           storeSlug: storeSlug,
+          redirectUrl: successRedirectUrl,
         },
       },
       tokenizeCard: false,
@@ -163,15 +192,12 @@ export async function POST(request: Request) {
       throw new Error(data.description || "Failed to create checkout");
     }
 
-    // Build redirect URL
-    const redirectUrl = returnUrl || `${baseUrl}/store/${storeSlug}/${page.slug}`;
-
     return NextResponse.json({
       success: true,
       checkoutLink: data.data.checkoutLink,
       orderReference: orderReference,
       amount: totalForCustomer,
-      redirectUrl: redirectUrl,
+      redirectUrl: successRedirectUrl,
       storeSlug: storeSlug,
     });
   } catch (error: any) {
