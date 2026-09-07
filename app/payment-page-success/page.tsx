@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -35,7 +35,8 @@ interface PaymentDetails {
   students: string[];
 }
 
-export default function PaymentSuccessPage() {
+// Wrap the component that uses useSearchParams in Suspense
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference");
@@ -159,7 +160,7 @@ export default function PaymentSuccessPage() {
   const isSuccess = status === "success" || payment.status === "completed";
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e]">
+    <div className="min-h-screen bg-[#0e0e0e] relative">
       {/* Background Decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#e1bf46]/5 rounded-full blur-3xl"></div>
@@ -339,7 +340,6 @@ export default function PaymentSuccessPage() {
                   Return Home
                 </Button>
               </Link>
-             
             </div>
 
             {/* Footer */}
@@ -357,5 +357,23 @@ export default function PaymentSuccessPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// Main page export with Suspense
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e1bf46] mx-auto"></div>
+            <p className="text-gray-400 mt-4">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
