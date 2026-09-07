@@ -80,6 +80,77 @@ export async function POST(request: NextRequest) {
       timezone: "unknown",
     };
 
+    // ─── CHECK IF USER EXISTS FIRST ───
+    // Check in users table
+    const { data: existingUser, error: userCheckError } = await supabase
+      .from("users")
+      .select("id, email_verified")
+      .eq("email", email.toLowerCase())
+      .maybeSingle();
+
+    let userExists = !!existingUser;
+
+    // If not found in users table, check auth
+    if (!userExists) {
+      try {
+        const { data: authUsers, error: authListError } = await supabaseAdmin
+          .auth.admin
+          .listUsers({
+            perPage: 1000,
+          });
+
+        if (!authListError && authUsers?.users) {
+          userExists = authUsers.users.some(
+            (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+          );
+        }
+      } catch (e) {
+        console.error("Error checking auth users:", e);
+      }
+    }
+
+    // ─── IF USER DOESN'T EXIST, RETURN EARLY ───
+    if (!userExists) {
+      console.log(`🔍 User not found: ${email}`);
+      
+      // Log the attempt
+      try {
+        await supabase.from("failed_login_attempts").insert({
+          email: email.toLowerCase(),
+          ip_address: ip,
+          device_info: device as any,
+          location_info: location as any,
+          reason: "User not found",
+        });
+      } catch (e) {
+        console.error("Failed to log failed attempt:", e);
+      }
+
+      trackFailedAttempt(`ip:${ip}`, email);
+      trackFailedAttempt(`email:${email.toLowerCase()}`, email);
+
+      return NextResponse.json(
+        { 
+          error: "No account found with this email address.",
+          userNotFound: true 
+        },
+        { status: 404 }
+      );
+    }
+
+    // ─── CHECK IF EMAIL IS VERIFIED ───
+    if (existingUser && !existingUser.email_verified) {
+      console.log(`🔒 Login blocked: ${email} - email not verified`);
+      return NextResponse.json(
+        {
+          error: "Please verify your email before logging in.",
+          requiresVerification: true,
+          email: email,
+        },
+        { status: 403 }
+      );
+    }
+
     // ─── AUTHENTICATION ───
     const { data: authData, error: authError } =
       await supabase.auth.signInWithPassword({
@@ -104,6 +175,15 @@ export async function POST(request: NextRequest) {
 
       trackFailedAttempt(`ip:${ip}`, email);
       trackFailedAttempt(`email:${email.toLowerCase()}`, email);
+
+      // ─── DISTINGUISH BETWEEN WRONG PASSWORD AND OTHER ERRORS ───
+      if (authError?.message?.toLowerCase().includes("invalid login credentials") ||
+          authError?.message?.toLowerCase().includes("invalid password")) {
+        return NextResponse.json(
+          { error: "Invalid password. Please try again." },
+          { status: 401 }
+        );
+      }
 
       return NextResponse.json(
         { error: authError?.message || "Invalid email or password" },

@@ -705,7 +705,7 @@
 //     "/auth/:path*",
 //   ],
 // };
-// 
+
 // middleware.ts
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -764,13 +764,17 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
+// ─── UPDATED PUBLIC PATHS ───
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
-  "/",
+  "/auth/verify",             
+  "/auth/verify-success",      
+  "/api/auth/verify",          
+  "/api/auth/resend-verification",
 ];
 
 // ─── FAST ROUTE MATCHING ───
@@ -986,6 +990,7 @@ export async function middleware(req: NextRequest) {
   
   // Check for other bypass paths
   if (shouldBypassAuth(currentPath)) {
+    console.log(`✅ Public path: ${currentPath} - bypassing auth`);
     return NextResponse.next();
   }
   
