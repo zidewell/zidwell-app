@@ -4,16 +4,11 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { Switch } from "@/app/components/ui/switch";
-
-// Define a local variant type for this component
-interface VariantOption {
-  name: string;
-  options: string[];
-}
+import type { Variant } from "@/app/hooks/useStore"; 
 
 interface Props {
-  variants: VariantOption[];
-  setVariants: (v: VariantOption[]) => void;
+  variants: Variant[];
+  setVariants: (v: Variant[]) => void;
   requiresShipping: boolean;
   setRequiresShipping: (v: boolean) => void;
   price?: number;
@@ -28,30 +23,42 @@ const PhysicalFields = ({
   price,
   onPriceChange 
 }: Props) => {
-  const addVariant = () => setVariants([...variants, { name: "", options: [""] }]);
+  // Add a new variant with default values
+  const addVariant = () => setVariants([
+    ...variants, 
+    { 
+      name: "", 
+      price: 0, 
+      sku: "", 
+      stock: 0 
+    }
+  ]);
+  
   const updateVariantName = (i: number, val: string) => {
     const updated = [...variants];
     updated[i] = { ...updated[i], name: val };
     setVariants(updated);
   };
-  const updateOption = (vi: number, oi: number, val: string) => {
+  
+  const updateVariantPrice = (i: number, val: string) => {
     const updated = [...variants];
-    const opts = [...updated[vi].options];
-    opts[oi] = val;
-    updated[vi] = { ...updated[vi], options: opts };
+    updated[i] = { ...updated[i], price: parseFloat(val) || 0 };
     setVariants(updated);
   };
-  const addOption = (vi: number) => {
+  
+  const updateVariantSku = (i: number, val: string) => {
     const updated = [...variants];
-    updated[vi] = { ...updated[vi], options: [...updated[vi].options, ""] };
+    updated[i] = { ...updated[i], sku: val };
     setVariants(updated);
   };
+  
+  const updateVariantStock = (i: number, val: string) => {
+    const updated = [...variants];
+    updated[i] = { ...updated[i], stock: parseInt(val) || 0 };
+    setVariants(updated);
+  };
+  
   const removeVariant = (i: number) => setVariants(variants.filter((_, idx) => idx !== i));
-  const removeOption = (vi: number, oi: number) => {
-    const updated = [...variants];
-    updated[vi] = { ...updated[vi], options: updated[vi].options.filter((_, idx) => idx !== oi) };
-    setVariants(updated);
-  };
 
   return (
     <div className="space-y-6">
@@ -67,29 +74,34 @@ const PhysicalFields = ({
                   onChange={(e) => updateVariantName(vi, e.target.value)} 
                   className="flex-1 h-9 text-sm" 
                 />
-                <button onClick={() => removeVariant(vi)} className="h-7 w-7 rounded-md bg-[#ee4343]/10 flex items-center justify-center text-[#ee4343]">
+                <button 
+                  onClick={() => removeVariant(vi)} 
+                  className="h-7 w-7 rounded-md bg-[#ee4343]/10 flex items-center justify-center text-[#ee4343]"
+                >
                   <X className="h-3 w-3" />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {v.options.map((opt, oi) => (
-                  <div key={oi} className="flex items-center gap-1 bg-[#f7f0e2] rounded-lg px-1 border border-[#ded4c3]">
-                    <Input 
-                      placeholder="Option" 
-                      value={opt} 
-                      onChange={(e) => updateOption(vi, oi, e.target.value)} 
-                      className="w-20 h-7 text-xs border-0 bg-transparent" 
-                    />
-                    {v.options.length > 1 && (
-                      <button onClick={() => removeOption(vi, oi)} className="h-5 w-5 rounded flex items-center justify-center text-[#ee4343]">
-                        <X className="h-2.5 w-2.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={() => addOption(vi)} className="h-7 px-2 rounded-lg border border-dashed border-[#ded4c3] text-xs text-[#3e7465] hover:border-[#e1bf46] transition-colors">
-                  + Option
-                </button>
+              <div className="grid grid-cols-3 gap-2">
+                <Input 
+                  placeholder="Price" 
+                  type="number"
+                  value={v.price || 0} 
+                  onChange={(e) => updateVariantPrice(vi, e.target.value)} 
+                  className="h-9 text-sm" 
+                />
+                <Input 
+                  placeholder="SKU" 
+                  value={v.sku || ""} 
+                  onChange={(e) => updateVariantSku(vi, e.target.value)} 
+                  className="h-9 text-sm" 
+                />
+                <Input 
+                  placeholder="Stock" 
+                  type="number"
+                  value={v.stock || 0} 
+                  onChange={(e) => updateVariantStock(vi, e.target.value)} 
+                  className="h-9 text-sm" 
+                />
               </div>
             </div>
           ))}
