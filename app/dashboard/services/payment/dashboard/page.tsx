@@ -48,18 +48,18 @@ import { CreateStoreForm } from "@/app/components/store/create-store";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
-// Store Navigation Component
-export const STORE_LINKS = [
-  { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
-  { label: "Products", href: "/store/products", icon: Package },
-  { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
-  { label: "Transactions", href: "/store/transactions", icon: CreditCard },
-  { label: "Customers", href: "/store/customers", icon: Users },
-  { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
-  { label: "Settings", href: "/store/settings", icon: Settings },
-];
+// Store Navigation Component - Move to separate component file or keep but don't export
+function StoreNav({ pathname }: { pathname: string }) {
+  const STORE_LINKS = [
+    { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
+    { label: "Products", href: "/store/products", icon: Package },
+    { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
+    { label: "Transactions", href: "/store/transactions", icon: CreditCard },
+    { label: "Customers", href: "/store/customers", icon: Users },
+    { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
+    { label: "Settings", href: "/store/settings", icon: Settings },
+  ];
 
-export function StoreNav({ pathname }: { pathname: string }) {
   return (
     <div className="flex items-center gap-6 overflow-x-auto px-5 py-3 sm:px-8 border-b border-border bg-card/50 backdrop-blur-sm">
       <nav className="flex items-center gap-1">
@@ -451,7 +451,7 @@ function Greeting({ storeName, firstName }: { storeName?: string; firstName?: st
 }
 
 // ============================================================
-// MAIN DASHBOARD COMPONENT - SCALABLE
+// MAIN DASHBOARD COMPONENT - DEFAULT EXPORT
 // ============================================================
 export default function PaymentDashboardPage() {
   const router = useRouter();
