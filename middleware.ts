@@ -748,6 +748,7 @@ const storeDashboardRoutes = [
 
 export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
+   "ibrahimlawalabbalolo@gmail.com",
   "abdullahtimilehin15@gmail.com",
   "ebrusikefavour@gmail.com",
   "skillfidelafrica@gmail.com",

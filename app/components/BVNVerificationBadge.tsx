@@ -1,10 +1,11 @@
 "use client";
 
-import { AlertCircle, Loader2, Banknote, Shield, X } from "lucide-react";
+import { AlertCircle, Loader2, Shield, X, Check } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { useUserContextData } from "@/app/context/userData";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 interface BVNVerificationBadgeProps {
   className?: string;
@@ -46,24 +47,24 @@ const BVNVerificationBadge = ({
     switch (variant) {
       case "store":
         return {
-          title: "BVN Verification Required to Create Store",
-          pending: "BVN verification pending. You must verify to create your store.",
-          notSubmitted: "You must verify your BVN to create a store and start accepting payments.",
-          buttonText: "Verify BVN Now",
-          cannotSkip: true,
+          title: "BVN Verification",
+          pending: "Your BVN verification is being processed.",
+          notSubmitted: "Verify your BVN to enable withdrawals and full store features.",
+          buttonText: "Verify BVN",
+          cannotSkip: false,
         };
       case "withdrawal":
         return {
-          title: "BVN Verification Required to Withdraw",
-          pending: "BVN verification pending. You must verify to withdraw funds.",
-          notSubmitted: "You must verify your BVN to withdraw funds from your store balance.",
-          buttonText: "Verify BVN Now",
+          title: "BVN Verification Required",
+          pending: "Verification pending. You must verify to withdraw funds.",
+          notSubmitted: "Verify your BVN to withdraw funds from your store.",
+          buttonText: "Verify BVN",
           cannotSkip: true,
         };
       default:
         return {
-          title: isPending ? "BVN Verification Pending" : "Complete Your Profile",
-          pending: "BVN verification is being processed.",
+          title: isPending ? "BVN Verification Pending" : "BVN Verification",
+          pending: "Your BVN verification is being processed.",
           notSubmitted: "Verify your BVN to unlock full features.",
           buttonText: "Verify Now",
           cannotSkip: false,
@@ -89,75 +90,71 @@ const BVNVerificationBadge = ({
   };
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={cn("w-full", className)}>
       <div
-        className={`w-full px-4 py-3 border rounded-xl shadow-sm ${
+        className={cn(
+          "w-full rounded-xl border px-4 py-3",
           isPending
-            ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700"
-            : "bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700"
-        } ${cannotSkip ? "border-l-4 border-l-red-500" : ""}`}
+            ? "border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/10"
+            : "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10"
+        )}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          {/* Icon */}
           <div className="shrink-0">
             {isPending ? (
               <Loader2 className="h-5 w-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
             ) : (
-              <Shield className="h-5 w-5 text-red-500 dark:text-red-400" />
+              <AlertCircle className="h-5 w-5 text-red-500 dark:text-red-400" />
             )}
           </div>
 
+          {/* Content */}
           <div className="flex-1 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 w-full">
               <div>
                 <h4
-                  className={`text-sm font-semibold ${
+                  className={cn(
+                    "text-sm font-medium",
                     isPending
                       ? "text-yellow-800 dark:text-yellow-300"
                       : "text-red-800 dark:text-red-400"
-                  }`}
+                  )}
                 >
                   {messages.title}
                   {cannotSkip && (
-                    <span className="ml-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full">
+                    <span className="ml-2 text-[10px] bg-red-500 text-white px-2 py-0.5 rounded-full">
                       Required
                     </span>
                   )}
                 </h4>
                 <p
-                  className={`text-xs ${
+                  className={cn(
+                    "text-xs",
                     isPending
-                      ? "text-yellow-700 dark:text-yellow-400/80"
-                      : "text-red-700 dark:text-red-400/80"
-                  }`}
+                      ? "text-yellow-700 dark:text-yellow-400/70"
+                      : "text-red-700 dark:text-red-400/70"
+                  )}
                 >
                   {message}
-                  {cannotSkip && (
-                    <span className="block text-[10px] font-medium mt-0.5 text-red-600 dark:text-red-400">
-                      ⚠️ You cannot proceed without verifying your BVN
-                    </span>
-                  )}
                 </p>
               </div>
 
+              {/* Actions */}
               <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
                 <Button
                   onClick={handleVerify}
                   size="sm"
-                  className={`shrink-0 h-9 text-xs whitespace-nowrap font-semibold ${
-                    variant === "store" || variant === "withdrawal"
-                      ? "bg-[#e1bf46] hover:bg-[#e1bf46]/90 text-[#023528]"
-                      : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
-                  }`}
+                  className="h-9 text-xs font-semibold bg-[#FDC020] hover:bg-[#e6a800] text-[#191919] rounded-lg"
                   type="button"
                 >
-                  <Banknote className="h-3.5 w-3.5 mr-1.5" />
                   {messages.buttonText}
                 </Button>
 
                 {dismissable && !cannotSkip && (
                   <button
                     onClick={handleDismiss}
-                    className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400"
+                    className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
                     aria-label="Dismiss"
                     type="button"
                   >

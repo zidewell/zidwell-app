@@ -1,6 +1,7 @@
+// app/api/store/activate/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
 
 const supabase = createClient(
@@ -18,25 +19,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { pin, storeData } = body;
+    const { storeData } = body;
 
-    console.log("📦 Activation request:", { 
-      hasPin: !!pin, 
+    console.log("📦 Activation request:", {
       hasStoreData: !!storeData,
-      userId: user.id 
+      userId: user.id,
     });
 
-    if (!pin || pin.length < 4) {
-      return NextResponse.json(
-        { error: "PIN is required and must be at least 4 digits" },
-        { status: 400 }
-      );
-    }
-
-    // ✅ Get user with PIN info AND wallet balance from users table
+    // Get user with wallet balance
     const { data: dbUser, error: userErr } = await supabase
       .from("users")
-      .select("id, email, bvn_verification, transaction_pin, pin_attempts, pin_locked_until, wallet_balance")
+      .select("id, email, bvn_verification, wallet_balance")
       .eq("id", user.id)
       .single();
 
@@ -46,88 +39,12 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("✅ User found:", dbUser.id);
-    console.log("💰 User wallet balance:", dbUser.wallet_balance);
-
-    // Check BVN verification
-    if (dbUser.bvn_verification !== "verified") {
-      return NextResponse.json(
-        { error: "BVN verification is required before activation" },
-        { status: 403 }
-      );
-    }
-
-    // Check if PIN is locked
-    if (dbUser.pin_locked_until) {
-      const lockUntil = new Date(dbUser.pin_locked_until);
-      const now = new Date();
-      if (lockUntil > now) {
-        const remainingMinutes = Math.ceil((lockUntil.getTime() - now.getTime()) / 60000);
-        return NextResponse.json(
-          { 
-            error: `PIN is locked. Please wait ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''} or reset your PIN.`,
-            locked: true,
-            lockedUntil: lockUntil.toISOString()
-          },
-          { status: 403 }
-        );
-      }
-    }
-
-    // Verify PIN
-    const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const isPinValid = await bcrypt.compare(plainPin, dbUser.transaction_pin);
     
-    if (!isPinValid) {
-      // Increment failed attempts
-      const newAttempts = (dbUser.pin_attempts || 0) + 1;
-      
-      // Lock after 3 failed attempts
-      if (newAttempts >= 3) {
-        const lockUntil = new Date(Date.now() + 15 * 60 * 1000);
-        await supabase
-          .from("users")
-          .update({
-            pin_attempts: newAttempts,
-            pin_locked_until: lockUntil.toISOString(),
-          })
-          .eq("id", user.id);
+    // ✅ Get user's MAIN wallet balance (from users table)
+    const userMainBalance = Number(dbUser.wallet_balance || 0);
+    console.log("💰 User main wallet balance:", userMainBalance);
 
-        return NextResponse.json(
-          {
-            error: "PIN locked due to too many failed attempts. Please wait 15 minutes or reset your PIN.",
-            locked: true,
-            lockedUntil: lockUntil.toISOString(),
-            attempts: newAttempts,
-          },
-          { status: 403 }
-        );
-      }
-
-      // Update attempts count
-      await supabase
-        .from("users")
-        .update({ pin_attempts: newAttempts })
-        .eq("id", user.id);
-
-      const remainingAttempts = 3 - newAttempts;
-      return NextResponse.json(
-        {
-          error: `Invalid PIN. ${remainingAttempts} attempt${remainingAttempts > 1 ? 's' : ''} remaining before PIN is locked.`,
-          attempts: newAttempts,
-        },
-        { status: 403 }
-      );
-    }
-
-    // ✅ PIN is valid - reset attempts
-    await supabase
-      .from("users")
-      .update({ pin_attempts: 0, pin_locked_until: null })
-      .eq("id", user.id);
-
-    console.log("✅ PIN verified");
-
-    // ✅ Check if user already has a store
+    // Check if user already has a store
     let { data: store, error: storeErr } = await supabase
       .from("online_stores")
       .select("*")
@@ -136,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     console.log("🔍 Store lookup:", { hasStore: !!store, storeId: store?.id });
 
-    // ✅ If no store exists, create one with the provided data
+    // If no store exists, create one with the provided data
     if (!store) {
       console.log("🏪 No store found, creating one...");
 
@@ -149,7 +66,7 @@ export async function POST(req: NextRequest) {
 
       // Validate store data
       const { name, slug, description, country, state, city, streetAddress } = storeData;
-      
+
       if (!name?.trim() || !slug?.trim() || !description?.trim()) {
         return NextResponse.json(
           { error: "Name, slug and description are required" },
@@ -168,7 +85,7 @@ export async function POST(req: NextRequest) {
         .replace(/[^a-z0-9-]/g, "")
         .replace(/\s/g, "-")
         .replace(/-+/g, "-");
-      
+
       if (cleanSlug.length < 3) {
         return NextResponse.json(
           { error: "Store URL must be at least 3 characters" },
@@ -227,8 +144,8 @@ export async function POST(req: NextRequest) {
       store = newStore;
     } else {
       console.log("✅ Store already exists:", store.id);
-      
-      // ✅ If store already exists and is active, return error
+
+      // If store already exists and is active, return error
       if (store.is_active && store.activation_paid) {
         return NextResponse.json(
           { error: "Store is already activated" },
@@ -237,25 +154,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ✅ CHECK USER WALLET BALANCE FROM USERS TABLE (not store)
-    const userBalance = Number(dbUser.wallet_balance || 0);
-    console.log("💰 User wallet balance:", userBalance);
-    
-    if (userBalance < ACTIVATION_FEE_NAIRA) {
+    // ============================================================
+    // ✅ CHECK USER MAIN BALANCE (from users table)
+    // ============================================================
+    console.log("💰 Checking user main balance:", userMainBalance);
+
+    if (userMainBalance < ACTIVATION_FEE_NAIRA) {
       return NextResponse.json(
-        { 
-          error: `Insufficient wallet balance. ₦${ACTIVATION_FEE_NAIRA.toLocaleString()} required. You have ₦${userBalance.toLocaleString()}`,
+        {
+          error: `Insufficient wallet balance. ₦${ACTIVATION_FEE_NAIRA.toLocaleString()} required. You have ₦${userMainBalance.toLocaleString()}`,
           required: ACTIVATION_FEE_NAIRA,
-          current: userBalance,
-          shortfall: ACTIVATION_FEE_NAIRA - userBalance
+          current: userMainBalance,
+          shortfall: ACTIVATION_FEE_NAIRA - userMainBalance,
+          needsFunding: true,
         },
         { status: 400 }
       );
     }
 
-    // ✅ Atomic: deduct activation fee from USER wallet using RPC
+    // ============================================================
+    // ✅ DEDUCT FROM USER MAIN BALANCE (users.wallet_balance)
+    // ============================================================
     const reference = `STORE_ACT_${Date.now()}_${user.id}`;
-    
+
+    // Deduct from user's main wallet using RPC
     const { data: deductionResult, error: deductionError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
@@ -275,103 +197,64 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("✅ Fee deducted from user wallet:", ACTIVATION_FEE_NAIRA);
+    console.log("✅ Fee deducted from user main balance:", ACTIVATION_FEE_NAIRA);
     console.log("📊 Deduction result:", deductionResult);
 
-    // ✅ Get the transaction ID from the deduction result
-    let transactionId = null;
-    if (deductionResult && Array.isArray(deductionResult) && deductionResult.length > 0) {
-      transactionId = deductionResult[0]?.transaction_id;
-      console.log("📊 Transaction ID from deduction:", transactionId);
-    }
+    // ============================================================
+    // ✅ CREATE WALLET FOR STORE OWNER (store_owner_wallets)
+    // ============================================================
+    // Check if store owner wallet exists
+    const { data: existingWallet } = await supabase
+      .from("store_owner_wallets")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    // ✅ If we have a transaction ID, update its status to 'success'
-    if (transactionId) {
-      const { error: updateTxError } = await supabase
-        .from("transactions")
-        .update({ 
-          status: 'success',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', transactionId);
+    if (!existingWallet) {
+      console.log("🏦 Creating store owner wallet...");
+      
+      const { error: createWalletError } = await supabase
+        .from("store_owner_wallets")
+        .insert({
+          user_id: user.id,
+          store_id: store.id,
+          available_balance: 0,
+          pending_balance: 0,
+          total_earned: 0,
+          total_withdrawn: 0,
+          last_activity_at: new Date().toISOString(),
+        });
 
-      if (updateTxError) {
-        console.error("❌ Failed to update transaction status:", updateTxError);
+      if (createWalletError) {
+        console.error("❌ Failed to create store owner wallet:", createWalletError);
+        // Non-critical - continue activation
       } else {
-        console.log("✅ Transaction status updated to 'success'");
-      }
-    } else {
-      // If no transaction ID from RPC, try to find and update the pending transaction
-      const { data: pendingTx, error: findTxError } = await supabase
-        .from("transactions")
-        .select("id")
-        .eq("reference", reference)
-        .eq("user_id", user.id)
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (pendingTx) {
-        const { error: updateTxError } = await supabase
-          .from("transactions")
-          .update({ 
-            status: 'success',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', pendingTx.id);
-
-        if (updateTxError) {
-          console.error("❌ Failed to update transaction status:", updateTxError);
-        } else {
-          console.log("✅ Transaction status updated to 'success'");
-        }
-      } else {
-        // No pending transaction found, create a new one
-        console.log("📝 No pending transaction found, creating new one...");
-        const { error: createTxError } = await supabase
-          .from("transactions")
-          .insert({
-            user_id: user.id,
-            type: "debit",
-            amount: ACTIVATION_FEE_NAIRA,
-            fee: 0,
-            net_amount: ACTIVATION_FEE_NAIRA,
-            status: "success",
-            reference: reference,
-            description: "Online store activation fee",
-            channel: "store_activation",
-            external_response: {
-              store_id: store.id,
-              store_name: store.name,
-              activation_date: new Date().toISOString(),
-            },
-          });
-
-        if (createTxError) {
-          console.error("❌ Failed to create transaction record:", createTxError);
-        } else {
-          console.log("✅ Transaction record created");
-        }
+        console.log("✅ Store owner wallet created");
       }
     }
 
-    // ✅ Activate store
+    // ============================================================
+    // ✅ ACTIVATE STORE
+    // ============================================================
     const { error: updateError } = await supabase
       .from("online_stores")
       .update({
         is_active: true,
         activation_paid: true,
         activated_at: new Date().toISOString(),
+        activation_reference: reference,
       })
       .eq("id", store.id);
 
     if (updateError) {
       console.error("❌ Activation update error:", updateError);
-      // Refund the user if activation fails
+      
+      // Refund user main balance if activation fails
       await supabase.rpc("increment_wallet_balance", {
         user_id: user.id,
         amt: ACTIVATION_FEE_NAIRA,
       });
-      
+
       return NextResponse.json(
         { error: "Failed to activate store. Funds have been refunded." },
         { status: 500 }
@@ -380,19 +263,12 @@ export async function POST(req: NextRequest) {
 
     console.log("✅ Store activated:", store.id);
 
-    // Update wallet balance cache
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user/wallet/balance`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          userId: user.id,
-          forceBalance: userBalance - ACTIVATION_FEE_NAIRA 
-        }),
-      });
-    } catch (cacheError) {
-      console.error("Failed to update wallet cache:", cacheError);
-    }
+    // Get updated user balance
+    const { data: updatedUser } = await supabase
+      .from("users")
+      .select("wallet_balance")
+      .eq("id", user.id)
+      .single();
 
     return NextResponse.json({
       success: true,
@@ -404,8 +280,11 @@ export async function POST(req: NextRequest) {
         is_active: true,
         activation_paid: true,
       },
+      wallet: {
+        new_balance: updatedUser?.wallet_balance || 0,
+        deducted: ACTIVATION_FEE_NAIRA,
+      },
     });
-
   } catch (error: any) {
     console.error("❌ Store activation error:", error);
     return NextResponse.json(

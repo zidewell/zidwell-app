@@ -11,6 +11,38 @@ const baseUrl =
     ? process.env.NEXT_PUBLIC_DEV_URL
     : process.env.NEXT_PUBLIC_BASE_URL;
 
+// ============================================================
+// ✅ FEE CONFIGURATION - 3% Zidwell fee
+// ============================================================
+const FEE_CONFIG = {
+  ZIDWELL_FEE_PERCENTAGE: 0.03,    // 3% Zidwell platform fee
+  NOMBA_FEE_PERCENTAGE: 0.004,     // 0.4% Nomba processing fee
+  TOTAL_FEE_PERCENTAGE: 0.034,     // 3.4% Total fee
+};
+
+function calculateFees(amount: number): {
+  gross: number;
+  nombaFee: number;
+  zidwellFee: number;
+  totalFee: number;
+  netAmount: number;
+  feePercentage: number;
+} {
+  const nombaFee = amount * FEE_CONFIG.NOMBA_FEE_PERCENTAGE;
+  const zidwellFee = amount * FEE_CONFIG.ZIDWELL_FEE_PERCENTAGE;
+  const totalFee = nombaFee + zidwellFee;
+  const netAmount = amount - totalFee;
+
+  return {
+    gross: amount,
+    nombaFee: Math.round(nombaFee * 100) / 100,
+    zidwellFee: Math.round(zidwellFee * 100) / 100,
+    totalFee: Math.round(totalFee * 100) / 100,
+    netAmount: Math.round(netAmount * 100) / 100,
+    feePercentage: FEE_CONFIG.TOTAL_FEE_PERCENTAGE * 100,
+  };
+}
+
 interface CardPaymentWebhookParams {
   nombaTransactionId: string;
   orderReference: string;
@@ -34,7 +66,17 @@ export async function processCardPaymentWebhook(
   }
 
   try {
-    // Update payment status
+    // ✅ Calculate fees with 3% Zidwell rate
+    const feeBreakdown = calculateFees(payment.amount);
+
+    console.log(`💰 Fee Breakdown (3% Zidwell):`);
+    console.log(`   Gross: ₦${feeBreakdown.gross.toLocaleString()}`);
+    console.log(`   Nomba Fee (0.4%): -₦${feeBreakdown.nombaFee.toLocaleString()}`);
+    console.log(`   Zidwell Fee (3%): -₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+    console.log(`   Total Fees (3.4%): -₦${feeBreakdown.totalFee.toLocaleString()}`);
+    console.log(`   Net: ₦${feeBreakdown.netAmount.toLocaleString()}`);
+
+    // ✅ Update payment status with fee breakdown
     const { error: updateError } = await supabase
       .from("payment_page_payments")
       .update({
@@ -43,6 +85,13 @@ export async function processCardPaymentWebhook(
         paid_at: new Date().toISOString(),
         confirmed_at: new Date().toISOString(),
         receipt_sent: false,
+        // ✅ Updated fee fields
+        amount: feeBreakdown.gross,
+        fee: feeBreakdown.totalFee,
+        nomba_fee: feeBreakdown.nombaFee,
+        app_fee: feeBreakdown.zidwellFee,  // ✅ 3% Zidwell fee
+        total_fee: feeBreakdown.totalFee,
+        net_amount: feeBreakdown.netAmount,
       })
       .eq("id", payment.id);
 
@@ -53,28 +102,44 @@ export async function processCardPaymentWebhook(
 
     console.log("✅ Payment updated to completed:", payment.id);
 
-    // Credit the page balance
+    // ✅ Credit the store owner wallet with net amount
+    const { error: walletError } = await supabase.rpc(
+      "credit_store_owner_wallet",
+      {
+        p_user_id: payment.user_id,
+        p_amount: feeBreakdown.netAmount,
+        p_source: "payment_page",
+        p_source_id: payment.payment_page_id,
+        p_description: `Card payment from ${payment.customer_name} (3% Zidwell fee)`,
+      }
+    );
+
+    if (walletError) {
+      console.error("❌ Failed to credit store wallet:", walletError);
+    } else {
+      console.log(`✅ Credited ₦${feeBreakdown.netAmount.toLocaleString()} to store wallet`);
+    }
+
+    // ✅ Also update page balance for tracking
     const { error: balanceError } = await supabase.rpc(
       "increment_page_balance",
       {
         p_page_id: payment.payment_page_id,
-        p_amount: payment.net_amount,
+        p_amount: feeBreakdown.netAmount,
       }
     );
 
     if (balanceError) {
       console.error("Failed to increment balance:", balanceError);
-    } else {
-      console.log(`✅ Balance incremented by ₦${payment.net_amount}`);
     }
 
-    // Create transaction record
+    // ✅ Create transaction record with fee breakdown
     const { error: txError } = await supabase.from("transactions").insert({
       user_id: payment.user_id,
       type: "credit",
-      amount: payment.amount,
-      fee: payment.fee,
-      net_amount: payment.net_amount,
+      amount: feeBreakdown.gross,
+      fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
       status: "success",
       reference: `CARD-${payment.payment_page_id}-${nombaTransactionId}`,
       description: `Card payment for "${payment.payment_pages?.title}" from ${payment.customer_name}`,
@@ -93,6 +158,12 @@ export async function processCardPaymentWebhook(
         transaction_id: nombaTransactionId,
         payment_method: "card",
         order_reference: orderReference,
+        gross_amount: feeBreakdown.gross,
+        nomba_fee: feeBreakdown.nombaFee,
+        app_fee: feeBreakdown.zidwellFee,
+        total_fee: feeBreakdown.totalFee,
+        net_amount: feeBreakdown.netAmount,
+        fee_percentage: 3.4,
       },
     });
 
@@ -108,11 +179,19 @@ export async function processCardPaymentWebhook(
         payment.payment_pages,
         payment,
         payment.customer_name,
-        payment.amount,
+        feeBreakdown.gross,
         nombaTransactionId,
         "card",
         new Date().toISOString(),
-        payment.metadata
+        {
+          ...payment.metadata,
+          gross_amount: feeBreakdown.gross,
+          nomba_fee: feeBreakdown.nombaFee,
+          app_fee: feeBreakdown.zidwellFee,
+          total_fee: feeBreakdown.totalFee,
+          net_amount: feeBreakdown.netAmount,
+          fee_percentage: 3.4,
+        }
       ).catch(err => console.error("Failed to send receipt:", err));
 
       await supabase
@@ -136,20 +215,22 @@ export async function processCardPaymentWebhook(
         await transporter.sendMail({
           from: `Zidwell <${process.env.EMAIL_USER}>`,
           to: creator.email,
-          subject: `💰 Card Payment Received for "${payment.payment_pages?.title}" - ₦${payment.amount.toLocaleString()}`,
+          subject: `💰 Card Payment Received for "${payment.payment_pages?.title}" - ₦${feeBreakdown.netAmount.toLocaleString()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <img src="${baseUrl}/zidwell-header.png" style="width: 100%; margin-bottom: 20px;" />
               <h3 style="color: #22c55e;">✅ Card Payment Received!</h3>
               <p>You've received a card payment for <strong>${payment.payment_pages?.title}</strong>.</p>
               <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-                <p><strong>Amount:</strong> ₦${payment.amount.toLocaleString()}</p>
-                <p><strong>Fee (4%):</strong> ₦${payment.fee.toLocaleString()}</p>
-                <p><strong>Net Credited:</strong> ₦${payment.net_amount.toLocaleString()}</p>
+                <p><strong>Amount:</strong> ₦${feeBreakdown.gross.toLocaleString()}</p>
+                <p><strong>Nomba Fee (0.4%):</strong> -₦${feeBreakdown.nombaFee.toLocaleString()}</p>
+                <p><strong>Zidwell Fee (3%):</strong> -₦${feeBreakdown.zidwellFee.toLocaleString()}</p>
+                <p><strong>Total Fees:</strong> -₦${feeBreakdown.totalFee.toLocaleString()}</p>
+                <p><strong>Net Credited:</strong> ₦${feeBreakdown.netAmount.toLocaleString()}</p>
                 <p><strong>Customer:</strong> ${payment.customer_name}</p>
                 <p><strong>Email:</strong> ${payment.customer_email}</p>
               </div>
-              <p>Funds have been added to your page balance after 4% fee deduction.</p>
+              <p>Funds have been added to your store wallet after 3.4% fee deduction.</p>
               <img src="${baseUrl}/zidwell-footer.png" style="width: 100%; margin-top: 20px;" />
             </div>
           `,
@@ -162,9 +243,10 @@ export async function processCardPaymentWebhook(
 
     console.log("🎉 ========== CARD PAYMENT PROCESSING COMPLETED ==========");
     console.log(`   Payment ID: ${payment.id}`);
-    console.log(`   Amount: ₦${payment.amount.toLocaleString()}`);
-    console.log(`   Fee (4%): ₦${payment.fee.toLocaleString()}`);
-    console.log(`   Net: ₦${payment.net_amount.toLocaleString()}`);
+    console.log(`   Gross: ₦${feeBreakdown.gross.toLocaleString()}`);
+    console.log(`   Nomba Fee (0.4%): ₦${feeBreakdown.nombaFee.toLocaleString()}`);
+    console.log(`   Zidwell Fee (3%): ₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+    console.log(`   Net: ₦${feeBreakdown.netAmount.toLocaleString()}`);
     console.log(`   Customer: ${payment.customer_name} (${payment.customer_email})`);
 
     return {

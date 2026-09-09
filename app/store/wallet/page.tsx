@@ -1,3 +1,4 @@
+// app/store/wallet/page.tsx
 import { ZidwellShell } from "@/app/components/zidwell-shell";
 import { StorePage } from "@/app/components/store-page";
 import { StoreWallet } from "@/app/components/store/wallet";

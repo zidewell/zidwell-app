@@ -1,13 +1,26 @@
 // app/components/store/wallet.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useStore } from "@/app/context/StoreContext";
-import { Wallet, ArrowUpRight, ArrowDownRight, CreditCard, Clock } from "lucide-react";
+import { useUserContextData } from "@/app/context/userData";
+import { useVerificationModal } from "@/app/context/verificationModalContext";
+import { Wallet, ArrowUpRight, ArrowDownRight, CreditCard, Clock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WithdrawalModal } from "./WithdrawalModal";
+import { toast } from "sonner";
 
 export function StoreWallet() {
-  const { pages, loading } = useStore();
+  const { pages, loading, withdrawFromPage, refreshPages } = useStore();
+  const { userData } = useUserContextData();
+  const { openVerificationModal } = useVerificationModal();
+  
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
+  const [selectedPageBalance, setSelectedPageBalance] = useState(0);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  const isVerified = userData?.bvnVerification === "verified";
 
   const walletData = useMemo(() => {
     const totalBalance = pages.reduce((sum, p) => sum + p.pageBalance, 0);
@@ -22,6 +35,44 @@ export function StoreWallet() {
       pendingWithdrawals,
     };
   }, [pages]);
+
+  const handleOpenWithdraw = (pageId: string, balance: number) => {
+    if (!isVerified) {
+      openVerificationModal();
+      return;
+    }
+    
+    setSelectedPageId(pageId);
+    setSelectedPageBalance(balance);
+    setIsWithdrawModalOpen(true);
+  };
+
+  const handleWithdrawConfirm = async (amount: number) => {
+    if (!selectedPageId) {
+      throw new Error("No page selected");
+    }
+
+    setIsWithdrawing(true);
+    
+    try {
+      await withdrawFromPage(selectedPageId, amount);
+      toast.success(`₦${amount.toLocaleString()} withdrawn successfully!`);
+      await refreshPages();
+    } catch (error: any) {
+      console.error("Withdrawal error:", error);
+      throw new Error(error.message || "Failed to withdraw funds");
+    } finally {
+      setIsWithdrawing(false);
+      setIsWithdrawModalOpen(false);
+      setSelectedPageId(null);
+      setSelectedPageBalance(0);
+    }
+  };
+
+  const handleVerify = () => {
+    setIsWithdrawModalOpen(false);
+    openVerificationModal();
+  };
 
   if (loading) {
     return (
@@ -51,13 +102,48 @@ export function StoreWallet() {
             ₦{walletData.totalBalance.toLocaleString()}
           </p>
           <div className="mt-6 flex flex-wrap gap-4">
-            <button className="rounded-2xl bg-gold px-6 py-3 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity">
-              Withdraw Funds
-            </button>
+            {pages.length > 0 && pages.some(p => p.pageBalance > 0) && (
+              <button 
+                onClick={() => {
+                  const pageWithBalance = pages.find(p => p.pageBalance > 0);
+                  if (pageWithBalance) {
+                    handleOpenWithdraw(pageWithBalance.id, pageWithBalance.pageBalance);
+                  }
+                }}
+                className="rounded-2xl bg-gold px-6 py-3 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity"
+              >
+                Withdraw Funds
+              </button>
+            )}
             <button className="rounded-2xl border border-background/20 px-6 py-3 text-sm font-bold hover:bg-background/10 transition-colors">
               Transaction History
             </button>
           </div>
+          {!isVerified && (
+            <div className="mt-4 p-4 rounded-xl bg-yellow-500/20 border border-yellow-500/30">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500/30">
+                    <span className="text-yellow-400">!</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-yellow-400">
+                    BVN Verification Required
+                  </p>
+                  <p className="text-xs text-yellow-400/70 mt-1">
+                    Verify your BVN to enable withdrawals
+                  </p>
+                  <button
+                    onClick={() => openVerificationModal()}
+                    className="mt-2 text-xs font-semibold text-yellow-400 hover:underline"
+                  >
+                    Verify Now →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -112,12 +198,25 @@ export function StoreWallet() {
                   </p>
                 </div>
               </div>
-              <p className={cn(
-                "font-bold",
-                page.pageBalance > 0 ? "text-lemon-green" : "text-red-500"
-              )}>
-                {page.pageBalance > 0 ? "+" : ""}₦{page.pageBalance.toLocaleString()}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className={cn(
+                  "font-bold",
+                  page.pageBalance > 0 ? "text-lemon-green" : "text-red-500"
+                )}>
+                  {page.pageBalance > 0 ? "+" : ""}₦{page.pageBalance.toLocaleString()}
+                </p>
+                {page.pageBalance > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenWithdraw(page.id, page.pageBalance);
+                    }}
+                    className="text-xs text-gold hover:underline font-medium"
+                  >
+                    Withdraw
+                  </button>
+                )}
+              </div>
             </div>
           ))}
           {pages.length === 0 && (
@@ -125,6 +224,21 @@ export function StoreWallet() {
           )}
         </div>
       </div>
+
+      {/* Withdrawal Modal */}
+      <WithdrawalModal
+        isOpen={isWithdrawModalOpen}
+        onClose={() => {
+          setIsWithdrawModalOpen(false);
+          setSelectedPageId(null);
+          setSelectedPageBalance(0);
+        }}
+        onConfirm={handleWithdrawConfirm}
+        maxAmount={selectedPageBalance}
+        isLoading={isWithdrawing}
+        isVerified={isVerified}
+        onVerify={handleVerify}
+      />
     </div>
   );
 }

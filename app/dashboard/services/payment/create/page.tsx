@@ -211,7 +211,9 @@ function LivePreviewModal({ isOpen, onClose, pageType, productImages, title, des
                     <h3 className="text-xl font-bold text-white leading-tight">{title || "Your Product Title"}</h3>
                     {description && <div className="text-sm text-gray-400 line-clamp-2" dangerouslySetInnerHTML={{ __html: description }} />}
                     <p className="text-2xl font-bold text-[#e1bf46]">₦{price ? Number(price).toLocaleString() : "0.00"}</p>
-                    <div className="bg-[#1a1a1a] rounded-lg p-2"><p className="text-xs text-gray-400">Transaction fee: <span className="text-[#e1bf46]">4%</span></p></div>
+                    <div className="bg-[#1a1a1a] rounded-lg p-2">
+                      <p className="text-xs text-gray-400">Transaction fee: <span className="text-[#e1bf46]">3%</span></p>
+                    </div>
                     <button className="w-full bg-[#e1bf46] text-[#023528] font-semibold py-3 rounded-xl hover:bg-[#e1bf46]/90">Pay with Card</button>
                     <div className="flex items-center justify-center gap-2 text-xs text-gray-500"><Shield className="h-3.5 w-3.5" /> Secured by Zidwell</div>
                   </div>
@@ -316,18 +318,25 @@ export default function CreatePage() {
 
   const productRef = useRef<HTMLInputElement>(null);
 
-  const [feeCalculation, setFeeCalculation] = useState({ subtotal: 0, fee: 0, totalWithFee: 0, creatorReceives: 0, feePercentage: 4 });
+  // ✅ Updated fee calculation - 3% Zidwell fee
+  const [feeCalculation, setFeeCalculation] = useState({ 
+    subtotal: 0, 
+    fee: 0, 
+    totalWithFee: 0, 
+    creatorReceives: 0, 
+    feePercentage: 3 
+  });
 
-  // ✅ Fee calculation useEffect - 4% fee
+  // ✅ Fee calculation useEffect - 3% fee (changed from 4%)
   useEffect(() => {
     const amount = Number(form.price) || 0;
-    const fee = amount * 0.04; // 4% fee
+    const fee = amount * 0.03; // ✅ 3% fee
     setFeeCalculation({ 
       subtotal: amount, 
       fee, 
       totalWithFee: amount, 
       creatorReceives: amount - fee, 
-      feePercentage: 4 
+      feePercentage: 3 
     });
   }, [form.price]);
 
@@ -553,7 +562,7 @@ export default function CreatePage() {
     }
   };
 
-  // ✅ Show loader while store is loading
+  // Show loader while store is loading
   if (loading) {
     return (
       <div className="min-h-screen dark:bg-[#0e0e0e] flex items-center justify-center">
@@ -562,7 +571,7 @@ export default function CreatePage() {
     );
   }
 
-  // ✅ If no page type selected, show selector
+  // If no page type selected, show selector
   if (!pageType) {
     return (
       <div className="min-h-screen dark:bg-[#0e0e0e]">
@@ -582,7 +591,7 @@ export default function CreatePage() {
     );
   }
 
-  // ✅ If payment link, redirect
+  // If payment link, redirect
   if (pageType === "link") {
     router.push("/dashboard/services/payment/create-link");
     return null;
@@ -785,7 +794,7 @@ export default function CreatePage() {
                   />
                 )}
 
-                {/* ✅ PRICING - Shows 4% fee in Payment Summary */}
+                {/* ✅ PRICING - Shows 3% fee in Payment Summary */}
                 {pageType !== "donation" && (
                   <>
                     <div>
@@ -850,7 +859,7 @@ export default function CreatePage() {
                       )}
                     </div>
 
-                    {/* ✅ PAYMENT SUMMARY - Shows Total, 4% Fee, and You Receive */}
+                    {/* ✅ PAYMENT SUMMARY - Shows Total, 3% Fee, and You Receive */}
                     {Number(form.price) > 0 && (
                       <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
                         <div className="flex items-center gap-2 mb-3">
@@ -881,9 +890,9 @@ export default function CreatePage() {
                             <span className="font-semibold text-(--color-accent-yellow)">₦{Number(form.price).toLocaleString()}</span>
                           </div>
                           
-                          {/* ✅ 4% FEE DISPLAYED HERE */}
+                          {/* ✅ 3% FEE DISPLAYED HERE */}
                           <div className="flex justify-between">
-                            <span className="text-(--text-secondary)">Fee (4%):</span>
+                            <span className="text-(--text-secondary)">Fee (3%):</span>
                             <span className="font-medium text-[var(--destructive)]">- ₦{feeCalculation.fee.toLocaleString()}</span>
                           </div>
                           
@@ -895,7 +904,7 @@ export default function CreatePage() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-xs text-(--text-secondary) mt-3">✓ The 4% transaction fee is deducted from your payout. Customers pay exactly the amount shown.</p>
+                        <p className="text-xs text-(--text-secondary) mt-3">✓ The 3% transaction fee is deducted from your payout. Customers pay exactly the amount shown.</p>
                       </div>
                     )}
                   </>
@@ -908,7 +917,7 @@ export default function CreatePage() {
         {/* Sticky CTA */}
         <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto">
-            <Button variant="default" size="lg" className="w-full py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90" onClick={handleCreate} disabled={!canCreate() || isCreating}>
+            <Button variant="default" size="lg" className="w-full py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" onClick={handleCreate} disabled={!canCreate() || isCreating}>
               {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
             </Button>
           </div>
@@ -941,11 +950,15 @@ export default function CreatePage() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button variant="outline" className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]" onClick={() => { setShowSuccess(false); if (fullPageUrl && fullPageUrl !== '#') window.open(fullPageUrl, "_blank"); }}>Preview Page</Button>
-                <Button variant="default" className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90" onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}>Go to Dashboard</Button>
+                <Button variant="default" className="flex-1 bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}>Go to Dashboard</Button>
               </div>
 
-              <button onClick={() => setShowSuccess(false)} className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Close</button>
-            </motion.div>
+              <button 
+  onClick={() => window.location.reload()} 
+  className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+>
+  Close
+</button>  </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

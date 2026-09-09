@@ -12,14 +12,45 @@ const baseUrl = process.env.NODE_ENV === "development"
   ? process.env.NEXT_PUBLIC_DEV_URL
   : process.env.NEXT_PUBLIC_BASE_URL;
 
-interface CardPaymentWebhookParams {
-  nombaTransactionId: string;
-  orderReference: string;
-  payment: any;
+// ============================================================
+// ✅ FEE CONSTANTS - Updated
+// ============================================================
+const FEE_CONFIG = {
+  ZIDWELL_FEE_PERCENTAGE: 0.03,    // 3% Zidwell platform fee
+  NOMBA_FEE_PERCENTAGE: 0.004,     // 0.4% Nomba processing fee
+  TOTAL_FEE_PERCENTAGE: 0.034,     // 3.4% Total fee
+  WITHDRAWAL_FEE: 0,               // ✅ FREE
+  MIN_WITHDRAWAL: 1000,
+};
+
+// ============================================================
+// ✅ FEE CALCULATION FUNCTION - Updated
+// ============================================================
+function calculateFees(amount: number): {
+  gross: number;
+  nombaFee: number;
+  zidwellFee: number;
+  totalFee: number;
+  netAmount: number;
+  feePercentage: number;
+} {
+  const nombaFee = amount * FEE_CONFIG.NOMBA_FEE_PERCENTAGE;
+  const zidwellFee = amount * FEE_CONFIG.ZIDWELL_FEE_PERCENTAGE;
+  const totalFee = nombaFee + zidwellFee;
+  const netAmount = amount - totalFee;
+
+  return {
+    gross: amount,
+    nombaFee: Math.round(nombaFee * 100) / 100,
+    zidwellFee: Math.round(zidwellFee * 100) / 100,
+    totalFee: Math.round(totalFee * 100) / 100,
+    netAmount: Math.round(netAmount * 100) / 100,
+    feePercentage: FEE_CONFIG.TOTAL_FEE_PERCENTAGE * 100,
+  };
 }
 
 // ============================================================
-// ✅ UPDATE STUDENT PAID STATUS IN PAGE METADATA
+// ✅ UPDATE STUDENT PAID STATUS
 // ============================================================
 async function updateStudentPaidStatus(
   paymentPageId: string,
@@ -28,22 +59,13 @@ async function updateStudentPaidStatus(
   amount: number,
 ): Promise<void> {
   try {
-    console.log(`📊 Updating student paid status for ${studentNames.length} student(s)`);
-    
-    // Get current page metadata
     const { data: page, error: fetchError } = await supabase
       .from("payment_pages")
       .select("metadata, price")
       .eq("id", paymentPageId)
       .single();
 
-    if (fetchError) {
-      console.error("❌ Failed to fetch page metadata:", fetchError);
-      return;
-    }
-
-    if (!page?.metadata?.students) {
-      console.log("⚠️ No students found in page metadata");
+    if (fetchError || !page?.metadata?.students) {
       return;
     }
 
@@ -51,9 +73,6 @@ async function updateStudentPaidStatus(
     const totalAmount = Number(page.price) || 0;
     const amountPerStudent = amount / studentNames.length;
 
-    console.log(`📊 Total amount: ${totalAmount}, Amount per student: ${amountPerStudent}`);
-
-    // Update each student's paidAmount
     const updatedStudents = students.map((student: any) => {
       const studentName = student.name || student.studentName || "";
       const isSelected = studentNames.some(
@@ -64,8 +83,6 @@ async function updateStudentPaidStatus(
         const currentPaidAmount = Number(student.paidAmount) || 0;
         const newPaidAmount = currentPaidAmount + amountPerStudent;
         const isFullyPaid = newPaidAmount >= totalAmount;
-
-        console.log(`📊 Student ${studentName}: ${currentPaidAmount} + ${amountPerStudent} = ${newPaidAmount}, fullyPaid: ${isFullyPaid}`);
 
         return {
           ...student,
@@ -80,8 +97,7 @@ async function updateStudentPaidStatus(
       return student;
     });
 
-    // Update page metadata
-    const { error: updateError } = await supabase
+    await supabase
       .from("payment_pages")
       .update({
         metadata: {
@@ -91,28 +107,18 @@ async function updateStudentPaidStatus(
       })
       .eq("id", paymentPageId);
 
-    if (updateError) {
-      console.error("❌ Failed to update student paid status:", updateError);
-    } else {
-      console.log(`✅ Updated paid status for ${studentNames.length} student(s)`);
-      // Log the updated students for verification
-      updatedStudents.forEach((s: any) => {
-        if (studentNames.some(name => name?.toLowerCase().trim() === s.name?.toLowerCase().trim())) {
-          console.log(`   ✅ ${s.name}: paidAmount=${s.paidAmount}, paid=${s.paid}`);
-        }
-      });
-    }
+    console.log(`✅ Updated paid status for students: ${studentNames.join(', ')}`);
   } catch (error) {
-    console.error("❌ Error updating student paid status:", error);
+    console.error("Error updating student paid status:", error);
   }
 }
 
 // ============================================================
-// ✅ PROCESS CARD PAYMENT WEBHOOK
+// ✅ PROCESS CARD PAYMENT WEBHOOK - UPDATED WITH 3% FEE
 // ============================================================
 export async function processCardPaymentWebhook(
   payload: any,
-  params: CardPaymentWebhookParams
+  params: { nombaTransactionId: string; orderReference: string; payment: any }
 ): Promise<{ success: true; message: string; payment_id: string } | { error: string; status?: number }> {
   const { nombaTransactionId, orderReference, payment } = params;
 
@@ -127,7 +133,17 @@ export async function processCardPaymentWebhook(
   }
 
   try {
-    // ✅ 1. Update payment status
+    // ✅ Calculate fees with 3% Zidwell rate
+    const feeBreakdown = calculateFees(payment.amount);
+
+    console.log(`💰 Fee Breakdown (3% Zidwell):`);
+    console.log(`   Gross: ₦${feeBreakdown.gross.toLocaleString()}`);
+    console.log(`   Nomba Fee (0.4%): -₦${feeBreakdown.nombaFee.toLocaleString()}`);
+    console.log(`   Zidwell Fee (3%): -₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+    console.log(`   Total Fees (3.4%): -₦${feeBreakdown.totalFee.toLocaleString()}`);
+    console.log(`   Net: ₦${feeBreakdown.netAmount.toLocaleString()}`);
+
+    // ✅ 1. Update payment status with fee breakdown
     const { error: updateError } = await supabase
       .from("payment_page_payments")
       .update({
@@ -135,6 +151,12 @@ export async function processCardPaymentWebhook(
         nomba_transaction_id: nombaTransactionId,
         paid_at: new Date().toISOString(),
         confirmed_at: new Date().toISOString(),
+        amount: feeBreakdown.gross,
+        fee: feeBreakdown.totalFee,
+        nomba_fee: feeBreakdown.nombaFee,
+        app_fee: feeBreakdown.zidwellFee,
+        total_fee: feeBreakdown.totalFee,
+        net_amount: feeBreakdown.netAmount,
         receipt_sent: false,
       })
       .eq("id", payment.id);
@@ -144,7 +166,7 @@ export async function processCardPaymentWebhook(
       return { error: "Failed to update payment", status: 500 };
     }
 
-    console.log("✅ Payment updated to completed:", payment.id);
+    console.log(`✅ Payment updated to completed: ${payment.id}`);
 
     // ✅ 2. Update student paid status
     const selectedStudents = payment.metadata?.selectedStudents || [];
@@ -165,41 +187,58 @@ export async function processCardPaymentWebhook(
         payment.payment_page_id,
         studentNames,
         parentName,
-        payment.amount
+        feeBreakdown.netAmount
       );
     }
 
-    // ✅ 3. Credit the page balance
+    // ✅ 3. Credit the store owner wallet with net amount
+    console.log(`💰 Crediting wallet with ₦${feeBreakdown.netAmount.toLocaleString()}`);
+    const { data: walletResult, error: walletError } = await supabase.rpc(
+      "credit_store_owner_wallet",
+      {
+        p_user_id: payment.user_id,
+        p_amount: feeBreakdown.netAmount,
+        p_source: "payment_page",
+        p_source_id: payment.payment_page_id,
+        p_description: `Card payment from ${payment.customer_name} (3% Zidwell fee)`,
+      }
+    );
+
+    if (walletError) {
+      console.error("❌ Failed to credit wallet:", walletError);
+    } else {
+      console.log(`✅ Credited ₦${feeBreakdown.netAmount.toLocaleString()} to store wallet`);
+      console.log(`   New balance: ₦${walletResult.new_balance}`);
+    }
+
+    // ✅ 4. Update page balance (for tracking)
     const { error: balanceError } = await supabase.rpc(
       "increment_page_balance",
       {
         p_page_id: payment.payment_page_id,
-        p_amount: payment.net_amount,
+        p_amount: feeBreakdown.netAmount,
       }
     );
 
     if (balanceError) {
-      console.error("❌ Failed to increment balance:", balanceError);
-    } else {
-      console.log(`✅ Balance incremented by ₦${payment.net_amount}`);
+      console.error("❌ Failed to increment page balance:", balanceError);
     }
 
-    // ✅ 4. Create transaction record
+    // ✅ 5. Create transaction record with fee breakdown
     const { error: txError } = await supabase.from("transactions").insert({
       user_id: payment.user_id,
       type: "credit",
-      amount: payment.amount,
-      fee: payment.fee,
-      net_amount: payment.net_amount,
+      amount: feeBreakdown.gross,
+      fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
       status: "success",
       reference: `CARD-${payment.payment_page_id}-${nombaTransactionId}`,
-      description: `Card payment for "${payment.payment_pages?.title}" from ${payment.customer_name}`,
+      description: `Card payment from ${payment.customer_name} for "${payment.payment_pages?.title}"`,
       channel: "payment_page_card",
       sender: {
         name: payment.customer_name,
         email: payment.customer_email,
         phone: payment.customer_phone,
-        order_reference: orderReference,
         students: studentNames,
       },
       receiver: {
@@ -208,8 +247,14 @@ export async function processCardPaymentWebhook(
       },
       external_response: {
         transaction_id: nombaTransactionId,
+        gross_amount: feeBreakdown.gross,
+        nomba_fee: feeBreakdown.nombaFee,
+        app_fee: feeBreakdown.zidwellFee,
+        total_fee: feeBreakdown.totalFee,
+        net_amount: feeBreakdown.netAmount,
+        fee_percentage: 3.4,
         payment_method: "card",
-        order_reference: orderReference,
+        withdrawal_fee: 0, // ✅ FREE
       },
     });
 
@@ -217,7 +262,7 @@ export async function processCardPaymentWebhook(
       console.error("❌ Failed to create transaction:", txError);
     }
 
-    // ✅ 5. Send receipt to customer
+    // ✅ 6. Send receipt to customer
     if (payment.customer_email) {
       console.log(`📧 Sending receipt to: ${payment.customer_email}`);
       await sendPaymentPageReceiptWithPDF(
@@ -225,22 +270,23 @@ export async function processCardPaymentWebhook(
         payment.payment_pages,
         payment,
         payment.customer_name,
-        payment.amount,
+        feeBreakdown.gross,
         nombaTransactionId,
         "card",
         new Date().toISOString(),
-        payment.metadata
+        {
+          gross_amount: feeBreakdown.gross,
+          nomba_fee: feeBreakdown.nombaFee,
+          app_fee: feeBreakdown.zidwellFee,
+          total_fee: feeBreakdown.totalFee,
+          net_amount: feeBreakdown.netAmount,
+          fee_percentage: 3.4,
+          withdrawal_fee: 0, // ✅ FREE
+        }
       ).catch(err => console.error("Failed to send receipt:", err));
-
-      await supabase
-        .from("payment_page_payments")
-        .update({ receipt_sent: true })
-        .eq("id", payment.id);
-      
-      console.log(`✅ Receipt sent to ${payment.customer_email}`);
     }
 
-    // ✅ 6. Send notification to page creator
+    // ✅ 7. Send notification to page creator
     const { data: creator } = await supabase
       .from("users")
       .select("email")
@@ -253,21 +299,24 @@ export async function processCardPaymentWebhook(
         await transporter.sendMail({
           from: `Zidwell <${process.env.EMAIL_USER}>`,
           to: creator.email,
-          subject: `💰 Card Payment Received for "${payment.payment_pages?.title}" - ₦${payment.amount.toLocaleString()}`,
+          subject: `💰 Card Payment Received - ₦${feeBreakdown.netAmount.toLocaleString()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <img src="${baseUrl}/zidwell-header.png" style="width: 100%; margin-bottom: 20px;" />
               <h3 style="color: #22c55e;">✅ Card Payment Received!</h3>
               <p>You've received a card payment for <strong>${payment.payment_pages?.title}</strong>.</p>
               <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-                <p><strong>Amount:</strong> ₦${payment.amount.toLocaleString()}</p>
-                <p><strong>Fee (4%):</strong> ₦${payment.fee.toLocaleString()}</p>
-                <p><strong>Net Credited:</strong> ₦${payment.net_amount.toLocaleString()}</p>
+                <p><strong>Amount:</strong> ₦${feeBreakdown.gross.toLocaleString()}</p>
+                <p><strong>Nomba Fee (0.4%):</strong> -₦${feeBreakdown.nombaFee.toLocaleString()}</p>
+                <p><strong>Zidwell Fee (3%):</strong> -₦${feeBreakdown.zidwellFee.toLocaleString()}</p>
+                <p><strong>Total Fees:</strong> -₦${feeBreakdown.totalFee.toLocaleString()}</p>
+                <p><strong>Net Credited:</strong> ₦${feeBreakdown.netAmount.toLocaleString()}</p>
+                <p><strong>Withdrawal Fee:</strong> ✅ FREE</p>
                 <p><strong>Customer:</strong> ${payment.customer_name}</p>
-                <p><strong>Email:</strong> ${payment.customer_email}</p>
+                ${payment.customer_email ? `<p><strong>Email:</strong> ${payment.customer_email}</p>` : ''}
                 ${studentNames.length > 0 ? `<p><strong>Students:</strong> ${studentNames.join(', ')}</p>` : ''}
               </div>
-              <p>Funds have been added to your page balance after 4% fee deduction.</p>
+              <p>Funds have been added to your store owner wallet. Withdrawals are now FREE!</p>
               <img src="${baseUrl}/zidwell-footer.png" style="width: 100%; margin-top: 20px;" />
             </div>
           `,
@@ -280,11 +329,11 @@ export async function processCardPaymentWebhook(
 
     console.log("🎉 ========== CARD PAYMENT PROCESSING COMPLETED ==========");
     console.log(`   Payment ID: ${payment.id}`);
-    console.log(`   Amount: ₦${payment.amount.toLocaleString()}`);
-    console.log(`   Fee (4%): ₦${payment.fee.toLocaleString()}`);
-    console.log(`   Net: ₦${payment.net_amount.toLocaleString()}`);
-    console.log(`   Customer: ${payment.customer_name} (${payment.customer_email})`);
-    console.log(`   Students: ${studentNames.join(', ') || 'None'}`);
+    console.log(`   Gross: ₦${feeBreakdown.gross.toLocaleString()}`);
+    console.log(`   Nomba Fee (0.4%): ₦${feeBreakdown.nombaFee.toLocaleString()}`);
+    console.log(`   Zidwell Fee (3%): ₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+    console.log(`   Net: ₦${feeBreakdown.netAmount.toLocaleString()}`);
+    console.log(`   Withdrawal Fee: FREE ✅`);
 
     return {
       success: true,

@@ -9,46 +9,113 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const baseUrl =
-  process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_DEV_URL
-    : process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl = process.env.NODE_ENV === "development"
+  ? process.env.NEXT_PUBLIC_DEV_URL
+  : process.env.NEXT_PUBLIC_BASE_URL;
 
-const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+// ============================================================
+// ✅ FEE CONFIGURATION - UPDATED TO 3%
+// ============================================================
+const FEE_CONFIG = {
+  ZIDWELL_FEE_PERCENTAGE: 0.03,    // 3% Zidwell platform fee
+  NOMBA_FEE_PERCENTAGE: 0.004,     // 0.4% Nomba processing fee
+  TOTAL_FEE_PERCENTAGE: 0.034,     // 3.4% Total fee
+  WITHDRAWAL_FEE: 200,             // ₦200 withdrawal fee
+  ACTIVATION_FEE: 2000,            // ₦2,000 store activation fee
+  MIN_WITHDRAWAL: 1000,            // ₦1,000 minimum withdrawal
+};
 
-interface PaymentPageVirtualAccountParams {
-  nombaTransactionId: string;
+// ============================================================
+// ✅ FEE CALCULATION FUNCTION
+// ============================================================
+function calculateFees(amount: number): {
+  gross: number;
   nombaFee: number;
-  aliasAccountReference: string;
-  transactionAmount: number;
-  customer: any;
-  tx: any;
-  transferReference?: string;
+  zidwellFee: number;
+  totalFee: number;
+  netAmount: number;
+  feePercentage: number;
+} {
+  const nombaFee = amount * FEE_CONFIG.NOMBA_FEE_PERCENTAGE;
+  const zidwellFee = amount * FEE_CONFIG.ZIDWELL_FEE_PERCENTAGE;
+  const totalFee = nombaFee + zidwellFee;
+  const netAmount = amount - totalFee;
+
+  return {
+    gross: amount,
+    nombaFee: Math.round(nombaFee * 100) / 100,
+    zidwellFee: Math.round(zidwellFee * 100) / 100,
+    totalFee: Math.round(totalFee * 100) / 100,
+    netAmount: Math.round(netAmount * 100) / 100,
+    feePercentage: FEE_CONFIG.TOTAL_FEE_PERCENTAGE * 100,
+  };
 }
 
-type ServiceResult =
-  | {
-      success: true;
-      message: string;
-      credited_amount?: number;
-      new_balance?: number | null;
-      payment_id?: string;
-      gross_amount?: number;
-      nomba_fee?: number;
-      app_fee?: number;
-      total_fee?: number;
-      net_credit?: number;
-      metadata?: any;
-      students?: string[];
+// ============================================================
+// ✅ HELPER FUNCTIONS
+// ============================================================
+function extractNarrationCode(narration: string): string | null {
+  if (!narration) return null;
+  
+  const beforeSlash = narration.split(/[/\s-]/)[0];
+  if (beforeSlash && beforeSlash.startsWith('PL')) {
+    return beforeSlash;
+  }
+  
+  const patterns = [
+    /PL_[A-Z0-9]{4,6}/,
+    /PL[A-Z0-9]{4,6}/,
+    /PL_[A-Z0-9]+/,
+    /PL[A-Z0-9_]+/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = narration.match(pattern);
+    if (match) return match[0];
+  }
+  
+  return null;
+}
+
+function normalizeNarrationCode(code: string): string {
+  if (!code) return '';
+  return code.replace(/[_\s-]/g, '').toUpperCase();
+}
+
+function doNarrationCodesMatch(code1: string, code2: string): boolean {
+  if (!code1 || !code2) return false;
+  
+  const normalized1 = normalizeNarrationCode(code1);
+  const normalized2 = normalizeNarrationCode(code2);
+  
+  if (normalized1 === normalized2) return true;
+  if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) return true;
+  
+  const base1 = normalized1.substring(0, 4);
+  const base2 = normalized2.substring(0, 4);
+  if (base1 === base2 && base1.length === 4) return true;
+  
+  return false;
+}
+
+function extractStudentNamesFromNarration(narration: string, students: any[]): string[] {
+  if (!narration || !students || students.length === 0) return [];
+  
+  const matchedStudents: string[] = [];
+  
+  for (const student of students) {
+    const studentName = student.name || student.childName || student.studentName;
+    if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
+      matchedStudents.push(studentName);
     }
-  | { error: string; status?: number };
-
-function calculateAppFee(amount: number): number {
-  const FEE_PERCENTAGE = 0.02;
-  return amount * FEE_PERCENTAGE;
+  }
+  
+  return matchedStudents;
 }
 
+// ============================================================
+// ✅ SEND NOTIFICATION EMAIL
+// ============================================================
 async function sendPaymentPageNotificationEmail(
   creatorEmail: string,
   pageTitle: string,
@@ -57,13 +124,13 @@ async function sendPaymentPageNotificationEmail(
   customerEmail: string,
   narration: string,
   nombaFee: number,
-  appFee: number,
+  zidwellFee: number,
   customFields?: any,
   selectedStudents?: string[],
 ): Promise<void> {
   if (!creatorEmail || !creatorEmail.includes('@')) return;
   
-  const totalFee = nombaFee + appFee;
+  const totalFee = nombaFee + zidwellFee;
   const netAmount = amount - totalFee;
   
   let studentsHtml = '';
@@ -101,20 +168,22 @@ async function sendPaymentPageNotificationEmail(
       subject: `💰 Payment Received for "${pageTitle}" - ₦${netAmount.toLocaleString()}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <img src="${baseUrl}/zidwell-header.png" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Payment Received! 🏦</h3>
           <p>You've received a bank transfer payment for <strong>${pageTitle}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Total Fees:</strong> - ₦${totalFee.toLocaleString()}</p>
+            <p><strong>Nomba Fee (0.4%):</strong> -₦${nombaFee.toLocaleString()}</p>
+            <p><strong>Zidwell Fee (3%):</strong> -₦${zidwellFee.toLocaleString()}</p>
+            <p><strong>Total Fees:</strong> -₦${totalFee.toLocaleString()}</p>
             <p><strong>Amount Credited:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Sender:</strong> ${customerName}</p>
             ${customerEmail ? `<p><strong>Email:</strong> ${customerEmail}</p>` : ''}
             ${studentsHtml}
             ${customFieldsHtml}
           </div>
-          <p>Funds added to your page balance after fee deductions.</p>
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+          <p>Funds added to your store owner wallet after fee deductions.</p>
+          <img src="${baseUrl}/zidwell-footer.png" style="width: 100%; margin-top: 20px;" />
         </div>
       `,
     });
@@ -123,6 +192,9 @@ async function sendPaymentPageNotificationEmail(
   }
 }
 
+// ============================================================
+// ✅ UPDATE STUDENT PAID STATUS
+// ============================================================
 async function updateStudentPaidStatus(
   paymentPageId: string,
   studentNames: string[],
@@ -179,126 +251,21 @@ async function updateStudentPaidStatus(
   }
 }
 
-function extractPaymentPageId(aliasAccountReference: string): string | null {
-  if (!aliasAccountReference) return null;
-  let cleanRef = aliasAccountReference.replace(/^PP/i, '');
-  if (cleanRef.length === 32) {
-    return cleanRef;
-  }
-  return cleanRef;
-}
-
 // ============================================================
-// HELPER: Extract narration code from transaction
+// ✅ MAIN PROCESS FUNCTION - UPDATED WITH 3% FEE
 // ============================================================
-function extractNarrationCode(narration: string): string | null {
-  if (!narration) return null;
-  
-  console.log(`🔍 Extracting narration code from: ${narration.substring(0, 50)}...`);
-  
-  // Try to extract the code before the first slash or space
-  const beforeSlash = narration.split(/[/\s-]/)[0];
-  if (beforeSlash && beforeSlash.startsWith('PL')) {
-    console.log(`✅ Extracted narration code (before slash/space): ${beforeSlash}`);
-    return beforeSlash;
-  }
-  
-  // Try multiple patterns
-  const patterns = [
-    /PL_[A-Z0-9]{4,6}/,
-    /PL[A-Z0-9]{4,6}/,
-    /PL_[A-Z0-9]+/,
-    /PL[A-Z0-9_]+/,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = narration.match(pattern);
-    if (match) {
-      console.log(`✅ Extracted narration code: ${match[0]}`);
-      return match[0];
-    }
-  }
-  
-  const fallbackMatch = narration.match(/PL[A-Z0-9_]{2,}/);
-  if (fallbackMatch) {
-    console.log(`✅ Extracted fallback narration code: ${fallbackMatch[0]}`);
-    return fallbackMatch[0];
-  }
-  
-  console.log(`⚠️ No narration code found`);
-  return null;
-}
-
-// ============================================================
-// HELPER: Normalize narration code (remove underscores, spaces, dashes)
-// ============================================================
-function normalizeNarrationCode(code: string): string {
-  if (!code) return '';
-  return code.replace(/[_\s-]/g, '').toUpperCase();
-}
-
-// ============================================================
-// HELPER: Check if two narration codes match
-// ============================================================
-function doNarrationCodesMatch(code1: string, code2: string): boolean {
-  if (!code1 || !code2) return false;
-  
-  const normalized1 = normalizeNarrationCode(code1);
-  const normalized2 = normalizeNarrationCode(code2);
-  
-  console.log(`   Comparing: "${normalized1}" vs "${normalized2}"`);
-  
-  // 1. Exact match after normalization
-  if (normalized1 === normalized2) {
-    console.log(`   ✅ Exact normalized match`);
-    return true;
-  }
-  
-  // 2. Check if one contains the other
-  if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
-    console.log(`   ✅ Contains match`);
-    return true;
-  }
-  
-  // 3. Check base match (first 4 characters)
-  const base1 = normalized1.substring(0, 4);
-  const base2 = normalized2.substring(0, 4);
-  if (base1 === base2 && base1.length === 4) {
-    console.log(`   ✅ Base match: ${base1}`);
-    return true;
-  }
-  
-  // 4. Check if the raw codes match (without normalization)
-  if (code1 === code2) {
-    console.log(`   ✅ Raw exact match`);
-    return true;
-  }
-  
-  return false;
-}
-
-// ============================================================
-// HELPER: Extract student names from narration
-// ============================================================
-function extractStudentNamesFromNarration(narration: string, students: any[]): string[] {
-  if (!narration || !students || students.length === 0) return [];
-  
-  const matchedStudents: string[] = [];
-  
-  for (const student of students) {
-    const studentName = student.name || student.childName || student.studentName;
-    if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
-      matchedStudents.push(studentName);
-    }
-  }
-  
-  return matchedStudents;
-}
-
 export async function processPaymentPageVirtualAccount(
   payload: any,
-  params: PaymentPageVirtualAccountParams,
-): Promise<ServiceResult> {
+  params: {
+    nombaTransactionId: string;
+    nombaFee: number;
+    aliasAccountReference: string;
+    transactionAmount: number;
+    customer: any;
+    tx: any;
+    transferReference?: string;
+  }
+): Promise<{ success: boolean; message: string; payment_id?: string; credited_amount?: number; new_balance?: number | null } | { error: string; status?: number }> {
   const {
     nombaTransactionId,
     nombaFee,
@@ -315,15 +282,15 @@ export async function processPaymentPageVirtualAccount(
   console.log("Gross Amount:", transactionAmount);
   console.log("Nomba Fee:", nombaFee);
 
-  const appFee = calculateAppFee(transactionAmount);
-  const totalFee = nombaFee + appFee;
-  const netAmount = transactionAmount - totalFee;
-
-  console.log(`💰 Fee Breakdown:`);
-  console.log(`   Nomba Fee: ₦${nombaFee.toLocaleString()}`);
-  console.log(`   App Fee (2%): ₦${appFee.toLocaleString()}`);
-  console.log(`   Total Fees: ₦${totalFee.toLocaleString()}`);
-  console.log(`   Net to Merchant: ₦${netAmount.toLocaleString()}`);
+  // ✅ Calculate fees using updated 3% rate
+  const feeBreakdown = calculateFees(transactionAmount);
+  
+  console.log(`💰 Fee Breakdown (Updated - 3% Zidwell):`);
+  console.log(`   Gross Amount: ₦${feeBreakdown.gross.toLocaleString()}`);
+  console.log(`   Nomba Fee (0.4%): -₦${feeBreakdown.nombaFee.toLocaleString()}`);
+  console.log(`   Zidwell Fee (3%): -₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+  console.log(`   Total Fees (3.4%): -₦${feeBreakdown.totalFee.toLocaleString()}`);
+  console.log(`   Net to Merchant: ₦${feeBreakdown.netAmount.toLocaleString()}`);
 
   // Find payment page by account number
   const virtualAccountNumber = tx.aliasAccountNumber;
@@ -343,7 +310,7 @@ export async function processPaymentPageVirtualAccount(
   }
 
   if (!paymentPage) {
-    const shortPageId = extractPaymentPageId(aliasAccountReference);
+    const shortPageId = aliasAccountReference.replace(/^PPL-|^VA-PP-/, '');
     if (shortPageId) {
       const { data: foundPage, error: pageError } = await supabase
         .from("payment_pages")
@@ -364,11 +331,8 @@ export async function processPaymentPageVirtualAccount(
   }
 
   console.log("✅ Payment page found:", paymentPage.title);
-  console.log("📄 Page type:", paymentPage.page_type);
 
-  // ============================================================
-  // STEP 1: Check for duplicate webhook
-  // ============================================================
+  // Check for duplicate webhook
   const { data: existingWebhook } = await supabase
     .from("payment_page_payments")
     .select("id")
@@ -380,126 +344,38 @@ export async function processPaymentPageVirtualAccount(
     return { success: true, message: "Already processed" };
   }
 
-  // ============================================================
-  // STEP 2: Extract narration code from webhook
-  // ============================================================
+  // Find pending payment
   const narration = tx?.narration || tx?.senderName || "";
   const webhookNarrationCode = extractNarrationCode(narration);
   
-  console.log(`🔍 Webhook narration code: ${webhookNarrationCode || 'none'}`);
-  console.log(`🔍 Webhook normalized code: ${webhookNarrationCode ? normalizeNarrationCode(webhookNarrationCode) : 'none'}`);
-
-  // ============================================================
-  // STEP 3: FIND PENDING PAYMENT - THIS IS THE KEY STEP
-  // ============================================================
   let pendingPayment = null;
 
   if (webhookNarrationCode) {
-    console.log(`🔍 Searching for pending payment with narration code: ${webhookNarrationCode}`);
-    
-    // Get ALL pending payments for this page
-    const { data: pendingPayments, error: findError } = await supabase
+    const { data: pendingPayments } = await supabase
       .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name, status")
+      .select("*")
       .eq("payment_page_id", paymentPage.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
     
     if (pendingPayments && pendingPayments.length > 0) {
-      console.log(`📦 Found ${pendingPayments.length} pending payments for this page`);
-      
       for (const payment of pendingPayments) {
         const paymentNarration = payment.metadata?.narration || '';
         const paymentNarrationCode = extractNarrationCode(paymentNarration) || paymentNarration;
         
-        console.log(`📦 Checking payment ${payment.id.substring(0, 8)}:`);
-        console.log(`   Payment narration: "${paymentNarration}"`);
-        console.log(`   Payment code: "${paymentNarrationCode}"`);
-        console.log(`   Webhook code: "${webhookNarrationCode}"`);
-        console.log(`   Customer: ${payment.customer_name} (${payment.customer_email})`);
-        
-        // Check if the codes match using our matching function
-        const codesMatch = doNarrationCodesMatch(paymentNarrationCode, webhookNarrationCode);
-        
-        if (codesMatch) {
+        if (doNarrationCodesMatch(paymentNarrationCode, webhookNarrationCode)) {
           pendingPayment = payment;
-          console.log(`✅ ✅ ✅ FOUND MATCHING PENDING PAYMENT: ${pendingPayment.id}`);
-          console.log(`   Customer: ${pendingPayment.customer_name}`);
-          console.log(`   Email: ${pendingPayment.customer_email}`);
+          console.log(`✅ Found matching pending payment: ${pendingPayment.id}`);
           break;
         }
       }
     }
-    
-    // If not found, try a broader search - look at ALL pending payments for this page
-    if (!pendingPayment) {
-      console.log(`🔍 No match found, trying broader search...`);
-      
-      const { data: allPending, error: allError } = await supabase
-        .from("payment_page_payments")
-        .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name, status")
-        .eq("payment_page_id", paymentPage.id)
-        .eq("status", "pending");
-      
-      if (allPending && allPending.length > 0) {
-        for (const payment of allPending) {
-          const paymentNarration = payment.metadata?.narration || '';
-          
-          // Check if the webhook code appears anywhere in the payment narration
-          // This handles cases like "PLZ4GA" vs "PL_Z4G4 - ibrahim lawal"
-          const normalizedPayment = normalizeNarrationCode(paymentNarration);
-          const normalizedWebhook = normalizeNarrationCode(webhookNarrationCode);
-          
-          // Check if the first 4 characters match (base match)
-          const baseMatch = normalizedPayment.substring(0, 4) === normalizedWebhook.substring(0, 4);
-          
-          // Check if one contains the other
-          const containsMatch = normalizedPayment.includes(normalizedWebhook) || 
-                               normalizedWebhook.includes(normalizedPayment);
-          
-          if (baseMatch || containsMatch) {
-            pendingPayment = payment;
-            console.log(`✅ ✅ ✅ Found pending payment by broad search: ${pendingPayment.id}`);
-            console.log(`   Customer: ${pendingPayment.customer_name}`);
-            console.log(`   Email: ${pendingPayment.customer_email}`);
-            console.log(`   Match type: ${baseMatch ? 'base match' : 'contains match'}`);
-            break;
-          }
-        }
-      }
-    }
   }
 
-  // ============================================================
-  // STEP 4: If still not found, try by transfer reference
-  // ============================================================
-  if (!pendingPayment && transferReference) {
-    console.log(`🔍 Looking for pending payment by transfer reference: ${transferReference}`);
-    
-    const { data: existing, error: findError } = await supabase
-      .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name")
-      .eq("transfer_reference", transferReference)
-      .eq("status", "pending")
-      .maybeSingle();
-    
-    if (existing) {
-      pendingPayment = existing;
-      console.log(`✅ Found pending payment by transfer reference: ${pendingPayment.id}`);
-      console.log(`   Customer: ${pendingPayment.customer_name}`);
-      console.log(`   Email: ${pendingPayment.customer_email}`);
-    }
-  }
-
-  // ============================================================
-  // STEP 5: If still not found, use the most recent pending payment
-  // ============================================================
   if (!pendingPayment) {
-    console.log(`🔍 No pending payment found, using most recent pending payment`);
-    
-    const { data: latestPayment, error: latestError } = await supabase
+    const { data: latestPayment } = await supabase
       .from("payment_page_payments")
-      .select("id, metadata, customer_name, customer_email, customer_phone, transfer_reference, student_name, selected_students, parent_name")
+      .select("*")
       .eq("payment_page_id", paymentPage.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
@@ -509,121 +385,70 @@ export async function processPaymentPageVirtualAccount(
     if (latestPayment) {
       pendingPayment = latestPayment;
       console.log(`✅ Using most recent pending payment: ${pendingPayment.id}`);
-      console.log(`   Customer: ${pendingPayment.customer_name}`);
-      console.log(`   Email: ${pendingPayment.customer_email}`);
     }
   }
 
-  // ============================================================
-  // STEP 6: Extract user data from pending payment
-  // ============================================================
   const senderName = pendingPayment?.customer_name || tx?.senderName || customer?.name || "Bank Transfer Customer";
   const customerEmail = pendingPayment?.customer_email || customer?.email || null;
   const customerPhone = pendingPayment?.customer_phone || tx?.senderPhone || null;
 
-  console.log(`📝 Customer data from pending payment:`);
-  console.log(`   Name: ${pendingPayment?.customer_name || 'NOT FOUND'}`);
-  console.log(`   Email: ${pendingPayment?.customer_email || 'NOT FOUND'}`);
-  console.log(`   Phone: ${pendingPayment?.customer_phone || 'NOT FOUND'}`);
-  console.log(`   Custom Fields:`, pendingPayment?.metadata?.customFields || 'none');
-
-  // ============================================================
-  // STEP 7: Handle student matching for school pages
-  // ============================================================
+  // Extract student names for school pages
   let matchedStudentNames: string[] = [];
   let matchedParentName = null;
-  const students = paymentPage.metadata?.students || [];
   
   if (pendingPayment) {
-    if (pendingPayment.selected_students && Array.isArray(pendingPayment.selected_students) && pendingPayment.selected_students.length > 0) {
+    if (pendingPayment.selected_students && Array.isArray(pendingPayment.selected_students)) {
       matchedStudentNames = pendingPayment.selected_students;
       matchedParentName = pendingPayment.parent_name || senderName;
-      console.log(`✅ Found ${matchedStudentNames.length} students from pending payment:`, matchedStudentNames);
     } else if (pendingPayment.student_name) {
       matchedStudentNames = [pendingPayment.student_name];
       matchedParentName = pendingPayment.parent_name || senderName;
-      console.log(`✅ Found single student from pending payment: ${pendingPayment.student_name}`);
-    }
-  }
-  
-  if (matchedStudentNames.length === 0 && students.length > 0) {
-    matchedStudentNames = extractStudentNamesFromNarration(narration, students);
-    matchedParentName = senderName;
-    if (matchedStudentNames.length > 0) {
-      console.log(`✅ Matched ${matchedStudentNames.length} students from narration:`, matchedStudentNames);
-    }
-  }
-
-  if (matchedStudentNames.length === 0 && paymentPage.page_type === "school") {
-    for (const student of students) {
-      const studentName = student.name || student.childName || student.studentName;
-      if (studentName && narration.toLowerCase().includes(studentName.toLowerCase())) {
-        matchedStudentNames.push(studentName);
-      }
-    }
-    if (matchedStudentNames.length > 0) {
-      matchedParentName = senderName;
-      console.log(`✅ Matched ${matchedStudentNames.length} students from narration fallback:`, matchedStudentNames);
     }
   }
 
   const orderReference = `VA-${paymentPage.id.substring(0, 8)}-${Date.now()}`;
 
-  // ============================================================
-  // STEP 8: Build merged metadata - PRESERVES ALL USER DATA
-  // ============================================================
+  // Build merged metadata with fee breakdown
   let mergedMetadata: any = pendingPayment?.metadata || {};
-
   if (!mergedMetadata || Object.keys(mergedMetadata).length === 0) {
-    mergedMetadata = {
-      narration: webhookNarrationCode || narration,
-    };
+    mergedMetadata = { narration: webhookNarrationCode || narration };
   }
 
-  // Add webhook data (overwrites conflicting keys)
   const webhookData = {
     narration: webhookNarrationCode || narration,
     bank_transaction_id: nombaTransactionId,
     matched_students: matchedStudentNames,
     matched_parent: matchedParentName,
     gross_amount: transactionAmount,
-    nomba_fee: nombaFee,
-    app_fee: appFee,
-    total_fee: totalFee,
-    net_credit: netAmount,
+    nomba_fee: feeBreakdown.nombaFee,
+    zidwell_fee: feeBreakdown.zidwellFee,
+    total_fee: feeBreakdown.totalFee,
+    net_credit: feeBreakdown.netAmount,
+    fee_percentage: 3.4,
     webhook_processed_at: new Date().toISOString(),
   };
 
-  // Merge: webhook data takes precedence, but preserve user data
-  mergedMetadata = {
-    ...mergedMetadata,
-    ...webhookData,
-  };
+  mergedMetadata = { ...mergedMetadata, ...webhookData };
 
-  console.log(`📦 Final merged metadata:`, JSON.stringify(mergedMetadata, null, 2));
-
-  // ============================================================
-  // STEP 9: Create or update payment
-  // ============================================================
+  // Create or update payment
   let paymentResult;
 
   if (pendingPayment) {
-    console.log(`🔄 Updating existing pending payment: ${pendingPayment.id}`);
-    console.log(`   Preserving customer name: ${pendingPayment.customer_name}`);
-    console.log(`   Preserving customer email: ${pendingPayment.customer_email}`);
-    
     const updateData: any = {
       status: "completed",
       nomba_transaction_id: nombaTransactionId,
       paid_at: new Date().toISOString(),
       confirmed_at: new Date().toISOString(),
-      net_amount: netAmount,
       amount: transactionAmount,
-      fee: totalFee,
-      customer_name: pendingPayment.customer_name || senderName,  // PRESERVED
-      customer_email: pendingPayment.customer_email || customerEmail,  // PRESERVED
-      customer_phone: pendingPayment.customer_phone || customerPhone,  // PRESERVED
-      metadata: mergedMetadata,  // PRESERVES ALL USER DATA
+      fee: feeBreakdown.totalFee,
+      nomba_fee: feeBreakdown.nombaFee,
+      app_fee: feeBreakdown.zidwellFee,        // ✅ Zidwell fee (3%)
+      total_fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
+      customer_name: pendingPayment.customer_name || senderName,
+      customer_email: pendingPayment.customer_email || customerEmail,
+      customer_phone: pendingPayment.customer_phone || customerPhone,
+      metadata: mergedMetadata,
       receipt_sent: false,
     };
     
@@ -651,21 +476,16 @@ export async function processPaymentPageVirtualAccount(
     
     paymentResult = updated;
     console.log(`✅ Updated pending payment: ${paymentResult.id}`);
-    console.log(`✅ Customer: ${paymentResult.customer_name}, Email: ${paymentResult.customer_email}`);
-    console.log(`✅ Custom Fields:`, mergedMetadata.customFields || 'none');
-    if (matchedStudentNames.length > 0) {
-      console.log(`✅ Students: ${matchedStudentNames.join(', ')}`);
-    }
   } else {
-    console.log(`📝 Creating new payment record (no pending payment found)`);
-    console.log(`⚠️ This means user data (name, email, custom fields) will be missing!`);
-    
     const insertData: any = {
       payment_page_id: paymentPage.id,
       user_id: paymentPage.user_id,
       amount: transactionAmount,
-      fee: totalFee,
-      net_amount: netAmount,
+      fee: feeBreakdown.totalFee,
+      nomba_fee: feeBreakdown.nombaFee,
+      app_fee: feeBreakdown.zidwellFee,       // ✅ Zidwell fee (3%)
+      total_fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
       status: "pending",
       customer_name: senderName,
       customer_email: customerEmail,
@@ -704,7 +524,6 @@ export async function processPaymentPageVirtualAccount(
       nomba_transaction_id: nombaTransactionId,
       paid_at: new Date().toISOString(),
       confirmed_at: new Date().toISOString(),
-      net_amount: netAmount,
     };
     
     const { data: completed, error: completeError } = await supabase
@@ -722,41 +541,61 @@ export async function processPaymentPageVirtualAccount(
   }
 
   // ============================================================
-  // STEP 10: Update page balance
+  // ✅ CREDIT STORE OWNER WALLET WITH NET AMOUNT (AFTER 3% FEE)
   // ============================================================
-  const { data: newBalance, error: balanceError } = await supabase.rpc(
-    "increment_page_balance",
-    { p_page_id: paymentPage.id, p_amount: netAmount },
+  console.log("💰 Crediting store owner wallet with net amount...");
+  console.log(`   Net amount: ₦${feeBreakdown.netAmount.toLocaleString()}`);
+
+  const { data: walletResult, error: walletError } = await supabase.rpc(
+    "credit_store_owner_wallet",
+    {
+      p_user_id: paymentPage.user_id,
+      p_amount: feeBreakdown.netAmount,        // ✅ Net after 3.4% fees
+      p_source: "payment_page",
+      p_source_id: paymentPage.id,
+      p_description: `Payment from ${senderName} for "${paymentPage.title}" (3% Zidwell fee)`,
+    }
   );
 
-  let finalBalance = null;
-  if (balanceError) {
-    console.error("❌ Failed to increment balance:", balanceError);
-    const { data: page } = await supabase
-      .from("payment_pages")
-      .select("page_balance")
-      .eq("id", paymentPage.id)
-      .single();
-    
-    if (page) {
-      const newBalanceValue = Number(page.page_balance) + netAmount;
-      await supabase
-        .from("payment_pages")
-        .update({ page_balance: newBalanceValue })
-        .eq("id", paymentPage.id);
-      finalBalance = newBalanceValue;
-      console.log(`✅ Manually updated balance to ₦${newBalanceValue}`);
+  if (walletError) {
+    console.error("❌ Failed to credit store wallet:", walletError);
+    // Fallback: Update page balance
+    const { error: balanceError } = await supabase.rpc(
+      "increment_page_balance",
+      {
+        p_page_id: paymentPage.id,
+        p_amount: feeBreakdown.netAmount,
+      }
+    );
+    if (balanceError) {
+      console.error("❌ Failed to increment page balance:", balanceError);
     }
   } else {
-    finalBalance = newBalance;
-    console.log(`✅ Credited ₦${netAmount} to page balance. New balance: ₦${newBalance}`);
+    console.log(`✅ Credited ₦${feeBreakdown.netAmount.toLocaleString()} to store owner wallet`);
+    console.log(`   New balance: ₦${walletResult.new_balance}`);
+    console.log(`   Total earned: ₦${walletResult.total_earned}`);
   }
 
   // ============================================================
-  // STEP 11: Update student paid status for school pages
+  // UPDATE PAGE BALANCE (for tracking)
+  // ============================================================
+  const { error: balanceError } = await supabase.rpc(
+    "increment_page_balance",
+    {
+      p_page_id: paymentPage.id,
+      p_amount: feeBreakdown.netAmount,
+    }
+  );
+
+  if (balanceError) {
+    console.error("❌ Failed to increment page balance:", balanceError);
+  }
+
+  // ============================================================
+  // UPDATE STUDENT PAID STATUS
   // ============================================================
   if (paymentPage.page_type === "school" && matchedStudentNames.length > 0) {
-    const amountPerStudent = transactionAmount / matchedStudentNames.length;
+    const amountPerStudent = feeBreakdown.netAmount / matchedStudentNames.length;
     await updateStudentPaidStatus(
       paymentPage.id,
       matchedStudentNames,
@@ -766,30 +605,23 @@ export async function processPaymentPageVirtualAccount(
   }
 
   // ============================================================
-  // STEP 12: Create transaction record
+  // CREATE TRANSACTION RECORD WITH FEE BREAKDOWN
   // ============================================================
   const { error: txError } = await supabase.from("transactions").insert({
     user_id: paymentPage.user_id,
     type: "credit",
     amount: transactionAmount,
-    fee: totalFee,
-    net_amount: netAmount,
+    fee: feeBreakdown.totalFee,
+    net_amount: feeBreakdown.netAmount,
     status: "success",
     reference: `VA-${paymentPage.id}-${nombaTransactionId}`,
-    description: `Bank transfer payment for "${paymentPage.title}" from ${senderName}${matchedStudentNames.length > 0 ? ` for ${matchedStudentNames.join(', ')}` : ''}`,
+    description: `Bank transfer payment for "${paymentPage.title}" from ${senderName}`,
     channel: "payment_page_virtual_account",
     sender: { 
       name: senderName, 
       email: customerEmail, 
       phone: customerPhone,
       narration: narration,
-      gross_amount: transactionAmount,
-      nomba_fee: nombaFee,
-      app_fee: appFee,
-      total_fee: totalFee,
-      net_credit: netAmount,
-      custom_fields: mergedMetadata.customFields || null,
-      students: matchedStudentNames.length > 0 ? matchedStudentNames : null,
     },
     receiver: {
       user_id: paymentPage.user_id,
@@ -797,11 +629,14 @@ export async function processPaymentPageVirtualAccount(
     },
     external_response: {
       nomba_transaction_id: nombaTransactionId,
-      nomba_fee: nombaFee,
-      app_fee: appFee,
       gross_amount: transactionAmount,
-      net_amount: netAmount,
+      nomba_fee: feeBreakdown.nombaFee,
+      app_fee: feeBreakdown.zidwellFee,
+      total_fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
+      fee_percentage: 3.4,
       metadata: mergedMetadata,
+      wallet_credit: walletResult || null,
     },
   });
 
@@ -810,15 +645,14 @@ export async function processPaymentPageVirtualAccount(
   }
 
   // ============================================================
-  // STEP 13: SEND RECEIPT TO CUSTOMER - USING THE EMAIL FROM PENDING PAYMENT
+  // SEND RECEIPT TO CUSTOMER
   // ============================================================
   if (customerEmail) {
-    console.log(`📧 Sending receipt to: ${customerEmail}`);
     await sendPaymentPageReceiptWithPDF(
-      customerEmail,  // ✅ This is the user's email from the pending payment
+      customerEmail,
       paymentPage,
       paymentResult,
-      senderName,  // ✅ This is the user's name from the pending payment
+      senderName,
       transactionAmount,
       nombaTransactionId,
       "virtual_account",
@@ -828,13 +662,11 @@ export async function processPaymentPageVirtualAccount(
         matched_students: matchedStudentNames,
         matched_parent: matchedParentName,
         gross_amount: transactionAmount,
-        nomba_fee: nombaFee,
-        app_fee: appFee,
-        total_fee: totalFee,
-        net_amount: netAmount,
-        custom_fields: mergedMetadata.customFields || null,
-        reference_code: mergedMetadata.referenceCode || null,
-        selected_students: matchedStudentNames,
+        nomba_fee: feeBreakdown.nombaFee,
+        app_fee: feeBreakdown.zidwellFee,
+        total_fee: feeBreakdown.totalFee,
+        net_amount: feeBreakdown.netAmount,
+        fee_percentage: 3.4,
       },
     ).catch(err => console.error("Failed to send receipt:", err));
     
@@ -842,12 +674,10 @@ export async function processPaymentPageVirtualAccount(
       .from("payment_page_payments")
       .update({ receipt_sent: true })
       .eq("id", paymentResult.id);
-  } else {
-    console.log(`⚠️ No customer email found, receipt not sent`);
   }
 
   // ============================================================
-  // STEP 14: Send notification to page creator
+  // SEND NOTIFICATION TO PAGE CREATOR
   // ============================================================
   const { data: creator } = await supabase
     .from("users")
@@ -863,15 +693,15 @@ export async function processPaymentPageVirtualAccount(
       senderName,
       customerEmail || "",
       webhookNarrationCode || narration,
-      nombaFee,
-      appFee,
+      feeBreakdown.nombaFee,
+      feeBreakdown.zidwellFee,
       mergedMetadata.customFields || null,
       matchedStudentNames.length > 0 ? matchedStudentNames : null,
     );
   }
 
   // ============================================================
-  // STEP 15: Update payment page stats
+  // UPDATE PAGE STATS
   // ============================================================
   await supabase
     .from("payment_pages")
@@ -882,42 +712,21 @@ export async function processPaymentPageVirtualAccount(
     .eq("id", paymentPage.id);
 
   // ============================================================
-  // STEP 16: Final log
+  // FINAL LOG
   // ============================================================
   console.log("🎉 ========== PAYMENT PROCESSING COMPLETED ==========");
   console.log(`   Gross: ₦${transactionAmount.toLocaleString()}`);
-  console.log(`   Nomba Fee: -₦${nombaFee.toLocaleString()}`);
-  console.log(`   App Fee (2%): -₦${appFee.toLocaleString()}`);
-  console.log(`   Total Fees: -₦${totalFee.toLocaleString()}`);
-  console.log(`   Net Credited: ₦${netAmount.toLocaleString()}`);
-  console.log(`   Page Type: ${paymentPage.page_type}`);
-  console.log(`   Students (${matchedStudentNames.length}): ${matchedStudentNames.join(', ') || 'N/A'}`);
-  console.log(`   Customer: ${senderName} (${customerEmail || 'no email'})`);
-  console.log(`   Customer Phone: ${customerPhone || 'no phone'}`);
-  console.log(`   Custom Fields:`, mergedMetadata.customFields || 'None');
-  console.log(`   Narration Code: ${webhookNarrationCode || 'none'}`);
+  console.log(`   Nomba Fee (0.4%): -₦${feeBreakdown.nombaFee.toLocaleString()}`);
+  console.log(`   Zidwell Fee (3%): -₦${feeBreakdown.zidwellFee.toLocaleString()}`);
+  console.log(`   Total Fees (3.4%): -₦${feeBreakdown.totalFee.toLocaleString()}`);
+  console.log(`   Net Credited to Wallet: ₦${feeBreakdown.netAmount.toLocaleString()}`);
   console.log(`   Payment ID: ${paymentResult.id}`);
-  console.log(`   Receipt Sent: ${customerEmail ? 'Yes' : 'No'}`);
-  console.log(`   Pending Payment Found: ${pendingPayment ? 'Yes' : 'No'}`)
 
   return {
     success: true,
     message: "Virtual account payment processed",
-    credited_amount: netAmount,
-    new_balance: finalBalance,
+    credited_amount: feeBreakdown.netAmount,
+    new_balance: walletResult?.new_balance || null,
     payment_id: paymentResult.id,
-    gross_amount: transactionAmount,
-    nomba_fee: nombaFee,
-    app_fee: appFee,
-    total_fee: totalFee,
-    net_credit: netAmount,
-    metadata: mergedMetadata,
-    students: matchedStudentNames,
   };
-}
-
-export function checkIfPaymentPageVirtualAccount(aliasAccountReference: string): boolean {
-  if (!aliasAccountReference) return false;
-
-  return aliasAccountReference.startsWith("PPL");
 }
