@@ -48,7 +48,7 @@ import { CreateStoreForm } from "@/app/components/store/create-store";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
-// Store Navigation Component - Move to separate component file or keep but don't export
+// Store Navigation Component
 function StoreNav({ pathname }: { pathname: string }) {
   const STORE_LINKS = [
     { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
@@ -57,7 +57,8 @@ function StoreNav({ pathname }: { pathname: string }) {
     { label: "Transactions", href: "/store/transactions", icon: CreditCard },
     { label: "Customers", href: "/store/customers", icon: Users },
     { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
-    { label: "Settings", href: "/store/settings", icon: Settings },
+    { label: "Settings", href: "#", icon: Settings },
+    // { label: "Settings", href: "/store/settings", icon: Settings },
   ];
 
   return (
@@ -648,12 +649,15 @@ export default function PaymentDashboardPage() {
   }, [filteredPages]);
 
   // ============================================================
-  // SHOW LOADER UNTIL DATA IS READY
+  // ✅ FIXED: Wait for store check to complete before rendering
   // ============================================================
+  
+  // Show loader while checking store or loading data
   if (isLoading || loading || !isStoreCheckComplete) {
     return <Loader />;
   }
 
+  // ✅ Only after store check is complete, check if user has store
   if (!hasStore || hasPendingActivation) {
     return (
       <div className="min-h-screen bg-background">
@@ -668,6 +672,7 @@ export default function PaymentDashboardPage() {
     );
   }
 
+  // ✅ Show loader while pages are loading
   if (!dataReady || !initialLoadComplete) {
     return (
       <div className="min-h-screen bg-background">

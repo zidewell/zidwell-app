@@ -31,12 +31,15 @@ export async function generateMetadata({ params }: StorePageProps) {
     };
   }
 
+  // Strip HTML for meta description
+  const plainDescription = store.description?.replace(/<[^>]*>/g, '').trim() || `Shop at ${store.name} on Zidwell.`;
+
   return {
     title: `${store.name} | Zidwell Store`,
-    description: store.description || `Shop at ${store.name} on Zidwell.`,
+    description: plainDescription,
     openGraph: {
       title: `${store.name} | Zidwell Store`,
-      description: store.description || `Shop at ${store.name} on Zidwell.`,
+      description: plainDescription,
       url: `https://zidwell.com/store/${store.slug}`,
       siteName: "Zidwell",
       type: "website",
@@ -63,7 +66,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
     notFound();
   }
 
-  // ✅ Fetch payment pages for this store using metadata.storeSlug
+  // Fetch payment pages for this store using metadata.storeSlug
   const { data: pages, error: pagesError } = await supabase
     .from("payment_pages")
     .select("*")
@@ -77,7 +80,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
 
   const validPages = pages || [];
 
-  // ✅ Step 3: Increment store views (fire and forget)
+  // Increment store views (fire and forget)
   const incrementStoreViews = async () => {
     try {
       await supabase
@@ -96,7 +99,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
   // Execute increment in background
   incrementStoreViews();
 
-  // ✅ Also increment views for each product page displayed
+  // Also increment views for each product page displayed
   const incrementProductViews = async () => {
     try {
       for (const page of validPages) {
@@ -127,9 +130,20 @@ export default async function PublicStorePage({ params }: StorePageProps) {
             </div>
             <div className="flex-1">
               <h1 className="text-3xl md:text-4xl font-bold">{store.name}</h1>
+              
+              {/* ✅ Store Description with full HTML support */}
               {store.description && (
-                <p className="text-white/70 mt-2 max-w-2xl">{store.description}</p>
+                 <div className="mt-4 text-base leading-7 text-white/70 prose prose-invert prose-sm max-w-none">
+              <div dangerouslySetInnerHTML={{ 
+                __html: store.description
+                  .replace(/<p>/g, '<p class="mb-2">')
+                  .replace(/<ol>/g, '<ol class="list-decimal pl-5 space-y-1 my-2">')
+                  .replace(/<ul>/g, '<ul class="list-disc pl-5 space-y-1 my-2">')
+                  .replace(/<li>/g, '<li class="mb-1">')
+              }} />
+            </div>
               )}
+              
               <div className="flex flex-wrap items-center gap-4 mt-4">
                 <span className="text-sm bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
                   <Package className="h-4 w-4" />
@@ -161,7 +175,6 @@ export default async function PublicStorePage({ params }: StorePageProps) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {validPages.map((page) => {
-                // ✅ Use metadata.storeSlug for the product URL
                 const productStoreSlug = page.metadata?.storeSlug || storeSlug;
                 return (
                   <Link
@@ -201,11 +214,22 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                       <h3 className="font-semibold text-white group-hover:text-[#e1bf46] transition-colors line-clamp-1">
                         {page.title}
                       </h3>
+                      
+                      {/* ✅ Product Description with full HTML support */}
                       {page.description && (
-                        <p className="text-sm text-gray-400 mt-1 line-clamp-2">
-                          {page.description.replace(/<[^>]*>/g, '')} {/* Strip HTML tags */}
-                        </p>
+                        <div 
+                          className="text-sm text-gray-400 mt-1 line-clamp-3 prose prose-invert prose-sm max-w-none
+                            prose-p:text-gray-400 prose-p:my-0.5
+                            prose-ul:text-gray-400 prose-ul:list-disc prose-ul:pl-4 prose-ul:my-0.5
+                            prose-ol:text-gray-400 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-0.5
+                            prose-li:text-gray-400 prose-li:my-0
+                            prose-strong:text-gray-300 prose-em:text-gray-400
+                            prose-headings:text-gray-300
+                            prose-code:text-gray-400 prose-code:bg-white/5 prose-code:px-1 prose-code:rounded"
+                          dangerouslySetInnerHTML={{ __html: page.description }}
+                        />
                       )}
+                      
                       <div className="flex items-center justify-between mt-3">
                         <p className="text-lg font-bold text-[#e1bf46]">
                           ₦{page.price.toLocaleString()}

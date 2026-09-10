@@ -200,7 +200,7 @@ export async function processCardPaymentWebhook(
         p_amount: feeBreakdown.netAmount,
         p_source: "payment_page",
         p_source_id: payment.payment_page_id,
-        p_description: `Card payment from ${payment.customer_name} (3% Zidwell fee)`,
+        p_description: `Payment from ${payment.customer_name} (3% Zidwell fee)`,
       }
     );
 
@@ -233,7 +233,7 @@ export async function processCardPaymentWebhook(
       net_amount: feeBreakdown.netAmount,
       status: "success",
       reference: `CARD-${payment.payment_page_id}-${nombaTransactionId}`,
-      description: `Card payment from ${payment.customer_name} for "${payment.payment_pages?.title}"`,
+      description: `Payment from ${payment.customer_name} for "${payment.payment_pages?.title}"`,
       channel: "payment_page_card",
       sender: {
         name: payment.customer_name,
@@ -254,7 +254,7 @@ export async function processCardPaymentWebhook(
         net_amount: feeBreakdown.netAmount,
         fee_percentage: 3.4,
         payment_method: "card",
-        withdrawal_fee: 0, // ✅ FREE
+        withdrawal_fee: 0,
       },
     });
 
@@ -303,15 +303,13 @@ export async function processCardPaymentWebhook(
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <img src="${baseUrl}/zidwell-header.png" style="width: 100%; margin-bottom: 20px;" />
-              <h3 style="color: #22c55e;">✅ Card Payment Received!</h3>
-              <p>You've received a card payment for <strong>${payment.payment_pages?.title}</strong>.</p>
+              <h3 style="color: #22c55e;">Online Store Payment Received!</h3>
+              <p>You've received a payment for <strong>${payment.payment_pages?.title}</strong>.</p>
               <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
                 <p><strong>Amount:</strong> ₦${feeBreakdown.gross.toLocaleString()}</p>
-                <p><strong>Nomba Fee (0.4%):</strong> -₦${feeBreakdown.nombaFee.toLocaleString()}</p>
-                <p><strong>Zidwell Fee (3%):</strong> -₦${feeBreakdown.zidwellFee.toLocaleString()}</p>
-                <p><strong>Total Fees:</strong> -₦${feeBreakdown.totalFee.toLocaleString()}</p>
+           
                 <p><strong>Net Credited:</strong> ₦${feeBreakdown.netAmount.toLocaleString()}</p>
-                <p><strong>Withdrawal Fee:</strong> ✅ FREE</p>
+         
                 <p><strong>Customer:</strong> ${payment.customer_name}</p>
                 ${payment.customer_email ? `<p><strong>Email:</strong> ${payment.customer_email}</p>` : ''}
                 ${studentNames.length > 0 ? `<p><strong>Students:</strong> ${studentNames.join(', ')}</p>` : ''}
@@ -337,11 +335,11 @@ export async function processCardPaymentWebhook(
 
     return {
       success: true,
-      message: "Card payment processed successfully",
+      message: "Payment processed successfully",
       payment_id: payment.id,
     };
   } catch (error: any) {
-    console.error("Error processing card payment:", error);
-    return { error: error.message || "Failed to process card payment", status: 500 };
+    console.error("Error processing payment:", error);
+    return { error: error.message || "Failed to process payment", status: 500 };
   }
 }

@@ -1,3 +1,5 @@
+// app/api/webhook/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyNombaSignature } from "./helpers/signature-verification";
@@ -12,6 +14,11 @@ import {
 } from "./services/subscription-service";
 import { processCardPaymentWebhook } from "./services/card-payment.service";
 
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 type WebhookResponse =
   | {
       success: boolean;
@@ -24,42 +31,33 @@ type WebhookResponse =
   | { error: string; status?: number };
 
 // ============================================================
-// ✅ CHECK: Virtual Account for Payment Pages - DISABLED
+// CHECK IF STORE ACTIVATION PAYMENT
 // ============================================================
-// Payment pages DO NOT use virtual accounts - only card payments
-// This function always returns false for payment pages
-function isPaymentPageVirtualAccount(aliasAccountReference: string): boolean {
-  if (!aliasAccountReference) return false;
-  
-  // Payment pages use "PPL" or "VA-PP-" prefix - we IGNORE these
-  // They should ONLY use card payments
-  if (aliasAccountReference.startsWith("PPL")) return false;
-  if (aliasAccountReference.startsWith("VA-PP-")) return false;
-  
+function checkIfStoreActivationPayment(orderReference: string, payload: any): boolean {
+  if (orderReference?.startsWith("ACT-")) {
+    return true;
+  }
+
+  const metadata = payload.data?.order?.metadata || {};
+  if (metadata.type === "store_activation") {
+    return true;
+  }
+
   return false;
 }
 
 // ============================================================
-// ✅ CHECK: Regular Wallet Deposit (for manual wallet funding)
+// REGULAR WALLET DEPOSIT CHECK
 // ============================================================
 async function isRegularWalletDeposit(aliasAccountReference: string): Promise<boolean> {
   if (!aliasAccountReference) return false;
   
-  // Skip subscription virtual accounts
   if (aliasAccountReference.startsWith("VA-SUB-")) return false;
-  
-  // Skip payment page virtual accounts (they use card payments)
-  if (aliasAccountReference.startsWith("PPL")) return false;
   if (aliasAccountReference.startsWith("VA-PP-")) return false;
+  if (aliasAccountReference.startsWith("PPL")) return false;
 
-  // Check if it's a valid UUID (regular wallet deposit)
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidPattern.test(aliasAccountReference)) return false;
-
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
 
   const { data: user } = await supabase
     .from("users")
@@ -71,25 +69,7 @@ async function isRegularWalletDeposit(aliasAccountReference: string): Promise<bo
 }
 
 // ============================================================
-// ✅ CHECK: Invoice Payment
-// ============================================================
-function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
-  const hasInvoiceMetadata =
-    payload.data?.order?.metadata?.invoiceId ||
-    payload.data?.order?.metadata?.invoiceNumber;
-  const isInvoiceReference =
-    orderReference?.startsWith("INV-") ||
-    orderReference?.startsWith("INVOICE-");
-  const isSubscriptionRef = orderReference?.startsWith("SUB_");
-
-  return (
-    (hasInvoiceMetadata || isInvoiceReference) &&
-    !isSubscriptionRef
-  );
-}
-
-// ============================================================
-// ✅ CHECK: Card Payment (Payment Pages use this)
+// CARD PAYMENT CHECK
 // ============================================================
 function checkIfCardPayment(orderReference: string, payload: any): boolean {
   if (orderReference?.startsWith("CARD-")) {
@@ -110,7 +90,33 @@ function checkIfCardPayment(orderReference: string, payload: any): boolean {
 }
 
 // ============================================================
-// ✅ HANDLE ERROR RESPONSE
+// INVOICE PAYMENT CHECK
+// ============================================================
+function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
+  const hasInvoiceMetadata =
+    payload.data?.order?.metadata?.invoiceId ||
+    payload.data?.order?.metadata?.invoiceNumber;
+  const isInvoiceReference =
+    orderReference?.startsWith("INV-") ||
+    orderReference?.startsWith("INVOICE-");
+  const isSubscriptionRef = orderReference?.startsWith("SUB_");
+
+  return (
+    (hasInvoiceMetadata || isInvoiceReference) &&
+    !isSubscriptionRef
+  );
+}
+
+// ============================================================
+// SAFE NUMBER PARSING
+// ============================================================
+function safeNum(v: any): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ============================================================
+// HANDLE ERROR RESPONSE
 // ============================================================
 function handleErrorResponse(result: any): NextResponse {
   if (result && "error" in result && result.error) {
@@ -122,15 +128,7 @@ function handleErrorResponse(result: any): NextResponse {
 }
 
 // ============================================================
-// ✅ SAFE NUMBER PARSING
-// ============================================================
-function safeNum(v: any): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-// ============================================================
-// ✅ MAIN WEBHOOK HANDLER
+// MAIN WEBHOOK HANDLER
 // ============================================================
 export async function POST(req: NextRequest) {
   try {
@@ -146,7 +144,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    // Verify signature
     const timestamp = req.headers.get("nomba-timestamp");
     const signature =
       req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
@@ -185,30 +182,115 @@ export async function POST(req: NextRequest) {
     });
 
     // ============================================================
-    // ✅ PRIORITY 1: PAYMENT PAGE CARD PAYMENTS (Virtual Account SKIPPED)
+    // PRIORITY 0: STORE ACTIVATION PAYMENT
     // ============================================================
-    // Payment pages ONLY use card payments - NO virtual accounts
-    // Any virtual account with "PPL" or "VA-PP-" prefix is IGNORED
+    const isStoreActivation = checkIfStoreActivationPayment(orderReference, payload);
     
-    const isPaymentPageVA = isPaymentPageVirtualAccount(aliasAccountReference);
-    if (isPaymentPageVA) {
-      console.log("⏭️ Payment page virtual account deposit IGNORED - Payment pages use card payments only");
-      return NextResponse.json({ 
-        success: true, 
-        message: "Payment page virtual account ignored - use card payments" 
+    if (isStoreActivation && (eventType === "payment_success" || txStatus === "success")) {
+      console.log("Processing store activation payment...");
+      
+      // Find the payment record
+      const { data: payment, error: paymentError } = await supabase
+        .from("store_activation_payments")
+        .select("*")
+        .eq("order_reference", orderReference)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (paymentError || !payment) {
+        console.error("Store activation payment not found:", orderReference);
+        
+        const { data: completedPayment } = await supabase
+          .from("store_activation_payments")
+          .select("*")
+          .eq("order_reference", orderReference)
+          .eq("status", "completed")
+          .maybeSingle();
+
+        if (completedPayment) {
+          console.log("Store activation already completed");
+          return NextResponse.json({ 
+            success: true, 
+            message: "Already processed",
+            payment_id: completedPayment.id 
+          });
+        }
+        
+        return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+      }
+
+      console.log("Found store activation payment:", payment.id);
+
+      // Activate the store
+      const { error: updateError } = await supabase
+        .from("online_stores")
+        .update({
+          is_active: true,
+          activation_paid: true,
+          activated_at: new Date().toISOString(),
+          activation_reference: payment.reference,
+        })
+        .eq("id", payment.store_id);
+
+      if (updateError) {
+        console.error("Failed to activate store:", updateError);
+        return NextResponse.json(
+          { error: "Failed to activate store" },
+          { status: 500 }
+        );
+      }
+
+      console.log("Store activated:", payment.store_id);
+
+      // Update payment status
+      await supabase
+        .from("store_activation_payments")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          paid_at: new Date().toISOString(),
+          nomba_transaction_id: nombaTransactionId,
+        })
+        .eq("id", payment.id);
+
+      // Create store owner wallet
+      const { data: existingWallet } = await supabase
+        .from("store_owner_wallets")
+        .select("id")
+        .eq("user_id", payment.user_id)
+        .maybeSingle();
+
+      if (!existingWallet) {
+        await supabase
+          .from("store_owner_wallets")
+          .insert({
+            user_id: payment.user_id,
+            store_id: payment.store_id,
+            available_balance: 0,
+            pending_balance: 0,
+            total_earned: 0,
+            total_withdrawn: 0,
+            last_activity_at: new Date().toISOString(),
+          });
+        console.log("Store owner wallet created");
+      }
+
+      console.log("Store activation completed");
+
+      return NextResponse.json({
+        success: true,
+        message: "Store activated successfully",
+        payment_id: payment.id,
       });
     }
 
-    // Process card payments for payment pages
+    // ============================================================
+    // PRIORITY 1: CARD PAYMENTS (Payment Pages)
+    // ============================================================
     const isCardPayment = checkIfCardPayment(orderReference, payload);
     
     if (isCardPayment && (eventType === "payment_success" || txStatus === "success")) {
-      console.log("💳 Processing card payment for payment page...");
-      
-      const supabase = createClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      );
+      console.log("Processing card payment...");
       
       const { data: payment, error: paymentError } = await supabase
         .from("payment_page_payments")
@@ -218,7 +300,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (paymentError || !payment) {
-        console.error("❌ Card payment not found for order reference:", orderReference);
+        console.error("Card payment not found for order reference:", orderReference);
         const { data: completedPayment } = await supabase
           .from("payment_page_payments")
           .select("*, payment_pages(*)")
@@ -227,7 +309,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
         
         if (completedPayment) {
-          console.log("✅ Card payment already completed:", completedPayment.id);
+          console.log("Card payment already completed:", completedPayment.id);
           return NextResponse.json({ 
             success: true, 
             message: "Payment already processed",
@@ -238,9 +320,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Payment not found" }, { status: 404 });
       }
 
-      console.log("✅ Found pending card payment:", payment.id);
-      console.log("   Customer:", payment.customer_name);
-      console.log("   Amount:", payment.amount);
+      console.log("Found pending card payment:", payment.id);
 
       const result = await processCardPaymentWebhook(payload, {
         nombaTransactionId,
@@ -252,7 +332,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 2: SUBSCRIPTION BANK TRANSFERS (Virtual Account)
+    // PRIORITY 2: SUBSCRIPTION BANK TRANSFERS
     // ============================================================
     const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(
       aliasAccountReference,
@@ -262,7 +342,7 @@ export async function POST(req: NextRequest) {
       isSubscriptionBankTransfer &&
       (eventType === "payment_success" || txStatus === "success")
     ) {
-      console.log("🏦 Processing subscription bank transfer...");
+      console.log("Processing subscription bank transfer...");
       const result = await processSubscriptionBankTransfer(payload, {
         nombaTransactionId,
         aliasAccountReference,
@@ -274,7 +354,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 3: SUBSCRIPTION CARD PAYMENTS
+    // PRIORITY 3: SUBSCRIPTION CARD PAYMENTS
     // ============================================================
     const isSubscriptionCard = checkIfSubscriptionPayment(
       orderReference,
@@ -284,7 +364,7 @@ export async function POST(req: NextRequest) {
       isSubscriptionCard &&
       (eventType === "payment_success" || txStatus === "success")
     ) {
-      console.log("💳 Processing subscription card payment...");
+      console.log("Processing subscription card payment...");
       const result = await processSubscriptionPayment(payload, {
         nombaTransactionId,
         orderReference,
@@ -293,9 +373,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 4: REGULAR WALLET DEPOSITS (Virtual Account - KEEP)
+    // PRIORITY 4: REGULAR WALLET DEPOSITS
     // ============================================================
-    // This handles manual wallet funding via virtual account
     const isRegularDeposit = await isRegularWalletDeposit(
       aliasAccountReference,
     );
@@ -303,7 +382,7 @@ export async function POST(req: NextRequest) {
       isRegularDeposit &&
       (eventType === "payment_success" || txStatus === "success")
     ) {
-      console.log("💰 Processing wallet deposit...");
+      console.log("Processing wallet deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
         nombaTransactionId,
@@ -316,14 +395,14 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 5: INVOICE PAYMENTS (Virtual Account - KEEP)
+    // PRIORITY 5: INVOICE PAYMENTS
     // ============================================================
     const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
     if (
       isInvoicePayment &&
       (eventType === "payment_success" || txStatus === "success")
     ) {
-      console.log("📄 Processing invoice payment...");
+      console.log("Processing invoice payment...");
       const result = (await processInvoicePayment(payload, {
         nombaTransactionId,
         transactionAmount,
@@ -347,17 +426,13 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 6: FALLBACK VIRTUAL ACCOUNT DEPOSIT (KEEP for other services)
+    // PRIORITY 6: FALLBACK VIRTUAL ACCOUNT DEPOSIT
     // ============================================================
-    // This handles any other virtual account deposits not caught above
-    // But it SKIPS payment page virtual accounts
     if (
       aliasAccountReference &&
-      !aliasAccountReference.startsWith("PPL") &&
-      !aliasAccountReference.startsWith("VA-PP-") &&
       (eventType === "payment_success" || txStatus === "success")
     ) {
-      console.log("🏦 Processing fallback virtual account deposit...");
+      console.log("Processing fallback virtual account deposit...");
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
         nombaTransactionId,
@@ -370,7 +445,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ WITHDRAWALS/TRANSFERS (PAYOUTS)
+    // WITHDRAWALS/TRANSFERS (PAYOUTS)
     // ============================================================
     const transactionType = (tx.type || "").toLowerCase();
     const isPayout =
@@ -379,7 +454,7 @@ export async function POST(req: NextRequest) {
       transactionType.includes("payout");
 
     if (isPayout) {
-      console.log("💸 Processing payout...");
+      console.log("Processing payout...");
       const result = await processPayout(payload, {
         nombaTransactionId,
         eventType,
@@ -389,13 +464,13 @@ export async function POST(req: NextRequest) {
       return handleErrorResponse(result);
     }
 
-    console.log("ℹ️ Unhandled event type:", eventType);
+    console.log("Unhandled event type:", eventType);
     return NextResponse.json({ message: "Event ignored" }, { status: 200 });
   } catch (error: any) {
-    console.error("🔥 Webhook error:", error);
+    console.error("Webhook error:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

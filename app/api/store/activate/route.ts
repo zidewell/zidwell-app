@@ -10,6 +10,9 @@ const supabase = createClient(
 );
 
 const ACTIVATION_FEE_NAIRA = 2000;
+const baseUrl = process.env.NODE_ENV === "development"
+  ? "http://localhost:3000"
+  : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);
@@ -19,17 +22,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { storeData } = body;
+    const { storeData, paymentMethod } = body;
 
     console.log("📦 Activation request:", {
       hasStoreData: !!storeData,
       userId: user.id,
+      paymentMethod: paymentMethod || "wallet",
     });
 
-    // Get user with wallet balance
+    // Get user
     const { data: dbUser, error: userErr } = await supabase
       .from("users")
-      .select("id, email, bvn_verification, wallet_balance")
+      .select("id, email, bvn_verification")
       .eq("id", user.id)
       .single();
 
@@ -39,10 +43,6 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("✅ User found:", dbUser.id);
-    
-    // ✅ Get user's MAIN wallet balance (from users table)
-    const userMainBalance = Number(dbUser.wallet_balance || 0);
-    console.log("💰 User main wallet balance:", userMainBalance);
 
     // Check if user already has a store
     let { data: store, error: storeErr } = await supabase
@@ -145,7 +145,6 @@ export async function POST(req: NextRequest) {
     } else {
       console.log("✅ Store already exists:", store.id);
 
-      // If store already exists and is active, return error
       if (store.is_active && store.activation_paid) {
         return NextResponse.json(
           { error: "Store is already activated" },
@@ -155,136 +154,136 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ CHECK USER MAIN BALANCE (from users table)
+    // ✅ PROCESS PAYMENT - CHECKOUT ONLY
     // ============================================================
-    console.log("💰 Checking user main balance:", userMainBalance);
+    console.log("💳 Processing checkout payment for activation...");
 
-    if (userMainBalance < ACTIVATION_FEE_NAIRA) {
-      return NextResponse.json(
-        {
-          error: `Insufficient wallet balance. ₦${ACTIVATION_FEE_NAIRA.toLocaleString()} required. You have ₦${userMainBalance.toLocaleString()}`,
-          required: ACTIVATION_FEE_NAIRA,
-          current: userMainBalance,
-          shortfall: ACTIVATION_FEE_NAIRA - userMainBalance,
-          needsFunding: true,
-        },
-        { status: 400 }
-      );
-    }
-
-    // ============================================================
-    // ✅ DEDUCT FROM USER MAIN BALANCE (users.wallet_balance)
-    // ============================================================
     const reference = `STORE_ACT_${Date.now()}_${user.id}`;
 
-    // Deduct from user's main wallet using RPC
-    const { data: deductionResult, error: deductionError } = await supabase.rpc(
-      "deduct_wallet_balance",
-      {
+    // Create payment record
+    const { data: payment, error: paymentError } = await supabase
+      .from("store_activation_payments")
+      .insert({
         user_id: user.id,
-        amt: ACTIVATION_FEE_NAIRA,
-        transaction_type: "debit",
+        store_id: store.id,
+        amount: ACTIVATION_FEE_NAIRA,
+        status: "pending",
         reference: reference,
-        description: "Online store activation fee",
-      }
-    );
-
-    if (deductionError) {
-      console.error("❌ Deduction error:", deductionError);
-      return NextResponse.json(
-        { error: "Failed to deduct activation fee. Please try again." },
-        { status: 500 }
-      );
-    }
-
-    console.log("✅ Fee deducted from user main balance:", ACTIVATION_FEE_NAIRA);
-    console.log("📊 Deduction result:", deductionResult);
-
-    // ============================================================
-    // ✅ CREATE WALLET FOR STORE OWNER (store_owner_wallets)
-    // ============================================================
-    // Check if store owner wallet exists
-    const { data: existingWallet } = await supabase
-      .from("store_owner_wallets")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!existingWallet) {
-      console.log("🏦 Creating store owner wallet...");
-      
-      const { error: createWalletError } = await supabase
-        .from("store_owner_wallets")
-        .insert({
-          user_id: user.id,
-          store_id: store.id,
-          available_balance: 0,
-          pending_balance: 0,
-          total_earned: 0,
-          total_withdrawn: 0,
-          last_activity_at: new Date().toISOString(),
-        });
-
-      if (createWalletError) {
-        console.error("❌ Failed to create store owner wallet:", createWalletError);
-        // Non-critical - continue activation
-      } else {
-        console.log("✅ Store owner wallet created");
-      }
-    }
-
-    // ============================================================
-    // ✅ ACTIVATE STORE
-    // ============================================================
-    const { error: updateError } = await supabase
-      .from("online_stores")
-      .update({
-        is_active: true,
-        activation_paid: true,
-        activated_at: new Date().toISOString(),
-        activation_reference: reference,
+        payment_method: "card",
+        created_at: new Date().toISOString(),
       })
-      .eq("id", store.id);
-
-    if (updateError) {
-      console.error("❌ Activation update error:", updateError);
-      
-      // Refund user main balance if activation fails
-      await supabase.rpc("increment_wallet_balance", {
-        user_id: user.id,
-        amt: ACTIVATION_FEE_NAIRA,
-      });
-
-      return NextResponse.json(
-        { error: "Failed to activate store. Funds have been refunded." },
-        { status: 500 }
-      );
-    }
-
-    console.log("✅ Store activated:", store.id);
-
-    // Get updated user balance
-    const { data: updatedUser } = await supabase
-      .from("users")
-      .select("wallet_balance")
-      .eq("id", user.id)
+      .select()
       .single();
 
-    return NextResponse.json({
-      success: true,
-      message: "Store activated successfully",
-      store: {
-        id: store.id,
-        name: store.name,
-        slug: store.slug,
-        is_active: true,
-        activation_paid: true,
-      },
-      wallet: {
-        new_balance: updatedUser?.wallet_balance || 0,
-        deducted: ACTIVATION_FEE_NAIRA,
-      },
-    });
+    if (paymentError) {
+      console.error("❌ Failed to create payment record:", paymentError);
+      return NextResponse.json(
+        { error: "Failed to initiate payment. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Payment record created:", payment.id);
+
+    // ============================================================
+    // ✅ CREATE CHECKOUT
+    // ============================================================
+    try {
+      const { getNombaToken } = await import("@/lib/nomba");
+      const accessToken = await getNombaToken();
+
+      if (!accessToken) {
+        console.error("❌ Failed to get Nomba token");
+        await supabase
+          .from("store_activation_payments")
+          .update({ status: "failed" })
+          .eq("id", payment.id);
+
+        return NextResponse.json(
+          { error: "Payment service unavailable. Please try again later." },
+          { status: 503 }
+        );
+      }
+
+      const orderReference = `ACT-${payment.id}-${Date.now()}`;
+
+      // Get user email
+      const userEmail = dbUser.email || "customer@example.com";
+
+      // Create checkout payload
+      const checkoutPayload = {
+        order: {
+          callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
+          customerEmail: userEmail,
+          amount: ACTIVATION_FEE_NAIRA.toString(),
+          currency: "NGN",
+          orderReference: orderReference,
+          customerId: user.id,
+          accountId: process.env.NOMBA_ACCOUNT_ID,
+          allowedPaymentMethods: ["Card"],
+          metadata: {
+            type: "store_activation",
+            paymentId: payment.id,
+            storeId: store.id,
+            userId: user.id,
+          },
+        },
+        tokenizeCard: false,
+      };
+
+      const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.code !== "00") {
+        console.error("❌ Checkout creation failed:", data);
+        await supabase
+          .from("store_activation_payments")
+          .update({ status: "failed" })
+          .eq("id", payment.id);
+
+        return NextResponse.json(
+          { error: data.description || "Failed to create checkout" },
+          { status: 500 }
+        );
+      }
+
+      // Update payment with order reference
+      await supabase
+        .from("store_activation_payments")
+        .update({ order_reference: orderReference })
+        .eq("id", payment.id);
+
+      console.log("✅ Checkout created successfully");
+
+      // Return checkout URL
+      return NextResponse.json({
+        success: true,
+        requiresCheckout: true,
+        checkoutUrl: data.data.checkoutLink,
+        payment_id: payment.id,
+        message: "Please complete payment to activate your store",
+      });
+    } catch (checkoutError: any) {
+      console.error("❌ Checkout error:", checkoutError);
+      await supabase
+        .from("store_activation_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
+
+      return NextResponse.json(
+        { error: checkoutError.message || "Failed to create checkout" },
+        { status: 500 }
+      );
+    }
   } catch (error: any) {
     console.error("❌ Store activation error:", error);
     return NextResponse.json(

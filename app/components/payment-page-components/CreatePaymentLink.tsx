@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useId } from "react";
+import { useRef, useState, useEffect, useId, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -35,7 +35,6 @@ import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 
-// ✅ Product image specs - Instagram style 1350x1080
 const PRODUCT_IMAGE_SPECS = {
   width: 1350,
   height: 1080,
@@ -43,45 +42,6 @@ const PRODUCT_IMAGE_SPECS = {
   description: "1350 x 1080 pixels (5:4 ratio) - Instagram style",
   maxSize: 10 * 1024 * 1024, // 10MB
   formats: [".jpg", ".jpeg", ".png", ".webp", ".heic"],
-};
-
-// Function to validate title for virtual account naming
-const validateTitleForVirtualAccount = (
-  title: string,
-  className?: string,
-): { isValid: boolean; message: string; cleanedName: string } => {
-  let fullName = title;
-  if (className && className.trim()) {
-    fullName = `${className} ${title}`;
-  }
-
-  let cleaned = fullName.toUpperCase();
-  cleaned = cleaned.replace(/[^A-Z0-9\s]/g, "");
-  cleaned = cleaned.replace(/\s+/g, " ").trim();
-
-  const length = cleaned.length;
-
-  if (length < 8) {
-    return {
-      isValid: false,
-      message: `Account name will be "${cleaned}" (${length} chars). Minimum 8 characters required. Please make your title longer.`,
-      cleanedName: cleaned,
-    };
-  }
-
-  if (length > 64) {
-    return {
-      isValid: false,
-      message: `Account name will be "${cleaned.substring(0, 50)}..." (${length} chars). Maximum 64 characters allowed. Please shorten your title.`,
-      cleanedName: cleaned.substring(0, 64),
-    };
-  }
-
-  return {
-    isValid: true,
-    message: `✓ Account name will be "${cleaned}" (${length} chars)`,
-    cleanedName: cleaned,
-  };
 };
 
 const slugify = (text: string) =>
@@ -113,7 +73,7 @@ const defaultConfig: LinkConfig = {
 };
 
 // ============================================================
-// LIVE PREVIEW MODAL COMPONENT
+// LIVE PREVIEW MODAL
 // ============================================================
 function LivePreviewModal({
   isOpen,
@@ -155,7 +115,6 @@ function LivePreviewModal({
             onClick={(e) => e.stopPropagation()}
             style={{ borderTop: `4px solid ${config.brandColor}` }}
           >
-            {/* Modal Header */}
             <div className="bg-[#023528] px-6 py-4 border-b border-gray-800 flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-[#e1bf46]" />
@@ -170,10 +129,8 @@ function LivePreviewModal({
               </button>
             </div>
 
-            {/* Preview Content */}
             <div className="p-6">
               <div className="flex flex-col md:flex-row gap-6">
-                {/* Image Section - Left */}
                 <div className="md:w-1/2">
                   <div className="relative aspect-[5/4] rounded-xl overflow-hidden bg-[#1a1a1a] border border-gray-700">
                     {images.length > 0 ? (
@@ -195,7 +152,6 @@ function LivePreviewModal({
                   </div>
                 </div>
 
-                {/* Info Section - Right */}
                 <div className="md:w-1/2 space-y-4">
                   <div className="flex items-center gap-2">
                     <div
@@ -215,7 +171,7 @@ function LivePreviewModal({
 
                   {description && (
                     <div 
-                      className="text-sm text-gray-400 line-clamp-3"
+                      className="text-sm text-gray-400 line-clamp-3 prose prose-invert prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: description }}
                     />
                   )}
@@ -230,7 +186,6 @@ function LivePreviewModal({
                     </p>
                   </div>
 
-                  {/* Customer Fields Preview */}
                   <div className="space-y-2">
                     <div>
                       <div className="text-[10px] text-gray-400 mb-0.5">
@@ -280,7 +235,6 @@ function LivePreviewModal({
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="border-t border-gray-800 px-6 py-4 flex justify-end">
               <Button
                 onClick={onClose}
@@ -299,7 +253,7 @@ function LivePreviewModal({
 
 const CreatePaymentLink = () => {
   const router = useRouter();
-  const { createPage, store, loading, hasStore } = useStore();
+  const { createPage, store, loading, hasStore, validateSlug } = useStore();
   const { userData } = useUserContextData();
   const { theme } = useTheme();
   const generatedId = useId();
@@ -316,49 +270,116 @@ const CreatePaymentLink = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
-  const [titleValidation, setTitleValidation] = useState<{
-    isValid: boolean;
-    message: string;
-  }>({ isValid: true, message: "" });
   const [showPreview, setShowPreview] = useState(false);
+  
+  // Slug validation state
+  const [slugValidation, setSlugValidation] = useState<{
+    isValid: boolean;
+    isChecking: boolean;
+    message: string;
+    isTaken: boolean;
+    isOwnStore: boolean;
+  }>({ 
+    isValid: true, 
+    isChecking: false, 
+    message: "",
+    isTaken: false,
+    isOwnStore: false,
+  });
+  const slugTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const imageRef = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof LinkConfig>(k: K, v: LinkConfig[K]) =>
     setConfig((c) => ({ ...c, [k]: v }));
 
-  const generateIdentifier = (): string => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-  };
+  // Validate slug with debounce
+  const validateSlugWithDebounce = useCallback(async (slugToValidate: string) => {
+    if (!slugToValidate || slugToValidate.length < 1) {
+      setSlugValidation({ 
+        isValid: false, 
+        isChecking: false, 
+        message: "Slug is required",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      return;
+    }
 
-  const generateFullSlug = (titleText: string): string => {
-    const baseSlug = slugify(titleText);
-    const identifier = generateIdentifier();
-    return `${identifier}-${baseSlug}`;
-  };
+    // Check URL length (max 50 characters for browser URL)
+    if (slugToValidate.length > 50) {
+      setSlugValidation({
+        isValid: false,
+        isChecking: false,
+        message: "Slug is too long. Maximum 50 characters allowed.",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      return;
+    }
+
+    setSlugValidation(prev => ({ ...prev, isChecking: true }));
+
+    try {
+      const result = await validateSlug(slugToValidate);
+      
+      setSlugValidation({
+        isValid: result.valid,
+        isChecking: false,
+        message: result.message,
+        isTaken: result.isTaken,
+        isOwnStore: result.isOwnStore,
+      });
+    } catch (error) {
+      console.error("Error validating slug:", error);
+      setSlugValidation({
+        isValid: false,
+        isChecking: false,
+        message: "Failed to validate slug",
+        isTaken: false,
+        isOwnStore: false,
+      });
+    }
+  }, [validateSlug]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // ✅ Redirect if no store exists
   useEffect(() => {
     if (!loading && !hasStore) {
       router.push("/dashboard/services/payment/dashboard");
     }
   }, [loading, hasStore, router]);
 
-  // Validate title for virtual account naming
+  // Update slug and validate when title changes (with debounce)
   useEffect(() => {
     if (title) {
-      const validation = validateTitleForVirtualAccount(title);
-      setTitleValidation(validation);
+      const newSlug = slugify(title);
+      setSlug(newSlug);
+      
+      if (slugTimeoutRef.current) {
+        clearTimeout(slugTimeoutRef.current);
+      }
+      
+      slugTimeoutRef.current = setTimeout(() => {
+        validateSlugWithDebounce(newSlug);
+      }, 800);
     } else {
-      setTitleValidation({ isValid: true, message: "" });
+      setSlug("");
+      setSlugValidation({ 
+        isValid: true, 
+        isChecking: false, 
+        message: "",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      if (slugTimeoutRef.current) {
+        clearTimeout(slugTimeoutRef.current);
+      }
     }
-  }, [title]);
+  }, [title, validateSlugWithDebounce]);
 
-  // Handle product image upload
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -389,13 +410,6 @@ const CreatePaymentLink = () => {
 
   const onTitleChange = (t: string) => {
     setTitle(t);
-    if (t) {
-      const baseSlug = slugify(t);
-      const identifier = generateIdentifier();
-      setSlug(`${identifier}-${baseSlug}`);
-    } else {
-      setSlug("");
-    }
   };
 
   const addCustomField = () => {
@@ -419,20 +433,30 @@ const CreatePaymentLink = () => {
       config.customFields.filter((f) => f.id !== id),
     );
 
-  const canCreate =
-    title.trim() && titleValidation.isValid && (config.amountMode === "variable" || Number(price) > 0);
+const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
+
+                       const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
+
+
+ const canCreate = 
+  title.trim() && 
+  !slugValidation.isChecking && 
+  isSlugAvailable &&
+  (config.amountMode === "variable" || Number(price) > 0);
+
+
+console.log("canCreate:", canCreate, {
+  hasTitle: !!title.trim(),
+  isNotChecking: !slugValidation.isChecking,
+  isSlugAvailable: isSlugAvailable,
+  isValidPrice: (config.amountMode === "variable" || Number(price) > 0),
+  slugValidation: slugValidation
+});
 
   const generateFinalSlug = () => {
-    const baseSlug = slugify(title);
-    const slugParts = slug?.split("-") || [];
-    let identifier = slugParts[0] || generateIdentifier();
-    if (!/^\d{4}$/.test(identifier)) {
-      identifier = generateIdentifier();
-    }
-    return `${baseSlug}-${identifier}`;
+    return slug || slugify(title);
   };
 
-  // ✅ Generate page URL with proper store slug
   const getPageUrl = () => {
     const storeSlug = store?.slug || '';
     if (!storeSlug) {
@@ -450,10 +474,10 @@ const CreatePaymentLink = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const regenerateSlug = () => {
-    const baseSlug = slugify(title);
-    const newIdentifier = generateIdentifier();
-    setSlug(`${baseSlug}-${newIdentifier}`);
+  const handleCloseSuccess = () => {
+    setShowSuccess(false);
+    // Refresh the page after closing the modal
+    window.location.reload();
   };
 
   const handleCreate = async () => {
@@ -462,6 +486,20 @@ const CreatePaymentLink = () => {
 
     try {
       const finalSlug = generateFinalSlug();
+      
+      // Validate slug one more time before creating
+      const validationResult = await validateSlug(finalSlug);
+      if (!validationResult.valid || (validationResult.isTaken && !validationResult.isOwnStore)) {
+        setSlugValidation({
+          isValid: validationResult.valid,
+          isChecking: false,
+          message: validationResult.message,
+          isTaken: validationResult.isTaken,
+          isOwnStore: validationResult.isOwnStore,
+        });
+        setIsCreating(false);
+        return;
+      }
 
       let uploadedImageUrl = null;
       if (productImage) {
@@ -540,7 +578,6 @@ const CreatePaymentLink = () => {
       ? "Buyer chooses"
       : `${config.currency === "NGN" ? "₦" : config.currency + " "}${(Number(price) || 0).toLocaleString()}`;
 
-  // ✅ Show loading state
   if (!isMounted || loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
@@ -549,7 +586,6 @@ const CreatePaymentLink = () => {
     );
   }
 
-  // ✅ If no store, show message
   if (!hasStore) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -574,7 +610,6 @@ const CreatePaymentLink = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* ✅ Back Button */}
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6 transition-colors"
@@ -588,7 +623,6 @@ const CreatePaymentLink = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-8 pb-32"
       >
-        {/* ✅ Live Preview Button */}
         <div className="flex justify-end">
           <Button
             variant="outline"
@@ -600,7 +634,7 @@ const CreatePaymentLink = () => {
           </Button>
         </div>
 
-        {/* ✅ Product Image - Smaller (aspect-[4/3]) */}
+        {/* Product Image */}
         <div>
           <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
             Product Image
@@ -669,46 +703,44 @@ const CreatePaymentLink = () => {
             placeholder="e.g. Premium Coaching Session"
             className="h-12 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
           />
-          {title && (
-            <div
-              className={`mt-2 text-xs flex items-start gap-2 p-2 rounded-lg ${
-                titleValidation.isValid
-                  ? "bg-green-50 text-green-700 border border-green-200"
-                  : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-            >
-              {titleValidation.isValid ? (
-                <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              ) : (
-                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              )}
-              <span className="flex-1">{titleValidation.message}</span>
-            </div>
-          )}
         </div>
 
-        {/* URL Preview */}
+        {/* URL Preview with slug validation */}
         {title && (
           <div className="bg-(--bg-secondary)/50 rounded-lg p-4 border border-(--border-color)">
             <div className="flex items-center justify-between mb-2">
               <Label className="text-xs font-semibold text-(--color-accent-yellow)">
                 Your Payment Link URL:
               </Label>
-              <button
-                onClick={regenerateSlug}
-                className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80"
-              >
-                <RefreshCw className="h-3 w-3" /> New ID
-              </button>
             </div>
             <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
               <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
               <code className="text-sm font-mono text-(--text-primary) break-all">
-                {store?.slug ? `/store/${store.slug}/${generateFinalSlug()}` : 'Please select a store first'}
+                {store?.slug ? `/store/${store.slug}/${slug || generateFinalSlug()}` : 'Please select a store first'}
               </code>
+              {slugValidation.isChecking && (
+                <Loader2 className="h-4 w-4 animate-spin text-(--color-accent-yellow) ml-2" />
+              )}
             </div>
+            
+            {/* Validation message */}
+            {slug && !slugValidation.isChecking && (
+              <div className="mt-2 text-xs flex items-start gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                {isSlugInvalid ? (
+                  <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-red-500" />
+                ) : (
+                  <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+                )}
+                <span className={`flex-1 ${isSlugInvalid ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                  {slugValidation.message}
+                  {slugValidation.isTaken && !slugValidation.isOwnStore && " This slug is already taken. Please change the title."}
+                  {slugValidation.isTaken && slugValidation.isOwnStore && " This slug is already used by one of your pages."}
+                </span>
+              </div>
+            )}
+            
             <p className="text-xs text-(--text-secondary) mt-2">
-              💡 Your URL includes a unique 4-digit identifier
+              💡 Your URL is based on the title you enter (max 50 characters)
             </p>
             {!store?.slug && (
               <p className="text-xs text-(--color-accent-yellow) mt-2">
@@ -911,7 +943,7 @@ const CreatePaymentLink = () => {
         </div>
 
         {/* Redirect URLs */}
-        <div className="grid grid-cols-2 gap-3">
+   
           <div>
             <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
               Redirect URL
@@ -923,18 +955,7 @@ const CreatePaymentLink = () => {
               className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
             />
           </div>
-          <div>
-            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-              Alternative Redirect
-            </Label>
-            <Input
-              value={config.altRedirectUrl || ""}
-              onChange={(e) => set("altRedirectUrl", e.target.value)}
-              placeholder="https://yoursite.com/cancel"
-              className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
-            />
-          </div>
-        </div>
+     
 
         {/* Custom Fields */}
         <div>
@@ -1077,7 +1098,7 @@ const CreatePaymentLink = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
-              onClick={() => setShowSuccess(false)}
+              onClick={handleCloseSuccess}
             >
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
@@ -1150,7 +1171,7 @@ const CreatePaymentLink = () => {
                 </div>
 
                 <button
-                  onClick={() => setShowSuccess(false)}
+                  onClick={handleCloseSuccess}
                   className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   Close

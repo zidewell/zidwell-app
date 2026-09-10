@@ -49,6 +49,7 @@ const types: {
     label: "Digital Product",
     icon: FileDown,
     description: "Sell downloads, links or files with instant delivery",
+     disabled: true,
   },
   {
     value: "services",

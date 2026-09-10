@@ -737,18 +737,40 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-// Store dashboard routes (not public store pages)
-const storeDashboardRoutes = [
+// ─── ✅ STORE DASHBOARD ROUTES (require store ownership) ───
+// These are the routes that require an active store
+const storeProtectedRoutes = [
+  "/dashboard/services/payment/dashboard",
   "/dashboard/services/payment/create",
   "/dashboard/services/payment/create-link",
   "/dashboard/services/payment/edit",
   "/dashboard/services/payment/page",
   "/dashboard/services/payment/settings",
+  "/dashboard/services/payment/analytics",
+  "/dashboard/services/payment/transactions",
+  "/store/products",
+  "/store/wallet",
+  "/store/transactions",
+  "/store/customers",
+  "/store/analytics",
+  "/store/settings",
+];
+
+// ─── ✅ STORE ROUTES THAT ARE PUBLIC (no store required to VIEW) ───
+// These are the routes where users can create a store
+const storePublicRoutes = [
+  "/dashboard/services/payment", // The main payment page - shows CreateStoreForm
+];
+
+// ─── ✅ PUBLIC STORE FRONT ROUTES (no auth required at all) ───
+const publicStoreFrontRoutes = [
+  "/store/", // /store/[storeSlug] - public storefront
+  "/store/link/", // /store/[storeSlug]/link/[linkSlug] - public payment link
 ];
 
 export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
-   "ibrahimlawalabbalolo@gmail.com",
+  "ibrahimlawalabbalolo@gmail.com",
   "abdullahtimilehin15@gmail.com",
   "ebrusikefavour@gmail.com",
   "skillfidelafrica@gmail.com",
@@ -765,7 +787,7 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
-// ─── UPDATED PUBLIC PATHS ───
+// ─── PUBLIC PATHS ───
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
@@ -776,12 +798,20 @@ const publicPaths = [
   "/auth/verify-success",      
   "/api/auth/verify",          
   "/api/auth/resend-verification",
+  "/",
+  "/pricing",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/blog",
+  "/api/payment-page/validate-slug",
 ];
 
 // ─── FAST ROUTE MATCHING ───
 
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
-const storeDashboardSet = new Set(storeDashboardRoutes);
+const storeProtectedSet = new Set(storeProtectedRoutes);
 const premiumRoutesMap = new Map(premiumRoutes.map(route => [route.path, route.requiredTier]));
 
 function getRequiredTier(pathname: string): string | null {
@@ -794,27 +824,37 @@ function getRequiredTier(pathname: string): string | null {
 }
 
 function requiresPaymentEmailRestriction(pathname: string): boolean {
+  // Only the main payment dashboard routes that require email restriction
   return pathname === "/dashboard/services/payment" || 
-         pathname.startsWith("/dashboard/services/payment/");
+         pathname === "/dashboard/services/payment/dashboard" ||
+         pathname === "/dashboard/services/payment/create" ||
+         pathname === "/dashboard/services/payment/create-link";
 }
 
-function requiresStoreDashboard(pathname: string): boolean {
-  for (const route of storeDashboardSet) {
-    if (pathname.startsWith(route)) {
+// ─── ✅ Check if a path requires store ownership ───
+function requiresStoreOwnership(pathname: string): boolean {
+  // Exact match check
+  for (const route of storeProtectedSet) {
+    if (pathname === route || pathname.startsWith(route + '/') || pathname.startsWith(route + '?')) {
       return true;
     }
   }
   return false;
 }
 
-function isPublicStorePage(pathname: string): boolean {
+// ─── ✅ Check if a path is a public store page (no auth) ───
+function isPublicStoreFront(pathname: string): boolean {
   // Public store home: /store/[storeSlug]
   if (pathname.match(/^\/store\/[^\/]+$/)) {
     return true;
   }
   // Public product page: /store/[storeSlug]/[productSlug]
-  if (pathname.match(/^\/store\/[^\/]+\/[^\/]+$/)) {
-    return true;
+  // But NOT /store/[storeSlug]/link/ (that's handled separately)
+  if (pathname.match(/^\/store\/[^\/]+\/[^\/]+$/) && !pathname.includes('/link/')) {
+    // Check if it's not a protected route
+    const isProtected = storeProtectedSet.has(pathname) || 
+                        storeProtectedSet.has(pathname.split('/').slice(0, 3).join('/'));
+    return !isProtected;
   }
   // Public payment link: /store/[storeSlug]/link/[linkSlug]
   if (pathname.match(/^\/store\/[^\/]+\/link\/[^\/]+$/)) {
@@ -823,9 +863,26 @@ function isPublicStorePage(pathname: string): boolean {
   return false;
 }
 
+// ─── ✅ Check if a path is a public payment page (customers paying) ───
+function isPublicPaymentPage(pathname: string): boolean {
+  if (pathname.match(/^\/pay\/[^\/]+$/)) {
+    return true;
+  }
+  if (pathname.startsWith("/payment-page/status")) {
+    return true;
+  }
+  if (pathname.startsWith("/payment/callback")) {
+    return true;
+  }
+  if (pathname.startsWith("/payment-page-success")) {
+    return true;
+  }
+  return false;
+}
+
 function shouldBypassAuth(pathname: string): boolean {
   // Static files
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json)$/)) {
+  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/)) {
     return true;
   }
   
@@ -834,28 +891,34 @@ function shouldBypassAuth(pathname: string): boolean {
     return true;
   }
   
-  // Public store pages - NO AUTH REQUIRED
-  if (isPublicStorePage(pathname)) {
+  // Public store front - NO AUTH REQUIRED
+  if (isPublicStoreFront(pathname)) {
     return true;
   }
   
-  // Payment pages (public)
-  if (pathname.match(/^\/pay\/[^\/]+$/)) {
+  // Public payment pages - NO AUTH REQUIRED
+  if (isPublicPaymentPage(pathname)) {
     return true;
   }
   
-  // ✅ Payment status page (public)
-  if (pathname.startsWith("/payment-page/status")) {
-    return true;
-  }
-  
-  // ✅ Payment callback from Nomba (public)
-  if (pathname.startsWith("/payment/callback")) {
-    return true;
-  }
-  
-  // ✅ Payment success page (public)
-  if (pathname.startsWith("/payment-page-success")) {
+  // API routes
+  if (pathname.startsWith("/api/")) {
+    // Allow slug validation API
+    if (pathname === "/api/payment-page/validate-slug") {
+      return true;
+    }
+    // For store APIs, check if it's a public endpoint
+    if (pathname.startsWith("/api/store/") || pathname.startsWith("/api/payment-page/")) {
+      // Public endpoints
+      if (pathname === "/api/payment-page/validate-slug" || 
+          pathname === "/api/payment-page/details" ||
+          pathname.startsWith("/api/payment-page/details/")) {
+        return true;
+      }
+      // Private endpoints require auth
+      return false;
+    }
+    // Other APIs are public
     return true;
   }
   
@@ -965,7 +1028,7 @@ function redirectFromPaymentPage(req: NextRequest) {
 
 function redirectNoStore(req: NextRequest) {
   console.log(`🚫 No store found for user accessing ${req.nextUrl.pathname}`);
-  const response = NextResponse.redirect(new URL("/dashboard", req.url));
+  const response = NextResponse.redirect(new URL("/dashboard/services/payment", req.url));
   
   response.cookies.set("store_required", "You need to create a store to access this page", {
     httpOnly: true,
@@ -983,9 +1046,9 @@ export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
   
-  // FIRST: Check if this is a public store page - bypass auth completely
-  if (isPublicStorePage(currentPath)) {
-    console.log(`🌐 Public store page: ${currentPath} - no auth required`);
+  // FIRST: Check if this is a public store front - bypass auth completely
+  if (isPublicStoreFront(currentPath)) {
+    console.log(`🌐 Public store front: ${currentPath} - no auth required`);
     return NextResponse.next();
   }
   
@@ -996,6 +1059,7 @@ export async function middleware(req: NextRequest) {
   }
   
   // ─── PAYMENT PAGE EMAIL RESTRICTION ───
+  // Only apply to the main payment page routes
   if (requiresPaymentEmailRestriction(currentPath)) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
     
@@ -1213,9 +1277,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/auth/blocked?reason=geo", req.url));
   }
 
-  // ─── STORE DASHBOARD ROUTES CHECK ───
-  if (requiresStoreDashboard(currentPath)) {
-    console.log(`🏪 Checking store dashboard access for: ${currentPath}`);
+  // ─── ✅ STORE OWNERSHIP CHECK ───
+  // Check if this path requires store ownership
+  if (requiresStoreOwnership(currentPath)) {
+    console.log(`🏪 Checking store ownership for: ${currentPath}`);
     
     try {
       const supabase = getSupabaseAdmin();
@@ -1238,8 +1303,8 @@ export async function middleware(req: NextRequest) {
       }
 
       if (!store) {
-        console.log("⏱️ Store check timed out - allowing access");
-        return refreshedResponse || NextResponse.next();
+        console.log(`🚫 No store found for user ${tokenResult.id} accessing ${currentPath}`);
+        return redirectNoStore(req);
       }
 
       const hasActiveStore = store !== null && store.is_active === true && store.activation_paid === true;
@@ -1256,10 +1321,10 @@ export async function middleware(req: NextRequest) {
         return response;
       }
 
-      console.log(`✅ Store dashboard access granted for ${currentPath}`);
+      console.log(`✅ Store ownership verified for ${currentPath}`);
     } catch (error) {
       console.error("❌ Store check error:", error);
-      return refreshedResponse || NextResponse.next();
+      return redirectNoStore(req);
     }
   }
 
@@ -1323,5 +1388,8 @@ export const config = {
     "/payment-page/status",
     "/payment/callback",
     "/payment-page-success",
+    "/api/payment-page/validate-slug",
+    "/api/store/:path*",
+    "/api/payment-page/:path*",
   ],
 };

@@ -1,5 +1,5 @@
-"use client";
-
+// app/hooks/useStore.ts
+"use client"
 import { ReactNode, createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useUserContextData } from "../context/userData"; 
 import { usePathname, useRouter } from "next/navigation";
@@ -115,6 +115,7 @@ interface StoreContextType {
   creatingStore: boolean;
   hasStore: boolean;
   hasPendingActivation: boolean;
+  isStoreCheckComplete: boolean; // ✅ ADD THIS
   fetchStore: (force?: boolean) => Promise<void>;
   fetchPages: (force?: boolean) => Promise<void>;
   checkStoreExists: () => Promise<boolean>;
@@ -128,6 +129,13 @@ interface StoreContextType {
   updatePage: (id: string, pageData: any) => Promise<any>;
   clearCache: () => void;
   updateStore: (data: Partial<StoreData>) => Promise<void>;
+  validateSlug: (slug: string, pageId?: string) => Promise<{
+    valid: boolean;
+    slug: string;
+    isTaken: boolean;
+    isOwnStore: boolean;
+    message: string;
+  }>;
 }
 
 const StoreContext = createContext<StoreContextType>({
@@ -137,6 +145,7 @@ const StoreContext = createContext<StoreContextType>({
   creatingStore: false,
   hasStore: false,
   hasPendingActivation: false,
+  isStoreCheckComplete: false, // ✅ ADD THIS
   fetchStore: async () => {},
   fetchPages: async () => {},
   checkStoreExists: async () => false,
@@ -150,6 +159,7 @@ const StoreContext = createContext<StoreContextType>({
   updatePage: async () => {},
   clearCache: () => {},
   updateStore: async () => {},
+  validateSlug: async () => ({ valid: true, slug: "", isTaken: false, isOwnStore: false, message: "" }),
 });
 
 export const useStore = () => useContext(StoreContext);
@@ -192,7 +202,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [creatingStore, setCreatingStore] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
+  const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false); // ✅ ADD THIS
   const { userData } = useUserContextData();
   const pathname = usePathname();
 
@@ -222,23 +232,19 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
            path?.includes('/dashboard/services/payment/create-link');
   }, []);
 
-  // ✅ FIXED: Check if store exists - removed the problematic early return
   const checkStoreExists = useCallback(async (): Promise<boolean> => {
-    // If we already have store data in state, return true
     if (storeRef.current) {
       console.log("✅ Store already exists in state:", storeRef.current.id);
       setIsStoreCheckComplete(true);
       return true;
     }
 
-    // If creating store, return false
     if (creatingStoreRef.current || storeCreationRef.current) {
       console.log("⏳ Store creation in progress");
       setIsStoreCheckComplete(true);
       return false;
     }
 
-    // If there's already a promise in progress, return it
     if (storeCheckPromiseRef.current) {
       console.log("⏳ Store check already in progress");
       const result = await storeCheckPromiseRef.current;
@@ -246,7 +252,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       return result;
     }
 
-    // Create new promise for store check
     storeCheckPromiseRef.current = (async (): Promise<boolean> => {
       console.log("🔍 Checking if store exists...");
       
@@ -408,7 +413,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const mappedStore = mapDbStoreToStoreData(data.store);
-      console.log("✅ fetchStore mapped:", mappedStore);
+     
       setStore(mappedStore);
       hasCheckedStoreRef.current = true;
       lastFetchTime.current = Date.now();
@@ -431,7 +436,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const fetchPages = useCallback(async (force = false): Promise<void> => {
     console.log("🔄 fetchPages called, force:", force);
     
-    // ✅ Check if we have a store first
     const hasStore = await checkStoreExists();
     console.log("Has store for pages:", hasStore);
 
@@ -441,6 +445,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       setInitialFetchDone(true);
       setInitialLoadComplete(true);
+      setIsStoreCheckComplete(true);
       return;
     }
 
@@ -460,6 +465,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       setInitialFetchDone(true);
       setInitialLoadComplete(true);
+      setIsStoreCheckComplete(true);
       return;
     }
 
@@ -468,6 +474,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       setInitialFetchDone(true);
       setInitialLoadComplete(true);
+      setIsStoreCheckComplete(true);
       return;
     }
 
@@ -500,6 +507,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       setInitialFetchDone(true);
       setInitialLoadComplete(true);
+      setIsStoreCheckComplete(true);
       fetchPagesInProgress.current = false;
     }
   }, [shouldFetchStore, checkStoreExists]);
@@ -748,15 +756,51 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setIsStoreCheckComplete(false);
   };
 
-  // ✅ FIXED: Initial fetch
+  // ✅ NEW: Validate slug
+  const validateSlug = useCallback(async (slug: string, pageId?: string): Promise<{
+    valid: boolean;
+    slug: string;
+    isTaken: boolean;
+    isOwnStore: boolean;
+    message: string;
+  }> => {
+    try {
+      const response = await fetch("/api/payment-page/validate-slug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, pageId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          valid: false,
+          slug: slug,
+          isTaken: false,
+          isOwnStore: false,
+          message: data.error || "Failed to validate slug",
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Error validating slug:", error);
+      return {
+        valid: false,
+        slug: slug,
+        isTaken: false,
+        isOwnStore: false,
+        message: "Failed to validate slug",
+      };
+    }
+  }, []);
+
+  // Initial fetch
   useEffect(() => {
     let isMounted = true;
 
     const loadData = async () => {
-      console.log("🚀 Initial loadData called");
-      console.log("Pathname:", pathnameRef.current);
-      console.log("Should fetch store:", shouldFetchStore());
-      
       if (creatingStoreRef.current || storeCreationRef.current) {
         console.log("⏳ Store creation in progress, skipping initial load");
         return;
@@ -766,7 +810,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         console.log("✅ Should fetch store, checking...");
         
         try {
-          // First check if store exists
           const hasStore = await checkStoreExists();
           console.log("Has store result:", hasStore);
           
@@ -817,13 +860,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // ✅ FIXED: Re-fetch on pathname change
+  // Re-fetch on pathname change
   useEffect(() => {
     if (creatingStoreRef.current || storeCreationRef.current) return;
 
     if (shouldFetchStore() && initialFetchDone) {
-      console.log("🔄 Pathname changed, re-fetching data...");
-      
       if (!storeRef.current && !hasCheckedStoreRef.current) {
         fetchStore();
       }
@@ -838,7 +879,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     } else if (!shouldFetchStore() && !initialFetchDone) {
-      console.log("ℹ️ Not on a page that needs store data, setting loading to false");
       setLoading(false);
       setInitialFetchDone(true);
       setInitialLoadComplete(true);
@@ -846,22 +886,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pathname, initialFetchDone]);
 
-  // ✅ CORRECTED: Calculate hasStore and hasPendingActivation
+  // Calculate hasStore and hasPendingActivation
   const hasStore = store !== null && store.isActive === true && store.activation_paid === true;
   const hasPendingActivation = store !== null && (store.isActive === false || store.activation_paid === false);
-
-  console.log("📊 Store state:", { 
-    store: store?.id, 
-    isActive: store?.isActive,
-    activation_paid: store?.activation_paid,
-    hasStore,
-    hasPendingActivation,
-    loading,
-    initialLoadComplete,
-    isStoreCheckComplete,
-    pagesCount: pages.length,
-    pathname,
-  });
 
   return (
     <StoreContext.Provider
@@ -872,6 +899,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         creatingStore,
         hasStore,
         hasPendingActivation,
+        isStoreCheckComplete, // ✅ EXPOSE THIS
         fetchStore,
         fetchPages,
         checkStoreExists,
@@ -885,6 +913,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         updatePage,
         clearCache,
         updateStore,
+        validateSlug,
       }}
     >
       {children}

@@ -14,10 +14,8 @@ import {
   Shield,
   CreditCard,
   Sparkles,
-  Wallet,
   Check,
   AlertCircle,
-  RefreshCw,
   ArrowLeft,
   PartyPopper,
   Rocket,
@@ -281,7 +279,7 @@ export function CreateStoreForm() {
     store,
     fetchStore,
   } = useStore();
-  const { userData, balance, setUserData } = useUserContextData();
+  const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
   const hasPendingActivation = store !== null && store.isActive === false;
@@ -292,17 +290,17 @@ export function CreateStoreForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletCurrency, setWalletCurrency] = useState("NGN");
-  const [walletStatus, setWalletStatus] = useState<"checking" | "sufficient" | "insufficient">("checking");
-  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const [hasLoadedStoreData, setHasLoadedStoreData] = useState(false);
 
   const [showCongratulations, setShowCongratulations] = useState(false);
   const [activatedStoreName, setActivatedStoreName] = useState("");
 
+  // ✅ Only checkout payment
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
+  const formRef = useRef<HTMLFormElement>(null);
   const isAutofillRef = useRef(false);
 
   // If user has an active store, redirect
@@ -315,6 +313,8 @@ export function CreateStoreForm() {
   // Load store data when there's a pending activation
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
+      console.log("🔄 Loading pending store data for activation...");
+
       setFormData({
         name: store.name || "",
         slug: store.slug || "",
@@ -330,70 +330,14 @@ export function CreateStoreForm() {
 
       setHasLoadedStoreData(true);
       setStep(4);
-      getWalletBalance(true);
     }
   }, [store, hasLoadedStoreData]);
 
-  const getWalletBalance = useCallback(async (forceRefresh = false) => {
-    try {
-      setWalletStatus("checking");
-
-      if (!forceRefresh && balance !== null && balance !== undefined) {
-        const currentBalance = typeof balance === 'number' ? balance : Number(balance) || 0;
-        setWalletBalance(currentBalance);
-        setWalletCurrency("NGN");
-        setWalletStatus(currentBalance >= ACTIVATION_FEE_NAIRA ? "sufficient" : "insufficient");
-        return;
-      }
-
-      const response = await fetch("/api/wallet-balance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData?.id,
-          nocache: forceRefresh,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        const currentBalance = data.wallet_balance || 0;
-        setWalletBalance(currentBalance);
-        setWalletCurrency(data.currency || "NGN");
-        setWalletStatus(currentBalance >= ACTIVATION_FEE_NAIRA ? "sufficient" : "insufficient");
-
-        if (currentBalance !== balance) {
-          setUserData((prev: any) => ({
-            ...prev,
-            zidcoinBalance: currentBalance,
-            wallet_balance: currentBalance,
-          }));
-        }
-      } else {
-        setWalletStatus("insufficient");
-      }
-    } catch (error) {
-      setWalletStatus("insufficient");
-    }
-  }, [userData?.id, balance, setUserData]);
-
-  const handleRefreshBalance = async () => {
-    setIsRefreshingBalance(true);
-    await getWalletBalance(true);
-    setIsRefreshingBalance(false);
-    toast.success("Balance refreshed");
-  };
-
-  const redirectToFundAccount = useCallback(() => {
-    router.push("/dashboard/wallet/fund");
-  }, [router]);
-
   useEffect(() => {
     if (step === 4) {
-      getWalletBalance();
+      // No wallet balance check needed
     }
-  }, [step, getWalletBalance]);
+  }, [step]);
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -546,7 +490,77 @@ export function CreateStoreForm() {
     router.push("/dashboard/services/payment/dashboard");
   }, [router]);
 
-  // ✅ UPDATED: Activate without PIN
+  // ✅ Handle checkout payment - ONLY payment method
+ const handleCheckoutPayment = useCallback(async () => {
+  if (!hasPendingActivation) {
+    if (!validateStep(1) || !validateStep(2)) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Incomplete Form",
+        text: "Please complete all required fields before proceeding.",
+        confirmButtonColor: "#6b7280",
+      });
+      return;
+    }
+  }
+
+  setIsProcessingCheckout(true);
+
+  try {
+    const keywordsArray = formData.keywords
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k.length > 0);
+
+    const storeData = {
+      name: formData.name.trim(),
+      slug: formData.slug.trim(),
+      description: formData.description,
+      keywords: keywordsArray,
+      cacNumber: formData.cacNumber.trim() || undefined,
+      country: formData.country,
+      state: formData.state.trim(),
+      city: formData.city.trim(),
+      streetAddress: formData.streetAddress.trim(),
+      locationEnabled: formData.locationEnabled,
+    };
+
+    const response = await fetch("/api/store/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        storeData: storeData,
+        paymentMethod: "checkout",
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Activation failed");
+    }
+
+    if (data.requiresCheckout && data.checkoutUrl) {
+      // Redirect to checkout
+      window.location.href = data.checkoutUrl;
+    } else {
+      throw new Error("No checkout URL returned");
+    }
+  } catch (error: any) {
+    console.error("❌ Checkout error:", error);
+    
+    // Show error and stay on page
+    await Swal.fire({
+      icon: "error",
+      title: "Payment Initiation Failed",
+      text: error.message || "Something went wrong. Please try again.",
+      confirmButtonColor: "#6b7280",
+    });
+    
+    setIsProcessingCheckout(false);
+  }
+}, [hasPendingActivation, validateStep, formData]);
+  // ✅ Activate - ONLY checkout
   const handleActivate = useCallback(async () => {
     if (!hasPendingActivation) {
       if (!validateStep(1) || !validateStep(2)) {
@@ -560,86 +574,11 @@ export function CreateStoreForm() {
       }
     }
 
-    if (walletStatus === "insufficient") {
-      await Swal.fire({
-        icon: "warning",
-        title: "Insufficient Balance",
-        text: `You need ₦${ACTIVATION_FEE_NAIRA.toLocaleString()} to activate your store. Please fund your wallet first.`,
-        confirmButtonColor: "#6b7280",
-        confirmButtonText: "Add Funds",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          redirectToFundAccount();
-        }
-      });
-      return;
-    }
+    // ✅ Only checkout payment - no wallet check
+    await handleCheckoutPayment();
+  }, [hasPendingActivation, validateStep, handleCheckoutPayment]);
 
-    // ✅ Proceed with activation - NO PIN REQUIRED
-    setIsActivating(true);
-
-    try {
-      const keywordsArray = formData.keywords
-        .split(",")
-        .map((k) => k.trim())
-        .filter((k) => k.length > 0);
-
-      const storeData = {
-        name: formData.name.trim(),
-        slug: formData.slug.trim(),
-        description: formData.description,
-        keywords: keywordsArray,
-        cacNumber: formData.cacNumber.trim() || undefined,
-        country: formData.country,
-        state: formData.state.trim(),
-        city: formData.city.trim(),
-        streetAddress: formData.streetAddress.trim(),
-        locationEnabled: formData.locationEnabled,
-      };
-
-      const response = await fetch("/api/store/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          storeData: storeData,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Activation failed");
-      }
-
-      await fetchStore(true);
-
-      const storeName = data.store?.name || formData.name.trim() || "Your Store";
-      setActivatedStoreName(storeName);
-
-      await getWalletBalance(true);
-      setShowCongratulations(true);
-    } catch (error: any) {
-      console.error("❌ Activation error:", error);
-      await Swal.fire({
-        icon: "error",
-        title: "Activation Failed",
-        text: error.message || "Something went wrong. Please try again.",
-        confirmButtonColor: "#6b7280",
-      });
-    } finally {
-      setIsActivating(false);
-    }
-  }, [
-    hasPendingActivation,
-    validateStep,
-    walletStatus,
-    redirectToFundAccount,
-    formData,
-    fetchStore,
-    getWalletBalance,
-  ]);
-
-  const isWorking = isCreating || creatingStore || isActivating;
+  const isWorking = isCreating || creatingStore || isActivating || isProcessingCheckout;
 
   // If active store, return null (will redirect via useEffect)
   if (hasActiveStore) {
@@ -737,24 +676,6 @@ export function CreateStoreForm() {
                 />
               }
             />
-{/* 
-            <Field
-              label="CAC Number (RC or BN)"
-              optional
-              hint="Optional. Helps verify your business."
-              input={
-                <input
-                  type="text"
-                  name="cacNumber"
-                  value={formData.cacNumber}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
-                  placeholder="RC123456"
-                  className={inputClass()}
-                  autoComplete="off"
-                />
-              }
-            /> */}
           </div>
         );
 
@@ -917,9 +838,6 @@ export function CreateStoreForm() {
               {formData.keywords && (
                 <ReviewRow label="Keywords" value={formData.keywords} />
               )}
-              {formData.cacNumber && (
-                <ReviewRow label="CAC Number" value={formData.cacNumber} />
-              )}
               <ReviewRow
                 label="Precise location"
                 value={formData.locationEnabled ? "Enabled" : "Disabled"}
@@ -932,7 +850,7 @@ export function CreateStoreForm() {
                 <span className="font-bold text-gray-900 dark:text-white">
                   ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
                 </span>{" "}
-                will be deducted from your wallet to activate your store.
+                will be charged via card to activate your store.
               </p>
             </div>
           </div>
@@ -951,7 +869,7 @@ export function CreateStoreForm() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                 {hasPendingActivation
                   ? "Your store has been created. Pay the activation fee to publish it."
-                  : "Pay a one-time activation fee from your wallet to publish your store."
+                  : "Pay a one-time activation fee via card to publish your store."
                 }
               </p>
             </div>
@@ -970,59 +888,10 @@ export function CreateStoreForm() {
               </div>
               <div className="mt-5 pt-5 border-t border-gray-700 space-y-2 text-sm">
                 <Benefit text="Publish your public store page" />
-                <Benefit text="Accept payments" />
+                <Benefit text="Accept card payments" />
                 <Benefit text="Free business wallet to receive funds" />
                 <Benefit text="Unlimited payment pages & products" />
               </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Wallet className="size-5 text-gray-500" />
-                  <div>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-widest font-semibold">
-                      Wallet Balance
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                      ₦{walletBalance.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {walletCurrency}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleRefreshBalance}
-                  disabled={isRefreshingBalance}
-                  className="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Refresh balance"
-                >
-                  <RefreshCw className={cn("size-4 text-[#FDC020]", isRefreshingBalance && "animate-spin")} />
-                </button>
-              </div>
-              {walletStatus === "insufficient" && (
-                <p className="mt-2 text-sm text-red-500">
-                  Insufficient balance.{" "}
-                  <span
-                    className="font-medium cursor-pointer hover:underline"
-                    onClick={redirectToFundAccount}
-                  >
-                    Add Funds
-                  </span>{" "}
-                  to cover the activation fee.
-                </p>
-              )}
-              {walletStatus === "sufficient" && (
-                <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                  ✓ Sufficient balance for activation.
-                </p>
-              )}
-              {walletStatus === "checking" && (
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Checking wallet balance...
-                </p>
-              )}
             </div>
 
             {isVerified ? (
@@ -1037,7 +906,7 @@ export function CreateStoreForm() {
                 <AlertCircle className="size-5 text-yellow-500 shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                    ⚠️ BVN not verified
+                    ⚠️ User Credentials not verified
                   </p>
                   <p className="text-xs text-yellow-600 dark:text-yellow-500">
                     You can still activate your store. Verify later to enable withdrawals.
@@ -1046,7 +915,7 @@ export function CreateStoreForm() {
                     onClick={openVerificationModal}
                     className="mt-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline"
                   >
-                    Verify BVN Now →
+                    Verify Now →
                   </button>
                 </div>
               </div>
@@ -1054,28 +923,27 @@ export function CreateStoreForm() {
 
             <button
               onClick={handleActivate}
-              disabled={isWorking || walletStatus !== "sufficient"}
+              disabled={isWorking || isProcessingCheckout}
               className="w-full rounded-xl bg-[#FDC020] hover:bg-[#e6a800] text-[#191919] px-6 py-4 text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isActivating ? (
+              {isActivating || isProcessingCheckout ? (
                 <>
                   <Loader2 className="size-5 inline mr-2 animate-spin" />
-                  Activating...
+                  {isProcessingCheckout ? "Preparing Checkout..." : "Activating..."}
                 </>
               ) : (
                 <>
-                  {hasPendingActivation ? "Complete Activation" : "Activate & Publish"}
+                  <CreditCard className="size-5 inline mr-2" />
+                  {hasPendingActivation ? "Pay & Activate" : "Pay Now & Activate Store"}
                 </>
               )}
             </button>
 
             <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-              Your wallet will be debited ₦{ACTIVATION_FEE_NAIRA.toLocaleString()} for activation.
+              You will be redirected to pay ₦{ACTIVATION_FEE_NAIRA.toLocaleString()} via card.
             </p>
 
-            <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-              💡 You can verify your BVN later from your dashboard settings.
-            </p>
+        
           </div>
         );
 
@@ -1089,19 +957,14 @@ export function CreateStoreForm() {
     isVerified,
     isWorking,
     isActivating,
-    walletBalance,
-    walletCurrency,
-    walletStatus,
-    isRefreshingBalance,
+    isProcessingCheckout,
     hasPendingActivation,
     handleInputChange,
     handleDescriptionChange,
     handleSlugChange,
     handleBlur,
-    redirectToFundAccount,
     openVerificationModal,
     handleActivate,
-    handleRefreshBalance,
   ]);
 
   return (

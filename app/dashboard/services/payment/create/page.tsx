@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -244,7 +244,7 @@ function LivePreviewModal({ isOpen, onClose, pageType, productImages, title, des
 // ============================================================
 export default function CreatePage() {
   const router = useRouter();
-  const { createPage, addPage, store, loading } = useStore();
+  const { createPage, addPage, store, loading, validateSlug } = useStore();
 
   console.log(store, "store")
   const { userData } = useUserContextData();
@@ -256,6 +256,25 @@ export default function CreatePage() {
   const [copied, setCopied] = useState(false);
   const [dynamicId, setDynamicId] = useState(() => Math.floor(100 + Math.random() * 900).toString());
   const [showPreview, setShowPreview] = useState(false);
+
+  // Slug validation state
+  const [slugValidation, setSlugValidation] = useState<{
+    isValid: boolean;
+    isChecking: boolean;
+    message: string;
+    isTaken: boolean;
+    isOwnStore: boolean;
+  }>({ 
+    isValid: true, 
+    isChecking: false, 
+    message: "",
+    isTaken: false,
+    isOwnStore: false,
+  });
+  const slugTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Store the generated slug to prevent infinite re-renders
+  const [generatedSlug, setGeneratedSlug] = useState("");
 
   const [titleValidation, setTitleValidation] = useState<{ isValid: boolean; message: string }>({ isValid: true, message: "" });
   const [productImagesBase64, setProductImagesBase64] = useState<string[]>([]);
@@ -318,7 +337,7 @@ export default function CreatePage() {
 
   const productRef = useRef<HTMLInputElement>(null);
 
-  // ✅ Updated fee calculation - 3% Zidwell fee
+  // Fee calculation - 3% Zidwell fee
   const [feeCalculation, setFeeCalculation] = useState({ 
     subtotal: 0, 
     fee: 0, 
@@ -327,10 +346,10 @@ export default function CreatePage() {
     feePercentage: 3 
   });
 
-  // ✅ Fee calculation useEffect - 3% fee (changed from 4%)
+  // Fee calculation useEffect - 3% fee
   useEffect(() => {
     const amount = Number(form.price) || 0;
-    const fee = amount * 0.03; // ✅ 3% fee
+    const fee = amount * 0.03;
     setFeeCalculation({ 
       subtotal: amount, 
       fee, 
@@ -340,7 +359,7 @@ export default function CreatePage() {
     });
   }, [form.price]);
 
-  // ✅ REAL-TIME INSTALLMENT CALCULATION
+  // REAL-TIME INSTALLMENT CALCULATION
   useEffect(() => {
     if (form.priceType === "installment") {
       const totalAmount = Number(form.price) || 0;
@@ -361,6 +380,88 @@ export default function CreatePage() {
       if (total > 0) setForm((f) => ({ ...f, price: total.toString() }));
     }
   }, [feeBreakdown, pageType]);
+
+  const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+  // Generate the slug whenever title or school class changes
+  useEffect(() => {
+    if (form.title) {
+      const titleSlug = slugify(form.title);
+      let prefix = "";
+      if (pageType === "school" && schoolClass) prefix = slugify(schoolClass) + "-";
+      const newSlug = `${prefix}${titleSlug}`;
+      setGeneratedSlug(newSlug);
+      
+      // Validate slug with debounce
+      if (slugTimeoutRef.current) {
+        clearTimeout(slugTimeoutRef.current);
+      }
+      slugTimeoutRef.current = setTimeout(() => {
+        validateSlugWithDebounce(newSlug);
+      }, 800);
+    } else {
+      setGeneratedSlug("");
+      setSlugValidation({ 
+        isValid: true, 
+        isChecking: false, 
+        message: "",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      if (slugTimeoutRef.current) {
+        clearTimeout(slugTimeoutRef.current);
+      }
+    }
+  }, [form.title, schoolClass, pageType]);
+
+  // Validate slug with debounce
+  const validateSlugWithDebounce = useCallback(async (slugToValidate: string) => {
+    if (!slugToValidate || slugToValidate.length < 1) {
+      setSlugValidation({ 
+        isValid: false, 
+        isChecking: false, 
+        message: "Slug is required",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      return;
+    }
+
+    // Check URL length (max 50 characters for browser URL)
+    if (slugToValidate.length > 50) {
+      setSlugValidation({
+        isValid: false,
+        isChecking: false,
+        message: "Slug is too long. Maximum 50 characters allowed.",
+        isTaken: false,
+        isOwnStore: false,
+      });
+      return;
+    }
+
+    setSlugValidation(prev => ({ ...prev, isChecking: true }));
+
+    try {
+      const result = await validateSlug(slugToValidate);
+      
+      setSlugValidation({
+        isValid: result.valid,
+        isChecking: false,
+        message: result.message,
+        isTaken: result.isTaken,
+        isOwnStore: result.isOwnStore,
+      });
+    } catch (error) {
+      console.error("Error validating slug:", error);
+      setSlugValidation({
+        isValid: false,
+        isChecking: false,
+        message: "Failed to validate slug",
+        isTaken: false,
+        isOwnStore: false,
+      });
+    }
+  }, [validateSlug]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -394,22 +495,21 @@ export default function CreatePage() {
     setProductPreviews(productPreviews.filter((_, i) => i !== index));
   };
 
-  const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-  const generateSlug = () => {
-    const titleSlug = slugify(form.title);
-    let prefix = "";
-    if (pageType === "school" && schoolClass) prefix = slugify(schoolClass) + "-";
-    return `${prefix}${titleSlug}-${dynamicId}`;
-  };
-
   const regenerateId = () => setDynamicId(Math.floor(100 + Math.random() * 900).toString());
 
   const isInvestment = pageType ? isInvestmentType(pageType) : false;
 
+  // For creating a NEW page, you cannot use a slug that's already taken by ANYONE
+  // This includes your own store's existing pages
+  const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
+  const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
+
   const canCreate = () => {
     if (!form.title.trim() || !pageType) return false;
     if (!titleValidation.isValid) return false;
+    if (slugValidation.isChecking) return false;
+    // Slug must be valid AND not taken by anyone
+    if (!isSlugAvailable) return false;
     if (pageType === "school") {
       const hasValidStudents = students.length > 0 && students.some(s => s.name && s.name.trim() !== '');
       if (!hasValidStudents) return false;
@@ -433,6 +533,12 @@ export default function CreatePage() {
     const storeSlug = store?.slug || '';
     if (!storeSlug) return '#';
     return `/store/${storeSlug}/${createdSlug}`;
+  };
+
+  const handleCloseSuccess = () => {
+    setShowSuccess(false);
+    // Refresh the page after closing the modal
+    window.location.reload();
   };
 
   const handleCreate = async () => {
@@ -502,7 +608,22 @@ export default function CreatePage() {
         metadata.contactInfo = contactInfo;
       }
 
-      const finalSlug = generateSlug();
+      const finalSlug = generatedSlug || slugify(form.title);
+      
+      // Validate slug one more time before creating
+      const validationResult = await validateSlug(finalSlug);
+      if (!validationResult.valid || validationResult.isTaken) {
+        setSlugValidation({
+          isValid: validationResult.valid,
+          isChecking: false,
+          message: validationResult.message,
+          isTaken: validationResult.isTaken,
+          isOwnStore: validationResult.isOwnStore,
+        });
+        setIsCreating(false);
+        return;
+      }
+
       let finalPrice = form.price;
       if (pageType === "school") {
         finalPrice = feeBreakdown.reduce((sum, item) => sum + (item.amount || 0), 0).toString();
@@ -649,26 +770,43 @@ export default function CreatePage() {
                     placeholder={getPlaceholderText(pageType, "title")}
                     value={form.title}
                     onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                    className={`h-12 text-base border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0 ${!titleValidation.isValid && form.title ? "border-red-500" : ""}`}
+                    className={`h-12 text-base border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0`}
                   />
                   <p className="text-xs text-(--text-secondary) mt-1">Example: {getPlaceholderText(pageType, "title")}</p>
                 </div>
 
-                {/* URL Preview */}
+                {/* URL Preview with slug validation */}
                 {form.title && (
                   <div className="bg-(--bg-secondary)/50 rounded-lg p-4 border border-(--border-color)">
                     <div className="flex items-center justify-between mb-2">
-                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">Your Page URL:</Label>
-                      <button onClick={regenerateId} className="flex items-center gap-1 text-xs text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80">
-                        <RefreshCw className="h-3 w-3" /> New ID
-                      </button>
+                      <Label className="text-xs font-semibold text-(--color-accent-yellow)">
+                        Your Page URL:
+                      </Label>
                     </div>
                     <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
                       <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
                       <code className="text-sm font-mono text-(--text-primary) break-all">
-                        {store?.slug ? `/store/${store.slug}/${generateSlug()}` : 'Loading store...'}
+                        {store?.slug ? `/store/${store.slug}/${generatedSlug || slugify(form.title)}` : 'Loading store...'}
                       </code>
+                      {slugValidation.isChecking && (
+                        <Loader2 className="h-4 w-4 animate-spin text-(--color-accent-yellow) ml-2" />
+                      )}
                     </div>
+                    
+                    {/* Validation message */}
+                    {!slugValidation.isChecking && slugValidation.message && (
+                      <div className="mt-2 text-xs flex items-start gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                        {isSlugInvalid ? (
+                          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-red-500" />
+                        ) : (
+                          <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
+                        )}
+                        <span className={`flex-1 ${isSlugInvalid ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                          {slugValidation.message}
+                          {slugValidation.isTaken}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -794,7 +932,7 @@ export default function CreatePage() {
                   />
                 )}
 
-                {/* ✅ PRICING - Shows 3% fee in Payment Summary */}
+                {/* PRICING - Shows 3% fee in Payment Summary */}
                 {pageType !== "donation" && (
                   <>
                     <div>
@@ -859,7 +997,7 @@ export default function CreatePage() {
                       )}
                     </div>
 
-                    {/* ✅ PAYMENT SUMMARY - Shows Total, 3% Fee, and You Receive */}
+                    {/* PAYMENT SUMMARY - Shows Total, 3% Fee, and You Receive */}
                     {Number(form.price) > 0 && (
                       <div className="p-4 rounded-xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
                         <div className="flex items-center gap-2 mb-3">
@@ -890,7 +1028,7 @@ export default function CreatePage() {
                             <span className="font-semibold text-(--color-accent-yellow)">₦{Number(form.price).toLocaleString()}</span>
                           </div>
                           
-                          {/* ✅ 3% FEE DISPLAYED HERE */}
+                          {/* 3% FEE DISPLAYED HERE */}
                           <div className="flex justify-between">
                             <span className="text-(--text-secondary)">Fee (3%):</span>
                             <span className="font-medium text-[var(--destructive)]">- ₦{feeCalculation.fee.toLocaleString()}</span>
@@ -917,7 +1055,13 @@ export default function CreatePage() {
         {/* Sticky CTA */}
         <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto">
-            <Button variant="default" size="lg" className="w-full py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" onClick={handleCreate} disabled={!canCreate() || isCreating}>
+            <Button 
+              variant="default" 
+              size="lg" 
+              className="w-full py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" 
+              onClick={handleCreate} 
+              disabled={!canCreate() || isCreating}
+            >
               {isCreating ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...</> : `Create ${typeLabels[pageType]} Page`}
             </Button>
           </div>
@@ -927,8 +1071,20 @@ export default function CreatePage() {
       {/* Success Modal */}
       <AnimatePresence>
         {showSuccess && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setShowSuccess(false)}>
-            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] mx-4" onClick={(e) => e.stopPropagation()}>
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" 
+            onClick={handleCloseSuccess}
+          >
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.8, opacity: 0 }} 
+              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] mx-4" 
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
               <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">Payment Page Created!</h2>
               <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">Your page is now live and ready to collect payments.</p>
@@ -940,7 +1096,10 @@ export default function CreatePage() {
                     <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
                     <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">{fullPageUrl}</code>
                   </div>
-                  <button onClick={copyPageUrl} className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0">
+                  <button 
+                    onClick={copyPageUrl} 
+                    className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
+                  >
                     {copied ? <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" /> : <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />}
                     <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{copied ? "Copied!" : "Copy link"}</span>
                   </button>
@@ -949,16 +1108,29 @@ export default function CreatePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]" onClick={() => { setShowSuccess(false); if (fullPageUrl && fullPageUrl !== '#') window.open(fullPageUrl, "_blank"); }}>Preview Page</Button>
-                <Button variant="default" className="flex-1 bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}>Go to Dashboard</Button>
+                <Button 
+                  variant="outline" 
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]" 
+                  onClick={() => { setShowSuccess(false); if (fullPageUrl && fullPageUrl !== '#') window.open(fullPageUrl, "_blank"); }}
+                >
+                  Preview Page
+                </Button>
+                <Button 
+                  variant="default" 
+                  className="flex-1 bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]" 
+                  onClick={() => { setShowSuccess(false); router.push("/dashboard/services/payment/dashboard"); }}
+                >
+                  Go to Dashboard
+                </Button>
               </div>
 
               <button 
-  onClick={() => window.location.reload()} 
-  className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
->
-  Close
-</button>  </motion.div>
+                onClick={handleCloseSuccess} 
+                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
