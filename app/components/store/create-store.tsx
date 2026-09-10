@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 
-const ACTIVATION_FEE_NAIRA = 2000;
+const ACTIVATION_FEE_NAIRA = 200;
 
 type StoreFormData = {
   name: string;

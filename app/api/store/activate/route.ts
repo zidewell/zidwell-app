@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 2000;
+const ACTIVATION_FEE_NAIRA = 200;
 const baseUrl = process.env.NODE_ENV === "development"
   ? "http://localhost:3000"
   : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
