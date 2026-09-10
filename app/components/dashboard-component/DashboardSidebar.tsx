@@ -49,9 +49,9 @@ const preferenceItems = [
 const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
   "ibrahimlawalabbalolo@gmail.com",
-  "abdullahtimilehin15@gmail.com",
-  "ebrusikefavour@gmail.com",
-  "skillfidelafrica@gmail.com",
+  // "abdullahtimilehin15@gmail.com",
+  // "ebrusikefavour@gmail.com",
+  // "skillfidelafrica@gmail.com",
   "abbalolo360@gmail.com",
   "boluwatife525@gmail.com",
   "verifiedaboki@gmail.com",
