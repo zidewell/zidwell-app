@@ -14,6 +14,17 @@ const baseUrl = process.env.NODE_ENV === "development"
   ? "http://localhost:3000"
   : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
+// ============================================================
+// ✅ SHORT ORDER REFERENCE GENERATOR (max 50 chars)
+// ============================================================
+function generateOrderReference(paymentId: string): string {
+  // Format: ACT-<first8ofPaymentId>-<timestamp36>
+  // Example: ACT-b549d145-lx4k2a
+  const shortId = paymentId.slice(0, 8);
+  const timestamp = Date.now().toString(36);
+  return `ACT-${shortId}-${timestamp}`;
+}
+
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);
   if (!user) {
@@ -24,7 +35,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { storeData, paymentMethod } = body;
 
-    console.log("📦 Activation request:", {
+    console.log("Activation request:", {
       hasStoreData: !!storeData,
       userId: user.id,
       paymentMethod: paymentMethod || "wallet",
@@ -38,11 +49,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (userErr || !dbUser) {
-      console.error("❌ User not found:", userErr);
+      console.error("User not found:", userErr);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("✅ User found:", dbUser.id);
+    console.log("User found:", dbUser.id);
 
     // Check if user already has a store
     let { data: store, error: storeErr } = await supabase
@@ -51,11 +62,11 @@ export async function POST(req: NextRequest) {
       .eq("owner_id", user.id)
       .maybeSingle();
 
-    console.log("🔍 Store lookup:", { hasStore: !!store, storeId: store?.id });
+    console.log("Store lookup:", { hasStore: !!store, storeId: store?.id });
 
     // If no store exists, create one with the provided data
     if (!store) {
-      console.log("🏪 No store found, creating one...");
+      console.log("No store found, creating one...");
 
       if (!storeData) {
         return NextResponse.json(
@@ -133,17 +144,17 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (createError || !newStore) {
-        console.error("❌ Create store error:", createError);
+        console.error("Create store error:", createError);
         return NextResponse.json(
           { error: createError?.message || "Failed to create store" },
           { status: 500 }
         );
       }
 
-      console.log("✅ Store created:", newStore.id);
+      console.log("Store created:", newStore.id);
       store = newStore;
     } else {
-      console.log("✅ Store already exists:", store.id);
+      console.log("Store already exists:", store.id);
 
       if (store.is_active && store.activation_paid) {
         return NextResponse.json(
@@ -154,11 +165,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PROCESS PAYMENT - CHECKOUT ONLY
+    // PROCESS PAYMENT - CHECKOUT ONLY
     // ============================================================
-    console.log("💳 Processing checkout payment for activation...");
+    console.log("Processing checkout payment for activation...");
 
-    const reference = `STORE_ACT_${Date.now()}_${user.id}`;
+    const reference = `STORE_ACT_${Date.now()}_${user.id.slice(0, 8)}`;
 
     // Create payment record
     const { data: payment, error: paymentError } = await supabase
@@ -176,24 +187,24 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (paymentError) {
-      console.error("❌ Failed to create payment record:", paymentError);
+      console.error("Failed to create payment record:", paymentError);
       return NextResponse.json(
         { error: "Failed to initiate payment. Please try again." },
         { status: 500 }
       );
     }
 
-    console.log("✅ Payment record created:", payment.id);
+    console.log("Payment record created:", payment.id);
 
     // ============================================================
-    // ✅ CREATE CHECKOUT
+    // CREATE CHECKOUT WITH SHORT ORDER REFERENCE
     // ============================================================
     try {
       const { getNombaToken } = await import("@/lib/nomba");
       const accessToken = await getNombaToken();
 
       if (!accessToken) {
-        console.error("❌ Failed to get Nomba token");
+        console.error("Failed to get Nomba token");
         await supabase
           .from("store_activation_payments")
           .update({ status: "failed" })
@@ -205,7 +216,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const orderReference = `ACT-${payment.id}-${Date.now()}`;
+      // ✅ SHORT ORDER REFERENCE - max 50 chars
+      const orderReference = generateOrderReference(payment.id);
+
+      console.log("Generated order reference:", orderReference);
+      console.log("Order reference length:", orderReference.length);
 
       // Get user email
       const userEmail = dbUser.email || "customer@example.com";
@@ -231,6 +246,8 @@ export async function POST(req: NextRequest) {
         tokenizeCard: false,
       };
 
+      console.log("Creating checkout...");
+
       const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
         method: "POST",
         headers: {
@@ -243,15 +260,17 @@ export async function POST(req: NextRequest) {
 
       const data = await response.json();
 
+      console.log("Nomba checkout response code:", data.code);
+
       if (!response.ok || data.code !== "00") {
-        console.error("❌ Checkout creation failed:", data);
+        console.error("Checkout creation failed:", data);
         await supabase
           .from("store_activation_payments")
           .update({ status: "failed" })
           .eq("id", payment.id);
 
         return NextResponse.json(
-          { error: data.description || "Failed to create checkout" },
+          { error: data.description || data.message || "Failed to create checkout" },
           { status: 500 }
         );
       }
@@ -262,9 +281,8 @@ export async function POST(req: NextRequest) {
         .update({ order_reference: orderReference })
         .eq("id", payment.id);
 
-      console.log("✅ Checkout created successfully");
+      console.log("Checkout created successfully");
 
-      // Return checkout URL
       return NextResponse.json({
         success: true,
         requiresCheckout: true,
@@ -273,7 +291,7 @@ export async function POST(req: NextRequest) {
         message: "Please complete payment to activate your store",
       });
     } catch (checkoutError: any) {
-      console.error("❌ Checkout error:", checkoutError);
+      console.error("Checkout error:", checkoutError);
       await supabase
         .from("store_activation_payments")
         .update({ status: "failed" })
@@ -285,7 +303,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error("❌ Store activation error:", error);
+    console.error("Store activation error:", error);
     return NextResponse.json(
       { error: error.message || "Activation failed" },
       { status: 500 }

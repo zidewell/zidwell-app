@@ -490,8 +490,8 @@ export function CreateStoreForm() {
     router.push("/dashboard/services/payment/dashboard");
   }, [router]);
 
-  // ✅ Handle checkout payment - ONLY payment method
- const handleCheckoutPayment = useCallback(async () => {
+
+const handleCheckoutPayment = useCallback(async () => {
   if (!hasPendingActivation) {
     if (!validateStep(1) || !validateStep(2)) {
       await Swal.fire({
@@ -547,7 +547,7 @@ export function CreateStoreForm() {
       throw new Error("No checkout URL returned");
     }
   } catch (error: any) {
-    console.error("❌ Checkout error:", error);
+    console.error("Checkout error:", error);
     
     // Show error and stay on page
     await Swal.fire({
@@ -560,6 +560,7 @@ export function CreateStoreForm() {
     setIsProcessingCheckout(false);
   }
 }, [hasPendingActivation, validateStep, formData]);
+
   // ✅ Activate - ONLY checkout
   const handleActivate = useCallback(async () => {
     if (!hasPendingActivation) {
