@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
         orderReference: orderReference,
         customerId: payment.user_id,
         accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card"],
+        allowedPaymentMethods: ["Card", "Transfer"],
         metadata: {
           type: "store_activation",
           paymentId: payment.id,
