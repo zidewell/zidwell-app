@@ -38,7 +38,7 @@ export const STORE_LINKS = [
   { label: "Transactions", href: "/store/transactions", icon: CreditCard },
   { label: "Customers", href: "/store/customers", icon: Users },
   { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
-  { label: "Settings", href: "/store/settings", icon: Settings },
+  { label: "Settings", href: "#", icon: Settings },
 ] as const;
 
 export function StoreNav({ pathname }: { pathname: string }) {

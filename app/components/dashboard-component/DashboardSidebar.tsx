@@ -107,7 +107,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       "/dashboard/services/buy-power",
       "/dashboard/services/buy-cable-tv",
       "/dashboard/services/create-invoice",
-      "/dashboard/services/payment/dashboard",
     ];
 
     const shouldProtect = isProtected || protectedLinks.includes(item.href);
@@ -227,6 +226,20 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           Business Tools
         </h3>
         <div className="space-y-2">
+           {showPaymentPage && (
+            <NavItem
+              item={{
+                name: "Online Store",
+                href: "/dashboard/services/payment/dashboard",
+                icon: CreditCard,
+              }}
+              isActive={
+                pathname === "/dashboard/services/payment/dashboard" ||
+                pathname?.startsWith("/dashboard/services/payment/dashboard/") ||
+                pathname?.startsWith("/dashboard/store/")
+              }
+            />
+          )}
           <NavItem
             item={{
               name: "Bookkeeping",
@@ -262,20 +275,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
               pathname === "/dashboard/services/contract/create-contract-form"
             }
           />
-          {showPaymentPage && (
-            <NavItem
-              item={{
-                name: "Online Store",
-                href: "/dashboard/services/payment/dashboard",
-                icon: CreditCard,
-              }}
-              isActive={
-                pathname === "/dashboard/services/payment/dashboard" ||
-                pathname?.startsWith("/dashboard/services/payment/dashboard/") ||
-                pathname?.startsWith("/dashboard/store/")
-              }
-            />
-          )}
+         
           <NavItem
             item={{
               name: "Tax Management",

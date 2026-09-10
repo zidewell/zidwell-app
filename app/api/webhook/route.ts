@@ -33,7 +33,10 @@ type WebhookResponse =
 // ============================================================
 // CHECK IF STORE ACTIVATION PAYMENT
 // ============================================================
-function checkIfStoreActivationPayment(orderReference: string, payload: any): boolean {
+function checkIfStoreActivationPayment(
+  orderReference: string,
+  payload: any
+): boolean {
   if (orderReference?.startsWith("ACT-")) {
     return true;
   }
@@ -49,14 +52,17 @@ function checkIfStoreActivationPayment(orderReference: string, payload: any): bo
 // ============================================================
 // REGULAR WALLET DEPOSIT CHECK
 // ============================================================
-async function isRegularWalletDeposit(aliasAccountReference: string): Promise<boolean> {
+async function isRegularWalletDeposit(
+  aliasAccountReference: string
+): Promise<boolean> {
   if (!aliasAccountReference) return false;
-  
+
   if (aliasAccountReference.startsWith("VA-SUB-")) return false;
   if (aliasAccountReference.startsWith("VA-PP-")) return false;
   if (aliasAccountReference.startsWith("PPL")) return false;
 
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidPattern.test(aliasAccountReference)) return false;
 
   const { data: user } = await supabase
@@ -75,17 +81,17 @@ function checkIfCardPayment(orderReference: string, payload: any): boolean {
   if (orderReference?.startsWith("CARD-")) {
     return true;
   }
-  
+
   const metadata = payload.data?.order?.metadata || {};
   if (metadata.type === "payment_page" && metadata.paymentMethod === "card") {
     return true;
   }
-  
+
   const allowedMethods = payload.data?.order?.allowedPaymentMethods || [];
   if (allowedMethods.includes("Card") && !payload.data?.order?.virtualAccount) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -101,10 +107,7 @@ function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
     orderReference?.startsWith("INVOICE-");
   const isSubscriptionRef = orderReference?.startsWith("SUB_");
 
-  return (
-    (hasInvoiceMetadata || isInvoiceReference) &&
-    !isSubscriptionRef
-  );
+  return (hasInvoiceMetadata || isInvoiceReference) && !isSubscriptionRef;
 }
 
 // ============================================================
@@ -167,7 +170,7 @@ export async function POST(req: NextRequest) {
     const aliasAccountReference =
       tx.aliasAccountReference || tx.alias_account_reference;
     const transactionAmount = safeNum(
-      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0,
+      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0
     );
     const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
     const txStatus = (tx.status || payload.data?.status || "")
@@ -184,11 +187,17 @@ export async function POST(req: NextRequest) {
     // ============================================================
     // PRIORITY 0: STORE ACTIVATION PAYMENT
     // ============================================================
-    const isStoreActivation = checkIfStoreActivationPayment(orderReference, payload);
-    
-    if (isStoreActivation && (eventType === "payment_success" || txStatus === "success")) {
+    const isStoreActivation = checkIfStoreActivationPayment(
+      orderReference,
+      payload
+    );
+
+    if (
+      isStoreActivation &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("Processing store activation payment...");
-      
+
       // Find the payment record
       const { data: payment, error: paymentError } = await supabase
         .from("store_activation_payments")
@@ -199,7 +208,7 @@ export async function POST(req: NextRequest) {
 
       if (paymentError || !payment) {
         console.error("Store activation payment not found:", orderReference);
-        
+
         const { data: completedPayment } = await supabase
           .from("store_activation_payments")
           .select("*")
@@ -209,41 +218,27 @@ export async function POST(req: NextRequest) {
 
         if (completedPayment) {
           console.log("Store activation already completed");
-          return NextResponse.json({ 
-            success: true, 
+          return NextResponse.json({
+            success: true,
             message: "Already processed",
-            payment_id: completedPayment.id 
+            payment_id: completedPayment.id,
           });
         }
-        
-        return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+
+        return NextResponse.json(
+          { error: "Payment not found" },
+          { status: 404 }
+        );
       }
 
       console.log("Found store activation payment:", payment.id);
 
-      // Activate the store
-      const { error: updateError } = await supabase
-        .from("online_stores")
-        .update({
-          is_active: true,
-          activation_paid: true,
-          activated_at: new Date().toISOString(),
-          activation_reference: payment.reference,
-        })
-        .eq("id", payment.store_id);
-
-      if (updateError) {
-        console.error("Failed to activate store:", updateError);
-        return NextResponse.json(
-          { error: "Failed to activate store" },
-          { status: 500 }
-        );
-      }
-
-      console.log("Store activated:", payment.store_id);
-
-      // Update payment status
-      await supabase
+      // ============================================================
+      // ✅ STEP 1: Mark payment as completed FIRST
+      // If this fails, we abort so the store never activates without
+      // a matching completed payment record.
+      // ============================================================
+      const { error: paymentUpdateError } = await supabase
         .from("store_activation_payments")
         .update({
           status: "completed",
@@ -253,7 +248,77 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", payment.id);
 
-      // Create store owner wallet
+      if (paymentUpdateError) {
+        console.error(
+          "❌ Failed to update store activation payment:",
+          paymentUpdateError
+        );
+        return NextResponse.json(
+          { error: "Failed to update payment status" },
+          { status: 500 }
+        );
+      }
+
+      console.log("✅ Payment marked completed:", payment.id);
+
+      // ============================================================
+      // ✅ STEP 2: Activate the store
+      // ============================================================
+      const { error: storeUpdateError } = await supabase
+        .from("online_stores")
+        .update({
+          is_active: true,
+          activation_paid: true,
+          activated_at: new Date().toISOString(),
+          activation_reference: payment.reference,
+        })
+        .eq("id", payment.store_id);
+
+      if (storeUpdateError) {
+        console.error("❌ Failed to activate store:", storeUpdateError);
+        // Roll back payment status so it can be retried
+        await supabase
+          .from("store_activation_payments")
+          .update({
+            status: "pending",
+            completed_at: null,
+            paid_at: null,
+            nomba_transaction_id: null,
+          })
+          .eq("id", payment.id);
+
+        return NextResponse.json(
+          { error: "Failed to activate store" },
+          { status: 500 }
+        );
+      }
+
+      console.log("✅ Store activated:", payment.store_id);
+
+      // ============================================================
+      // ✅ STEP 3: Clear create draft (best-effort)
+      // ============================================================
+      try {
+        const { error: draftDeleteError } = await supabase
+          .from("store_create_drafts")
+          .delete()
+          .eq("user_id", payment.user_id);
+
+        if (draftDeleteError) {
+          console.error(
+            "Failed to delete create draft on activation:",
+            draftDeleteError
+          );
+        } else {
+          console.log("Create draft cleared for user:", payment.user_id);
+        }
+      } catch (draftErr) {
+        console.error("Unexpected error clearing create draft:", draftErr);
+      }
+
+      // ============================================================
+      // ✅ STEP 4: Ensure store owner wallet exists
+      // ============================================================
       const { data: existingWallet } = await supabase
         .from("store_owner_wallets")
         .select("id")
@@ -261,7 +326,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (!existingWallet) {
-        await supabase
+        const { error: walletInsertError } = await supabase
           .from("store_owner_wallets")
           .insert({
             user_id: payment.user_id,
@@ -272,10 +337,15 @@ export async function POST(req: NextRequest) {
             total_withdrawn: 0,
             last_activity_at: new Date().toISOString(),
           });
-        console.log("Store owner wallet created");
+
+        if (walletInsertError) {
+          console.error("Failed to create store owner wallet:", walletInsertError);
+        } else {
+          console.log("✅ Store owner wallet created");
+        }
       }
 
-      console.log("Store activation completed");
+      console.log("✅ Store activation completed");
 
       return NextResponse.json({
         success: true,
@@ -288,10 +358,13 @@ export async function POST(req: NextRequest) {
     // PRIORITY 1: CARD PAYMENTS (Payment Pages)
     // ============================================================
     const isCardPayment = checkIfCardPayment(orderReference, payload);
-    
-    if (isCardPayment && (eventType === "payment_success" || txStatus === "success")) {
+
+    if (
+      isCardPayment &&
+      (eventType === "payment_success" || txStatus === "success")
+    ) {
       console.log("Processing card payment...");
-      
+
       const { data: payment, error: paymentError } = await supabase
         .from("payment_page_payments")
         .select("*, payment_pages(*)")
@@ -300,24 +373,30 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (paymentError || !payment) {
-        console.error("Card payment not found for order reference:", orderReference);
+        console.error(
+          "Card payment not found for order reference:",
+          orderReference
+        );
         const { data: completedPayment } = await supabase
           .from("payment_page_payments")
           .select("*, payment_pages(*)")
           .eq("order_reference", orderReference)
           .eq("status", "completed")
           .maybeSingle();
-        
+
         if (completedPayment) {
           console.log("Card payment already completed:", completedPayment.id);
-          return NextResponse.json({ 
-            success: true, 
+          return NextResponse.json({
+            success: true,
             message: "Payment already processed",
-            payment_id: completedPayment.id 
+            payment_id: completedPayment.id,
           });
         }
-        
-        return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+
+        return NextResponse.json(
+          { error: "Payment not found" },
+          { status: 404 }
+        );
       }
 
       console.log("Found pending card payment:", payment.id);
@@ -327,7 +406,7 @@ export async function POST(req: NextRequest) {
         orderReference,
         payment,
       });
-      
+
       return handleErrorResponse(result);
     }
 
@@ -336,7 +415,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(
       aliasAccountReference,
-      payload,
+      payload
     );
     if (
       isSubscriptionBankTransfer &&
@@ -358,7 +437,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     const isSubscriptionCard = checkIfSubscriptionPayment(
       orderReference,
-      payload,
+      payload
     );
     if (
       isSubscriptionCard &&
@@ -376,7 +455,7 @@ export async function POST(req: NextRequest) {
     // PRIORITY 4: REGULAR WALLET DEPOSITS
     // ============================================================
     const isRegularDeposit = await isRegularWalletDeposit(
-      aliasAccountReference,
+      aliasAccountReference
     );
     if (
       isRegularDeposit &&
@@ -417,7 +496,7 @@ export async function POST(req: NextRequest) {
           const statusCode = result.status || 500;
           return NextResponse.json(
             { error: result.error },
-            { status: statusCode },
+            { status: statusCode }
           );
         }
       } else if (result && "success" in result) {
@@ -474,11 +553,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
 
 
 

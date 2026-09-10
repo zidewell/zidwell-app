@@ -138,18 +138,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── CHECK IF EMAIL IS VERIFIED ───
-    if (existingUser && !existingUser.email_verified) {
-      console.log(`🔒 Login blocked: ${email} - email not verified`);
-      return NextResponse.json(
-        {
-          error: "Please verify your email before logging in.",
-          requiresVerification: true,
-          email: email,
-        },
-        { status: 403 }
-      );
-    }
+   if (existingUser && !existingUser.email_verified) {
+  console.log(`🔒 Login blocked: ${email} - email not verified (manual flow)`);
+
+  let hasPendingToken = false;
+  try {
+    const { data: tokenRow } = await supabaseAdmin
+      .from("users")
+      .select("email_verification_token, email_verification_token_expires")
+      .eq("id", existingUser.id)
+      .maybeSingle();
+
+    const tokenExpiresAt = tokenRow?.email_verification_token_expires
+      ? new Date(tokenRow.email_verification_token_expires)
+      : null;
+
+    hasPendingToken =
+      !!tokenRow?.email_verification_token &&
+      !!tokenExpiresAt &&
+      tokenExpiresAt.getTime() > Date.now();
+  } catch (e) {
+    console.error("Failed to check pending token:", e);
+  }
+
+  return NextResponse.json(
+    {
+      error: "Please verify your email before logging in.",
+      requiresVerification: true,
+      email,
+      hasPendingToken,
+      resendAvailable: true,
+    },
+    { status: 403 }
+  );
+}
 
     // ─── AUTHENTICATION ───
     const { data: authData, error: authError } =

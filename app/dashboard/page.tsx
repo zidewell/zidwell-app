@@ -272,7 +272,7 @@ function DashboardPage() {
             </section>
 
             {/* Quick Actions / Service Cards */}
-            <section>
+            <section className="mt-16">
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
                 Quick Actions
               </h3>
@@ -296,7 +296,7 @@ function DashboardPage() {
             </section> */}
 
             {/* Articles */}
-            <section className="mt-6">
+            <section className="mt-20">
               <RecentArticles />
             </section>
           </div>

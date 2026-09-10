@@ -1,10 +1,28 @@
 // app/hooks/useStore.ts
-"use client"
-import { ReactNode, createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { useUserContextData } from "../context/userData"; 
+"use client";
+import {
+  ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
+import { useUserContextData } from "../context/userData";
 import { usePathname, useRouter } from "next/navigation";
 
-export type PageType = "school" | "donation" | "physical" | "digital" | "services" | "real_estate" | "stock" | "savings" | "crypto" | "link";
+export type PageType =
+  | "school"
+  | "donation"
+  | "physical"
+  | "digital"
+  | "services"
+  | "real_estate"
+  | "stock"
+  | "savings"
+  | "crypto"
+  | "link";
 
 export interface Student {
   name: string;
@@ -75,6 +93,10 @@ export interface StoreData {
   city: string;
   streetAddress: string;
   locationEnabled: boolean;
+  // ✅ NEW: precise location
+  latitude?: number | null;
+  longitude?: number | null;
+  locationAccuracy?: number | null;
   isActive: boolean;
   is_active?: boolean;
   activation_paid?: boolean;
@@ -115,21 +137,26 @@ interface StoreContextType {
   creatingStore: boolean;
   hasStore: boolean;
   hasPendingActivation: boolean;
-  isStoreCheckComplete: boolean; // ✅ ADD THIS
+  isStoreCheckComplete: boolean;
   fetchStore: (force?: boolean) => Promise<void>;
   fetchPages: (force?: boolean) => Promise<void>;
   checkStoreExists: () => Promise<boolean>;
   createStore: (storeData: any) => Promise<StoreData>;
   createPage: (pageData: any) => Promise<any>;
   getPageDetails: (id: string) => Promise<any>;
-  getPageStats: (id: string) => Promise<{ payments: any[], totalAmount: number, totalCount: number }>;
+  getPageStats: (
+    id: string
+  ) => Promise<{ payments: any[]; totalAmount: number; totalCount: number }>;
   withdrawFromPage: (pageId: string, amount: number) => Promise<any>;
   addPage: (page: PaymentPage) => void;
   refreshPages: () => Promise<void>;
   updatePage: (id: string, pageData: any) => Promise<any>;
   clearCache: () => void;
   updateStore: (data: Partial<StoreData>) => Promise<void>;
-  validateSlug: (slug: string, pageId?: string) => Promise<{
+  validateSlug: (
+    slug: string,
+    pageId?: string
+  ) => Promise<{
     valid: boolean;
     slug: string;
     isTaken: boolean;
@@ -145,7 +172,7 @@ const StoreContext = createContext<StoreContextType>({
   creatingStore: false,
   hasStore: false,
   hasPendingActivation: false,
-  isStoreCheckComplete: false, // ✅ ADD THIS
+  isStoreCheckComplete: false,
   fetchStore: async () => {},
   fetchPages: async () => {},
   checkStoreExists: async () => false,
@@ -159,7 +186,13 @@ const StoreContext = createContext<StoreContextType>({
   updatePage: async () => {},
   clearCache: () => {},
   updateStore: async () => {},
-  validateSlug: async () => ({ valid: true, slug: "", isTaken: false, isOwnStore: false, message: "" }),
+  validateSlug: async () => ({
+    valid: true,
+    slug: "",
+    isTaken: false,
+    isOwnStore: false,
+    message: "",
+  }),
 });
 
 export const useStore = () => useContext(StoreContext);
@@ -169,7 +202,7 @@ const CACHE_DURATION = 5 * 60 * 1000;
 
 const mapDbStoreToStoreData = (dbStore: any): StoreData | null => {
   if (!dbStore) return null;
-  
+
   return {
     id: dbStore.id,
     name: dbStore.name,
@@ -182,6 +215,10 @@ const mapDbStoreToStoreData = (dbStore: any): StoreData | null => {
     city: dbStore.city,
     streetAddress: dbStore.street_address,
     locationEnabled: dbStore.location_enabled !== false,
+    // ✅ NEW: map precise location
+    latitude: dbStore.latitude ?? null,
+    longitude: dbStore.longitude ?? null,
+    locationAccuracy: dbStore.location_accuracy ?? null,
     isActive: dbStore.is_active === true,
     is_active: dbStore.is_active,
     activation_paid: dbStore.activation_paid,
@@ -202,7 +239,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [creatingStore, setCreatingStore] = useState(false);
   const [initialFetchDone, setInitialFetchDone] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false); // ✅ ADD THIS
+  const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
   const { userData } = useUserContextData();
   const pathname = usePathname();
 
@@ -218,18 +255,28 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const fetchPagesInProgress = useRef(false);
   const FETCH_COOLDOWN = 5000;
 
-  useEffect(() => { storeRef.current = store; }, [store]);
-  useEffect(() => { pagesRef.current = pages; }, [pages]);
-  useEffect(() => { creatingStoreRef.current = creatingStore; }, [creatingStore]);
-  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
+  useEffect(() => {
+    storeRef.current = store;
+  }, [store]);
+  useEffect(() => {
+    pagesRef.current = pages;
+  }, [pages]);
+  useEffect(() => {
+    creatingStoreRef.current = creatingStore;
+  }, [creatingStore]);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   const shouldFetchStore = useCallback(() => {
     const path = pathnameRef.current;
-    return path?.includes('/dashboard/services/payment/') || 
-           path?.includes('/store/') ||
-           path?.includes('/dashboard/services/payment/dashboard') ||
-           path?.includes('/dashboard/services/payment/create') ||
-           path?.includes('/dashboard/services/payment/create-link');
+    return (
+      path?.includes("/dashboard/services/payment/") ||
+      path?.includes("/store/") ||
+      path?.includes("/dashboard/services/payment/dashboard") ||
+      path?.includes("/dashboard/services/payment/create") ||
+      path?.includes("/dashboard/services/payment/create-link")
+    );
   }, []);
 
   const checkStoreExists = useCallback(async (): Promise<boolean> => {
@@ -254,14 +301,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
     storeCheckPromiseRef.current = (async (): Promise<boolean> => {
       console.log("🔍 Checking if store exists...");
-      
+
       try {
         const response = await fetch("/api/store", {
-          cache: 'no-store',
-          headers: { 
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
         });
 
         console.log("📡 API Response status:", response.status);
@@ -333,60 +380,40 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     return result;
   }, []);
 
-  const fetchStore = useCallback(async (force = false): Promise<void> => {
-    console.log("🔄 fetchStore called, force:", force);
-    console.log("Current store:", storeRef.current);
-    
-    if (storeRef.current && !force) {
-      console.log("✅ Store already loaded, skipping fetch");
-      setIsStoreCheckComplete(true);
-      return;
-    }
+  const fetchStore = useCallback(
+    async (force = false): Promise<void> => {
+      console.log("🔄 fetchStore called, force:", force);
+      console.log("Current store:", storeRef.current);
 
-    if (creatingStoreRef.current || storeCreationRef.current) {
-      console.log("⏳ Store creation in progress, skipping fetch");
-      return;
-    }
+      if (storeRef.current && !force) {
+        console.log("✅ Store already loaded, skipping fetch");
+        setIsStoreCheckComplete(true);
+        return;
+      }
 
-    if (fetchStoreInProgress.current) {
-      console.log("⏳ Store fetch already in progress");
-      return;
-    }
+      if (creatingStoreRef.current || storeCreationRef.current) {
+        console.log("⏳ Store creation in progress, skipping fetch");
+        return;
+      }
 
-    const now = Date.now();
-    if (!force && now - lastFetchTime.current < FETCH_COOLDOWN && storeRef.current) {
-      console.log("⏳ Store fetch cooldown, skipping");
-      setIsStoreCheckComplete(true);
-      return;
-    }
+      if (fetchStoreInProgress.current) {
+        console.log("⏳ Store fetch already in progress");
+        return;
+      }
 
-    if (!shouldFetchStore()) {
-      console.log("ℹ️ Not on a page that needs store data");
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-      return;
-    }
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastFetchTime.current < FETCH_COOLDOWN &&
+        storeRef.current
+      ) {
+        console.log("⏳ Store fetch cooldown, skipping");
+        setIsStoreCheckComplete(true);
+        return;
+      }
 
-    console.log("🚀 Starting store fetch...");
-    fetchStoreInProgress.current = true;
-
-    try {
-      const response = await fetch("/api/store", {
-        cache: 'no-store',
-        headers: { 
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-
-      console.log("📡 fetchStore API response status:", response.status);
-
-      if (response.status === 404) {
-        console.log("❌ No store found (404) in fetchStore");
-        setStore(null);
-        hasCheckedStoreRef.current = true;
+      if (!shouldFetchStore()) {
+        console.log("ℹ️ Not on a page that needs store data");
         setLoading(false);
         setInitialFetchDone(true);
         setInitialLoadComplete(true);
@@ -394,17 +421,82 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch store: ${response.status}`);
-      }
+      console.log("🚀 Starting store fetch...");
+      fetchStoreInProgress.current = true;
 
-      const data = await response.json();
-      console.log("📦 fetchStore data:", data);
+      try {
+        const response = await fetch("/api/store", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        });
 
-      if (!data.store) {
-        console.log("❌ No store in fetchStore response");
-        setStore(null);
+        console.log("📡 fetchStore API response status:", response.status);
+
+        if (response.status === 404) {
+          console.log("❌ No store found (404) in fetchStore");
+          setStore(null);
+          hasCheckedStoreRef.current = true;
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
+          setIsStoreCheckComplete(true);
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch store: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("📦 fetchStore data:", data);
+
+        if (!data.store) {
+          console.log("❌ No store in fetchStore response");
+          setStore(null);
+          hasCheckedStoreRef.current = true;
+          setLoading(false);
+          setInitialFetchDone(true);
+          setInitialLoadComplete(true);
+          setIsStoreCheckComplete(true);
+          return;
+        }
+
+        const mappedStore = mapDbStoreToStoreData(data.store);
+
+        setStore(mappedStore);
         hasCheckedStoreRef.current = true;
+        lastFetchTime.current = Date.now();
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+        setIsStoreCheckComplete(true);
+      } catch (error) {
+        console.error("❌ Error fetching store:", error);
+        setStore(null);
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+        setIsStoreCheckComplete(true);
+      } finally {
+        fetchStoreInProgress.current = false;
+      }
+    },
+    [shouldFetchStore]
+  );
+
+  const fetchPages = useCallback(
+    async (force = false): Promise<void> => {
+      console.log("🔄 fetchPages called, force:", force);
+
+      const hasStore = await checkStoreExists();
+      console.log("Has store for pages:", hasStore);
+
+      if (!hasStore) {
+        console.log("❌ No store, setting pages to empty");
+        setPages([]);
         setLoading(false);
         setInitialFetchDone(true);
         setInitialLoadComplete(true);
@@ -412,105 +504,74 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const mappedStore = mapDbStoreToStoreData(data.store);
-     
-      setStore(mappedStore);
-      hasCheckedStoreRef.current = true;
-      lastFetchTime.current = Date.now();
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-    } catch (error) {
-      console.error("❌ Error fetching store:", error);
-      setStore(null);
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-    } finally {
-      fetchStoreInProgress.current = false;
-    }
-  }, [shouldFetchStore]);
-
-  const fetchPages = useCallback(async (force = false): Promise<void> => {
-    console.log("🔄 fetchPages called, force:", force);
-    
-    const hasStore = await checkStoreExists();
-    console.log("Has store for pages:", hasStore);
-
-    if (!hasStore) {
-      console.log("❌ No store, setting pages to empty");
-      setPages([]);
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-      return;
-    }
-
-    if (creatingStoreRef.current || storeCreationRef.current) {
-      console.log("⏳ Store creation in progress, skipping pages fetch");
-      return;
-    }
-
-    if (fetchPagesInProgress.current) {
-      console.log("⏳ Pages fetch already in progress");
-      return;
-    }
-
-    const now = Date.now();
-    if (!force && now - lastFetchTime.current < FETCH_COOLDOWN && pagesRef.current.length > 0) {
-      console.log("⏳ Pages fetch cooldown, skipping");
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-      return;
-    }
-
-    if (!shouldFetchStore()) {
-      console.log("ℹ️ Not on a page that needs store data");
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-      return;
-    }
-
-    console.log("🚀 Starting pages fetch...");
-    fetchPagesInProgress.current = true;
-
-    try {
-      const response = await fetch("/api/payment-page/list", {
-        cache: 'no-store',
-        headers: { 
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-
-      console.log("📡 fetchPages API response status:", response.status);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch pages: ${response.status}`);
+      if (creatingStoreRef.current || storeCreationRef.current) {
+        console.log("⏳ Store creation in progress, skipping pages fetch");
+        return;
       }
 
-      const data = await response.json();
-      console.log("📦 Pages data:", data);
-      setPages(data.pages || []);
-      lastFetchTime.current = Date.now();
-    } catch (error) {
-      console.error("❌ Error fetching pages:", error);
-      setPages([]);
-    } finally {
-      setLoading(false);
-      setInitialFetchDone(true);
-      setInitialLoadComplete(true);
-      setIsStoreCheckComplete(true);
-      fetchPagesInProgress.current = false;
-    }
-  }, [shouldFetchStore, checkStoreExists]);
+      if (fetchPagesInProgress.current) {
+        console.log("⏳ Pages fetch already in progress");
+        return;
+      }
+
+      const now = Date.now();
+      if (
+        !force &&
+        now - lastFetchTime.current < FETCH_COOLDOWN &&
+        pagesRef.current.length > 0
+      ) {
+        console.log("⏳ Pages fetch cooldown, skipping");
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+        setIsStoreCheckComplete(true);
+        return;
+      }
+
+      if (!shouldFetchStore()) {
+        console.log("ℹ️ Not on a page that needs store data");
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+        setIsStoreCheckComplete(true);
+        return;
+      }
+
+      console.log("🚀 Starting pages fetch...");
+      fetchPagesInProgress.current = true;
+
+      try {
+        const response = await fetch("/api/payment-page/list", {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        });
+
+        console.log("📡 fetchPages API response status:", response.status);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pages: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("📦 Pages data:", data);
+        setPages(data.pages || []);
+        lastFetchTime.current = Date.now();
+      } catch (error) {
+        console.error("❌ Error fetching pages:", error);
+        setPages([]);
+      } finally {
+        setLoading(false);
+        setInitialFetchDone(true);
+        setInitialLoadComplete(true);
+        setIsStoreCheckComplete(true);
+        fetchPagesInProgress.current = false;
+      }
+    },
+    [shouldFetchStore, checkStoreExists]
+  );
 
   const refreshPages = useCallback(async (): Promise<void> => {
     if (!shouldFetchStore()) return;
@@ -540,7 +601,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
       const rawResponse = await response.text();
       console.log("📦 createStore raw response:", rawResponse);
-      
+
       let data;
       try {
         data = JSON.parse(rawResponse);
@@ -550,12 +611,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to create store: ${response.status}`);
+        throw new Error(
+          data.error || `Failed to create store: ${response.status}`
+        );
       }
 
       const mappedStore = mapDbStoreToStoreData(data.store);
       console.log("✅ Store created successfully:", mappedStore);
-      
+
       setStore(mappedStore);
       hasCheckedStoreRef.current = true;
       lastFetchTime.current = Date.now();
@@ -607,7 +670,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     try {
       const finalPageData = {
         ...pageData,
-        coverImage: pageData.coverImage || (pageData.productImages && pageData.productImages.length > 0 ? pageData.productImages[0] : null),
+        coverImage:
+          pageData.coverImage ||
+          (pageData.productImages && pageData.productImages.length > 0
+            ? pageData.productImages[0]
+            : null),
         logo: null,
       };
 
@@ -635,7 +702,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to create page: ${response.status}`);
+        throw new Error(
+          data.error || `Failed to create page: ${response.status}`
+        );
       }
 
       if (data.page?.id) {
@@ -667,7 +736,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || `Failed to update page: ${response.status}`);
+        throw new Error(
+          data.error || `Failed to update page: ${response.status}`
+        );
       }
 
       pageDetailsCache.delete(id);
@@ -687,14 +758,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const response = await fetch(`/api/payment-page/details/${id}`, {
-        cache: 'no-store'
+        cache: "no-store",
       });
       if (!response.ok) throw new Error("Failed to fetch page details");
       const data = await response.json();
 
       const page = data.page;
 
-      if (page?.pageType === 'link' && page?.metadata?.linkConfig) {
+      if (page?.pageType === "link" && page?.metadata?.linkConfig) {
         page.linkConfig = page.metadata.linkConfig;
       }
 
@@ -707,7 +778,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const getPageStats = async (id: string): Promise<{ payments: any[], totalAmount: number, totalCount: number }> => {
+  const getPageStats = async (
+    id: string
+  ): Promise<{ payments: any[]; totalAmount: number; totalCount: number }> => {
     try {
       const pageDetails = await getPageDetails(id);
       return {
@@ -721,7 +794,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const withdrawFromPage = async (pageId: string, amount: number): Promise<any> => {
+  const withdrawFromPage = async (
+    pageId: string,
+    amount: number
+  ): Promise<any> => {
     try {
       const response = await fetch("/api/payment-page/withdraw", {
         method: "POST",
@@ -756,45 +832,50 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     setIsStoreCheckComplete(false);
   };
 
-  // ✅ NEW: Validate slug
-  const validateSlug = useCallback(async (slug: string, pageId?: string): Promise<{
-    valid: boolean;
-    slug: string;
-    isTaken: boolean;
-    isOwnStore: boolean;
-    message: string;
-  }> => {
-    try {
-      const response = await fetch("/api/payment-page/validate-slug", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, pageId }),
-      });
+  const validateSlug = useCallback(
+    async (
+      slug: string,
+      pageId?: string
+    ): Promise<{
+      valid: boolean;
+      slug: string;
+      isTaken: boolean;
+      isOwnStore: boolean;
+      message: string;
+    }> => {
+      try {
+        const response = await fetch("/api/payment-page/validate-slug", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug, pageId }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
+        if (!response.ok) {
+          return {
+            valid: false,
+            slug: slug,
+            isTaken: false,
+            isOwnStore: false,
+            message: data.error || "Failed to validate slug",
+          };
+        }
+
+        return data;
+      } catch (error) {
+        console.error("Error validating slug:", error);
         return {
           valid: false,
           slug: slug,
           isTaken: false,
           isOwnStore: false,
-          message: data.error || "Failed to validate slug",
+          message: "Failed to validate slug",
         };
       }
-
-      return data;
-    } catch (error) {
-      console.error("Error validating slug:", error);
-      return {
-        valid: false,
-        slug: slug,
-        isTaken: false,
-        isOwnStore: false,
-        message: "Failed to validate slug",
-      };
-    }
-  }, []);
+    },
+    []
+  );
 
   // Initial fetch
   useEffect(() => {
@@ -805,14 +886,14 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         console.log("⏳ Store creation in progress, skipping initial load");
         return;
       }
-      
+
       if (shouldFetchStore()) {
         console.log("✅ Should fetch store, checking...");
-        
+
         try {
           const hasStore = await checkStoreExists();
           console.log("Has store result:", hasStore);
-          
+
           if (hasStore && isMounted) {
             console.log("✅ Store exists, fetching pages...");
             await fetchPages();
@@ -832,7 +913,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } else {
-        console.log("ℹ️ Not on a page that needs store data, setting loading to false");
+        console.log(
+          "ℹ️ Not on a page that needs store data, setting loading to false"
+        );
         if (isMounted) {
           setLoading(false);
           setInitialFetchDone(true);
@@ -854,7 +937,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       }
     }, 5000);
 
-    return () => { 
+    return () => {
       isMounted = false;
       clearTimeout(safetyTimeout);
     };
@@ -868,12 +951,13 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       if (!storeRef.current && !hasCheckedStoreRef.current) {
         fetchStore();
       }
-      
+
       if (storeRef.current || hasCheckedStoreRef.current) {
-        const shouldFetchPages = !pagesRef.current.length || 
-                                  pagesRef.current.length === 0 ||
-                                  initialLoadComplete;
-        
+        const shouldFetchPages =
+          !pagesRef.current.length ||
+          pagesRef.current.length === 0 ||
+          initialLoadComplete;
+
         if (shouldFetchPages) {
           fetchPages();
         }
@@ -886,9 +970,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [pathname, initialFetchDone]);
 
-  // Calculate hasStore and hasPendingActivation
-  const hasStore = store !== null && store.isActive === true && store.activation_paid === true;
-  const hasPendingActivation = store !== null && (store.isActive === false || store.activation_paid === false);
+  const hasStore =
+    store !== null && store.isActive === true && store.activation_paid === true;
+  const hasPendingActivation =
+    store !== null &&
+    (store.isActive === false || store.activation_paid === false);
 
   return (
     <StoreContext.Provider
@@ -899,7 +985,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         creatingStore,
         hasStore,
         hasPendingActivation,
-        isStoreCheckComplete, // ✅ EXPOSE THIS
+        isStoreCheckComplete,
         fetchStore,
         fetchPages,
         checkStoreExists,
