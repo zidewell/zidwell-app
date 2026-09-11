@@ -46,7 +46,7 @@ const preferenceItems = [
   { name: "My Profile", href: "/dashboard/profile", icon: User },
 ];
 
-const ALLOWED_PAYMENT_EMAILS = new Set([
+export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
   "ibrahimlawalabbalolo@gmail.com",
   // "abdullahtimilehin15@gmail.com",

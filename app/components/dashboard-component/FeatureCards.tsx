@@ -23,19 +23,14 @@ import {
 } from "lucide-react";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
+import { ALLOWED_PAYMENT_EMAILS } from "./DashboardSidebar";
 
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
 
-const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "abdullahtimilehin15@gmail.com",
-  "ebrusikefavour@gmail.com",
-  "skillfidelafrica@gmail.com",
-  "abbalolo360@gmail.com",
-]);
+
 
 const canAccessPaymentPage = (userEmail?: string | null) => {
   if (!userEmail) return false;

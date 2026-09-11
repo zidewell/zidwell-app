@@ -72,6 +72,9 @@ export async function GET(req: NextRequest) {
       tokenizeCard: false,
     };
 
+
+    
+
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
       headers: {
