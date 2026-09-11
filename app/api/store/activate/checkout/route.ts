@@ -95,6 +95,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    console.log("Nomba debug:", {
+  env: process.env.NODE_ENV,
+  nombaUrl: process.env.NOMBA_URL,
+  accountId: process.env.NOMBA_ACCOUNT_ID,
+  customerEmail: checkoutPayload.order.customerEmail,
+  amount: checkoutPayload.order.amount,
+  allowedMethods: checkoutPayload.order.allowedPaymentMethods,
+  tokenPrefix: accessToken.slice(0, 15),
+});
+
     // Update payment with order reference
     await supabase
       .from("store_activation_payments")
