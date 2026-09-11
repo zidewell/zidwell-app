@@ -97,9 +97,7 @@ function FieldLabel({
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
         {optional && (
-          <span className="text-xs text-(--text-secondary) ml-2">
-            Optional
-          </span>
+          <span className="text-xs text-(--text-secondary) ml-2">Optional</span>
         )}
       </Label>
       {hint && !error && (
@@ -128,7 +126,6 @@ function ReviewRow({
   html?: boolean;
 }) {
   return (
-    // ✅ RESPONSIVE: make label min-width only on sm+
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 py-2 border-b border-(--border-color) last:border-0">
       <span className="text-sm text-(--text-secondary) shrink-0 font-medium sm:min-w-[120px]">
         {label}
@@ -167,7 +164,7 @@ function Benefit({ text }: { text: string }) {
 }
 
 // ============================================================
-// CONGRATULATIONS MODAL — ✅ RESPONSIVE
+// CONGRATULATIONS MODAL
 // ============================================================
 function CongratulationsModal({
   isOpen,
@@ -188,8 +185,20 @@ function CongratulationsModal({
     const end = Date.now() + 3000;
     const colors = ["#FDC020", "#eab308", "#f59e0b", "#22c55e", "#3b82f6"];
     const frame = () => {
-      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors });
-      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors });
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors,
+      });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
@@ -212,7 +221,6 @@ function CongratulationsModal({
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.8, opacity: 0, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        // ✅ RESPONSIVE: smaller padding on mobile, max-height + scroll
         className="relative max-w-md w-full bg-(--bg-primary) rounded-2xl border border-(--border-color) p-6 sm:p-8 text-center shadow-2xl max-h-[90vh] overflow-y-auto tiny-scrollbar"
       >
         <div className="flex justify-center mb-5 sm:mb-6">
@@ -291,17 +299,23 @@ export function CreateStoreForm() {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [hasExistingDraft, setHasExistingDraft] = useState(false);
+  const [draftAvailable, setDraftAvailable] = useState(false);
   const [loadingDraftManually, setLoadingDraftManually] = useState(false);
   const [draftCheckDone, setDraftCheckDone] = useState(false);
 
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // Guards to prevent duplicate API calls
+  const draftFetchStartedRef = useRef(false);
+  const autoLoadDoneRef = useRef(false);
+  // ✅ Autosave debounce timer
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
 
-  // ✅ Reset processing state when page is restored from bfcache
-  // (e.g., user hit back after canceling Nomba checkout)
+  // Reset processing state when page is restored from bfcache
   useEffect(() => {
     const handlePageShow = () => {
       if (sessionStorage.getItem("pendingStoreCheckout") === "true") {
@@ -321,14 +335,16 @@ export function CreateStoreForm() {
     }
   }, [hasActiveStore, router]);
 
-  // Load store data when there's a pending activation
+  // Load pending activation store data
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
       setFormData({
         name: store.name || "",
         slug: store.slug || "",
         description: store.description || "",
-        keywords: Array.isArray(store.keywords) ? store.keywords.join(", ") : "",
+        keywords: Array.isArray(store.keywords)
+          ? store.keywords.join(", ")
+          : "",
         cacNumber: store.cacNumber || "",
         country: store.country || "Nigeria",
         state: store.state || "",
@@ -344,20 +360,62 @@ export function CreateStoreForm() {
     }
   }, [store, hasLoadedStoreData]);
 
-  // ✅ Extracted draft loader — call from effect AND manual button
+  // ============================================================
+  // loadDraft with meaningful-content check + draftAvailable
+  // ============================================================
   const loadDraft = useCallback(async (showToast = true): Promise<boolean> => {
+    if (draftFetchStartedRef.current) return false;
+    draftFetchStartedRef.current = true;
+
     try {
-      const res = await fetch("/api/store/create-draft", { cache: "no-store" });
-      if (!res.ok) return false;
+      const res = await fetch("/api/store/create-draft", {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
+
+      if (!res.ok) {
+        setDraftAvailable(false);
+        setDraftCheckDone(true);
+        return false;
+      }
+
       const data = await res.json();
       const draft = data?.draft;
-      if (!draft) return false;
+
+      if (!draft) {
+        setDraftAvailable(false);
+        setDraftCheckDone(true);
+        return false;
+      }
+
+      const hasContent =
+        (draft.name && String(draft.name).trim()) ||
+        (draft.slug && String(draft.slug).trim()) ||
+        (draft.description && String(draft.description).trim()) ||
+        (draft.state && String(draft.state).trim()) ||
+        (draft.city && String(draft.city).trim()) ||
+        (draft.street_address && String(draft.street_address).trim()) ||
+        (draft.cac_number && String(draft.cac_number).trim()) ||
+        (Array.isArray(draft.keywords) && draft.keywords.length > 0) ||
+        (draft.step && Number(draft.step) > 1);
+
+      if (!hasContent) {
+        setHasExistingDraft(false);
+        setDraftAvailable(false);
+        setDraftCheckDone(true);
+        return false;
+      }
 
       setFormData({
         name: draft.name || "",
         slug: draft.slug || "",
         description: draft.description || "",
-        keywords: Array.isArray(draft.keywords) ? draft.keywords.join(", ") : "",
+        keywords: Array.isArray(draft.keywords)
+          ? draft.keywords.join(", ")
+          : "",
         cacNumber: draft.cac_number || "",
         country: draft.country || "Nigeria",
         state: draft.state || "",
@@ -369,31 +427,45 @@ export function CreateStoreForm() {
         locationAccuracy: draft.location_accuracy ?? null,
       });
 
-      if (draft.step >= 1 && draft.step <= 3) setStep(draft.step);
+      if (draft.step >= 1 && draft.step <= 3) {
+        setStep(draft.step);
+      }
+
       setHasExistingDraft(true);
+      setDraftAvailable(true);
       setDraftCheckDone(true);
 
       if (showToast) {
-        toast.success("Draft restored", {
-          description: "We restored your previously saved store details.",
+        toast.success("Draft loaded", {
+          description: `Restored "${draft.name || "your saved store"}" — step ${draft.step || 1}.`,
         });
       }
+
       return true;
     } catch (e) {
       console.error("Failed to restore create draft:", e);
+      setDraftAvailable(false);
+      setDraftCheckDone(true);
       return false;
+    } finally {
+      draftFetchStartedRef.current = false;
     }
   }, []);
 
-  // ✅ Auto-load draft on mount
+  // Auto-load draft on mount — runs once
   useEffect(() => {
+    if (autoLoadDoneRef.current) return;
+
     if (hasPendingActivation || hasActiveStore) {
+      autoLoadDoneRef.current = true;
       setDraftCheckDone(true);
+      setDraftLoaded(true);
       return;
     }
-    if (draftLoaded) return;
 
+    autoLoadDoneRef.current = true;
     let cancelled = false;
+
     (async () => {
       const loaded = await loadDraft(false);
       if (cancelled) return;
@@ -412,6 +484,73 @@ export function CreateStoreForm() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPendingActivation, hasActiveStore, loadDraft]);
+
+  // ============================================================
+  // ✅ DEBOUNCED AUTOSAVE — saves the draft as the user types
+  // ============================================================
+  useEffect(() => {
+    if (hasPendingActivation || hasActiveStore) return;
+    if (!draftLoaded) return;
+    // Skip if the form is completely empty (nothing to save)
+    if (
+      !formData.name &&
+      !formData.slug &&
+      !formData.description &&
+      !formData.state &&
+      !formData.city &&
+      !formData.streetAddress
+    ) {
+      return;
+    }
+
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+
+    draftSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const keywordsArray = formData.keywords
+          .split(",")
+          .map((k) => k.trim())
+          .filter((k) => k.length > 0);
+
+        await fetch("/api/store/create-draft", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            slug: formData.slug.trim(),
+            description: formData.description,
+            keywords: keywordsArray,
+            cacNumber: formData.cacNumber.trim(),
+            country: formData.country,
+            state: formData.state.trim(),
+            city: formData.city.trim(),
+            streetAddress: formData.streetAddress.trim(),
+            locationEnabled: formData.locationEnabled,
+            latitude: formData.latitude,
+            longitude: formData.longitude,
+            locationAccuracy: formData.locationAccuracy,
+            step,
+          }),
+        });
+
+        setDraftAvailable(true);
+        setHasExistingDraft(true);
+      } catch {
+        // silent — autosave failure shouldn't disrupt the user
+      }
+    }, 800);
+
+    return () => {
+      if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    formData,
+    step,
+    draftLoaded,
+    hasPendingActivation,
+    hasActiveStore,
+  ]);
 
   const handleInputChange = useCallback(
     (
@@ -497,7 +636,8 @@ export function CreateStoreForm() {
         (error) => {
           let msg = "Could not get your location.";
           if (error.code === error.PERMISSION_DENIED) {
-            msg = "Location permission denied. Enable it in your browser settings.";
+            msg =
+              "Location permission denied. Enable it in your browser settings.";
           } else if (error.code === error.POSITION_UNAVAILABLE) {
             msg = "Location information is unavailable.";
           } else if (error.code === error.TIMEOUT) {
@@ -557,7 +697,8 @@ export function CreateStoreForm() {
           newErrors.name = "Store name must be at least 2 characters";
         if (!formData.slug?.trim()) newErrors.slug = "Store URL is required";
         else if (!/^[a-z0-9-]+$/.test(formData.slug))
-          newErrors.slug = "Only lowercase letters, numbers, and hyphens allowed";
+          newErrors.slug =
+            "Only lowercase letters, numbers, and hyphens allowed";
         else if (formData.slug.length < 3)
           newErrors.slug = "URL must be at least 3 characters";
         const cleanDescription = formData.description
@@ -566,10 +707,12 @@ export function CreateStoreForm() {
         if (!cleanDescription || cleanDescription.length === 0)
           newErrors.description = "Store description is required";
         else if (cleanDescription.length < 10)
-          newErrors.description = "Description should be at least 10 characters";
+          newErrors.description =
+            "Description should be at least 10 characters";
       }
       if (stepNumber === 2) {
-        if (!formData.country?.trim()) newErrors.country = "Country is required";
+        if (!formData.country?.trim())
+          newErrors.country = "Country is required";
         if (!formData.state?.trim()) newErrors.state = "State is required";
         if (!formData.city?.trim()) newErrors.city = "City is required";
         if (!formData.streetAddress?.trim())
@@ -623,6 +766,7 @@ export function CreateStoreForm() {
       }
 
       setHasExistingDraft(true);
+      setDraftAvailable(true);
       toast.success("Saved", {
         description: "Your progress has been saved. You can continue later.",
       });
@@ -641,6 +785,7 @@ export function CreateStoreForm() {
     try {
       await fetch("/api/store/create-draft", { method: "DELETE" });
       setHasExistingDraft(false);
+      setDraftAvailable(false);
       setFormData(initialFormData);
       setStep(1);
       setErrors({});
@@ -679,7 +824,38 @@ export function CreateStoreForm() {
     setIsProcessingCheckout(true);
     sessionStorage.setItem("pendingStoreCheckout", "true");
 
-    // ✅ Safety timeout — never spin forever
+    // ✅ Force-save the draft right now, before opening Nomba.
+    // This guarantees the draft exists even if autosave hasn't fired.
+    try {
+      const keywordsArray = formData.keywords
+        .split(",")
+        .map((k) => k.trim())
+        .filter((k) => k.length > 0);
+
+      await fetch("/api/store/create-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          slug: formData.slug.trim(),
+          description: formData.description,
+          keywords: keywordsArray,
+          cacNumber: formData.cacNumber.trim(),
+          country: formData.country,
+          state: formData.state.trim(),
+          city: formData.city.trim(),
+          streetAddress: formData.streetAddress.trim(),
+          locationEnabled: formData.locationEnabled,
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+          locationAccuracy: formData.locationAccuracy,
+          step: 3,
+        }),
+      });
+    } catch {
+      // Non-fatal — proceed to checkout even if draft save fails
+    }
+
     const safetyTimer = setTimeout(() => {
       sessionStorage.removeItem("pendingStoreCheckout");
       setIsProcessingCheckout(false);
@@ -723,7 +899,7 @@ export function CreateStoreForm() {
 
       if (data.requiresCheckout && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
-        return; // let page unload; timer/pageshow will clean up
+        return;
       }
       throw new Error("No checkout URL returned");
     } catch (error: any) {
@@ -758,9 +934,24 @@ export function CreateStoreForm() {
   const isWorking =
     isCreating || creatingStore || isActivating || isProcessingCheckout;
 
+  // ============================================================
+  // BLOCKING LOADER: show until draft check completes
+  // ============================================================
+  if (!draftCheckDone && !hasActiveStore) {
+    return (
+      <div className="max-w-3xl mx-auto py-6 sm:py-8 px-3 sm:px-4">
+        <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-8 sm:p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
+          <Loader2 className="size-8 animate-spin text-(--color-accent-yellow)" />
+          <p className="text-sm text-(--text-secondary) text-center">
+            Loading your saved progress...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (hasActiveStore) return null;
 
-  // ✅ RESPONSIVE: step content
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -803,7 +994,6 @@ export function CreateStoreForm() {
                 error={errors.slug}
                 htmlFor="slug"
               />
-              {/* ✅ RESPONSIVE: prefix can shrink on very small screens */}
               <div className="flex items-center rounded-md border border-(--border-color) bg-(--bg-primary) focus-within:ring-2 focus-within:ring-(--color-accent-yellow) focus-within:border-(--color-accent-yellow) transition-all overflow-hidden squircle-md">
                 <span className="px-2 sm:px-3 text-xs sm:text-sm text-(--text-secondary) bg-(--bg-secondary) py-2 whitespace-nowrap">
                   zidwell.com/
@@ -843,7 +1033,8 @@ export function CreateStoreForm() {
                 </p>
               )}
               <p className="mt-2 text-xs text-(--text-secondary)">
-                Use the toolbar to format your description (bold, italic, lists, etc.)
+                Use the toolbar to format your description (bold, italic, lists,
+                etc.)
               </p>
             </div>
 
@@ -972,7 +1163,6 @@ export function CreateStoreForm() {
               />
             </div>
 
-            {/* ✅ RESPONSIVE: stack icon+text above toggle on mobile */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color)">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -1126,7 +1316,6 @@ export function CreateStoreForm() {
                   <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
                     Activation Fee
                   </p>
-                  {/* ✅ RESPONSIVE: smaller font on mobile */}
                   <p className="text-3xl sm:text-4xl font-bold mt-2">
                     ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
                   </p>
@@ -1177,7 +1366,9 @@ export function CreateStoreForm() {
               {isActivating || isProcessingCheckout ? (
                 <>
                   <Loader2 className="size-5 inline mr-2 animate-spin" />
-                  {isProcessingCheckout ? "Preparing Checkout..." : "Activating..."}
+                  {isProcessingCheckout
+                    ? "Preparing Checkout..."
+                    : "Activating..."}
                 </>
               ) : (
                 <>
@@ -1202,7 +1393,6 @@ export function CreateStoreForm() {
   };
 
   return (
-    // ✅ RESPONSIVE: smaller horizontal padding on mobile, tighter vertical
     <div className="max-w-3xl mx-auto py-6 sm:py-8 px-3 sm:px-4">
       <button
         onClick={() => router.back()}
@@ -1223,7 +1413,6 @@ export function CreateStoreForm() {
         />
       </AnimatePresence>
 
-      {/* ✅ RESPONSIVE: heading sizes */}
       <div className="text-center mb-6 sm:mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
           <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-(--bg-secondary)">
@@ -1248,10 +1437,10 @@ export function CreateStoreForm() {
         dismissable={true}
       />
 
-      {/* ✅ Manual Load Draft button — only when auto-load didn't find one */}
+      {/* Manual Load Draft button — only when a draft actually exists */}
       {!hasPendingActivation &&
         !hasActiveStore &&
-        draftCheckDone &&
+        draftAvailable &&
         !hasExistingDraft &&
         step === 1 &&
         !formData.name && (
@@ -1299,7 +1488,7 @@ export function CreateStoreForm() {
         </div>
       )}
 
-      {/* ✅ RESPONSIVE: step indicator, tighter spacing on mobile */}
+      {/* Step indicator */}
       {!hasPendingActivation && (
         <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 sm:mb-8 overflow-x-auto px-1">
           {[
@@ -1313,13 +1502,18 @@ export function CreateStoreForm() {
                 <div
                   className={cn(
                     "flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs sm:text-sm font-bold transition-colors",
-                    s.n === step && "bg-(--color-accent-yellow) text-(--color-ink)",
+                    s.n === step &&
+                      "bg-(--color-accent-yellow) text-(--color-ink)",
                     s.n < step && "bg-(--bg-secondary) text-(--text-primary)",
                     s.n > step &&
                       "bg-(--bg-secondary) text-(--text-secondary) opacity-50"
                   )}
                 >
-                  {s.n < step ? <Check className="size-3.5 sm:size-4" /> : s.n}
+                  {s.n < step ? (
+                    <Check className="size-3.5 sm:size-4" />
+                  ) : (
+                    s.n
+                  )}
                 </div>
                 <span className="mt-1 text-[9px] sm:text-[10px] font-medium uppercase tracking-wide text-(--text-secondary) hidden sm:block">
                   {s.label}
@@ -1329,7 +1523,9 @@ export function CreateStoreForm() {
                 <div
                   className={cn(
                     "h-0.5 w-6 sm:w-12 mx-1 sm:mx-2",
-                    s.n < step ? "bg-(--text-secondary)" : "bg-(--border-color)"
+                    s.n < step
+                      ? "bg-(--text-secondary)"
+                      : "bg-(--border-color)"
                   )}
                 />
               )}
@@ -1354,7 +1550,6 @@ export function CreateStoreForm() {
         </div>
       )}
 
-      {/* ✅ RESPONSIVE: card padding */}
       <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-4 sm:p-6">
         <AnimatePresence mode="wait">
           <motion.div
@@ -1368,7 +1563,6 @@ export function CreateStoreForm() {
           </motion.div>
         </AnimatePresence>
 
-        {/* ✅ RESPONSIVE: action row wraps on very small screens */}
         <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-6 border-t border-(--border-color)">
           {step > 1 && !hasPendingActivation ? (
             <button
@@ -1400,7 +1594,9 @@ export function CreateStoreForm() {
                 <span className="hidden sm:inline">
                   {savingDraft ? "Saving..." : "Save & Continue Later"}
                 </span>
-                <span className="sm:hidden">{savingDraft ? "..." : "Save"}</span>
+                <span className="sm:hidden">
+                  {savingDraft ? "..." : "Save"}
+                </span>
               </button>
             )}
 

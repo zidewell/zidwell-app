@@ -15,13 +15,81 @@ const baseUrl =
     ? "http://localhost:3000"
     : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
-// ============================================================
-// ✅ SHORT ORDER REFERENCE GENERATOR (max 50 chars)
-// ============================================================
 function generateOrderReference(paymentId: string): string {
   const shortId = paymentId.slice(0, 8);
   const timestamp = Date.now().toString(36);
   return `ACT-${shortId}-${timestamp}`;
+}
+
+function cleanSlug(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/\s/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function validateStoreData(storeData: any): string | null {
+  const {
+    name,
+    slug,
+    description,
+    country,
+    state,
+    city,
+    streetAddress,
+  } = storeData || {};
+
+  if (!name?.trim() || !slug?.trim() || !description?.trim()) {
+    return "Name, slug and description are required";
+  }
+  if (
+    !country?.trim() ||
+    !state?.trim() ||
+    !city?.trim() ||
+    !streetAddress?.trim()
+  ) {
+    return "Complete location details are required";
+  }
+  if (cleanSlug(slug).length < 3) {
+    return "Store URL must be at least 3 characters";
+  }
+  return null;
+}
+
+function buildStorePayload(storeData: any) {
+  const {
+    name,
+    slug,
+    description,
+    keywords,
+    cacNumber,
+    country,
+    state,
+    city,
+    streetAddress,
+    locationEnabled,
+    latitude,
+    longitude,
+    locationAccuracy,
+  } = storeData;
+
+  return {
+    name: name.trim(),
+    slug: cleanSlug(slug),
+    description: description.trim(),
+    keywords: keywords || [],
+    cac_number: cacNumber?.trim() || null,
+    country: country.trim(),
+    state: state.trim(),
+    city: city.trim(),
+    street_address: streetAddress.trim(),
+    location_enabled: locationEnabled !== false,
+    latitude: typeof latitude === "number" ? latitude : null,
+    longitude: typeof longitude === "number" ? longitude : null,
+    location_accuracy:
+      typeof locationAccuracy === "number" ? locationAccuracy : null,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -31,87 +99,40 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { storeData, paymentMethod } = body;
-
-    console.log("Activation request:", {
-      hasStoreData: !!storeData,
-      userId: user.id,
-      paymentMethod: paymentMethod || "wallet",
-    });
+    const { storeData } = await req.json();
 
     // Get user
     const { data: dbUser, error: userErr } = await supabase
       .from("users")
-      .select("id, email, bvn_verification")
+      .select("id, email")
       .eq("id", user.id)
       .single();
 
     if (userErr || !dbUser) {
-      console.error("User not found:", userErr);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("User found:", dbUser.id);
-
-    // Check if user already has a store
-    let { data: store, error: storeErr } = await supabase
+    // Get existing store (if any)
+    let { data: store } = await supabase
       .from("online_stores")
       .select("*")
       .eq("owner_id", user.id)
       .maybeSingle();
 
-    console.log("Store lookup:", { hasStore: !!store, storeId: store?.id });
-
-    // If no store exists, create one with the provided data
     if (!store) {
-      console.log("No store found, creating one...");
-
-      if (!storeData) {
-        return NextResponse.json(
-          { error: "Store data is required to create a store" },
-          { status: 400 }
-        );
+      // ─── CREATE NEW STORE ───
+      const validationError = validateStoreData(storeData);
+      if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
       }
 
-      const { name, slug, description, country, state, city, streetAddress } =
-        storeData;
+      const payload = buildStorePayload(storeData);
 
-      if (!name?.trim() || !slug?.trim() || !description?.trim()) {
-        return NextResponse.json(
-          { error: "Name, slug and description are required" },
-          { status: 400 }
-        );
-      }
-      if (
-        !country?.trim() ||
-        !state?.trim() ||
-        !city?.trim() ||
-        !streetAddress?.trim()
-      ) {
-        return NextResponse.json(
-          { error: "Complete location details are required" },
-          { status: 400 }
-        );
-      }
-
-      const cleanSlug = slug
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, "")
-        .replace(/\s/g, "-")
-        .replace(/-+/g, "-");
-
-      if (cleanSlug.length < 3) {
-        return NextResponse.json(
-          { error: "Store URL must be at least 3 characters" },
-          { status: 400 }
-        );
-      }
-
+      // Slug uniqueness
       const { data: slugTaken } = await supabase
         .from("online_stores")
         .select("id")
-        .eq("slug", cleanSlug)
+        .eq("slug", payload.slug)
         .maybeSingle();
 
       if (slugTaken) {
@@ -121,33 +142,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // ✅ Create the store with precise location coords
       const { data: newStore, error: createError } = await supabase
         .from("online_stores")
         .insert({
           owner_id: user.id,
-          name: name.trim(),
-          slug: cleanSlug,
-          description: description.trim(),
-          keywords: storeData.keywords || [],
-          cac_number: storeData.cacNumber?.trim() || null,
-          country: country.trim(),
-          state: state.trim(),
-          city: city.trim(),
-          street_address: streetAddress.trim(),
-          location_enabled: storeData.locationEnabled !== false,
-          latitude:
-            typeof storeData.latitude === "number"
-              ? storeData.latitude
-              : null,
-          longitude:
-            typeof storeData.longitude === "number"
-              ? storeData.longitude
-              : null,
-          location_accuracy:
-            typeof storeData.locationAccuracy === "number"
-              ? storeData.locationAccuracy
-              : null,
+          ...payload,
           is_active: false,
           activation_paid: false,
           wallet_balance: 0,
@@ -159,18 +158,15 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (createError || !newStore) {
-        console.error("Create store error:", createError);
         return NextResponse.json(
           { error: createError?.message || "Failed to create store" },
           { status: 500 }
         );
       }
 
-      console.log("Store created:", newStore.id);
       store = newStore;
     } else {
-      console.log("Store already exists:", store.id);
-
+      // ─── UPDATE EXISTING (pending activation) STORE ───
       if (store.is_active && store.activation_paid) {
         return NextResponse.json(
           { error: "Store is already activated" },
@@ -178,38 +174,50 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // ✅ If the store exists but the user has captured fresh coords
-      // and the store didn't have them yet, update them now.
-      if (
-        typeof storeData?.latitude === "number" &&
-        typeof storeData?.longitude === "number"
-      ) {
-        const { error: locUpdateErr } = await supabase
+      if (storeData) {
+        const validationError = validateStoreData(storeData);
+        if (validationError) {
+          return NextResponse.json(
+            { error: validationError },
+            { status: 400 }
+          );
+        }
+
+        const payload = buildStorePayload(storeData);
+
+        // Slug uniqueness — ignore this store's own row
+        const { data: slugTaken } = await supabase
           .from("online_stores")
-          .update({
-            location_enabled: storeData.locationEnabled !== false,
-            latitude: storeData.latitude,
-            longitude: storeData.longitude,
-            location_accuracy:
-              typeof storeData.locationAccuracy === "number"
-                ? storeData.locationAccuracy
-                : null,
-          })
+          .select("id")
+          .eq("slug", payload.slug)
+          .neq("id", store.id)
+          .maybeSingle();
+
+        if (slugTaken) {
+          return NextResponse.json(
+            {
+              error:
+                "That store URL is taken. Please choose a different one.",
+            },
+            { status: 409 }
+          );
+        }
+
+        const { error: updateErr } = await supabase
+          .from("online_stores")
+          .update(payload)
           .eq("id", store.id);
 
-        if (locUpdateErr) {
-          console.error("Failed to update store location:", locUpdateErr);
-        } else {
-          console.log("Store location updated:", store.id);
+        if (updateErr) {
+          return NextResponse.json(
+            { error: "Failed to update store details" },
+            { status: 500 }
+          );
         }
       }
     }
 
-    // ============================================================
-    // PROCESS PAYMENT - CHECKOUT ONLY
-    // ============================================================
-    console.log("Processing checkout payment for activation...");
-
+    // ─── CREATE PENDING PAYMENT ───
     const reference = `STORE_ACT_${Date.now()}_${user.id.slice(0, 8)}`;
 
     const { data: payment, error: paymentError } = await supabase
@@ -219,149 +227,104 @@ export async function POST(req: NextRequest) {
         store_id: store.id,
         amount: ACTIVATION_FEE_NAIRA,
         status: "pending",
-        reference: reference,
+        reference,
         payment_method: "card",
         created_at: new Date().toISOString(),
       })
       .select()
       .single();
 
-    if (paymentError) {
-      console.error("Failed to create payment record:", paymentError);
+    if (paymentError || !payment) {
       return NextResponse.json(
         { error: "Failed to initiate payment. Please try again." },
         { status: 500 }
       );
     }
 
-    console.log("Payment record created:", payment.id);
+    // NOTE: Draft is intentionally NOT deleted here.
+    // It's cleared only after payment is confirmed successful.
 
-    // ✅ Clear any saved store-create draft
-    try {
-      const { error: draftDeleteError } = await supabase
-        .from("store_create_drafts")
-        .delete()
-        .eq("user_id", user.id);
+    // ─── CREATE CHECKOUT ───
+    const { getNombaToken } = await import("@/lib/nomba");
+    const accessToken = await getNombaToken();
 
-      if (draftDeleteError) {
-        console.error("Failed to delete create draft:", draftDeleteError);
-      } else {
-        console.log("Create draft cleared for user:", user.id);
-      }
-    } catch (draftErr) {
-      console.error("Unexpected error clearing create draft:", draftErr);
-    }
-
-    // ============================================================
-    // CREATE CHECKOUT
-    // ============================================================
-    try {
-      const { getNombaToken } = await import("@/lib/nomba");
-      const accessToken = await getNombaToken();
-
-      if (!accessToken) {
-        console.error("Failed to get Nomba token");
-        await supabase
-          .from("store_activation_payments")
-          .update({ status: "failed" })
-          .eq("id", payment.id);
-
-        return NextResponse.json(
-          { error: "Payment service unavailable. Please try again later." },
-          { status: 503 }
-        );
-      }
-
-      const orderReference = generateOrderReference(payment.id);
-
-      console.log("Generated order reference:", orderReference);
-      console.log("Order reference length:", orderReference.length);
-
-      const userEmail = dbUser.email || "customer@example.com";
-
-      const checkoutPayload = {
-        order: {
-          callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
-          customerEmail: userEmail,
-          amount: ACTIVATION_FEE_NAIRA.toString(),
-          currency: "NGN",
-          orderReference: orderReference,
-          customerId: user.id,
-          accountId: process.env.NOMBA_ACCOUNT_ID,
-          allowedPaymentMethods: ["Card"],
-          metadata: {
-            type: "store_activation",
-            paymentId: payment.id,
-            storeId: store.id,
-            userId: user.id,
-          },
-        },
-        tokenizeCard: false,
-      };
-
-      console.log("Creating checkout...");
-
-      const response = await fetch(
-        `${process.env.NOMBA_URL}/v1/checkout/order`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            accountId: process.env.NOMBA_ACCOUNT_ID!,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(checkoutPayload),
-        }
-      );
-
-      const data = await response.json();
-
-      console.log("Nomba checkout response code:", data.code);
-
-      if (!response.ok || data.code !== "00") {
-        console.error("Checkout creation failed:", data);
-        await supabase
-          .from("store_activation_payments")
-          .update({ status: "failed" })
-          .eq("id", payment.id);
-
-        return NextResponse.json(
-          {
-            error:
-              data.description || data.message || "Failed to create checkout",
-          },
-          { status: 500 }
-        );
-      }
-
-      await supabase
-        .from("store_activation_payments")
-        .update({ order_reference: orderReference })
-        .eq("id", payment.id);
-
-      console.log("Checkout created successfully");
-
-      return NextResponse.json({
-        success: true,
-        requiresCheckout: true,
-        checkoutUrl: data.data.checkoutLink,
-        payment_id: payment.id,
-        message: "Please complete payment to activate your store",
-      });
-    } catch (checkoutError: any) {
-      console.error("Checkout error:", checkoutError);
+    if (!accessToken) {
       await supabase
         .from("store_activation_payments")
         .update({ status: "failed" })
         .eq("id", payment.id);
 
       return NextResponse.json(
-        { error: checkoutError.message || "Failed to create checkout" },
+        { error: "Payment service unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
+
+    const orderReference = generateOrderReference(payment.id);
+
+    const checkoutPayload = {
+      order: {
+        callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
+        customerEmail: dbUser.email || "customer@example.com",
+        amount: ACTIVATION_FEE_NAIRA.toString(),
+        currency: "NGN",
+        orderReference,
+        customerId: user.id,
+        accountId: process.env.NOMBA_ACCOUNT_ID,
+        allowedPaymentMethods: ["Card", "Transfer"],
+        metadata: {
+          type: "store_activation",
+          paymentId: payment.id,
+          storeId: store.id,
+          userId: user.id,
+        },
+      },
+      tokenizeCard: false,
+    };
+
+    const response = await fetch(
+      `${process.env.NOMBA_URL}/v1/checkout/order`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.code !== "00") {
+      await supabase
+        .from("store_activation_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
+
+      return NextResponse.json(
+        {
+          error:
+            data.description || data.message || "Failed to create checkout",
+        },
         { status: 500 }
       );
     }
+
+    await supabase
+      .from("store_activation_payments")
+      .update({ order_reference: orderReference })
+      .eq("id", payment.id);
+
+    return NextResponse.json({
+      success: true,
+      requiresCheckout: true,
+      checkoutUrl: data.data.checkoutLink,
+      payment_id: payment.id,
+      message: "Please complete payment to activate your store",
+    });
   } catch (error: any) {
-    console.error("Store activation error:", error);
     return NextResponse.json(
       { error: error.message || "Activation failed" },
       { status: 500 }

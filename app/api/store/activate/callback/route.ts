@@ -13,18 +13,26 @@ const baseUrl =
     ? "http://localhost:3000"
     : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
+async function activateStoreAndClearDraft(payment: {
+  id: string;
+  user_id: string;
+  store_id: string;
+}) {
+  await supabase
+    .from("online_stores")
+    .update({ is_active: true, activation_paid: true })
+    .eq("id", payment.store_id);
+
+  await supabase
+    .from("store_create_drafts")
+    .delete()
+    .eq("user_id", payment.user_id);
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const searchParams = req.nextUrl.searchParams;
-    const paymentId = searchParams.get("payment_id");
-    const status = searchParams.get("status");
-    const orderId = searchParams.get("orderId");
-
-    console.log("Store activation callback received:", {
-      paymentId,
-      status,
-      orderId,
-    });
+    const paymentId = req.nextUrl.searchParams.get("payment_id");
+    const status = req.nextUrl.searchParams.get("status");
 
     if (!paymentId) {
       return NextResponse.redirect(
@@ -32,41 +40,52 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch the current payment record
-    const { data: payment, error: paymentError } = await supabase
+    const { data: payment } = await supabase
       .from("store_activation_payments")
       .select("*")
       .eq("id", paymentId)
       .maybeSingle();
 
-    if (paymentError || !payment) {
-      console.error("Payment not found:", paymentError);
+    if (!payment) {
       return NextResponse.redirect(
         `${baseUrl}/dashboard/services/payment/dashboard?error=payment_not_found`
       );
     }
 
-    // ✅ Trust the DB — not the query string.
-    // The webhook is the source of truth for payment status.
+    // Already completed — ensure state, then redirect
     if (payment.status === "completed") {
-      console.log("✅ Payment completed — redirecting with success");
+      await activateStoreAndClearDraft(payment);
       return NextResponse.redirect(
         `${baseUrl}/dashboard/services/payment/dashboard?success=store_activated`
       );
     }
 
-    // ✅ If the webhook hasn't finished yet, hand off to the dashboard
-    // with a "processing" flag. The dashboard can poll for a few seconds.
-    console.log(
-      "⏳ Payment still pending — webhook likely still in flight. Current status:",
-      payment.status
-    );
+    // Fallback: Nomba query param says success → mark completed now
+    const normalized = (status || "").toLowerCase();
+    const success =
+      normalized === "success" ||
+      normalized === "successful" ||
+      normalized === "completed";
 
+    if (success) {
+      await supabase
+        .from("store_activation_payments")
+        .update({ status: "completed" })
+        .eq("id", payment.id)
+        .eq("status", "pending");
+
+      await activateStoreAndClearDraft(payment);
+
+      return NextResponse.redirect(
+        `${baseUrl}/dashboard/services/payment/dashboard?success=store_activated`
+      );
+    }
+
+    // Still pending — hand off with processing flag (draft untouched)
     return NextResponse.redirect(
       `${baseUrl}/dashboard/services/payment/dashboard?status=processing&payment_id=${payment.id}`
     );
   } catch (error: any) {
-    console.error("Callback error:", error);
     return NextResponse.redirect(
       `${baseUrl}/dashboard/services/payment/dashboard?error=${encodeURIComponent(
         error.message || "callback_failed"

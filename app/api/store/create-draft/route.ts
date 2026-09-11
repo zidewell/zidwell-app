@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticated } from "@/lib/auth-check-api";
 
+// ✅ Ensure this route is never statically cached
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -32,7 +36,16 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ draft: draft ?? null });
+  // ✅ Don't cache
+  return NextResponse.json(
+    { draft: draft ?? null },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache",
+      },
+    }
+  );
 }
 
 // ============================================================
@@ -59,7 +72,9 @@ export async function POST(req: NextRequest) {
       streetAddress = "",
       locationEnabled = true,
       step = 1,
-      latitude = null, longitude = null, locationAccuracy = null,
+      latitude = null,
+      longitude = null,
+      locationAccuracy = null,
     } = body || {};
 
     const payload = {
@@ -75,10 +90,10 @@ export async function POST(req: NextRequest) {
       street_address: streetAddress?.trim() || null,
       location_enabled: locationEnabled !== false,
       step: Math.min(Math.max(Number(step) || 1, 1), 3),
-       latitude: typeof latitude === "number" ? latitude : null,
-  longitude: typeof longitude === "number" ? longitude : null,
-  location_accuracy:
-    typeof locationAccuracy === "number" ? locationAccuracy : null,
+      latitude: typeof latitude === "number" ? latitude : null,
+      longitude: typeof longitude === "number" ? longitude : null,
+      location_accuracy:
+        typeof locationAccuracy === "number" ? locationAccuracy : null,
       updated_at: new Date().toISOString(),
     };
 
