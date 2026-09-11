@@ -73,7 +73,7 @@ export const transformApiPostToBlogPost = (apiPost: any): any => {
       avatar:
         apiPost.author?.avatar ||
         apiPost.author_avatar ||
-        "/default-avatar.png",
+        "https://icon2.cleanpng.com/20180508/pfw/kisspng-tate-service-sponsor-art-museum-gift-5af21e7628b0d1.6451268315258169501667.jpg",
       bio: apiPost.author?.bio || apiPost.author_bio || null,
       isZidwellUser: apiPost.author?.isZidwellUser || false,
     },
