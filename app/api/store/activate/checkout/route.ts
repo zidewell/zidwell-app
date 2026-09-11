@@ -50,30 +50,33 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const orderReference = `ACT-${payment.id}-${Date.now()}`;
+  const orderReference = `ACT-${payment.id}-${Date.now()}`;
 
-    // Create checkout
-    const checkoutPayload = {
-      order: {
-        callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
-        customerEmail: payment.user?.email || "customer@example.com",
-        amount: payment.amount.toString(),
-        currency: "NGN",
-        orderReference: orderReference,
-        customerId: payment.user_id,
-        accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card", "Bank Transfer"],
-        metadata: {
-          type: "store_activation",
-          paymentId: payment.id,
-          storeId: payment.store_id,
-        },
-      },
-      tokenizeCard: false,
-    };
+if (!payment.user?.email) {
+  return NextResponse.json(
+    { error: "User email required for payment" },
+    { status: 400 }
+  );
+}
 
-
-    
+const checkoutPayload = {
+  order: {
+    callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
+    customerEmail: payment.user.email,
+    amount: payment.amount,            
+    currency: "NGN",
+    orderReference: orderReference,
+    customerId: payment.user_id,
+    accountId: process.env.NOMBA_ACCOUNT_ID,
+    allowedPaymentMethods: ["Card", "Transfer"],
+    orderMetaData: {                    
+      type: "store_activation",
+      paymentId: payment.id,
+      storeId: payment.store_id,
+    },
+  },
+  tokenizeCard: false,
+};
 
     const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
       method: "POST",
