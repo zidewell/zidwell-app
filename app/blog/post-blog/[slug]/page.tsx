@@ -10,13 +10,7 @@ type Props = {
 
 const baseUrl = "https://zidwell.com";
 
-/**
- * Build an absolute, publicly-fetchable OG image URL.
- * - Forces https:// prefix if the featured_image is relative
- * - Appends Supabase transform params so the image is a JPEG
- *   (WhatsApp doesn't render .webp previews reliably)
- */
-function buildOgImage(featuredImage: string | null | undefined, title: string): string {
+function buildOgImage(featuredImage: string | null | undefined): string {
   if (!featuredImage) {
     return `${baseUrl}/images/og-image.png`;
   }
@@ -25,7 +19,7 @@ function buildOgImage(featuredImage: string | null | undefined, title: string): 
     ? featuredImage
     : `${baseUrl}${featuredImage.startsWith("/") ? "" : "/"}${featuredImage}`;
 
-  // Force JPEG for WhatsApp compatibility (Supabase storage transform)
+  // Force JPEG via Supabase transform (WhatsApp needs jpeg/png)
   if (url.includes("supabase.co") && !url.includes("format=")) {
     url += (url.includes("?") ? "&" : "?") + "format=jpeg&width=1200&height=630&resize=cover";
   }
@@ -40,17 +34,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!post || !post.is_published) {
     return {
       title: "Post Not Found | Zidwell Blog",
-      description: "The requested blog post could not be found.",
       robots: { index: false, follow: false },
     };
   }
 
-  const ogImage = buildOgImage(post.featured_image, post.title);
+  const ogImage = buildOgImage(post.featured_image);
   const excerpt =
     post.excerpt?.trim() ||
     `Read "${post.title}" on Zidwell Blog. Business tips for Nigerian SMEs.`;
 
-  // Trim excerpt to WhatsApp's preferred length (~160 chars for description)
   const shortDescription =
     excerpt.length > 160 ? excerpt.slice(0, 157).trimEnd() + "..." : excerpt;
 
@@ -61,26 +53,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: post.title,
     description: shortDescription,
     keywords: [...(post.categories || []), ...(post.tags || [])].join(", "),
-    authors: [{ name: post.author_name || "Zidwell" }],
 
+    // ─────────────────────────────────────────────
+    // CRITICAL: Keep this EXACT shape. Do NOT add
+    // secureUrl, type, or other fields inside the
+    // image object — Next.js may drop them silently.
+    // ─────────────────────────────────────────────
     openGraph: {
       title: post.title,
       description: shortDescription,
       url,
       siteName: "Zidwell Blog",
       type: "article",
-      locale: "en_NG",
       publishedTime: post.published_at || post.created_at,
       modifiedTime: post.updated_at,
       authors: [post.author_name || "Zidwell"],
       images: [
         {
           url: ogImage,
-          secureUrl: ogImage, // WhatsApp/Facebook like this
           width: 1200,
           height: 630,
           alt: post.title,
-          type: "image/jpeg",
         },
       ],
     },
@@ -97,15 +90,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: url,
     },
 
-    // Extra tags WhatsApp/Facebook respect
+    // Only use `other` for tags Next.js doesn't natively support.
+    // Do NOT duplicate og:image here — it will conflict.
     other: {
-      "og:image:secure_url": ogImage,
       "og:image:width": "1200",
       "og:image:height": "630",
-      "og:image:type": "image/jpeg",
-      "article:published_time": post.published_at || post.created_at,
-      "article:modified_time": post.updated_at,
-      "article:author": post.author_name || "Zidwell",
     },
   };
 }
@@ -119,9 +108,8 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const url = `${baseUrl}/blog/post-blog/${slug}`;
-  const ogImage = buildOgImage(post.featured_image, post.title);
+  const ogImage = buildOgImage(post.featured_image);
 
-  // JSON-LD for SEO
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -129,10 +117,7 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.excerpt || post.title,
     image: ogImage,
     url,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
     datePublished: post.published_at || post.created_at,
     dateModified: post.updated_at,
     author: {
