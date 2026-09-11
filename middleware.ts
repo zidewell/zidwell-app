@@ -715,7 +715,6 @@ import {
   getUserWithDetails, 
   hasSufficientTier
 } from "@/lib/suabase-admin";
-import { ALLOWED_PAYMENT_EMAILS } from "./app/components/dashboard-component/DashboardSidebar";
 
 // ─── ROUTE CONFIGURATIONS ───
 
@@ -768,6 +767,17 @@ const publicStoreFrontRoutes = [
   "/store/", // /store/[storeSlug] - public storefront
   "/store/link/", // /store/[storeSlug]/link/[linkSlug] - public payment link
 ];
+
+export const ALLOWED_PAYMENT_EMAILS = new Set([
+  "characterinternational@gmail.com",
+  "ibrahimlawalabbalolo@gmail.com",
+  // "abdullahtimilehin15@gmail.com",
+  // "ebrusikefavour@gmail.com",
+  // "skillfidelafrica@gmail.com",
+  "abbalolo360@gmail.com",
+  "boluwatife525@gmail.com",
+  "verifiedaboki@gmail.com",
+]);
 
 
 const allowedAdminRoles = [
