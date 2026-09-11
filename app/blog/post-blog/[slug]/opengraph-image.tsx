@@ -1,10 +1,17 @@
 // app/blog/post-blog/[slug]/opengraph-image.tsx
 import { ImageResponse } from "next/og";
+import { cache } from "react";
 import { getPostBySlug } from "@/lib/blog";
 
+// ✅ Required exports per Next.js docs
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png"; // ← Guaranteed correct MIME
+export const contentType = "image/png";
 export const alt = "Zidwell Blog Post";
+
+const baseUrl = "https://zidwell.com";
+
+// Memoize so this doesn't re-fetch if page already fetched it
+const getPostCached = cache(async (slug: string) => getPostBySlug(slug));
 
 export default async function Image({
   params,
@@ -12,29 +19,29 @@ export default async function Image({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post = await getPostCached(slug);
 
   const title = post?.title || "Zidwell Blog";
   const excerpt = post?.excerpt || "";
   const trimmedExcerpt =
-    excerpt.length > 120 ? excerpt.substring(0, 120).trimEnd() + "..." : excerpt;
+    excerpt.length > 120
+      ? excerpt.substring(0, 120).trimEnd() + "..."
+      : excerpt;
 
-  // Optionally try to render the featured image inside the card.
-  // If it fails to fetch or is not a valid image, we fall back to
-  // text-only. `ImageResponse` will throw on bad images, so wrap in try.
+  // Try to embed the featured image as a background.
+  // Use base64 data URL so ImageResponse doesn't need network access
+  // at render time (which can fail on serverless cold starts).
   let featuredImageDataUrl: string | null = null;
   if (post?.featured_image) {
     try {
       const imageUrl = post.featured_image.startsWith("http")
         ? post.featured_image
-        : `https://zidwell.com${
-            post.featured_image.startsWith("/") ? "" : "/"
-          }${post.featured_image}`;
+        : `${baseUrl}${post.featured_image.startsWith("/") ? "" : "/"}${post.featured_image}`;
 
       const res = await fetch(imageUrl, { cache: "force-cache" });
       if (res.ok) {
         const contentTypeHeader = res.headers.get("content-type") || "";
-        // Only embed if it's actually an image — otherwise skip
+        // Only embed if it's actually an image — else fall back to text card
         if (contentTypeHeader.startsWith("image/")) {
           const buffer = await res.arrayBuffer();
           const base64 = Buffer.from(buffer).toString("base64");
@@ -42,12 +49,14 @@ export default async function Image({
         }
       }
     } catch {
-      // Silent fail — we'll just render the text card
+      // Silent fail → text-only card
     }
   }
 
   return new ImageResponse(
     (
+      // ⚠️ Only flexbox is supported — no grid, no advanced CSS.
+      // See: https://nextjs.org/docs/app/api-reference/functions/image-response
       <div
         style={{
           height: "100%",
@@ -60,11 +69,13 @@ export default async function Image({
         }}
       >
         {featuredImageDataUrl ? (
-          // Background image + dark overlay + text on top
           <div
             style={{
               position: "absolute",
-              inset: 0,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               display: "flex",
             }}
           >

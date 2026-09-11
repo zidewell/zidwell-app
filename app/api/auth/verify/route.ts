@@ -201,41 +201,34 @@ export async function GET(request: NextRequest) {
             ? process.env.NEXT_PUBLIC_DEV_URL
             : process.env.NEXT_PUBLIC_BASE_URL;
 
+        const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+        const welcomeImageUrl = `${baseUrl}/Zidwell Welcome Email 2026.png`
+
+        const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
         await transporter.sendMail({
           from: `"Zidwell" <${process.env.EMAIL_USER}>`,
           to: user.email,
           subject: "🎉 Welcome to Zidwell!",
           html: `
-            <div style="background: #f4f4f4; padding: 40px 20px; font-family: Arial, sans-serif;">
-              <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-                <div style="background: #FDC020; padding: 32px; text-align: center;">
-                  <h2 style="margin: 0; font-size: 24px; color: #191919;">Welcome to Zidwell! 🎉</h2>
-                </div>
-                <div style="padding: 30px;">
-                  <h2 style="color: #333; margin: 0;">Hi ${user.full_name},</h2>
-                  <p style="color: #666; line-height: 1.6; margin-top: 20px;">Your account has been successfully verified and is now ready to use!</p>
-                  
-                  <p style="color: #666; line-height: 1.6;">Here's what you get:</p>
-                  <ul style="color: #666; line-height: 2; padding-left: 20px;">
-                    <li>📄 10 free invoices</li>
-                    <li>🧾 10 free receipts</li>
-                    <li>📝 1 free contract</li>
-                    <li>🧮 30-day free Tax Calculator trial</li>
-                    <li>🎁 ₦20 Zidcoin bonus</li>
-                  </ul>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+              <h3 style="color: #22c55e;">✅ Account Verified!</h3>
+              <p>Hi ${user.full_name},</p>
+              <p>Your account has been successfully verified and is now ready to use!</p>
+              
+              <img src="${welcomeImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
 
-                  <div style="text-align: center; margin: 30px 0;">
-                    <a href="${baseUrl}/dashboard" 
-                       style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px; 
-                              text-decoration: none; display: inline-block; font-weight: bold;">
-                      Go to Dashboard
-                    </a>
-                  </div>
-                </div>
-                <div style="background: #fafafa; padding: 30px; border-top: 1px solid #eeeeee; text-align: center;">
-                  <p style="margin: 0; color: #777777; font-size: 14px;">© Zidwell. All rights reserved.</p>
-                </div>
+            
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${baseUrl}/dashboard" 
+                   style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px; 
+                          text-decoration: none; display: inline-block; font-weight: bold;">
+                  Go to Dashboard
+                </a>
               </div>
+              <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
             </div>
           `,
         });

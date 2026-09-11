@@ -1,6 +1,7 @@
 // app/blog/post-blog/[slug]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import BlogPostClient from "./client";
 import { getPostBySlug } from "@/lib/blog";
 
@@ -10,13 +11,18 @@ type Props = {
 
 const baseUrl = "https://zidwell.com";
 
+// ✅ Memoize so generateMetadata and the page share one fetch
+// (per Next.js docs "Memoizing data requests")
+const getPostCached = cache(async (slug: string) => getPostBySlug(slug));
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post = await getPostCached(slug);
 
   if (!post || !post.is_published) {
     return {
-      title: "Post Not Found | Zidwell Blog",
+      title: "Post Not Found",
+      description: "The requested blog post could not be found.",
       robots: { index: false, follow: false },
     };
   }
@@ -25,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     post.excerpt?.trim() ||
     `Read "${post.title}" on Zidwell Blog. Business tips for Nigerian SMEs.`;
 
-  // Trim to WhatsApp's preferred description length
+  // Trim to WhatsApp's preferred description length (~160 chars)
   const shortDescription =
     excerpt.length > 160 ? excerpt.slice(0, 157).trimEnd() + "..." : excerpt;
 
@@ -39,10 +45,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     authors: [{ name: post.author_name || "Zidwell" }],
 
     // ─────────────────────────────────────────────────────────
-    // NOTE: We intentionally DO NOT include `images` here.
-    // The colocated opengraph-image.tsx file handles it and
-    // guarantees Content-Type: image/png (which Facebook/WhatsApp
-    // will always accept).
+    // NOTE: We do NOT include `images` here.
+    //
+    // Per Next.js docs: "The more specific image will take
+    // precedence over any OG images above it in the folder
+    // structure."
+    //
+    // The colocated opengraph-image.tsx file handles og:image
+    // automatically and guarantees Content-Type: image/png.
+    // Declaring `images` here too would create duplicate tags.
     // ─────────────────────────────────────────────────────────
     openGraph: {
       title: post.title,
@@ -77,15 +88,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post = await getPostCached(slug);
 
   if (!post || !post.is_published) {
     notFound();
   }
 
   const url = `${baseUrl}/blog/post-blog/${slug}`;
-
-  // OG image URL for JSON-LD. Points to the colocated route.
+  // Points to the colocated opengraph-image.tsx route
   const ogImage = `${url}/opengraph-image`;
 
   const jsonLd = {
@@ -95,10 +105,7 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.excerpt || post.title,
     image: ogImage,
     url,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": url,
-    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": url },
     datePublished: post.published_at || post.created_at,
     dateModified: post.updated_at,
     author: {
