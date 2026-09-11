@@ -60,13 +60,12 @@ const initialFormData: StoreFormData = {
   state: "",
   city: "",
   streetAddress: "",
-  locationEnabled: false, // ✅ default OFF — don't auto-prompt
+  locationEnabled: false,
   latitude: null,
   longitude: null,
   locationAccuracy: null,
 };
 
-// ✅ Shared input styling (matches login page)
 function inputClass(error?: string) {
   return cn(
     "w-full px-3 py-2 border bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) squircle-md",
@@ -129,22 +128,23 @@ function ReviewRow({
   html?: boolean;
 }) {
   return (
+    // ✅ RESPONSIVE: make label min-width only on sm+
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 py-2 border-b border-(--border-color) last:border-0">
-      <span className="text-sm text-(--text-secondary) shrink-0 font-medium min-w-[120px]">
+      <span className="text-sm text-(--text-secondary) shrink-0 font-medium sm:min-w-[120px]">
         {label}
       </span>
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         {html ? (
           <div
             className="text-sm font-medium prose prose-sm dark:prose-invert max-w-none
               prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
-              prose-strong:text-(--text-primary)"
+              prose-strong:text-(--text-primary) break-words"
             dangerouslySetInnerHTML={{ __html: value || "—" }}
           />
         ) : (
           <span
             className={cn(
-              "text-sm font-medium text-(--text-primary)",
+              "text-sm font-medium text-(--text-primary) break-words",
               mono && "font-mono",
               multiline && "whitespace-pre-wrap"
             )}
@@ -160,14 +160,14 @@ function ReviewRow({
 function Benefit({ text }: { text: string }) {
   return (
     <div className="flex items-center gap-2">
-      <CheckCircle2 className="size-4 text-green-500" />
+      <CheckCircle2 className="size-4 text-green-500 shrink-0" />
       <span className="text-white/85 text-sm">{text}</span>
     </div>
   );
 }
 
 // ============================================================
-// CONGRATULATIONS MODAL
+// CONGRATULATIONS MODAL — ✅ RESPONSIVE
 // ============================================================
 function CongratulationsModal({
   isOpen,
@@ -181,41 +181,20 @@ function CongratulationsModal({
   onGoToDashboard: () => void;
 }) {
   useEffect(() => {
-    if (isOpen) {
-      triggerConfetti();
-    }
+    if (isOpen) triggerConfetti();
   }, [isOpen]);
 
   const triggerConfetti = () => {
     const end = Date.now() + 3000;
     const colors = ["#FDC020", "#eab308", "#f59e0b", "#22c55e", "#3b82f6"];
-
     const frame = () => {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors,
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors,
-      });
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors });
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-
     setTimeout(() => {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors,
-      });
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors });
     }, 150);
   };
 
@@ -233,19 +212,20 @@ function CongratulationsModal({
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.8, opacity: 0, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative max-w-md w-full bg-(--bg-primary) rounded-2xl border border-(--border-color) p-8 text-center shadow-2xl"
+        // ✅ RESPONSIVE: smaller padding on mobile, max-height + scroll
+        className="relative max-w-md w-full bg-(--bg-primary) rounded-2xl border border-(--border-color) p-6 sm:p-8 text-center shadow-2xl max-h-[90vh] overflow-y-auto tiny-scrollbar"
       >
-        <div className="flex justify-center mb-6">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-yellow-500/10">
-            <PartyPopper className="size-12 text-yellow-500" />
+        <div className="flex justify-center mb-5 sm:mb-6">
+          <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-yellow-500/10">
+            <PartyPopper className="size-10 sm:size-12 text-yellow-500" />
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-(--text-primary)">
+        <h2 className="text-xl sm:text-2xl font-bold text-(--text-primary)">
           Store Activated
         </h2>
 
-        <p className="mt-3 text-(--text-secondary)">
+        <p className="mt-3 text-sm sm:text-base text-(--text-secondary)">
           Your store{" "}
           <span className="font-semibold text-(--color-accent-yellow)">
             "{storeName}"
@@ -253,34 +233,21 @@ function CongratulationsModal({
           is now live and ready to accept payments.
         </p>
 
-        <div className="mt-6 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color) text-left space-y-2">
-          <div className="flex items-center gap-3 text-sm">
-            <CheckCircle2 className="size-4 text-green-500 shrink-0" />
-            <span className="text-(--text-primary)">
-              Your store is now publicly visible
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <CheckCircle2 className="size-4 text-green-500 shrink-0" />
-            <span className="text-(--text-primary)">
-              You can now accept card payments
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <CheckCircle2 className="size-4 text-green-500 shrink-0" />
-            <span className="text-(--text-primary)">
-              Your business wallet is ready to receive funds
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <CheckCircle2 className="size-4 text-green-500 shrink-0" />
-            <span className="text-(--text-primary)">
-              Create unlimited payment pages &amp; products
-            </span>
-          </div>
+        <div className="mt-5 sm:mt-6 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color) text-left space-y-2">
+          {[
+            "Your store is now publicly visible",
+            "You can now accept card payments",
+            "Your business wallet is ready to receive funds",
+            "Create unlimited payment pages & products",
+          ].map((t) => (
+            <div key={t} className="flex items-start gap-3 text-sm">
+              <CheckCircle2 className="size-4 text-green-500 shrink-0 mt-0.5" />
+              <span className="text-(--text-primary)">{t}</span>
+            </div>
+          ))}
         </div>
 
-        <div className="mt-6 space-y-3">
+        <div className="mt-5 sm:mt-6 space-y-3">
           <button
             onClick={onGoToDashboard}
             className="w-full rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3 text-sm font-semibold transition-colors"
@@ -321,19 +288,33 @@ export function CreateStoreForm() {
 
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
-  // ✅ Draft state
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [hasExistingDraft, setHasExistingDraft] = useState(false);
+  const [loadingDraftManually, setLoadingDraftManually] = useState(false);
+  const [draftCheckDone, setDraftCheckDone] = useState(false);
 
-  // ✅ Location capture state
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
 
-  // If user has an active store, redirect
+  // ✅ Reset processing state when page is restored from bfcache
+  // (e.g., user hit back after canceling Nomba checkout)
+  useEffect(() => {
+    const handlePageShow = () => {
+      if (sessionStorage.getItem("pendingStoreCheckout") === "true") {
+        sessionStorage.removeItem("pendingStoreCheckout");
+        setIsProcessingCheckout(false);
+        setIsActivating(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
+  // Redirect if user has active store
   useEffect(() => {
     if (hasActiveStore) {
       router.push("/dashboard/services/payment/dashboard");
@@ -343,8 +324,6 @@ export function CreateStoreForm() {
   // Load store data when there's a pending activation
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
-      console.log("🔄 Loading pending store data for activation...");
-
       setFormData({
         name: store.name || "",
         slug: store.slug || "",
@@ -356,74 +335,84 @@ export function CreateStoreForm() {
         city: store.city || "",
         streetAddress: store.streetAddress || "",
         locationEnabled: store.locationEnabled !== false,
-        // ✅ cast for safety — StoreData type may not declare these yet
         latitude: (store as any).latitude ?? null,
         longitude: (store as any).longitude ?? null,
         locationAccuracy: (store as any).locationAccuracy ?? null,
       });
-
       setHasLoadedStoreData(true);
       setStep(4);
     }
   }, [store, hasLoadedStoreData]);
 
-  // ✅ Restore store-create draft from DB
+  // ✅ Extracted draft loader — call from effect AND manual button
+  const loadDraft = useCallback(async (showToast = true): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/store/create-draft", { cache: "no-store" });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const draft = data?.draft;
+      if (!draft) return false;
+
+      setFormData({
+        name: draft.name || "",
+        slug: draft.slug || "",
+        description: draft.description || "",
+        keywords: Array.isArray(draft.keywords) ? draft.keywords.join(", ") : "",
+        cacNumber: draft.cac_number || "",
+        country: draft.country || "Nigeria",
+        state: draft.state || "",
+        city: draft.city || "",
+        streetAddress: draft.street_address || "",
+        locationEnabled: draft.location_enabled === true,
+        latitude: draft.latitude ?? null,
+        longitude: draft.longitude ?? null,
+        locationAccuracy: draft.location_accuracy ?? null,
+      });
+
+      if (draft.step >= 1 && draft.step <= 3) setStep(draft.step);
+      setHasExistingDraft(true);
+      setDraftCheckDone(true);
+
+      if (showToast) {
+        toast.success("Draft restored", {
+          description: "We restored your previously saved store details.",
+        });
+      }
+      return true;
+    } catch (e) {
+      console.error("Failed to restore create draft:", e);
+      return false;
+    }
+  }, []);
+
+  // ✅ Auto-load draft on mount
   useEffect(() => {
-    if (hasPendingActivation || hasActiveStore) return;
+    if (hasPendingActivation || hasActiveStore) {
+      setDraftCheckDone(true);
+      return;
+    }
     if (draftLoaded) return;
 
     let cancelled = false;
-
     (async () => {
-      try {
-        const res = await fetch("/api/store/create-draft", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
+      const loaded = await loadDraft(false);
+      if (cancelled) return;
 
-        const draft = data?.draft;
-        if (draft) {
-          setFormData({
-            name: draft.name || "",
-            slug: draft.slug || "",
-            description: draft.description || "",
-            keywords: Array.isArray(draft.keywords)
-              ? draft.keywords.join(", ")
-              : "",
-            cacNumber: draft.cac_number || "",
-            country: draft.country || "Nigeria",
-            state: draft.state || "",
-            city: draft.city || "",
-            streetAddress: draft.street_address || "",
-            locationEnabled: draft.location_enabled !== false,
-            latitude: draft.latitude ?? null,
-            longitude: draft.longitude ?? null,
-            locationAccuracy: draft.location_accuracy ?? null,
-          });
-          if (draft.step >= 1 && draft.step <= 3) {
-            setStep(draft.step);
-          }
-          setHasExistingDraft(true);
-          toast.success("Draft restored", {
-            description: "We restored your previously saved store details.",
-          });
-        }
-      } catch (e) {
-        console.error("Failed to restore create draft:", e);
-      } finally {
-        if (!cancelled) setDraftLoaded(true);
+      if (loaded) {
+        toast.success("Draft restored", {
+          description: "We restored your previously saved store details.",
+        });
       }
+      setDraftLoaded(true);
+      setDraftCheckDone(true);
     })();
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPendingActivation, hasActiveStore]);
+  }, [hasPendingActivation, hasActiveStore, loadDraft]);
 
-  // ✅ Simplified input handler — no dead code, accepts autofill
   const handleInputChange = useCallback(
     (
       e: React.ChangeEvent<
@@ -432,7 +421,6 @@ export function CreateStoreForm() {
     ) => {
       const { name, type } = e.target;
       if (!name) return;
-
       const newValue =
         type === "checkbox"
           ? (e.target as HTMLInputElement).checked
@@ -458,7 +446,6 @@ export function CreateStoreForm() {
   const handleDescriptionChange = useCallback(
     (value: string) => {
       setFormData((prev) => ({ ...prev, description: value }));
-
       if (errors.description) {
         setErrors((prev) => {
           const newErrors = { ...prev };
@@ -477,9 +464,7 @@ export function CreateStoreForm() {
         .replace(/[^a-z0-9-]/g, "")
         .replace(/\s/g, "-")
         .replace(/-+/g, "-");
-
       setFormData((prev) => ({ ...prev, slug: value }));
-
       if (errors.slug) {
         setErrors((prev) => {
           const newErrors = { ...prev };
@@ -491,9 +476,6 @@ export function CreateStoreForm() {
     [errors.slug]
   );
 
-  // ============================================================
-  // ✅ PRECISE LOCATION
-  // ============================================================
   const requestPreciseLocation = useCallback(async (): Promise<{
     latitude: number;
     longitude: number;
@@ -525,11 +507,7 @@ export function CreateStoreForm() {
           toast.error("Location unavailable", { description: msg });
           resolve(null);
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     });
   }, []);
@@ -561,7 +539,6 @@ export function CreateStoreForm() {
           }));
           toast.success("Location captured");
         } else {
-          // Permission denied or failed → revert toggle
           setFormData((prev) => ({ ...prev, locationEnabled: false }));
         }
       } finally {
@@ -574,45 +551,30 @@ export function CreateStoreForm() {
   const validateStep = useCallback(
     (stepNumber: number) => {
       const newErrors: Record<string, string> = {};
-
       if (stepNumber === 1) {
-        if (!formData.name?.trim()) {
-          newErrors.name = "Store name is required";
-        } else if (formData.name.trim().length < 2) {
+        if (!formData.name?.trim()) newErrors.name = "Store name is required";
+        else if (formData.name.trim().length < 2)
           newErrors.name = "Store name must be at least 2 characters";
-        }
-        if (!formData.slug?.trim()) {
-          newErrors.slug = "Store URL is required";
-        } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
+        if (!formData.slug?.trim()) newErrors.slug = "Store URL is required";
+        else if (!/^[a-z0-9-]+$/.test(formData.slug))
           newErrors.slug = "Only lowercase letters, numbers, and hyphens allowed";
-        } else if (formData.slug.length < 3) {
+        else if (formData.slug.length < 3)
           newErrors.slug = "URL must be at least 3 characters";
-        }
         const cleanDescription = formData.description
           .replace(/<[^>]*>/g, "")
           .trim();
-        if (!cleanDescription || cleanDescription.length === 0) {
+        if (!cleanDescription || cleanDescription.length === 0)
           newErrors.description = "Store description is required";
-        } else if (cleanDescription.length < 10) {
+        else if (cleanDescription.length < 10)
           newErrors.description = "Description should be at least 10 characters";
-        }
       }
-
       if (stepNumber === 2) {
-        if (!formData.country?.trim()) {
-          newErrors.country = "Country is required";
-        }
-        if (!formData.state?.trim()) {
-          newErrors.state = "State is required";
-        }
-        if (!formData.city?.trim()) {
-          newErrors.city = "City is required";
-        }
-        if (!formData.streetAddress?.trim()) {
+        if (!formData.country?.trim()) newErrors.country = "Country is required";
+        if (!formData.state?.trim()) newErrors.state = "State is required";
+        if (!formData.city?.trim()) newErrors.city = "City is required";
+        if (!formData.streetAddress?.trim())
           newErrors.streetAddress = "Street address is required";
-        }
       }
-
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     },
@@ -620,20 +582,14 @@ export function CreateStoreForm() {
   );
 
   const handleNext = useCallback(() => {
-    if (validateStep(step)) {
-      setStep((s) => Math.min(s + 1, totalSteps));
-    }
+    if (validateStep(step)) setStep((s) => Math.min(s + 1, totalSteps));
   }, [step, validateStep]);
 
-  const handleBack = useCallback(() => {
-    setStep((s) => Math.max(s - 1, 1));
-  }, []);
+  const handleBack = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
-  // ✅ Save & Continue Later (DB-backed)
   const handleSaveAndContinueLater = useCallback(async () => {
     if (savingDraft) return;
     setSavingDraft(true);
-
     try {
       const keywordsArray = formData.keywords
         .split(",")
@@ -681,7 +637,6 @@ export function CreateStoreForm() {
     }
   }, [formData, step, router, savingDraft]);
 
-  // ✅ Discard draft
   const handleDiscardDraft = useCallback(async () => {
     try {
       await fetch("/api/store/create-draft", { method: "DELETE" });
@@ -700,9 +655,7 @@ export function CreateStoreForm() {
   }, []);
 
   const handleGoToActivation = useCallback(() => {
-    if (validateStep(1) && validateStep(2)) {
-      setStep(4);
-    }
+    if (validateStep(1) && validateStep(2)) setStep(4);
   }, [validateStep]);
 
   const goToDashboard = useCallback(() => {
@@ -724,6 +677,14 @@ export function CreateStoreForm() {
     }
 
     setIsProcessingCheckout(true);
+    sessionStorage.setItem("pendingStoreCheckout", "true");
+
+    // ✅ Safety timeout — never spin forever
+    const safetyTimer = setTimeout(() => {
+      sessionStorage.removeItem("pendingStoreCheckout");
+      setIsProcessingCheckout(false);
+      setIsActivating(false);
+    }, 30000);
 
     try {
       const keywordsArray = formData.keywords
@@ -751,32 +712,30 @@ export function CreateStoreForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          storeData: storeData,
+          storeData,
           paymentMethod: "checkout",
         }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || "Activation failed");
-      }
+      if (!response.ok) throw new Error(data.error || "Activation failed");
 
       if (data.requiresCheckout && data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
-      } else {
-        throw new Error("No checkout URL returned");
+        return; // let page unload; timer/pageshow will clean up
       }
+      throw new Error("No checkout URL returned");
     } catch (error: any) {
+      clearTimeout(safetyTimer);
+      sessionStorage.removeItem("pendingStoreCheckout");
       console.error("Checkout error:", error);
-
       await Swal.fire({
         icon: "error",
         title: "Payment Initiation Failed",
         text: error.message || "Something went wrong. Please try again.",
         confirmButtonColor: "#6b7280",
       });
-
       setIsProcessingCheckout(false);
     }
   }, [hasPendingActivation, validateStep, formData]);
@@ -793,27 +752,25 @@ export function CreateStoreForm() {
         return;
       }
     }
-
     await handleCheckoutPayment();
   }, [hasPendingActivation, validateStep, handleCheckoutPayment]);
 
   const isWorking =
     isCreating || creatingStore || isActivating || isProcessingCheckout;
 
-  if (hasActiveStore) {
-    return null;
-  }
+  if (hasActiveStore) return null;
 
+  // ✅ RESPONSIVE: step content
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-bold text-(--text-primary)">
+              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                 Store / Brand Details
               </h2>
-              <p className="text-sm text-(--text-secondary)">
+              <p className="text-xs sm:text-sm text-(--text-secondary)">
                 Tell customers about your brand. The name appears publicly.
               </p>
             </div>
@@ -846,8 +803,9 @@ export function CreateStoreForm() {
                 error={errors.slug}
                 htmlFor="slug"
               />
+              {/* ✅ RESPONSIVE: prefix can shrink on very small screens */}
               <div className="flex items-center rounded-md border border-(--border-color) bg-(--bg-primary) focus-within:ring-2 focus-within:ring-(--color-accent-yellow) focus-within:border-(--color-accent-yellow) transition-all overflow-hidden squircle-md">
-                <span className="px-3 text-sm text-(--text-secondary) bg-(--bg-secondary) py-2 whitespace-nowrap">
+                <span className="px-2 sm:px-3 text-xs sm:text-sm text-(--text-secondary) bg-(--bg-secondary) py-2 whitespace-nowrap">
                   zidwell.com/
                 </span>
                 <input
@@ -859,7 +817,7 @@ export function CreateStoreForm() {
                   placeholder="your-store"
                   autoComplete="off"
                   disabled={isWorking}
-                  className="flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none text-(--text-primary)"
+                  className="flex-1 min-w-0 bg-transparent px-2 sm:px-3 py-2 text-sm focus:outline-none text-(--text-primary)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
@@ -885,8 +843,7 @@ export function CreateStoreForm() {
                 </p>
               )}
               <p className="mt-2 text-xs text-(--text-secondary)">
-                Use the toolbar to format your description (bold, italic, lists,
-                etc.)
+                Use the toolbar to format your description (bold, italic, lists, etc.)
               </p>
             </div>
 
@@ -916,10 +873,10 @@ export function CreateStoreForm() {
         return (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-bold text-(--text-primary)">
+              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                 Location Details
               </h2>
-              <p className="text-sm text-(--text-secondary)">
+              <p className="text-xs sm:text-sm text-(--text-secondary)">
                 Where is your store based?
               </p>
             </div>
@@ -1015,11 +972,11 @@ export function CreateStoreForm() {
               />
             </div>
 
-            {/* ✅ PRECISE LOCATION TOGGLE */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color)">
-              <div className="flex-1">
+            {/* ✅ RESPONSIVE: stack icon+text above toggle on mobile */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color)">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <MapPin className="size-4 text-(--text-secondary)" />
+                  <MapPin className="size-4 text-(--text-secondary) shrink-0" />
                   <p className="font-medium text-sm text-(--text-primary)">
                     Allow precise location
                   </p>
@@ -1030,7 +987,7 @@ export function CreateStoreForm() {
                 </p>
 
                 {formData.latitude != null && formData.longitude != null && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all">
                     Captured: {formData.latitude.toFixed(5)},{" "}
                     {formData.longitude.toFixed(5)}
                     {formData.locationAccuracy
@@ -1046,7 +1003,7 @@ export function CreateStoreForm() {
 
               <label
                 className={cn(
-                  "relative inline-flex items-center ml-3 shrink-0",
+                  "relative inline-flex items-center shrink-0 self-start sm:self-center",
                   locationLoading ? "cursor-wait" : "cursor-pointer"
                 )}
               >
@@ -1078,15 +1035,15 @@ export function CreateStoreForm() {
         return (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-bold text-(--text-primary)">
+              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
                 Review Your Store
               </h2>
-              <p className="text-sm text-(--text-secondary)">
+              <p className="text-xs sm:text-sm text-(--text-secondary)">
                 Confirm everything looks correct before activation.
               </p>
             </div>
 
-            <div className="rounded-xl bg-(--bg-secondary) p-5 space-y-1 border border-(--border-color)">
+            <div className="rounded-xl bg-(--bg-secondary) p-4 sm:p-5 space-y-1 border border-(--border-color)">
               <ReviewRow label="Store Name" value={formData.name} />
               <ReviewRow
                 label="Store URL"
@@ -1100,18 +1057,16 @@ export function CreateStoreForm() {
               <ReviewRow label="Address" value={formData.streetAddress} />
 
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 py-2 border-b border-(--border-color) last:border-0">
-                <span className="text-sm text-(--text-secondary) shrink-0 font-medium min-w-[120px]">
+                <span className="text-sm text-(--text-secondary) shrink-0 font-medium sm:min-w-[120px]">
                   Description
                 </span>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   {formData.description ? (
                     <div
                       className="text-sm font-medium prose prose-sm dark:prose-invert max-w-none
                         prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
-                        prose-strong:text-(--text-primary)"
-                      dangerouslySetInnerHTML={{
-                        __html: formData.description,
-                      }}
+                        prose-strong:text-(--text-primary) break-words"
+                      dangerouslySetInnerHTML={{ __html: formData.description }}
                     />
                   ) : (
                     <span className="text-sm text-(--text-secondary)">
@@ -1150,32 +1105,33 @@ export function CreateStoreForm() {
         return (
           <div className="space-y-5">
             <div className="text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-(--bg-secondary) mx-auto">
-                <Sparkles className="size-7 text-(--text-secondary)" />
+              <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-(--bg-secondary) mx-auto">
+                <Sparkles className="size-6 sm:size-7 text-(--text-secondary)" />
               </div>
-              <h2 className="text-2xl font-bold mt-4 text-(--text-primary)">
+              <h2 className="text-xl sm:text-2xl font-bold mt-4 text-(--text-primary)">
                 {hasPendingActivation
                   ? "Complete Your Store Activation"
                   : "Activate Your Store"}
               </h2>
-              <p className="text-sm text-(--text-secondary) mt-2">
+              <p className="text-xs sm:text-sm text-(--text-secondary) mt-2">
                 {hasPendingActivation
                   ? "Your store has been created. Pay the activation fee to publish it."
                   : "Pay a one-time activation fee via card to publish your store."}
               </p>
             </div>
 
-            <div className="rounded-xl border border-(--border-color) bg-[#191919] text-white p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+            <div className="rounded-xl border border-(--border-color) bg-[#191919] text-white p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
                     Activation Fee
                   </p>
-                  <p className="text-4xl font-bold mt-2">
+                  {/* ✅ RESPONSIVE: smaller font on mobile */}
+                  <p className="text-3xl sm:text-4xl font-bold mt-2">
                     ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
                   </p>
                 </div>
-                <CreditCard className="size-10 text-gray-400 shrink-0" />
+                <CreditCard className="size-8 sm:size-10 text-gray-400 shrink-0" />
               </div>
               <div className="mt-5 pt-5 border-t border-gray-700 space-y-2 text-sm">
                 <Benefit text="Publish your public store page" />
@@ -1186,16 +1142,16 @@ export function CreateStoreForm() {
             </div>
 
             {isVerified ? (
-              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 flex items-center gap-3">
-                <CheckCircle2 className="size-5 text-green-500 shrink-0" />
+              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 flex items-start sm:items-center gap-3">
+                <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5 sm:mt-0" />
                 <p className="text-sm font-medium text-green-700 dark:text-green-400">
                   BVN verified. You're ready to activate.
                 </p>
               </div>
             ) : (
-              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4 flex items-center gap-3">
-                <AlertTriangle className="size-5 text-yellow-500 shrink-0" />
-                <div className="flex-1">
+              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4 flex items-start gap-3">
+                <AlertTriangle className="size-5 text-yellow-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
                     User credentials not verified
                   </p>
@@ -1216,7 +1172,7 @@ export function CreateStoreForm() {
             <button
               onClick={handleActivate}
               disabled={isWorking || isProcessingCheckout}
-              className="w-full rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-4 text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 sm:py-4 text-sm sm:text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isActivating || isProcessingCheckout ? (
                 <>
@@ -1246,8 +1202,8 @@ export function CreateStoreForm() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      {/* ✅ Top-left back arrow */}
+    // ✅ RESPONSIVE: smaller horizontal padding on mobile, tighter vertical
+    <div className="max-w-3xl mx-auto py-6 sm:py-8 px-3 sm:px-4">
       <button
         onClick={() => router.back()}
         type="button"
@@ -1258,7 +1214,6 @@ export function CreateStoreForm() {
         <ArrowLeft className="size-6" />
       </button>
 
-      {/* Congratulations Modal */}
       <AnimatePresence>
         <CongratulationsModal
           isOpen={showCongratulations}
@@ -1268,18 +1223,19 @@ export function CreateStoreForm() {
         />
       </AnimatePresence>
 
-      <div className="text-center mb-8">
+      {/* ✅ RESPONSIVE: heading sizes */}
+      <div className="text-center mb-6 sm:mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-(--bg-secondary)">
-            <Store className="size-8 text-(--text-secondary)" />
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-(--bg-secondary)">
+            <Store className="size-7 sm:size-8 text-(--text-secondary)" />
           </div>
         </div>
-        <h1 className="text-3xl font-bold text-(--text-primary) sm:text-4xl">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-(--text-primary)">
           {hasPendingActivation
             ? "Complete Your Store Activation"
             : "Create Your Online Store"}
         </h1>
-        <p className="mt-2 text-(--text-secondary)">
+        <p className="mt-2 text-sm sm:text-base text-(--text-secondary) px-2">
           {hasPendingActivation
             ? "Your store is almost ready! Pay the activation fee to publish it."
             : "Set up your store and activate it to start accepting payments"}
@@ -1292,9 +1248,43 @@ export function CreateStoreForm() {
         dismissable={true}
       />
 
-      {/* ✅ Draft restored banner */}
+      {/* ✅ Manual Load Draft button — only when auto-load didn't find one */}
+      {!hasPendingActivation &&
+        !hasActiveStore &&
+        draftCheckDone &&
+        !hasExistingDraft &&
+        step === 1 &&
+        !formData.name && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>Have a saved draft? Load it to continue.</span>
+            </div>
+            <button
+              onClick={async () => {
+                setLoadingDraftManually(true);
+                const loaded = await loadDraft(true);
+                setLoadingDraftManually(false);
+                if (!loaded) toast.error("No saved draft found");
+              }}
+              disabled={loadingDraftManually}
+              type="button"
+              className="self-start sm:self-auto text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline flex items-center gap-1 disabled:opacity-50"
+            >
+              {loadingDraftManually ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" /> Loading...
+                </>
+              ) : (
+                <>Load Draft</>
+              )}
+            </button>
+          </div>
+        )}
+
+      {/* Draft restored banner */}
       {hasExistingDraft && !hasPendingActivation && step <= 3 && (
-        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
           <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
             <AlertCircle className="size-4 shrink-0" />
             <span>Continuing from your saved draft.</span>
@@ -1302,46 +1292,44 @@ export function CreateStoreForm() {
           <button
             onClick={handleDiscardDraft}
             type="button"
-            className="text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline"
+            className="self-start sm:self-auto text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline"
           >
             Start over
           </button>
         </div>
       )}
 
+      {/* ✅ RESPONSIVE: step indicator, tighter spacing on mobile */}
       {!hasPendingActivation && (
-        <div className="flex items-center justify-center gap-2 mb-8 overflow-x-auto px-2">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 sm:mb-8 overflow-x-auto px-1">
           {[
             { n: 1, label: "Brand" },
             { n: 2, label: "Location" },
             { n: 3, label: "Review" },
             { n: 4, label: "Activate" },
           ].map((s, i, arr) => (
-            <div key={s.n} className="flex items-center">
+            <div key={s.n} className="flex items-center shrink-0">
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors",
+                    "flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs sm:text-sm font-bold transition-colors",
                     s.n === step && "bg-(--color-accent-yellow) text-(--color-ink)",
-                    s.n < step &&
-                      "bg-(--bg-secondary) text-(--text-primary)",
+                    s.n < step && "bg-(--bg-secondary) text-(--text-primary)",
                     s.n > step &&
                       "bg-(--bg-secondary) text-(--text-secondary) opacity-50"
                   )}
                 >
-                  {s.n < step ? <Check className="size-4" /> : s.n}
+                  {s.n < step ? <Check className="size-3.5 sm:size-4" /> : s.n}
                 </div>
-                <span className="mt-1 text-[10px] font-medium uppercase tracking-wide text-(--text-secondary) hidden sm:block">
+                <span className="mt-1 text-[9px] sm:text-[10px] font-medium uppercase tracking-wide text-(--text-secondary) hidden sm:block">
                   {s.label}
                 </span>
               </div>
               {i < arr.length - 1 && (
                 <div
                   className={cn(
-                    "h-0.5 w-8 sm:w-12 mx-1 sm:mx-2",
-                    s.n < step
-                      ? "bg-(--text-secondary)"
-                      : "bg-(--border-color)"
+                    "h-0.5 w-6 sm:w-12 mx-1 sm:mx-2",
+                    s.n < step ? "bg-(--text-secondary)" : "bg-(--border-color)"
                   )}
                 />
               )}
@@ -1351,23 +1339,23 @@ export function CreateStoreForm() {
       )}
 
       {hasPendingActivation && (
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-sm font-medium">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm font-medium">
             <AlertCircle className="size-4" />
             Pending Activation
           </div>
-          <h2 className="text-2xl font-bold mt-4 text-(--text-primary)">
+          <h2 className="text-xl sm:text-2xl font-bold mt-4 text-(--text-primary)">
             Step 4: Activate Your Store
           </h2>
-          <p className="text-sm text-(--text-secondary)">
+          <p className="text-xs sm:text-sm text-(--text-secondary) px-2">
             Your store "{formData.name}" has been created. Pay the activation
             fee to publish it.
           </p>
         </div>
       )}
 
-      {/* ✅ No key={step} on the outer wrapper — prevents remount, keeps autofill stable */}
-      <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-6">
+      {/* ✅ RESPONSIVE: card padding */}
+      <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-4 sm:p-6">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -1380,8 +1368,8 @@ export function CreateStoreForm() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="flex justify-between items-center mt-6 pt-6 border-t border-(--border-color)">
-          {/* ✅ Back arrow button — visible on steps 2 & 3 */}
+        {/* ✅ RESPONSIVE: action row wraps on very small screens */}
+        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-6 border-t border-(--border-color)">
           {step > 1 && !hasPendingActivation ? (
             <button
               onClick={handleBack}
@@ -1396,13 +1384,13 @@ export function CreateStoreForm() {
             <div className="h-10 w-10" />
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3 ml-auto">
             {step >= 1 && step <= 3 && !hasPendingActivation && (
               <button
                 onClick={handleSaveAndContinueLater}
                 type="button"
                 disabled={savingDraft}
-                className="rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) px-4 sm:px-6 py-2.5 text-sm font-medium hover:bg-(--bg-secondary) transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) px-3 sm:px-6 py-2.5 text-xs sm:text-sm font-medium hover:bg-(--bg-secondary) transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingDraft ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -1419,7 +1407,7 @@ export function CreateStoreForm() {
             {step === 1 && !hasPendingActivation && (
               <button
                 onClick={handleNext}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2"
+                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
               >
                 Next <ChevronRight className="size-4" />
               </button>
@@ -1428,7 +1416,7 @@ export function CreateStoreForm() {
             {step === 2 && !hasPendingActivation && (
               <button
                 onClick={handleNext}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2"
+                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
               >
                 Next <ChevronRight className="size-4" />
               </button>
@@ -1437,7 +1425,7 @@ export function CreateStoreForm() {
             {step === 3 && !hasPendingActivation && (
               <button
                 onClick={handleGoToActivation}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-2.5 text-sm font-semibold transition-colors flex items-center gap-2"
+                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
               >
                 Proceed to Activation <ChevronRight className="size-4" />
               </button>
