@@ -10,23 +10,6 @@ type Props = {
 
 const baseUrl = "https://zidwell.com";
 
-function buildOgImage(featuredImage: string | null | undefined): string {
-  if (!featuredImage) {
-    return `${baseUrl}/images/og-image.png`;
-  }
-
-  let url = featuredImage.startsWith("http")
-    ? featuredImage
-    : `${baseUrl}${featuredImage.startsWith("/") ? "" : "/"}${featuredImage}`;
-
-  // Force JPEG via Supabase transform (WhatsApp needs jpeg/png)
-  if (url.includes("supabase.co") && !url.includes("format=")) {
-    url += (url.includes("?") ? "&" : "?") + "format=jpeg&width=1200&height=630&resize=cover";
-  }
-
-  return url;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPostBySlug(slug);
@@ -38,11 +21,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const ogImage = buildOgImage(post.featured_image);
   const excerpt =
     post.excerpt?.trim() ||
     `Read "${post.title}" on Zidwell Blog. Business tips for Nigerian SMEs.`;
 
+  // Trim to WhatsApp's preferred description length
   const shortDescription =
     excerpt.length > 160 ? excerpt.slice(0, 157).trimEnd() + "..." : excerpt;
 
@@ -53,36 +36,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: post.title,
     description: shortDescription,
     keywords: [...(post.categories || []), ...(post.tags || [])].join(", "),
+    authors: [{ name: post.author_name || "Zidwell" }],
 
-    // ─────────────────────────────────────────────
-    // CRITICAL: Keep this EXACT shape. Do NOT add
-    // secureUrl, type, or other fields inside the
-    // image object — Next.js may drop them silently.
-    // ─────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────
+    // NOTE: We intentionally DO NOT include `images` here.
+    // The colocated opengraph-image.tsx file handles it and
+    // guarantees Content-Type: image/png (which Facebook/WhatsApp
+    // will always accept).
+    // ─────────────────────────────────────────────────────────
     openGraph: {
       title: post.title,
       description: shortDescription,
       url,
       siteName: "Zidwell Blog",
       type: "article",
+      locale: "en_NG",
       publishedTime: post.published_at || post.created_at,
       modifiedTime: post.updated_at,
       authors: [post.author_name || "Zidwell"],
-      images: [
-        {
-          url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: post.title,
-        },
-      ],
     },
 
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: shortDescription,
-      images: [ogImage],
       creator: "@zidwell",
     },
 
@@ -90,11 +67,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: url,
     },
 
-    // Only use `other` for tags Next.js doesn't natively support.
-    // Do NOT duplicate og:image here — it will conflict.
     other: {
-      "og:image:width": "1200",
-      "og:image:height": "630",
+      "article:published_time": post.published_at || post.created_at,
+      "article:modified_time": post.updated_at,
+      "article:author": post.author_name || "Zidwell",
     },
   };
 }
@@ -108,7 +84,9 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const url = `${baseUrl}/blog/post-blog/${slug}`;
-  const ogImage = buildOgImage(post.featured_image);
+
+  // OG image URL for JSON-LD. Points to the colocated route.
+  const ogImage = `${url}/opengraph-image`;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -117,7 +95,10 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.excerpt || post.title,
     image: ogImage,
     url,
-    mainEntityOfPage: { "@type": "WebPage", "@id": url },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": url,
+    },
     datePublished: post.published_at || post.created_at,
     dateModified: post.updated_at,
     author: {

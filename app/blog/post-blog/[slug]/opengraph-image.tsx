@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 import { getPostBySlug } from "@/lib/blog";
 
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+export const contentType = "image/png"; // ← Guaranteed correct MIME
 export const alt = "Zidwell Blog Post";
 
 export default async function Image({
@@ -14,31 +14,38 @@ export default async function Image({
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 
-  // If the post has a featured image, proxy it as a PNG response.
-  // (Next.js will set correct content-type headers automatically.)
+  const title = post?.title || "Zidwell Blog";
+  const excerpt = post?.excerpt || "";
+  const trimmedExcerpt =
+    excerpt.length > 120 ? excerpt.substring(0, 120).trimEnd() + "..." : excerpt;
+
+  // Optionally try to render the featured image inside the card.
+  // If it fails to fetch or is not a valid image, we fall back to
+  // text-only. `ImageResponse` will throw on bad images, so wrap in try.
+  let featuredImageDataUrl: string | null = null;
   if (post?.featured_image) {
     try {
       const imageUrl = post.featured_image.startsWith("http")
         ? post.featured_image
-        : `https://zidwell.com${post.featured_image}`;
+        : `https://zidwell.com${
+            post.featured_image.startsWith("/") ? "" : "/"
+          }${post.featured_image}`;
 
-      const response = await fetch(imageUrl, { cache: "force-cache" });
-      if (response.ok) {
-        const buffer = await response.arrayBuffer();
-        return new Response(buffer, {
-          headers: {
-            "Content-Type":
-              response.headers.get("content-type") || "image/jpeg",
-            "Cache-Control": "public, max-age=86400, immutable",
-          },
-        });
+      const res = await fetch(imageUrl, { cache: "force-cache" });
+      if (res.ok) {
+        const contentTypeHeader = res.headers.get("content-type") || "";
+        // Only embed if it's actually an image — otherwise skip
+        if (contentTypeHeader.startsWith("image/")) {
+          const buffer = await res.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString("base64");
+          featuredImageDataUrl = `data:${contentTypeHeader};base64,${base64}`;
+        }
       }
-    } catch (error) {
-      console.error("Error fetching featured image for OG:", error);
+    } catch {
+      // Silent fail — we'll just render the text card
     }
   }
 
-  // Fallback: generate a branded card with text
   return new ImageResponse(
     (
       <div
@@ -47,42 +54,83 @@ export default async function Image({
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
           backgroundColor: "#0A0A0A",
           padding: "60px",
+          position: "relative",
         }}
       >
-        <div
-          style={{
-            fontSize: 56,
-            fontWeight: "bold",
-            color: "white",
-            textAlign: "center",
-            marginBottom: 24,
-            maxWidth: "80%",
-            lineHeight: 1.2,
-          }}
-        >
-          {post?.title || "Zidwell Blog"}
-        </div>
-        {post?.excerpt && (
+        {featuredImageDataUrl ? (
+          // Background image + dark overlay + text on top
           <div
             style={{
-              fontSize: 28,
-              color: "#B0B0B0",
-              textAlign: "center",
-              maxWidth: "80%",
-              lineHeight: 1.4,
+              position: "absolute",
+              inset: 0,
+              display: "flex",
             }}
           >
-            {post.excerpt.length > 120
-              ? post.excerpt.substring(0, 120) + "..."
-              : post.excerpt}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={featuredImageDataUrl}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                opacity: 0.35,
+              }}
+            />
           </div>
-        )}
-        <div style={{ marginTop: 48, fontSize: 24, color: "#FDC020" }}>
-          zidwell.com/blog
+        ) : null}
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 56,
+              fontWeight: "bold",
+              color: "white",
+              textAlign: "center",
+              marginBottom: 24,
+              maxWidth: "90%",
+              lineHeight: 1.2,
+            }}
+          >
+            {title}
+          </div>
+
+          {trimmedExcerpt ? (
+            <div
+              style={{
+                fontSize: 28,
+                color: "#D0D0D0",
+                textAlign: "center",
+                maxWidth: "85%",
+                lineHeight: 1.4,
+              }}
+            >
+              {trimmedExcerpt}
+            </div>
+          ) : null}
+
+          <div
+            style={{
+              marginTop: 48,
+              fontSize: 24,
+              color: "#FDC020",
+              fontWeight: "bold",
+            }}
+          >
+            zidwell.com/blog
+          </div>
         </div>
       </div>
     ),

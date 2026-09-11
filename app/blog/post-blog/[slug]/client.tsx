@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft, Share2, Bookmark, Heart, Eye, Clock } from "lucide-react";
@@ -8,7 +8,6 @@ import Swal from "sweetalert2";
 import Image from "next/image";
 import CommentSection from "@/app/components/blog-components/blog/CommentSection";
 
-// Types
 interface BlogPost {
   id: string;
   title: string;
@@ -32,7 +31,6 @@ interface BlogPost {
   audio_file?: string | null;
 }
 
-// Simple alert helper
 const showAlert = (
   title: string,
   text: string,
@@ -72,16 +70,13 @@ export default function BlogPostClient({
   const readTime = calculateReadTime(post.content);
   const publishDate = post.published_at || post.created_at;
 
-  // Load likes/bookmarks and increment view
   useEffect(() => {
-    // Load from localStorage
     const likedPosts = JSON.parse(localStorage.getItem("likedPosts") || "[]");
     setIsLiked(likedPosts.includes(post.id));
 
     const bookmarks = JSON.parse(localStorage.getItem("blogBookmarks") || "[]");
     setIsBookmarked(bookmarks.includes(post.id));
 
-    // Increment view count (only once per session)
     const viewedKey = `viewed_post_${post.id}`;
     if (!sessionStorage.getItem(viewedKey)) {
       fetch(`/api/blog/posts?id=${post.id}`, {
@@ -140,11 +135,9 @@ export default function BlogPostClient({
     const newIsLiked = !isLiked;
     const newLikeCount = newIsLiked ? likeCount + 1 : likeCount - 1;
 
-    // Optimistic update
     setLikeCount(newLikeCount);
     setIsLiked(newIsLiked);
 
-    // Update localStorage
     const likedPosts = JSON.parse(localStorage.getItem("likedPosts") || "[]");
     if (newIsLiked) {
       likedPosts.push(post.id);
@@ -155,7 +148,6 @@ export default function BlogPostClient({
     }
     localStorage.setItem("likedPosts", JSON.stringify(likedPosts));
 
-    // Update server
     try {
       await fetch(`/api/blog/posts?id=${post.id}`, {
         method: "PATCH",
@@ -164,40 +156,28 @@ export default function BlogPostClient({
       });
     } catch (err) {
       console.error("Error updating like:", err);
-      // Rollback on error
       setLikeCount(likeCount);
       setIsLiked(isLiked);
     }
   };
 
-  // Process content to ensure links open in new tab and have proper styling
   const processContent = (html: string): string => {
     if (!html) return "";
-    
-    // Add target="_blank" and rel="noopener noreferrer" to all links
-    let processed = html.replace(
+    return html.replace(
       /<a\s+(?:[^>]*?\s+)?href="([^"]*)"([^>]*)>/gi,
       (match, href, rest) => {
-        // Skip if already has target attribute
-        if (rest.includes('target=')) {
-          return match;
-        }
+        if (/\btarget=/i.test(rest)) return match;
         return `<a href="${href}" target="_blank" rel="noopener noreferrer"${rest}>`;
-      }
+      },
     );
-    
-    return processed;
   };
 
-  // Simple content renderer
-  const renderContent = () => {
-    const processedContent = processContent(post.content);
-    return { __html: processedContent };
-  };
+  const renderContent = () => ({
+    __html: processContent(post.content),
+  });
 
   return (
     <div className="min-h-screen bg-(--bg-primary)">
-      {/* Simple Header */}
       <header className="border-b border-(--border-color) bg-(--bg-primary) sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 max-w-6xl">
           <div className="flex items-center justify-between">
@@ -215,7 +195,6 @@ export default function BlogPostClient({
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <article>
-          {/* Categories */}
           {post.categories.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-4">
               {post.categories.map((cat, i) => (
@@ -229,19 +208,16 @@ export default function BlogPostClient({
             </div>
           )}
 
-          {/* Title */}
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-(--text-primary) mb-4 leading-tight">
             {post.title}
           </h1>
 
-          {/* Excerpt */}
           {post.excerpt && (
             <p className="text-lg text-(--text-secondary) mb-6 italic border-l-4 border-(--color-accent-yellow) pl-4">
               {post.excerpt}
             </p>
           )}
 
-          {/* Author & Meta */}
           <div className="flex items-center gap-4 mb-6 pb-6 border-b border-(--border-color)">
             <div className="w-12 h-12 rounded-full bg-(--bg-secondary) overflow-hidden shrink-0">
               {post.author_avatar && (
@@ -270,7 +246,6 @@ export default function BlogPostClient({
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex flex-wrap gap-3 py-4 border-b border-(--border-color) mb-8">
             <button
               onClick={handleShare}
@@ -308,7 +283,6 @@ export default function BlogPostClient({
             </button>
           </div>
 
-          {/* Featured Image */}
           {post.featured_image && (
             <div className="mb-8 rounded-xl overflow-hidden shadow-soft">
               <Image
@@ -323,10 +297,11 @@ export default function BlogPostClient({
             </div>
           )}
 
-          {/* Content with editor-like spacing */}
-          <div className="blog-content" dangerouslySetInnerHTML={renderContent()} />
+          <div
+            className="blog-content"
+            dangerouslySetInnerHTML={renderContent()}
+          />
 
-          {/* Tags */}
           {post.tags.length > 0 && (
             <div className="pt-6 border-t border-(--border-color)">
               <h3 className="font-semibold text-(--text-primary) mb-3">Tags</h3>
@@ -343,7 +318,6 @@ export default function BlogPostClient({
             </div>
           )}
 
-          {/* Stats Footer */}
           <div className="mt-8 pt-6 border-t border-(--border-color)">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div className="p-3 bg-(--bg-secondary) rounded-lg">
@@ -367,79 +341,61 @@ export default function BlogPostClient({
             </div>
           </div>
 
-          {/* Comments Section */}
           <CommentSection postId={post.id} />
         </article>
       </main>
 
-      {/* Custom styles to match editor spacing exactly */}
       <style jsx global>{`
         .blog-content {
           font-size: 1.125rem;
           line-height: 1.75;
-    
         }
-        
-        /* Paragraph spacing - matches editor */
         .blog-content p {
           margin-bottom: 1rem;
           margin-top: 0;
         }
-        
-        /* Headings */
         .blog-content h1 {
           font-size: 2rem;
           font-weight: 700;
           margin-top: 2rem;
           margin-bottom: 1rem;
         }
-        
         .blog-content h2 {
           font-size: 1.5rem;
           font-weight: 600;
           margin-top: 1.75rem;
           margin-bottom: 0.875rem;
         }
-        
         .blog-content h3 {
           font-size: 1.25rem;
           font-weight: 600;
           margin-top: 1.5rem;
           margin-bottom: 0.75rem;
         }
-        
         .blog-content h4 {
           font-size: 1.125rem;
           font-weight: 600;
           margin-top: 1.25rem;
           margin-bottom: 0.5rem;
         }
-        
-        /* Lists */
         .blog-content ul,
         .blog-content ol {
           margin-bottom: 1.5rem;
           padding-left: 1.75rem;
         }
-        
         .blog-content li {
           margin-bottom: 0.5rem;
         }
-        
-        /* Links - BLUE and visible */
         .blog-content a {
           color: #2563eb;
           text-decoration: underline;
           text-decoration-thickness: 2px;
           text-decoration-color: #bfdbfe;
         }
-        
         .blog-content a:hover {
           color: #1d4ed8;
           text-decoration-color: #2563eb;
         }
-        
-        /* Images */
         .blog-content img {
           max-width: 100%;
           height: auto;
@@ -447,8 +403,6 @@ export default function BlogPostClient({
           margin: 2rem auto;
           display: block;
         }
-        
-        /* Blockquotes */
         .blog-content blockquote {
           border-left: 4px solid #eab308;
           padding-left: 1.25rem;
@@ -456,15 +410,12 @@ export default function BlogPostClient({
           font-style: italic;
           color: #6b7280;
         }
-        
-        /* Code */
         .blog-content code {
           background-color: #f3f4f6;
           padding: 0.2rem 0.4rem;
           border-radius: 0.25rem;
           font-size: 0.875em;
         }
-        
         .blog-content pre {
           background-color: #1f2937;
           color: #f3f4f6;
@@ -473,34 +424,27 @@ export default function BlogPostClient({
           overflow-x: auto;
           margin: 1.5rem 0;
         }
-        
         .blog-content pre code {
           background-color: transparent;
           padding: 0;
           color: inherit;
         }
-        
-        /* Horizontal rule */
         .blog-content hr {
           margin: 2rem 0;
           border: 0;
           border-top: 1px solid #e5e7eb;
         }
-        
-        /* Tables */
         .blog-content table {
           width: 100%;
           border-collapse: collapse;
           margin: 1.5rem 0;
         }
-        
         .blog-content th,
         .blog-content td {
           border: 1px solid #e5e7eb;
           padding: 0.75rem;
           text-align: left;
         }
-        
         .blog-content th {
           background-color: #f9fafb;
           font-weight: 600;

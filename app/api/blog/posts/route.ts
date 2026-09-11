@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-// Define types for better TypeScript support
 interface BlogPost {
   id: string;
   title: string;
@@ -59,10 +58,113 @@ const supabaseBlog = createClient(
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   }
 );
+
+// ─────────────────────────────────────────────────────────────
+// ✅ FIX: Normalize MIME type so Supabase stores the right one
+// ─────────────────────────────────────────────────────────────
+function normalizeImageMime(file: File): string {
+  const declared = (file.type || "").toLowerCase();
+
+  // Browsers sometimes send image/jpg (invalid). Map to image/jpeg.
+  if (declared === "image/jpg" || declared === "image/pjpeg") {
+    return "image/jpeg";
+  }
+
+  // If the browser gave us a valid image/* type, trust it.
+  if (declared.startsWith("image/")) {
+    return declared;
+  }
+
+  // Otherwise infer from file extension.
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const map: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+    avif: "image/avif",
+    svg: "image/svg+xml",
+  };
+  return map[ext] || "image/jpeg";
+}
+
+// ✅ FIX: Safe extension extraction
+function safeExtension(file: File, fallback = "jpg"): string {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (!ext || ext.length > 5 || /[^a-z0-9]/.test(ext)) return fallback;
+  return ext;
+}
+
+// ✅ FIX: Upload a File to Supabase without corrupting MIME type
+async function uploadImageToSupabase(
+  file: File,
+  fileName: string
+): Promise<{ publicUrl: string } | { error: string }> {
+  try {
+    const mime = normalizeImageMime(file);
+
+    // ✅ FIX: Pass the File object directly — DO NOT convert to Buffer.
+    // Supabase's client handles File/Blob/ArrayBuffer natively and
+    // preserves the contentType correctly.
+    const arrayBuffer = await file.arrayBuffer();
+
+    const { error: uploadError } = await supabaseBlog.storage
+      .from("blog-images")
+      .upload(fileName, arrayBuffer, {
+        contentType: mime,           // ✅ FIX: normalized MIME
+        cacheControl: "31536000",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: uploadError.message };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabaseBlog.storage.from("blog-images").getPublicUrl(fileName);
+
+    return { publicUrl };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Upload failed" };
+  }
+}
+
+// ✅ FIX: Upload an audio file (same principle, but no MIME normalization)
+async function uploadAudioToSupabase(
+  file: File,
+  fileName: string
+): Promise<{ publicUrl: string } | { error: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const mime = file.type || "audio/mpeg";
+
+    const { error: uploadError } = await supabaseBlog.storage
+      .from("blog-images")
+      .upload(fileName, arrayBuffer, {
+        contentType: mime,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return { error: uploadError.message };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabaseBlog.storage.from("blog-images").getPublicUrl(fileName);
+
+    return { publicUrl };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Upload failed" };
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,7 +180,6 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get("sort_by") || "created_at";
     const sortOrder = searchParams.get("sort_order") || "desc";
 
-    // Single post by ID
     if (id) {
       const { data: post, error } = await supabaseBlog
         .from("blog_posts")
@@ -89,54 +190,30 @@ export async function GET(request: NextRequest) {
       if (error) {
         return NextResponse.json({ error: "Post not found" }, { status: 404 });
       }
-
       return NextResponse.json(formatPost(post));
     }
 
-    // Single post by slug
     if (slug) {
-      let query = supabaseBlog
-        .from("blog_posts")
-        .select("*")
-        .eq("slug", slug);
-      
-      if (published === 'true') {
-        query = query.eq("is_published", true);
-      }
+      let query = supabaseBlog.from("blog_posts").select("*").eq("slug", slug);
+      if (published === "true") query = query.eq("is_published", true);
 
       const { data: post, error } = await query.single();
-
       if (error) {
         return NextResponse.json({ error: "Post not found" }, { status: 404 });
       }
-
       return NextResponse.json(formatPost(post));
     }
 
-    // Build query for multiple posts
-    let query = supabaseBlog
-      .from("blog_posts")
-      .select("*", { count: "exact" });
+    let query = supabaseBlog.from("blog_posts").select("*", { count: "exact" });
 
-    if (category) {
-      query = query.contains("categories", [category]);
-    }
+    if (category) query = query.contains("categories", [category]);
+    if (tag) query = query.contains("tags", [tag]);
+    if (authorId) query = query.eq("author_id", authorId);
 
-    if (tag) {
-      query = query.contains("tags", [tag]);
-    }
+    if (published === "true") query = query.eq("is_published", true);
+    else if (published === "false") query = query.eq("is_published", false);
 
-    if (authorId) {
-      query = query.eq("author_id", authorId);
-    }
-
-    if (published === 'true') {
-      query = query.eq("is_published", true);
-    } else if (published === 'false') {
-      query = query.eq("is_published", false);
-    }
-
-    query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+    query = query.order(sortBy, { ascending: sortOrder === "asc" });
 
     const from = (page - 1) * limit;
     const to = from + limit - 1;
@@ -149,18 +226,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const formattedPosts = posts.map(formatPost);
-
     return NextResponse.json({
-      posts: formattedPosts,
+      posts: posts.map(formatPost),
       pagination: {
         page,
         limit,
         total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
-      }
+        totalPages: Math.ceil((count || 0) / limit),
+      },
     });
-
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -177,14 +251,16 @@ export async function POST(request: NextRequest) {
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
     const excerpt = formData.get("excerpt") as string;
-    const categories = JSON.parse(formData.get("categories") as string || "[]");
-    const tags = JSON.parse(formData.get("tags") as string || "[]");
+    const categories = JSON.parse(
+      (formData.get("categories") as string) || "[]"
+    );
+    const tags = JSON.parse((formData.get("tags") as string) || "[]");
     const authorId = formData.get("authorId") as string;
     const authorName = formData.get("authorName") as string;
     const authorAvatar = formData.get("authorAvatar") as string;
     const authorBio = formData.get("authorBio") as string;
     const isPublished = formData.get("isPublished") === "true";
-    
+
     const featuredImageFile = formData.get("featuredImage") as File | null;
     const featuredImageUrl = formData.get("featuredImageUrl") as string;
     const audioFile = formData.get("audioFile") as File | null;
@@ -203,86 +279,44 @@ export async function POST(request: NextRequest) {
       .replace(/--+/g, "-")
       .trim();
 
-    let featuredImageFinalUrl = null;
-    let audioFileUrl = null;
+    let featuredImageFinalUrl: string | null = null;
+    let audioFileUrl: string | null = null;
 
-    // Handle featured image - File upload
+    // ✅ FIX: Featured image upload
     if (featuredImageFile && featuredImageFile.size > 0) {
       console.log("📸 POST - Uploading image:", featuredImageFile.name);
 
-      try {
-        const bytes = await featuredImageFile.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const fileExt = featuredImageFile.name.split('.').pop();
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 8);
-        const fileName = `featured-images/${slug}-${timestamp}-${randomString}.${fileExt}`;
+      const ext = safeExtension(featuredImageFile);
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 8);
+      const fileName = `featured-images/${slug}-${timestamp}-${randomString}.${ext}`;
 
-        const { error: uploadError, data: uploadData } = await supabaseBlog
-          .storage
-          .from('blog-images')
-          .upload(fileName, buffer, {
-            contentType: featuredImageFile.type,
-            cacheControl: '31536000',
-            upsert: false
-          });
-
-        if (uploadError) {
-          console.error("❌ Upload error:", uploadError);
-          return NextResponse.json(
-            { error: "Failed to upload image: " + uploadError.message },
-            { status: 500 }
-          );
-        }
-
-        console.log("✅ Upload success:", uploadData);
-
-        const { data: { publicUrl } } = supabaseBlog
-          .storage
-          .from('blog-images')
-          .getPublicUrl(fileName);
-
-        featuredImageFinalUrl = publicUrl;
-        console.log("✅ Image URL saved:", featuredImageFinalUrl);
-      } catch (error) {
-        console.error("❌ Image error:", error);
+      const result = await uploadImageToSupabase(featuredImageFile, fileName);
+      if ("error" in result) {
+        console.error("❌ Upload error:", result.error);
         return NextResponse.json(
-          { error: "Failed to process image upload" },
+          { error: "Failed to upload image: " + result.error },
           { status: 500 }
         );
       }
-    } 
-    else if (featuredImageUrl && featuredImageUrl.startsWith('http')) {
+
+      featuredImageFinalUrl = result.publicUrl;
+      console.log("✅ Image URL saved:", featuredImageFinalUrl);
+    } else if (featuredImageUrl && featuredImageUrl.startsWith("http")) {
       console.log("📸 Using provided URL:", featuredImageUrl);
       featuredImageFinalUrl = featuredImageUrl;
     }
 
-    // Handle audio file
+    // ✅ FIX: Audio upload
     if (audioFile && audioFile.size > 0) {
-      try {
-        const bytes = await audioFile.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const fileExt = audioFile.name.split('.').pop();
-        const fileName = `audio-files/${slug}-${Date.now()}.${fileExt}`;
+      const ext = safeExtension(audioFile, "mp3");
+      const fileName = `audio-files/${slug}-${Date.now()}.${ext}`;
 
-        const { error: uploadError } = await supabaseBlog
-          .storage
-          .from('blog-images')
-          .upload(fileName, buffer, {
-            contentType: audioFile.type,
-            cacheControl: '31536000',
-            upsert: false
-          });
-
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabaseBlog
-            .storage
-            .from('blog-images')
-            .getPublicUrl(fileName);
-          audioFileUrl = publicUrl;
-        }
-      } catch (error) {
-        console.error("Audio error:", error);
+      const result = await uploadAudioToSupabase(audioFile, fileName);
+      if ("publicUrl" in result) {
+        audioFileUrl = result.publicUrl;
+      } else {
+        console.error("Audio upload failed:", result.error);
       }
     }
 
@@ -304,10 +338,8 @@ export async function POST(request: NextRequest) {
       view_count: 0,
       likes_count: 0,
       comment_count: 0,
-      published_at: isPublished ? new Date().toISOString() : null
+      published_at: isPublished ? new Date().toISOString() : null,
     };
-
-    console.log("💾 Saving post with image:", featuredImageFinalUrl);
 
     const { data: post, error } = await supabaseBlog
       .from("blog_posts")
@@ -323,7 +355,6 @@ export async function POST(request: NextRequest) {
     console.log("✅ Post saved, image in DB:", post.featured_image);
 
     return NextResponse.json(formatPost(post), { status: 201 });
-
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -346,22 +377,23 @@ export async function PUT(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    
+
     const title = formData.get("title") as string;
     const content = formData.get("content") as string;
     const excerpt = formData.get("excerpt") as string;
-    const categories = JSON.parse(formData.get("categories") as string || "[]");
-    const tags = JSON.parse(formData.get("tags") as string || "[]");
+    const categories = JSON.parse(
+      (formData.get("categories") as string) || "[]"
+    );
+    const tags = JSON.parse((formData.get("tags") as string) || "[]");
     const authorName = formData.get("authorName") as string;
     const authorAvatar = formData.get("authorAvatar") as string;
     const authorBio = formData.get("authorBio") as string;
     const isPublished = formData.get("isPublished") === "true";
-    
+
     const featuredImageFile = formData.get("featuredImage") as File | null;
     const featuredImageUrl = formData.get("featuredImageUrl") as string;
     const audioFile = formData.get("audioFile") as File | null;
 
-    // Get existing post
     const { data: existingPost, error: fetchError } = await supabaseBlog
       .from("blog_posts")
       .select("featured_image, audio_file, slug, published_at")
@@ -377,7 +409,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updateData: any = {
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     let slug = existingPost?.slug;
@@ -391,7 +423,7 @@ export async function PUT(request: NextRequest) {
         .trim();
       updateData.slug = slug;
     }
-    
+
     if (content) updateData.content = content;
     if (excerpt !== undefined) updateData.excerpt = excerpt;
     if (categories) updateData.categories = categories;
@@ -399,7 +431,7 @@ export async function PUT(request: NextRequest) {
     if (authorName) updateData.author_name = authorName;
     if (authorAvatar !== undefined) updateData.author_avatar = authorAvatar;
     if (authorBio !== undefined) updateData.author_bio = authorBio;
-    
+
     if (isPublished !== undefined) {
       updateData.is_published = isPublished;
       if (isPublished && !existingPost?.published_at) {
@@ -407,129 +439,95 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Handle featured image - New file upload
+    // ✅ FIX: New image upload in PUT
     if (featuredImageFile && featuredImageFile.size > 0) {
       console.log("📸 PUT - Uploading new image:", featuredImageFile.name);
 
-      try {
-        // Delete old image
-        if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
-          const oldPath = extractPathFromUrl(existingPost.featured_image);
-          if (oldPath) {
-            console.log("Deleting old image:", oldPath);
-            await supabaseBlog.storage
-              .from('blog-images')
-              .remove([oldPath]);
-          }
+      // Delete old image first
+      if (
+        existingPost?.featured_image &&
+        existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
+        const oldPath = extractPathFromUrl(existingPost.featured_image);
+        if (oldPath) {
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
         }
+      }
 
-        // Upload new image
-        const bytes = await featuredImageFile.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const fileExt = featuredImageFile.name.split('.').pop();
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 8);
-        const fileName = `featured-images/${slug || 'post'}-${timestamp}-${randomString}.${fileExt}`;
+      const ext = safeExtension(featuredImageFile);
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 8);
+      const fileName = `featured-images/${slug || "post"}-${timestamp}-${randomString}.${ext}`;
 
-        const { error: uploadError } = await supabaseBlog
-          .storage
-          .from('blog-images')
-          .upload(fileName, buffer, {
-            contentType: featuredImageFile.type,
-            cacheControl: '31536000',
-            upsert: false
-          });
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabaseBlog
-          .storage
-          .from('blog-images')
-          .getPublicUrl(fileName);
-
-        updateData.featured_image = publicUrl;
-        console.log("✅ New image uploaded:", publicUrl);
-      } catch (error) {
-        console.error("Error uploading image:", error);
+      const result = await uploadImageToSupabase(featuredImageFile, fileName);
+      if ("error" in result) {
+        console.error("Error uploading image:", result.error);
         return NextResponse.json(
-          { error: "Failed to upload image" },
+          { error: "Failed to upload image: " + result.error },
           { status: 500 }
         );
       }
-    } 
-    // Handle featured image - URL provided
-    else if (featuredImageUrl && featuredImageUrl.startsWith('http')) {
+
+      updateData.featured_image = result.publicUrl;
+      console.log("✅ New image uploaded:", result.publicUrl);
+    } else if (featuredImageUrl && featuredImageUrl.startsWith("http")) {
       console.log("📸 Using provided URL:", featuredImageUrl);
-      
-      if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
+
+      if (
+        existingPost?.featured_image &&
+        existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
         const oldPath = extractPathFromUrl(existingPost.featured_image);
         if (oldPath) {
-          await supabaseBlog.storage
-            .from('blog-images')
-            .remove([oldPath]);
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
         }
       }
-      
+
       updateData.featured_image = featuredImageUrl;
-    }
-    // Remove image
-    else if (!featuredImageFile && !featuredImageUrl) {
+    } else if (!featuredImageFile && !featuredImageUrl) {
       console.log("📸 Removing featured image");
-      
-      if (existingPost?.featured_image && existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
+
+      if (
+        existingPost?.featured_image &&
+        existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
         const oldPath = extractPathFromUrl(existingPost.featured_image);
         if (oldPath) {
-          await supabaseBlog.storage
-            .from('blog-images')
-            .remove([oldPath]);
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
         }
       }
       updateData.featured_image = null;
     }
 
-    // Handle audio file similarly
+    // ✅ FIX: Audio upload in PUT
     if (audioFile && audioFile.size > 0) {
-      try {
-        if (existingPost?.audio_file && existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)) {
-          const oldPath = extractPathFromUrl(existingPost.audio_file);
-          if (oldPath) {
-            await supabaseBlog.storage
-              .from('blog-images')
-              .remove([oldPath]);
-          }
-        }
-
-        const bytes = await audioFile.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const fileExt = audioFile.name.split('.').pop();
-        const fileName = `audio-files/${slug || 'post'}-${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabaseBlog
-          .storage
-          .from('blog-images')
-          .upload(fileName, buffer, {
-            contentType: audioFile.type,
-            cacheControl: '31536000',
-            upsert: false
-          });
-
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabaseBlog
-            .storage
-            .from('blog-images')
-            .getPublicUrl(fileName);
-          updateData.audio_file = publicUrl;
-        }
-      } catch (error) {
-        console.error("Audio error:", error);
-      }
-    } else if (!audioFile) {
-      if (existingPost?.audio_file && existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)) {
+      if (
+        existingPost?.audio_file &&
+        existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
         const oldPath = extractPathFromUrl(existingPost.audio_file);
         if (oldPath) {
-          await supabaseBlog.storage
-            .from('blog-images')
-            .remove([oldPath]);
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
+        }
+      }
+
+      const ext = safeExtension(audioFile, "mp3");
+      const fileName = `audio-files/${slug || "post"}-${Date.now()}.${ext}`;
+
+      const result = await uploadAudioToSupabase(audioFile, fileName);
+      if ("publicUrl" in result) {
+        updateData.audio_file = result.publicUrl;
+      } else {
+        console.error("Audio upload failed:", result.error);
+      }
+    } else if (!audioFile) {
+      if (
+        existingPost?.audio_file &&
+        existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
+        const oldPath = extractPathFromUrl(existingPost.audio_file);
+        if (oldPath) {
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
         }
       }
       updateData.audio_file = null;
@@ -548,7 +546,6 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json(formatPost(post));
-
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -571,25 +568,28 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
     if (body.increment_view === true) {
       const { data: currentPost, error: fetchError } = await supabaseBlog
         .from("blog_posts")
         .select("view_count")
         .eq("id", id)
         .single();
-      
+
       if (fetchError) {
-        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+        return NextResponse.json(
+          { error: fetchError.message },
+          { status: 500 }
+        );
       }
-      
+
       const newViewCount = (currentPost?.view_count || 0) + 1;
-      
+
       const { data: post, error } = await supabaseBlog
         .from("blog_posts")
-        .update({ 
+        .update({
           view_count: newViewCount,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq("id", id)
         .select()
@@ -601,20 +601,26 @@ export async function PATCH(request: NextRequest) {
 
       return NextResponse.json(formatPost(post));
     }
-    
-    const updateData: any = {
-      updated_at: new Date().toISOString()
-    };
+
+    const updateData: any = { updated_at: new Date().toISOString() };
 
     if (body.view_count !== undefined) updateData.view_count = body.view_count;
     if (body.viewCount !== undefined) updateData.view_count = body.viewCount;
-    if (body.likes_count !== undefined) updateData.likes_count = body.likes_count;
-    if (body.likesCount !== undefined) updateData.likes_count = body.likesCount;
-    if (body.comment_count !== undefined) updateData.comment_count = body.comment_count;
-    if (body.commentCount !== undefined) updateData.comment_count = body.commentCount;
-    
-    if (body.is_published !== undefined || body.isPublished !== undefined) {
-      const isPublished = body.is_published !== undefined ? body.is_published : body.isPublished;
+    if (body.likes_count !== undefined)
+      updateData.likes_count = body.likes_count;
+    if (body.likesCount !== undefined)
+      updateData.likes_count = body.likesCount;
+    if (body.comment_count !== undefined)
+      updateData.comment_count = body.comment_count;
+    if (body.commentCount !== undefined)
+      updateData.comment_count = body.commentCount;
+
+    if (
+      body.is_published !== undefined ||
+      body.isPublished !== undefined
+    ) {
+      const isPublished =
+        body.is_published !== undefined ? body.is_published : body.isPublished;
       updateData.is_published = isPublished;
       if (isPublished && !body.published_at) {
         updateData.published_at = new Date().toISOString();
@@ -633,9 +639,8 @@ export async function PATCH(request: NextRequest) {
     }
 
     return NextResponse.json(formatPost(post));
-
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -662,23 +667,26 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (post) {
-      const filesToDelete = [];
-      
-      if (post.featured_image && post.featured_image.includes(process.env.BLOG_SUPABASE_URL!)) {
+      const filesToDelete: string[] = [];
+
+      if (
+        post.featured_image &&
+        post.featured_image.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
         const imagePath = extractPathFromUrl(post.featured_image);
         if (imagePath) filesToDelete.push(imagePath);
       }
-      
-      if (post.audio_file && post.audio_file.includes(process.env.BLOG_SUPABASE_URL!)) {
+
+      if (
+        post.audio_file &&
+        post.audio_file.includes(process.env.BLOG_SUPABASE_URL!)
+      ) {
         const audioPath = extractPathFromUrl(post.audio_file);
         if (audioPath) filesToDelete.push(audioPath);
       }
-      
+
       if (filesToDelete.length > 0) {
-        console.log("Deleting files:", filesToDelete);
-        await supabaseBlog.storage
-          .from('blog-images')
-          .remove(filesToDelete);
+        await supabaseBlog.storage.from("blog-images").remove(filesToDelete);
       }
     }
 
@@ -691,11 +699,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Post deleted successfully" 
+    return NextResponse.json({
+      success: true,
+      message: "Post deleted successfully",
     });
-
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -705,20 +712,20 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// Helper function to format post data
 function formatPost(post: any): FormattedPost {
   let featuredImage = post.featured_image;
-  
-  if (featuredImage && !featuredImage.startsWith('http')) {
-    if (featuredImage.startsWith('/storage/v1/')) {
+
+  if (featuredImage && !featuredImage.startsWith("http")) {
+    if (featuredImage.startsWith("/storage/v1/")) {
       featuredImage = `${process.env.BLOG_SUPABASE_URL}${featuredImage}`;
-    } else if (featuredImage.includes('featured-images/')) {
+    } else if (featuredImage.includes("featured-images/")) {
       featuredImage = `${process.env.BLOG_SUPABASE_URL}/storage/v1/object/public/blog-images/${featuredImage}`;
-    } else if (!featuredImage.startsWith('blob:')) {
-      const baseUrl = process.env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : "https://zidwell.com";
-      featuredImage = `${baseUrl}${featuredImage.startsWith('/') ? '' : '/'}${featuredImage}`;
+    } else if (!featuredImage.startsWith("blob:")) {
+      const baseUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:3000"
+          : "https://zidwell.com";
+      featuredImage = `${baseUrl}${featuredImage.startsWith("/") ? "" : "/"}${featuredImage}`;
     }
   }
 
@@ -739,25 +746,24 @@ function formatPost(post: any): FormattedPost {
       id: post.author_id,
       name: post.author_name || "Unknown Author",
       avatar: post.author_avatar,
-      bio: post.author_bio
+      bio: post.author_bio,
     },
     published_at: post.published_at,
     created_at: post.created_at,
     updated_at: post.updated_at,
     view_count: post.view_count || 0,
     likes_count: post.likes_count || 0,
-    comments_count: post.comment_count || 0
+    comments_count: post.comment_count || 0,
   };
 }
 
-// Helper function to extract file path from Supabase URL
 function extractPathFromUrl(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split('/');
-    const bucketIndex = pathParts.indexOf('blog-images');
+    const pathParts = urlObj.pathname.split("/");
+    const bucketIndex = pathParts.indexOf("blog-images");
     if (bucketIndex !== -1 && bucketIndex + 1 < pathParts.length) {
-      return pathParts.slice(bucketIndex + 1).join('/');
+      return pathParts.slice(bucketIndex + 1).join("/");
     }
     return null;
   } catch {
