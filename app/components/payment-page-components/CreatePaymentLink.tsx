@@ -1,3 +1,4 @@
+// app/components/payment-page-components/CreatePaymentLink.tsx
 "use client";
 
 import { useRef, useState, useEffect, useId, useCallback } from "react";
@@ -5,28 +6,23 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
-  Upload,
   X,
   Plus,
   Trash2,
   GripVertical,
   Eye,
   Link2,
-  RefreshCw,
   CheckCircle,
   Copy,
   Loader2,
   AlertCircle,
-  Image as ImageIcon,
   Package,
-  ChevronLeft,
-  ChevronRight,
   Shield,
-  CreditCard,
+  Calendar,
+  Info,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
 import { Switch } from "@/app/components/ui/switch";
 import { useStore, CustomField, LinkConfig } from "@/app/hooks/useStore";
@@ -35,20 +31,31 @@ import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 
+// ============================================================
+// CONSTANTS
+// ============================================================
 const PRODUCT_IMAGE_SPECS = {
   width: 1350,
   height: 1080,
   ratio: "5:4",
   description: "1350 x 1080 pixels (5:4 ratio) - Instagram style",
-  maxSize: 10 * 1024 * 1024, // 10MB
+  maxSize: 10 * 1024 * 1024,
   formats: [".jpg", ".jpeg", ".png", ".webp", ".heic"],
 };
+
+const ZIDWELL_FEE_RATE = 0.03;
 
 const slugify = (text: string) =>
   text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const formatNaira = (amount: number) =>
+  `₦${amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 const defaultConfig: LinkConfig = {
   currency: "NGN",
@@ -73,6 +80,98 @@ const defaultConfig: LinkConfig = {
 };
 
 // ============================================================
+// PRICING SUMMARY CARD (for payment link)
+// ============================================================
+function LinkPricingSummaryCard({
+  priceType,
+  price,
+  installmentCount,
+  installmentPeriod,
+  installmentAmount,
+}: {
+  priceType: "fixed" | "installment";
+  price: number;
+  installmentCount: string;
+  installmentPeriod: string;
+  installmentAmount: number;
+}) {
+  if (price <= 0) return null;
+
+  const isInstallment =
+    priceType === "installment" && Number(installmentCount) > 1;
+
+  return (
+    <div className="rounded-2xl border border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-4 py-3 bg-(--color-accent-yellow)/10 border-b border-(--color-accent-yellow)/20">
+        <Info className="h-4 w-4 text-(--color-accent-yellow)" />
+        <h4 className="text-sm font-bold text-(--text-primary)">
+          {isInstallment ? "Installment Plan Summary" : "Payment Summary"}
+        </h4>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* ─── What the buyer pays ─── */}
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-(--text-secondary) mb-2">
+            What the buyer pays
+          </p>
+          <div className="space-y-1.5">
+            {isInstallment && (
+              <div className="flex justify-between text-sm">
+                <span className="text-(--text-secondary)">
+                  Per installment ({installmentCount}× {installmentPeriod})
+                </span>
+                <span className="font-bold text-(--text-primary)">
+                  {formatNaira(installmentAmount)}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-(--text-secondary)">
+                {isInstallment ? "Total across all installments" : "Amount"}
+              </span>
+              <span className="font-bold text-(--text-primary)">
+                {formatNaira(price)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-(--color-accent-yellow)/20" />
+
+        {/* ─── What you receive ─── */}
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-(--text-secondary) mb-2">
+            What you receive
+          </p>
+          <div className="space-y-1.5">
+            {isInstallment && (
+              <div className="flex justify-between text-sm">
+                <span className="text-(--text-secondary)">Per installment</span>
+                <span className="font-semibold text-(--color-lemon-green)">
+                  {formatNaira(installmentAmount * (1 - ZIDWELL_FEE_RATE))}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-(--text-secondary)">
+                {isInstallment
+                  ? "Total across all installments"
+                  : "Total payout"}
+              </span>
+              <span className="font-bold text-(--color-lemon-green)">
+                {formatNaira(price * (1 - ZIDWELL_FEE_RATE))}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // LIVE PREVIEW MODAL
 // ============================================================
 function LivePreviewModal({
@@ -83,6 +182,10 @@ function LivePreviewModal({
   productImage,
   previewPrice,
   config,
+  isInstallment,
+  installmentCount,
+  installmentPeriod,
+  installmentAmount,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -91,6 +194,10 @@ function LivePreviewModal({
   productImage: string | null;
   previewPrice: string;
   config: LinkConfig;
+  isInstallment?: boolean;
+  installmentCount?: string;
+  installmentPeriod?: string;
+  installmentAmount?: number;
 }) {
   const images = productImage ? [productImage] : [];
 
@@ -118,8 +225,12 @@ function LivePreviewModal({
             <div className="bg-[#023528] px-6 py-4 border-b border-gray-800 flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-2">
                 <Eye className="h-5 w-5 text-[#e1bf46]" />
-                <span className="text-lg font-semibold text-white">Live Preview</span>
-                <span className="text-xs text-gray-400 ml-2">What shoppers will see</span>
+                <span className="text-lg font-semibold text-white">
+                  Live Preview
+                </span>
+                <span className="text-xs text-gray-400 ml-2">
+                  What shoppers will see
+                </span>
               </div>
               <button
                 onClick={onClose}
@@ -139,7 +250,7 @@ function LivePreviewModal({
                         alt={title || "Product"}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.currentTarget.src = '/placeholder-image.png';
+                          e.currentTarget.src = "/placeholder-image.png";
                           e.currentTarget.onerror = null;
                         }}
                       />
@@ -158,7 +269,10 @@ function LivePreviewModal({
                       className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ background: `${config.brandColor}15` }}
                     >
-                      <Link2 className="h-4 w-4" style={{ color: config.brandColor }} />
+                      <Link2
+                        className="h-4 w-4"
+                        style={{ color: config.brandColor }}
+                      />
                     </div>
                     <span className="text-xs bg-[#e1bf46]/10 text-[#e1bf46] px-2 py-0.5 rounded-full">
                       Payment Link
@@ -170,20 +284,46 @@ function LivePreviewModal({
                   </h3>
 
                   {description && (
-                    <div 
+                    <div
                       className="text-sm text-gray-400 line-clamp-3 prose prose-invert prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: description }}
                     />
                   )}
 
+                  {/* Price Display — with installment support */}
                   <div className="py-2">
-                    <div className="text-xs text-gray-400">Amount</div>
-                    <p
-                      className="text-2xl font-bold"
-                      style={{ color: config.brandColor }}
-                    >
-                      {previewPrice}
-                    </p>
+                    {isInstallment && installmentAmount ? (
+                      <>
+                        <div className="text-xs text-gray-400">
+                          Pay in installments
+                        </div>
+                        <p
+                          className="text-2xl font-bold"
+                          style={{ color: config.brandColor }}
+                        >
+                          {formatNaira(installmentAmount)}
+                          <span className="text-sm text-gray-400 ml-1">
+                            × {installmentCount}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 capitalize">
+                          {installmentPeriod} — total{" "}
+                          {formatNaira(
+                            installmentAmount * Number(installmentCount || 0)
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-xs text-gray-400">Amount</div>
+                        <p
+                          className="text-2xl font-bold"
+                          style={{ color: config.brandColor }}
+                        >
+                          {previewPrice}
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -208,7 +348,8 @@ function LivePreviewModal({
                     {config.customFields.slice(0, 3).map((f) => (
                       <div key={f.id}>
                         <div className="text-[10px] text-gray-400 mb-0.5">
-                          {f.label}{f.required ? " *" : ""}
+                          {f.label}
+                          {f.required ? " *" : ""}
                         </div>
                         <div className="h-8 rounded-md border border-gray-700 bg-[#1a1a1a]" />
                       </div>
@@ -251,6 +392,9 @@ function LivePreviewModal({
   );
 }
 
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
 const CreatePaymentLink = () => {
   const router = useRouter();
   const { createPage, store, loading, hasStore, validateSlug } = useStore();
@@ -264,6 +408,13 @@ const CreatePaymentLink = () => {
   const [productImage, setProductImage] = useState<string | null>(null);
   const [productPreview, setProductPreview] = useState<string | null>(null);
   const [price, setPrice] = useState("");
+
+  // ─── INSTALLMENT STATE ───
+  const [priceType, setPriceType] = useState<"fixed" | "installment">("fixed");
+  const [installmentCount, setInstallmentCount] = useState("3");
+  const [installmentPeriod, setInstallmentPeriod] = useState("monthly");
+  const [installmentAmount, setInstallmentAmount] = useState(0);
+
   const [config, setConfig] = useState<LinkConfig>(defaultConfig);
   const [isMounted, setIsMounted] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -271,7 +422,7 @@ const CreatePaymentLink = () => {
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  
+
   // Slug validation state
   const [slugValidation, setSlugValidation] = useState<{
     isValid: boolean;
@@ -279,9 +430,9 @@ const CreatePaymentLink = () => {
     message: string;
     isTaken: boolean;
     isOwnStore: boolean;
-  }>({ 
-    isValid: true, 
-    isChecking: false, 
+  }>({
+    isValid: true,
+    isChecking: false,
     message: "",
     isTaken: false,
     isOwnStore: false,
@@ -293,54 +444,73 @@ const CreatePaymentLink = () => {
   const set = <K extends keyof LinkConfig>(k: K, v: LinkConfig[K]) =>
     setConfig((c) => ({ ...c, [k]: v }));
 
+  // ─── AUTO-RESET INSTALLMENT WHEN SWITCHING TO VARIABLE AMOUNT ───
+  useEffect(() => {
+    if (config.amountMode === "variable" && priceType === "installment") {
+      setPriceType("fixed");
+    }
+  }, [config.amountMode, priceType]);
+
+  // ─── COMPUTE INSTALLMENT AMOUNT ───
+  useEffect(() => {
+    if (priceType === "installment") {
+      const total = Number(price) || 0;
+      const count = Number(installmentCount) || 1;
+      setInstallmentAmount(total > 0 && count > 0 ? total / count : 0);
+    } else {
+      setInstallmentAmount(0);
+    }
+  }, [price, installmentCount, priceType]);
+
   // Validate slug with debounce
-  const validateSlugWithDebounce = useCallback(async (slugToValidate: string) => {
-    if (!slugToValidate || slugToValidate.length < 1) {
-      setSlugValidation({ 
-        isValid: false, 
-        isChecking: false, 
-        message: "Slug is required",
-        isTaken: false,
-        isOwnStore: false,
-      });
-      return;
-    }
+  const validateSlugWithDebounce = useCallback(
+    async (slugToValidate: string) => {
+      if (!slugToValidate || slugToValidate.length < 1) {
+        setSlugValidation({
+          isValid: false,
+          isChecking: false,
+          message: "Slug is required",
+          isTaken: false,
+          isOwnStore: false,
+        });
+        return;
+      }
 
-    // Check URL length (max 50 characters for browser URL)
-    if (slugToValidate.length > 50) {
-      setSlugValidation({
-        isValid: false,
-        isChecking: false,
-        message: "Slug is too long. Maximum 50 characters allowed.",
-        isTaken: false,
-        isOwnStore: false,
-      });
-      return;
-    }
+      if (slugToValidate.length > 50) {
+        setSlugValidation({
+          isValid: false,
+          isChecking: false,
+          message: "Slug is too long. Maximum 50 characters allowed.",
+          isTaken: false,
+          isOwnStore: false,
+        });
+        return;
+      }
 
-    setSlugValidation(prev => ({ ...prev, isChecking: true }));
+      setSlugValidation((prev) => ({ ...prev, isChecking: true }));
 
-    try {
-      const result = await validateSlug(slugToValidate);
-      
-      setSlugValidation({
-        isValid: result.valid,
-        isChecking: false,
-        message: result.message,
-        isTaken: result.isTaken,
-        isOwnStore: result.isOwnStore,
-      });
-    } catch (error) {
-      console.error("Error validating slug:", error);
-      setSlugValidation({
-        isValid: false,
-        isChecking: false,
-        message: "Failed to validate slug",
-        isTaken: false,
-        isOwnStore: false,
-      });
-    }
-  }, [validateSlug]);
+      try {
+        const result = await validateSlug(slugToValidate);
+        setSlugValidation({
+          isValid: result.valid,
+          isChecking: false,
+          message: result.message,
+          isTaken: result.isTaken,
+          isOwnStore: result.isOwnStore,
+        });
+      } catch (error) {
+        console.error("Error validating slug:", error);
+        setSlugValidation({
+          isValid: false,
+          isChecking: false,
+          message: "Failed to validate slug",
+          isTaken: false,
+          isOwnStore: false,
+        });
+      }
+    },
+    [validateSlug]
+  );
 
   useEffect(() => {
     setIsMounted(true);
@@ -357,26 +527,21 @@ const CreatePaymentLink = () => {
     if (title) {
       const newSlug = slugify(title);
       setSlug(newSlug);
-      
-      if (slugTimeoutRef.current) {
-        clearTimeout(slugTimeoutRef.current);
-      }
-      
+
+      if (slugTimeoutRef.current) clearTimeout(slugTimeoutRef.current);
       slugTimeoutRef.current = setTimeout(() => {
         validateSlugWithDebounce(newSlug);
       }, 800);
     } else {
       setSlug("");
-      setSlugValidation({ 
-        isValid: true, 
-        isChecking: false, 
+      setSlugValidation({
+        isValid: true,
+        isChecking: false,
         message: "",
         isTaken: false,
         isOwnStore: false,
       });
-      if (slugTimeoutRef.current) {
-        clearTimeout(slugTimeoutRef.current);
-      }
+      if (slugTimeoutRef.current) clearTimeout(slugTimeoutRef.current);
     }
   }, [title, validateSlugWithDebounce]);
 
@@ -386,12 +551,16 @@ const CreatePaymentLink = () => {
 
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
     if (!validTypes.includes(file.type)) {
-      alert(`File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`);
+      alert(
+        `File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`
+      );
       return;
     }
 
     if (file.size > PRODUCT_IMAGE_SPECS.maxSize) {
-      alert(`File "${file.name}" exceeds 10MB limit. Please compress your image.`);
+      alert(
+        `File "${file.name}" exceeds 10MB limit. Please compress your image.`
+      );
       return;
     }
 
@@ -403,13 +572,7 @@ const CreatePaymentLink = () => {
     };
     reader.readAsDataURL(file);
 
-    if (imageRef.current) {
-      imageRef.current.value = "";
-    }
-  };
-
-  const onTitleChange = (t: string) => {
-    setTitle(t);
+    if (imageRef.current) imageRef.current.value = "";
   };
 
   const addCustomField = () => {
@@ -421,53 +584,48 @@ const CreatePaymentLink = () => {
     };
     set("customFields", [...config.customFields, f]);
   };
+
   const updateField = (id: string, patch: Partial<CustomField>) => {
     set(
       "customFields",
-      config.customFields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+      config.customFields.map((f) => (f.id === id ? { ...f, ...patch } : f))
     );
   };
+
   const removeField = (id: string) =>
     set(
       "customFields",
-      config.customFields.filter((f) => f.id !== id),
+      config.customFields.filter((f) => f.id !== id)
     );
 
-const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
+  const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
+  const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
 
-                       const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
+  const canCreate = Boolean(
+    title.trim() &&
+      !slugValidation.isChecking &&
+      isSlugAvailable &&
+      (config.amountMode === "variable" ||
+        (Number(price) > 0 &&
+          (priceType === "fixed" ||
+            (priceType === "installment" &&
+              Number(installmentCount) >= 2 &&
+              Number(installmentCount) <= 24))))
+  );
 
-
- const canCreate = 
-  title.trim() && 
-  !slugValidation.isChecking && 
-  isSlugAvailable &&
-  (config.amountMode === "variable" || Number(price) > 0);
-
-
-console.log("canCreate:", canCreate, {
-  hasTitle: !!title.trim(),
-  isNotChecking: !slugValidation.isChecking,
-  isSlugAvailable: isSlugAvailable,
-  isValidPrice: (config.amountMode === "variable" || Number(price) > 0),
-  slugValidation: slugValidation
-});
-
-  const generateFinalSlug = () => {
-    return slug || slugify(title);
-  };
+  const generateFinalSlug = () => slug || slugify(title);
 
   const getPageUrl = () => {
-    const storeSlug = store?.slug || '';
-    if (!storeSlug) {
-      console.warn("No store slug available for URL generation");
-      return '#';
-    }
-    return `${window.location.origin}/store/${storeSlug}/${createdSlug}`.replace(/\/+/g, '/');
+    const storeSlug = store?.slug || "";
+    if (!storeSlug) return "#";
+    return `/store/${storeSlug}/${createdSlug}`.replace(
+      /\/+/g,
+      "/"
+    );
   };
 
   const pageUrl = getPageUrl();
-  
+
   const copyToClipboard = async (text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
@@ -476,7 +634,6 @@ console.log("canCreate:", canCreate, {
 
   const handleCloseSuccess = () => {
     setShowSuccess(false);
-    // Refresh the page after closing the modal
     window.location.reload();
   };
 
@@ -486,10 +643,12 @@ console.log("canCreate:", canCreate, {
 
     try {
       const finalSlug = generateFinalSlug();
-      
-      // Validate slug one more time before creating
+
       const validationResult = await validateSlug(finalSlug);
-      if (!validationResult.valid || (validationResult.isTaken && !validationResult.isOwnStore)) {
+      if (
+        !validationResult.valid ||
+        (validationResult.isTaken && !validationResult.isOwnStore)
+      ) {
         setSlugValidation({
           isValid: validationResult.valid,
           isChecking: false,
@@ -512,28 +671,50 @@ console.log("canCreate:", canCreate, {
         uploadedImageUrl = uploadData.url;
       }
 
-      const metadata = {
+      const isInstallment =
+        priceType === "installment" &&
+        config.amountMode === "fixed" &&
+        Number(installmentCount) > 1 &&
+        Number(price) > 0;
+
+      // ─── BUILD LINK CONFIG ───
+      const linkConfig: any = {
+        currency: config.currency,
+        amountMode: config.amountMode,
+        active: config.active,
+        brandColor: config.brandColor,
+        buttonColor: config.buttonColor,
+        buttonText: config.buttonText,
+        successMessage: config.successMessage,
+        thankYouMessage: config.thankYouMessage,
+        redirectUrl: config.redirectUrl,
+        altRedirectUrl: config.altRedirectUrl,
+        referenceCode: config.referenceCode,
+        customFields: config.customFields,
+        qrColor: config.qrColor,
+        qrBackground: config.qrBackground,
+        qrFrame: config.qrFrame,
+        createdAt: new Date().toISOString(),
+      };
+
+      // ─── BUILD METADATA ───
+      const metadata: any = {
         pageType: "link",
         storeSlug: store?.slug,
-        linkConfig: {
-          currency: config.currency,
-          amountMode: config.amountMode,
-          active: config.active,
-          brandColor: config.brandColor,
-          buttonColor: config.buttonColor,
-          buttonText: config.buttonText,
-          successMessage: config.successMessage,
-          thankYouMessage: config.thankYouMessage,
-          redirectUrl: config.redirectUrl,
-          altRedirectUrl: config.altRedirectUrl,
-          referenceCode: config.referenceCode,
-          customFields: config.customFields,
-          qrColor: config.qrColor,
-          qrBackground: config.qrBackground,
-          qrFrame: config.qrFrame,
-          createdAt: new Date().toISOString(),
-        },
+        linkConfig,
       };
+
+      // ─── INSTALLMENT METADATA ───
+      if (isInstallment) {
+        const totalAmount = Number(price) || 0;
+        const count = Number(installmentCount);
+        metadata.installmentCount = count;
+        metadata.installmentAmount =
+          count > 0 ? Math.round((totalAmount / count) * 100) / 100 : 0;
+        metadata.installmentPeriod = installmentPeriod;
+        metadata.totalAmount = totalAmount;
+        metadata.installmentState = {}; // Populated by webhook services
+      }
 
       const pageData = {
         title: title,
@@ -542,9 +723,13 @@ console.log("canCreate:", canCreate, {
         coverImage: uploadedImageUrl || null,
         logo: null,
         productImages: uploadedImageUrl ? [uploadedImageUrl] : [],
-        priceType: config.amountMode === "variable" ? "open" : "fixed",
-        price: Number(price) || 0,
-        installmentCount: null,
+        priceType: isInstallment
+          ? "installment"
+          : config.amountMode === "variable"
+          ? "open"
+          : "fixed",
+        price: config.amountMode === "variable" ? 0 : Number(price) || 0,
+        installmentCount: isInstallment ? Number(installmentCount) : null,
         feeMode: "bearer",
         pageType: "link",
         metadata: metadata,
@@ -573,10 +758,18 @@ console.log("canCreate:", canCreate, {
     }
   };
 
+  const isInstallment =
+    priceType === "installment" &&
+    config.amountMode === "fixed" &&
+    Number(installmentCount) > 1 &&
+    Number(price) > 0;
+
   const previewPrice =
     config.amountMode === "variable"
       ? "Buyer chooses"
-      : `${config.currency === "NGN" ? "₦" : config.currency + " "}${(Number(price) || 0).toLocaleString()}`;
+      : `${config.currency === "NGN" ? "₦" : config.currency + " "}${(
+          Number(price) || 0
+        ).toLocaleString()}`;
 
   if (!isMounted || loading) {
     return (
@@ -591,7 +784,9 @@ console.log("canCreate:", canCreate, {
       <div className="min-h-screen bg-[var(--bg-primary)]">
         <div className="max-w-3xl mx-auto py-20 px-4 text-center">
           <Package className="h-16 w-16 mx-auto text-[var(--text-secondary)] mb-4" />
-          <h3 className="text-xl font-bold text-[var(--text-primary)]">No Store Found</h3>
+          <h3 className="text-xl font-bold text-[var(--text-primary)]">
+            No Store Found
+          </h3>
           <p className="text-[var(--text-secondary)] mt-2">
             Please create a store first before creating a payment link.
           </p>
@@ -699,7 +894,7 @@ console.log("canCreate:", canCreate, {
           </Label>
           <Input
             value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Premium Coaching Session"
             className="h-12 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
           />
@@ -716,14 +911,15 @@ console.log("canCreate:", canCreate, {
             <div className="flex items-center gap-2 bg-(--bg-primary) p-3 rounded-lg border border-(--border-color)">
               <Link2 className="h-4 w-4 text-(--color-accent-yellow) shrink-0" />
               <code className="text-sm font-mono text-(--text-primary) break-all">
-                {store?.slug ? `/store/${store.slug}/${slug || generateFinalSlug()}` : 'Please select a store first'}
+                {store?.slug
+                  ? `/store/${store.slug}/${slug || generateFinalSlug()}`
+                  : "Please select a store first"}
               </code>
               {slugValidation.isChecking && (
                 <Loader2 className="h-4 w-4 animate-spin text-(--color-accent-yellow) ml-2" />
               )}
             </div>
-            
-            {/* Validation message */}
+
             {slug && !slugValidation.isChecking && (
               <div className="mt-2 text-xs flex items-start gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 {isSlugInvalid ? (
@@ -731,14 +927,24 @@ console.log("canCreate:", canCreate, {
                 ) : (
                   <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-600 dark:text-gray-400" />
                 )}
-                <span className={`flex-1 ${isSlugInvalid ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                <span
+                  className={`flex-1 ${
+                    isSlugInvalid
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}
+                >
                   {slugValidation.message}
-                  {slugValidation.isTaken && !slugValidation.isOwnStore && " This slug is already taken. Please change the title."}
-                  {slugValidation.isTaken && slugValidation.isOwnStore && " This slug is already used by one of your pages."}
+                  {slugValidation.isTaken &&
+                    !slugValidation.isOwnStore &&
+                    " This slug is already taken. Please change the title."}
+                  {slugValidation.isTaken &&
+                    slugValidation.isOwnStore &&
+                    " This slug is already used by one of your pages."}
                 </span>
               </div>
             )}
-            
+
             <p className="text-xs text-(--text-secondary) mt-2">
               💡 Your URL is based on the title you enter (max 50 characters)
             </p>
@@ -780,7 +986,7 @@ console.log("canCreate:", canCreate, {
               onChange={(e) =>
                 set(
                   "currency",
-                  e.target.value as "NGN" | "USD" | "GBP" | "EUR",
+                  e.target.value as "NGN" | "USD" | "GBP" | "EUR"
                 )
               }
               className="h-12 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3 focus:border-(--color-accent-yellow) focus:ring-0 focus:outline-none"
@@ -820,20 +1026,101 @@ console.log("canCreate:", canCreate, {
           </div>
         </div>
 
-        {/* Amount for fixed mode */}
+        {/* ─── AMOUNT + INSTALLMENTS (only for fixed mode) ─── */}
         {config.amountMode === "fixed" && (
-          <div>
-            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-              Amount *
-            </Label>
-            <Input
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="5000"
-              className="h-12 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
+          <>
+            {/* Payment Options Toggle */}
+            <div>
+              <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">
+                Payment Options
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                {(["fixed", "installment"] as const).map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => setPriceType(val)}
+                    className={`p-3 rounded-xl border-2 text-sm font-medium transition-all ${
+                      priceType === val
+                        ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/10 text-(--color-accent-yellow)"
+                        : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
+                    }`}
+                  >
+                    {val === "fixed"
+                      ? "One-time Payment"
+                      : "Installments"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div>
+              <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                {priceType === "installment"
+                  ? "Total Amount *"
+                  : "Amount *"}
+              </Label>
+              <Input
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="5000"
+                className="h-12 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
+              />
+            </div>
+
+            {/* Installment Config */}
+            {priceType === "installment" && (
+              <div className="space-y-4 p-4 rounded-2xl border border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-(--color-accent-yellow)" />
+                  <Label className="text-sm font-bold text-(--text-primary)">
+                    Installment Plan
+                  </Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs font-semibold mb-1 block text-(--text-secondary)">
+                      Number of Installments
+                    </Label>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={24}
+                      value={installmentCount}
+                      onChange={(e) => setInstallmentCount(e.target.value)}
+                      className="h-10 text-sm border-(--border-color) bg-(--bg-primary) text-(--text-primary)"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold mb-1 block text-(--text-secondary)">
+                      Frequency
+                    </Label>
+                    <select
+                      value={installmentPeriod}
+                      onChange={(e) => setInstallmentPeriod(e.target.value)}
+                      className="h-10 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3 text-sm"
+                    >
+                      <option value="weekly">Weekly</option>
+                      <option value="bi-weekly">Bi-Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Unified Pricing Summary Card */}
+            <LinkPricingSummaryCard
+              priceType={priceType}
+              price={Number(price) || 0}
+              installmentCount={installmentCount}
+              installmentPeriod={installmentPeriod}
+              installmentAmount={installmentAmount}
             />
-          </div>
+          </>
         )}
 
         {/* Reference Code */}
@@ -942,20 +1229,18 @@ console.log("canCreate:", canCreate, {
           />
         </div>
 
-        {/* Redirect URLs */}
-   
-          <div>
-            <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-              Redirect URL
-            </Label>
-            <Input
-              value={config.redirectUrl || ""}
-              onChange={(e) => set("redirectUrl", e.target.value)}
-              placeholder="https://yoursite.com/thank-you"
-              className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
-            />
-          </div>
-     
+        {/* Redirect URL */}
+        <div>
+          <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+            Redirect URL
+          </Label>
+          <Input
+            value={config.redirectUrl || ""}
+            onChange={(e) => set("redirectUrl", e.target.value)}
+            placeholder="https://yoursite.com/thank-you"
+            className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
+          />
+        </div>
 
         {/* Custom Fields */}
         <div>
@@ -973,7 +1258,8 @@ console.log("canCreate:", canCreate, {
             </Button>
           </div>
           <p className="text-xs text-(--text-secondary) mb-3">
-            Add extra fields to collect additional information from your customers (beyond the default Name, Email, Phone).
+            Add extra fields to collect additional information from your
+            customers (beyond the default Name, Email, Phone).
           </p>
           <div className="space-y-3">
             {config.customFields.map((f) => (
@@ -1050,7 +1336,8 @@ console.log("canCreate:", canCreate, {
             ))}
             {config.customFields.length === 0 && (
               <p className="text-xs text-(--text-secondary) text-center py-4">
-                No custom fields added. Add fields like Passport Number, Booking Date, etc.
+                No custom fields added. Add fields like Passport Number,
+                Booking Date, etc.
               </p>
             )}
           </div>
@@ -1087,104 +1374,111 @@ console.log("canCreate:", canCreate, {
         productImage={productPreview}
         previewPrice={previewPrice}
         config={config}
+        isInstallment={isInstallment}
+        installmentCount={installmentCount}
+        installmentPeriod={installmentPeriod}
+        installmentAmount={installmentAmount}
       />
 
       {/* Success Modal */}
-      {showSuccess && (
-        <AnimatePresence>
-          {showSuccess && (
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+            onClick={handleCloseSuccess}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
-              onClick={handleCloseSuccess}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
+              onClick={(e) => e.stopPropagation()}
             >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">🎉</div>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
-                  Payment Link Created!
-                </h2>
-                <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
-                  Your payment link is now live and ready to collect payments.
-                </p>
+              <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">
+                🎉
+              </div>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+                Payment Link Created!
+              </h2>
+              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+                Your payment link is now live and ready to collect payments.
+              </p>
 
-                <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
-                  <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
-                    Your Payment Link:
-                  </Label>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
-                      <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-                      <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
-                        {pageUrl}
-                      </code>
-                    </div>
-                    <button
-                      onClick={() => copyToClipboard(pageUrl)}
-                      className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
-                    >
-                      {copied ? (
-                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
-                      ) : (
-                        <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
-                      )}
-                      <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {copied ? "Copied!" : "Copy link"}
-                      </span>
-                    </button>
+              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
+                <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
+                  Your Payment Link:
+                </Label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
+                    <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
+                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                      {pageUrl}
+                    </code>
                   </div>
-                  {copied && (
-                    <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
-                      ✓ Link copied to clipboard!
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                    onClick={() => {
-                      setShowSuccess(false);
-                      window.open(pageUrl, '_blank', 'noopener,noreferrer');
-                    }}
+                  <button
+                    onClick={() => copyToClipboard(pageUrl)}
+                    className="relative p-2 sm:p-3 rounded-lg bg-[var(--color-accent-yellow)]/10 hover:bg-[var(--color-accent-yellow)]/20 transition-colors group shrink-0"
                   >
-                    Preview Page
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                    onClick={() => {
-                      setShowSuccess(false);
-                      router.push("/dashboard/services/payment/dashboard");
-                    }}
-                  >
-                    Go to Dashboard
-                  </Button>
+                    {copied ? (
+                      <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-lemon-green)]" />
+                    ) : (
+                      <Copy className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--color-accent-yellow)]" />
+                    )}
+                    <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--color-ink)] text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      {copied ? "Copied!" : "Copy link"}
+                    </span>
+                  </button>
                 </div>
+                {copied && (
+                  <p className="text-xs text-[var(--color-lemon-green)] mt-2 text-center animate-pulse">
+                    ✓ Link copied to clipboard!
+                  </p>
+                )}
+              </div>
 
-                <button
-                  onClick={handleCloseSuccess}
-                  className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    window.open(pageUrl, "_blank", "noopener,noreferrer");
+                  }}
                 >
-                  Close
-                </button>
-              </motion.div>
+                  Preview Page
+                </Button>
+                <Button
+                  variant="default"
+                  className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                  onClick={() => {
+                    setShowSuccess(false);
+                    router.push("/dashboard/services/payment/dashboard");
+                  }}
+                >
+                  Go to Dashboard
+                </Button>
+              </div>
+
+              <button
+                onClick={handleCloseSuccess}
+                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Close
+              </button>
             </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
+// ============================================================
+// COLOR FIELD HELPER
+// ============================================================
 const ColorField = ({
   label,
   value,

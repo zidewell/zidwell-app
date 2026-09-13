@@ -1,85 +1,198 @@
 // app/components/store/wallet.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Swal from "sweetalert2";
 import { useStore } from "@/app/context/StoreContext";
 import { useUserContextData } from "@/app/context/userData";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
-import { Wallet, ArrowUpRight, ArrowDownRight, CreditCard, Clock, Loader2 } from "lucide-react";
+import {
+  Wallet,
+  ArrowUpRight,
+  CreditCard,
+  Clock,
+  Info,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WithdrawalModal } from "./WithdrawalModal";
-import { toast } from "sonner";
+
+interface WalletResponse {
+  available_balance: number;
+  pending_balance: number;
+  total_earned: number;
+  total_withdrawn: number;
+  lifetime_gross: number;
+  page_totals: Record<string, number>;
+  last_activity_at: string | null;
+}
 
 export function StoreWallet() {
-  const { pages, loading, withdrawFromPage, refreshPages } = useStore();
+  const { pages, loading: pagesLoading } = useStore();
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
-  
+
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
-  const [selectedPageBalance, setSelectedPageBalance] = useState(0);
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
+  const [walletLoading, setWalletLoading] = useState(true);
 
   const isVerified = userData?.bvnVerification === "verified";
 
+  // ─── FETCH WALLET ───
+  const fetchWallet = useCallback(async () => {
+    if (!userData?.id) {
+      setWalletLoading(false);
+      return;
+    }
+
+    try {
+      setWalletLoading(true);
+      const res = await fetch("/api/store/wallet/balance", {
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        setWallet(null);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.success && data.wallet) {
+        setWallet(data.wallet);
+      } else {
+        setWallet(null);
+      }
+    } catch (err) {
+      console.error("Wallet fetch failed:", err);
+      setWallet(null);
+    } finally {
+      setWalletLoading(false);
+    }
+  }, [userData?.id]);
+
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
+
+  // ─── COMPUTED ───
   const walletData = useMemo(() => {
-    const totalBalance = pages.reduce((sum, p) => sum + p.pageBalance, 0);
-    const totalRevenue = pages.reduce((sum, p) => sum + p.totalRevenue, 0);
-    const totalPayments = pages.reduce((sum, p) => sum + p.totalPayments, 0);
-    const pendingWithdrawals = Math.floor(totalBalance * 0.15);
-
     return {
-      totalBalance,
-      totalRevenue,
-      totalPayments,
-      pendingWithdrawals,
+      totalBalance: wallet?.available_balance || 0,
+      totalEarned: wallet?.total_earned || 0,
+      totalWithdrawn: wallet?.total_withdrawn || 0,
+      pageTotals: wallet?.page_totals || {},
     };
-  }, [pages]);
+  }, [wallet]);
 
-  const handleOpenWithdraw = (pageId: string, balance: number) => {
+  const totalPayments = useMemo(
+    () => pages.reduce((sum, p) => sum + (Number(p.totalPayments) || 0), 0),
+    [pages]
+  );
+
+  const canWithdraw = walletData.totalBalance > 0;
+
+  // ─── OPEN MODAL ───
+  const handleOpenWithdraw = () => {
     if (!isVerified) {
       openVerificationModal();
       return;
     }
-    
-    setSelectedPageId(pageId);
-    setSelectedPageBalance(balance);
+    if (!canWithdraw) {
+      Swal.fire({
+        icon: "info",
+        title: "No Balance",
+        text: "There is no available balance to withdraw yet.",
+        confirmButtonColor: "#F5B81B",
+      });
+      return;
+    }
     setIsWithdrawModalOpen(true);
   };
 
-  const handleWithdrawConfirm = async (amount: number) => {
-    if (!selectedPageId) {
-      throw new Error("No page selected");
+  // ─── CONFIRM WITHDRAWAL ───
+  // Called by WithdrawalModal.onConfirm.
+  // - Does ONE API call to the wallet withdraw endpoint.
+  // - Shows SweetAlert on success or error.
+  // - Only closes modal + refreshes on SUCCESS.
+  // - On failure: shows SweetAlert error, then THROWS so the modal
+  //   stays open and the user can retry.
+const handleWithdrawConfirm = async (amount: number) => {
+  try {
+    const res = await fetch("/api/store/wallet/withdraw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Withdrawal failed");
     }
 
-    setIsWithdrawing(true);
-    
-    try {
-      await withdrawFromPage(selectedPageId, amount);
-      toast.success(`₦${amount.toLocaleString()} withdrawn successfully!`);
-      await refreshPages();
-    } catch (error: any) {
-      console.error("Withdrawal error:", error);
-      throw new Error(error.message || "Failed to withdraw funds");
-    } finally {
-      setIsWithdrawing(false);
-      setIsWithdrawModalOpen(false);
-      setSelectedPageId(null);
-      setSelectedPageBalance(0);
-    }
-  };
+    const reference =
+      data.withdrawal?.reference || `WDR-${Date.now().toString().slice(-8)}`;
+
+    // ✅ CLOSE MODAL FIRST — before showing the alert
+    setIsWithdrawModalOpen(false);
+
+    // ✅ Refresh wallet in the background (don't await — let the alert show)
+    fetchWallet();
+
+    // ✅ THEN show success alert
+    await Swal.fire({
+      icon: "success",
+      title: "Withdrawal Successful!",
+      html: `
+        <div class="text-left">
+          <p class="mb-2 font-semibold text-green-600">
+            ✅ ₦${amount.toLocaleString()} withdrawn!
+          </p>
+          <p class="text-sm text-gray-600">
+            The funds are now in your main wallet.
+          </p>
+          <p class="text-xs text-gray-500 mt-2">
+            Reference: ${reference}
+          </p>
+        </div>
+      `,
+      confirmButtonColor: "#F5B81B",
+      confirmButtonText: "Done",
+    });
+  } catch (error: any) {
+    // ✅ Keep modal open on failure — just show the error alert
+    await Swal.fire({
+      icon: "error",
+      title: "Withdrawal Failed",
+      html: `
+        <div class="text-left">
+          <p class="mb-2">${error.message || "Something went wrong"}</p>
+          <p class="text-sm text-gray-600">
+            The form is still open — please try again.
+          </p>
+        </div>
+      `,
+      confirmButtonColor: "#F5B81B",
+    });
+
+    // Re-throw so WithdrawalModal knows to stay on the input step
+    throw error;
+  }
+};
 
   const handleVerify = () => {
     setIsWithdrawModalOpen(false);
     openVerificationModal();
   };
 
+  const loading = pagesLoading || walletLoading;
+
+  // ─── LOADING ───
   if (loading) {
     return (
       <div className="space-y-4">
         <div className="h-40 bg-muted/50 rounded-2xl animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <div key={i} className="h-24 bg-muted/50 rounded-2xl animate-pulse" />
           ))}
         </div>
@@ -89,27 +202,30 @@ export function StoreWallet() {
 
   return (
     <div>
-      {/* Balance Card */}
+      {/* ─── Balance Card ─── */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-foreground to-foreground/80 p-8 text-background">
         <div className="absolute right-0 top-0 h-64 w-64 translate-x-12 -translate-y-12 rounded-full bg-gold/10" />
         <div className="absolute bottom-0 left-0 h-32 w-32 translate-x-8 translate-y-8 rounded-full bg-gold/5" />
         <div className="relative">
           <div className="flex items-center gap-2">
             <Wallet className="size-5" />
-            <p className="text-sm font-medium opacity-80">Store Wallet Balance</p>
+            <p className="text-sm font-medium opacity-80">
+              Store Wallet Balance
+            </p>
           </div>
           <p className="mt-4 font-display text-5xl font-bold">
             ₦{walletData.totalBalance.toLocaleString()}
           </p>
+          <p className="mt-1 text-xs opacity-60">
+            {walletData.totalWithdrawn > 0
+              ? `₦${walletData.totalEarned.toLocaleString()} earned • ₦${walletData.totalWithdrawn.toLocaleString()} withdrawn`
+              : `From completed payments`}
+          </p>
+
           <div className="mt-6 flex flex-wrap gap-4">
-            {pages.length > 0 && pages.some(p => p.pageBalance > 0) && (
-              <button 
-                onClick={() => {
-                  const pageWithBalance = pages.find(p => p.pageBalance > 0);
-                  if (pageWithBalance) {
-                    handleOpenWithdraw(pageWithBalance.id, pageWithBalance.pageBalance);
-                  }
-                }}
+            {canWithdraw && (
+              <button
+                onClick={handleOpenWithdraw}
                 className="rounded-2xl bg-gold px-6 py-3 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity"
               >
                 Withdraw Funds
@@ -119,6 +235,7 @@ export function StoreWallet() {
               Transaction History
             </button>
           </div>
+
           {!isVerified && (
             <div className="mt-4 p-4 rounded-xl bg-yellow-500/20 border border-yellow-500/30">
               <div className="flex items-start gap-3">
@@ -147,95 +264,107 @@ export function StoreWallet() {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* ─── Quick Stats ─── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <ArrowUpRight className="size-4 text-lemon-green" />
-            <p className="text-sm">Total Revenue</p>
+            <p className="text-sm">Lifetime Earned</p>
           </div>
-          <p className="text-xl font-bold">₦{walletData.totalRevenue.toLocaleString()}</p>
+          <p className="text-xl font-bold">
+            ₦{walletData.totalEarned.toLocaleString()}
+          </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <CreditCard className="size-4 text-gold" />
             <p className="text-sm">Total Payments</p>
           </div>
-          <p className="text-xl font-bold">{walletData.totalPayments}</p>
+          <p className="text-xl font-bold">{totalPayments}</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Clock className="size-4 text-yellow-500" />
-            <p className="text-sm">Pending Withdrawals</p>
+            <p className="text-sm">Total Withdrawn</p>
           </div>
-          <p className="text-xl font-bold">₦{walletData.pendingWithdrawals.toLocaleString()}</p>
+          <p className="text-xl font-bold">
+            ₦{walletData.totalWithdrawn.toLocaleString()}
+          </p>
         </div>
       </div>
 
-      {/* Recent Transactions */}
+      {/* ─── Per-Page Breakdown ─── */}
       <div className="mt-6 rounded-2xl border border-border bg-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-lg font-bold">Recent Transactions</h3>
-          <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            View all
-          </button>
+          <div>
+            <h3 className="font-display text-lg font-bold">Balance by Page</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only reflects completed payments
+            </p>
+          </div>
+          <div className="group relative">
+            <Info className="size-4 text-muted-foreground cursor-help" />
+            <div className="absolute right-0 bottom-full mb-2 px-3 py-2 bg-foreground text-background text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              Withdrawals are made from your total wallet balance
+            </div>
+          </div>
         </div>
         <div className="space-y-3">
-          {pages.slice(0, 5).map((page) => (
-            <div key={page.id} className="flex items-center justify-between border-b border-border pb-3 last:border-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gold/10">
-                  {page.pageBalance > 0 ? (
-                    <ArrowUpRight className="size-4 text-lemon-green" />
-                  ) : (
-                    <ArrowDownRight className="size-4 text-red-500" />
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">{page.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {page.totalPayments} payments • {new Date(page.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <p className={cn(
-                  "font-bold",
-                  page.pageBalance > 0 ? "text-lemon-green" : "text-red-500"
-                )}>
-                  {page.pageBalance > 0 ? "+" : ""}₦{page.pageBalance.toLocaleString()}
-                </p>
-                {page.pageBalance > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenWithdraw(page.id, page.pageBalance);
-                    }}
-                    className="text-xs text-gold hover:underline font-medium"
-                  >
-                    Withdraw
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
           {pages.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">No transactions yet</p>
+            <p className="text-center text-muted-foreground py-4">
+              No pages yet
+            </p>
           )}
+          {pages.map((page) => {
+            const realBal = walletData.pageTotals[page.id] || 0;
+            return (
+              <div
+                key={page.id}
+                className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-2xl",
+                      realBal > 0 ? "bg-gold/10" : "bg-muted"
+                    )}
+                  >
+                    <ArrowUpRight
+                      className={cn(
+                        "size-4",
+                        realBal > 0
+                          ? "text-lemon-green"
+                          : "text-muted-foreground"
+                      )}
+                    />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{page.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {page.pageType}
+                    </p>
+                  </div>
+                </div>
+                <p
+                  className={cn(
+                    "font-bold",
+                    realBal > 0 ? "text-lemon-green" : "text-muted-foreground"
+                  )}
+                >
+                  ₦{realBal.toLocaleString()}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Withdrawal Modal */}
+      {/* ─── Withdrawal Modal ─── */}
       <WithdrawalModal
         isOpen={isWithdrawModalOpen}
-        onClose={() => {
-          setIsWithdrawModalOpen(false);
-          setSelectedPageId(null);
-          setSelectedPageBalance(0);
-        }}
+        onClose={() => setIsWithdrawModalOpen(false)}
         onConfirm={handleWithdrawConfirm}
-        maxAmount={selectedPageBalance}
-        isLoading={isWithdrawing}
+        maxAmount={walletData.totalBalance}
         isVerified={isVerified}
         onVerify={handleVerify}
       />

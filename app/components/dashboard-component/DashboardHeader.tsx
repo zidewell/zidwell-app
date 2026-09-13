@@ -19,7 +19,7 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   const [scrolled, setScrolled] = useState(false);
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { userData, setUserData } = useUserContextData();
+  const { userData, setUserData,handleSessionExpired  } = useUserContextData();
   const logoutInProgress = useRef(false);
 
   // Handle scroll effect for sticky header
@@ -31,110 +31,70 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleLogout = async () => {
-    // Prevent multiple logout attempts
-    if (logoutInProgress.current || isLoggingOut) return;
+ const handleLogout = async () => {
+  if (logoutInProgress.current || isLoggingOut) return;
 
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You will be logged out of your account",
-      icon: "question",
-      showCancelButton: true,
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "You will be logged out of your account",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "var(--color-accent-yellow)",
+    cancelButtonColor: "#6b6b6b",
+    confirmButtonText: "Yes, logout",
+    cancelButtonText: "Cancel",
+    reverseButtons: true,
+  });
+
+  if (!result.isConfirmed) return;
+
+  logoutInProgress.current = true;
+  setIsLoggingOut(true);
+
+  Swal.fire({
+    title: "Logging out...",
+    text: "Please wait",
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    },
+  });
+
+  try {
+    // ✅ One call does everything: API + client cleanup + state reset + navigate
+    await handleSessionExpired();
+
+    Swal.close();
+    logoutInProgress.current = false;
+    setIsLoggingOut(false);
+
+    setTimeout(() => {
+      Swal.fire({
+        icon: "success",
+        title: "Logged Out!",
+        text: "You have been successfully logged out",
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: "top-end",
+        timerProgressBar: true,
+      });
+    }, 100);
+  } catch (error) {
+    console.error("Logout error:", error);
+    Swal.close();
+
+    await Swal.fire({
+      icon: "error",
+      title: "Logout Failed",
+      text: "Please try again",
       confirmButtonColor: "var(--color-accent-yellow)",
-      cancelButtonColor: "#6b6b6b",
-      confirmButtonText: "Yes, logout",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
     });
 
-    if (!result.isConfirmed) return;
-
-    logoutInProgress.current = true;
-    setIsLoggingOut(true);
-
-    // Show loading
-    Swal.fire({
-      title: "Logging out...",
-      text: "Please wait",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
-    try {
-      // 1. Clear local data FIRST
-      localStorage.removeItem("userData");
-      sessionStorage.removeItem("userData");
-      
-      // Clear specific store data
-      localStorage.removeItem("zidwell_store_data");
-      localStorage.removeItem("zidwell_store_timestamp");
-      
-      // Clear cookies
-      const cookiesToClear = [
-        "sb-access-token",
-        "sb-refresh-token",
-        "verified",
-        "sb-client-session",
-        "sb-login-time",
-        "sb-session-risk",
-        "sb-user-data",
-        "sb-session-id",
-      ];
-      
-      cookiesToClear.forEach((name) => {
-        document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
-      });
-
-      // 2. Update context
-      setUserData(null);
-
-      // 3. Call logout API (fire and forget)
-      fetch("/api/logout", { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      }).catch((err) => console.error("Logout API error:", err));
-
-      // 4. Close loading
-      Swal.close();
-
-      // 5. Reset states
-      logoutInProgress.current = false;
-      setIsLoggingOut(false);
-
-      // 6. Navigate to login with replace (prevents back button)
-      router.replace("/auth/login");
-
-      // 7. Show success toast (after navigation)
-      setTimeout(() => {
-        Swal.fire({
-          icon: "success",
-          title: "Logged Out!",
-          text: "You have been successfully logged out",
-          timer: 2000,
-          showConfirmButton: false,
-          toast: true,
-          position: "top-end",
-          timerProgressBar: true,
-        });
-      }, 100);
-
-    } catch (error) {
-      console.error("Logout error:", error);
-      Swal.close();
-      
-      await Swal.fire({
-        icon: "error",
-        title: "Logout Failed",
-        text: "Please try again",
-        confirmButtonColor: "var(--color-accent-yellow)",
-      });
-      
-      logoutInProgress.current = false;
-      setIsLoggingOut(false);
-    }
-  };
+    logoutInProgress.current = false;
+    setIsLoggingOut(false);
+  }
+};
 
   const getGreeting = () => {
     const hour = new Date().getHours();

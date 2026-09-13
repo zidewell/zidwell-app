@@ -179,7 +179,9 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                 return (
                   <Link
                     key={page.id}
-                    href={`/store/${productStoreSlug}/${page.slug}`}
+  href={`/store/${productStoreSlug}/${page.slug}`}
+  target="_blank"
+  rel="noopener noreferrer"
                     className="group bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden hover:border-[#e1bf46] transition-all duration-300 hover:shadow-lg hover:shadow-[#e1bf46]/5"
                   >
                     {/* Product Image */}

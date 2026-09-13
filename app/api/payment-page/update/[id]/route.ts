@@ -14,11 +14,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    
-    // Check authentication
+
+    // ─── AUTH ───
     const authResult = await isAuthenticatedWithRefresh(req);
     const { user, newTokens } = authResult;
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Please login to update payment page", logout: true },
@@ -28,21 +28,21 @@ export async function PUT(
 
     const body = await req.json();
     console.log("Updating page:", id, body);
-    
-    const { 
-      title, 
-      description, 
-      coverImage, 
-      logo, 
+
+    const {
+      title,
+      description,
+      coverImage,
+      logo,
       productImages,
-      priceType, 
-      price, 
-      installmentCount, 
+      priceType,
+      price,
+      installmentCount,
       metadata,
-      isPublished // ✅ Added this field
+      isPublished,
     } = body;
 
-    // Validate required fields (title is required, but for toggle we might only send isPublished)
+    // ─── VALIDATION ───
     if (!title && isPublished === undefined) {
       return NextResponse.json(
         { error: "Title or isPublished is required" },
@@ -50,53 +50,170 @@ export async function PUT(
       );
     }
 
-    // Check if page exists and belongs to user
+    // ─── CHECK EXISTING PAGE ───
     const { data: existingPage, error: checkError } = await supabase
       .from("payment_pages")
-      .select("user_id, metadata")
+      .select("user_id, metadata, page_type, price_type, installment_count, price")
       .eq("id", id)
       .single();
 
     if (checkError || !existingPage) {
-      return NextResponse.json({ error: "Payment page not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Payment page not found" },
+        { status: 404 }
+      );
     }
 
     if (existingPage.user_id !== user.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Prepare update data - only include fields that are provided
+    // ─── PREPARE UPDATE DATA ───
     const updateData: any = {
       updated_at: new Date().toISOString(),
     };
 
-    // ✅ Only add fields if they are provided (not undefined)
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description || "";
     if (coverImage !== undefined) updateData.cover_image = coverImage || null;
     if (logo !== undefined) updateData.logo = logo || null;
-    if (productImages !== undefined) updateData.product_images = productImages || [];
+    if (productImages !== undefined)
+      updateData.product_images = productImages || [];
     if (priceType !== undefined) updateData.price_type = priceType;
     if (price !== undefined) updateData.price = price || 0;
     if (isPublished !== undefined) updateData.is_published = isPublished;
-    
-    if (priceType === "installment" && installmentCount) {
-      updateData.installment_count = installmentCount;
+
+    // Compute the effective priceType / installmentCount for installment state
+    const effectivePriceType = priceType ?? existingPage.price_type;
+    const effectivePageType = existingPage.page_type;
+    const effectiveInstallmentCount =
+      installmentCount !== undefined
+        ? installmentCount
+        : existingPage.installment_count;
+    const effectivePrice =
+      price !== undefined ? Number(price) : Number(existingPage.price) || 0;
+
+    // ─── INSTALLMENT COUNT HANDLING ───
+    if (effectivePriceType === "installment" && effectiveInstallmentCount) {
+      updateData.installment_count = Number(effectiveInstallmentCount);
+    } else if (priceType === "fixed") {
+      // Reset installment_count when switching away from installment mode
+      updateData.installment_count = null;
     }
 
-    // Handle metadata - preserve existing if not provided
+    // ─── METADATA MERGE + INSTALLMENT STATE ───
     if (metadata !== undefined) {
       const existingMetadata = existingPage.metadata || {};
-      const updatedMetadata = {
+
+      const updatedMetadata: any = {
         ...existingMetadata,
         ...metadata,
         // Preserve virtual account if it exists
         virtual_account: existingMetadata.virtual_account,
       };
+
+      // Preserve school-specific arrays explicitly (students, feeBreakdown, etc.)
+      if (existingPage.page_type === "school") {
+        if (existingMetadata.students && !metadata.students) {
+          updatedMetadata.students = existingMetadata.students;
+        }
+        if (existingMetadata.feeBreakdown && !metadata.feeBreakdown) {
+          updatedMetadata.feeBreakdown = existingMetadata.feeBreakdown;
+        }
+        if (existingMetadata.className && !metadata.className) {
+          updatedMetadata.className = existingMetadata.className;
+        }
+      }
+
+      // ─── PRESERVE INSTALLMENT STATE ───
+      // The installmentState is populated by webhooks. Never wipe it on update.
+      if (existingMetadata.installmentState) {
+        updatedMetadata.installmentState = existingMetadata.installmentState;
+      }
+
+      // ─── RE-COMPUTE INSTALLMENT METADATA WHEN CHANGING PLAN ───
+      if (
+        effectivePriceType === "installment" &&
+        effectiveInstallmentCount &&
+        Number(effectiveInstallmentCount) > 1 &&
+        effectivePageType !== "donation"
+      ) {
+        const count = Number(effectiveInstallmentCount);
+        const totalAmount = effectivePrice;
+        const perInstallment = totalAmount / count;
+
+        updatedMetadata.installmentCount = count;
+        updatedMetadata.installmentAmount =
+          Math.round(perInstallment * 100) / 100;
+        updatedMetadata.installmentPeriod =
+          metadata?.installmentPeriod ||
+          existingMetadata.installmentPeriod ||
+          "monthly";
+        updatedMetadata.totalAmount = totalAmount;
+
+        // Initialize the state map if it doesn't exist
+        if (!updatedMetadata.installmentState) {
+          updatedMetadata.installmentState = {};
+        }
+      } else if (effectivePriceType === "fixed") {
+        // Switching back to fixed — clean up installment-only fields
+        delete updatedMetadata.installmentCount;
+        delete updatedMetadata.installmentAmount;
+        delete updatedMetadata.installmentPeriod;
+        // KEEP totalAmount for historical reference if payments exist
+        if (
+          !updatedMetadata.installmentState ||
+          Object.keys(updatedMetadata.installmentState).length === 0
+        ) {
+          delete updatedMetadata.totalAmount;
+          delete updatedMetadata.installmentState;
+        }
+      }
+
+      updateData.metadata = updatedMetadata;
+    } else if (
+      // If metadata isn't sent, but priceType/installmentCount changed, still update metadata
+      priceType !== undefined ||
+      installmentCount !== undefined ||
+      price !== undefined
+    ) {
+      const existingMetadata = existingPage.metadata || {};
+      const updatedMetadata: any = { ...existingMetadata };
+
+      if (existingMetadata.installmentState) {
+        updatedMetadata.installmentState = existingMetadata.installmentState;
+      }
+
+      if (
+        effectivePriceType === "installment" &&
+        effectiveInstallmentCount &&
+        Number(effectiveInstallmentCount) > 1 &&
+        effectivePageType !== "donation"
+      ) {
+        const count = Number(effectiveInstallmentCount);
+        const totalAmount = effectivePrice;
+        const perInstallment = totalAmount / count;
+
+        updatedMetadata.installmentCount = count;
+        updatedMetadata.installmentAmount =
+          Math.round(perInstallment * 100) / 100;
+        updatedMetadata.installmentPeriod =
+          existingMetadata.installmentPeriod || "monthly";
+        updatedMetadata.totalAmount = totalAmount;
+
+        if (!updatedMetadata.installmentState) {
+          updatedMetadata.installmentState = {};
+        }
+      } else if (effectivePriceType === "fixed") {
+        delete updatedMetadata.installmentCount;
+        delete updatedMetadata.installmentAmount;
+        delete updatedMetadata.installmentPeriod;
+      }
+
       updateData.metadata = updatedMetadata;
     }
 
-    // Update the page
+    // ─── APPLY UPDATE ───
     const { data: page, error: updateError } = await supabase
       .from("payment_pages")
       .update(updateData)
@@ -106,13 +223,10 @@ export async function PUT(
 
     if (updateError) {
       console.error("Error updating page:", updateError);
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    console.log("Page updated successfully:", page.id);
+    console.log("✅ Page updated successfully:", page.id);
 
     const responseData = {
       success: true,
@@ -132,16 +246,14 @@ export async function PUT(
         pageType: page.page_type,
         metadata: page.metadata,
         isPublished: page.is_published,
-      }
+      },
     };
 
     if (newTokens) {
-      const response = NextResponse.json(responseData);
-      return response;
+      return NextResponse.json(responseData);
     }
-    
+
     return NextResponse.json(responseData);
-    
   } catch (error: any) {
     console.error("Update page error:", error);
     return NextResponse.json(

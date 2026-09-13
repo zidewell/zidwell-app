@@ -19,8 +19,21 @@ const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
 );
+
+// ─── Deterministic fallback fingerprint ───
+function buildFallbackFingerprint(parts: string[]): string {
+  const str = parts.join("::");
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return `fb_${Math.abs(hash).toString(16)}`;
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -43,7 +56,11 @@ export async function POST(request: NextRequest) {
     // ─── RATE LIMITING ───
     const ip = getClientIp(request);
 
-    const ipLimit = checkRateLimit(`ip:${ip}`, MAX_FAILED_ATTEMPTS, RATE_LIMIT_WINDOW);
+    const ipLimit = checkRateLimit(
+      `ip:${ip}`,
+      MAX_FAILED_ATTEMPTS,
+      RATE_LIMIT_WINDOW
+    );
     if (!ipLimit.allowed) {
       return NextResponse.json(
         {
@@ -62,7 +79,8 @@ export async function POST(request: NextRequest) {
     if (!emailLimit.allowed) {
       return NextResponse.json(
         {
-          error: "Too many failed attempts for this account. Please try again later.",
+          error:
+            "Too many failed attempts for this account. Please try again later.",
           retryAfter: Math.ceil((emailLimit.resetTime - Date.now()) / 1000),
         },
         { status: 429 }
@@ -80,9 +98,18 @@ export async function POST(request: NextRequest) {
       timezone: "unknown",
     };
 
-    // ─── CHECK IF USER EXISTS FIRST ───
-    // Check in users table
-    const { data: existingUser, error: userCheckError } = await supabase
+    // ✅ Always ensure a fingerprint exists
+    if (!device.fingerprint) {
+      device.fingerprint = buildFallbackFingerprint([
+        device.userAgent || "unknown",
+        device.platform || "unknown",
+        device.language || "unknown",
+        ip,
+      ]);
+    }
+
+    // ─── CHECK IF USER EXISTS ───
+    const { data: existingUser } = await supabase
       .from("users")
       .select("id, email_verified")
       .eq("email", email.toLowerCase())
@@ -90,14 +117,10 @@ export async function POST(request: NextRequest) {
 
     let userExists = !!existingUser;
 
-    // If not found in users table, check auth
     if (!userExists) {
       try {
-        const { data: authUsers, error: authListError } = await supabaseAdmin
-          .auth.admin
-          .listUsers({
-            perPage: 1000,
-          });
+        const { data: authUsers, error: authListError } =
+          await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
 
         if (!authListError && authUsers?.users) {
           userExists = authUsers.users.some(
@@ -109,11 +132,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ─── IF USER DOESN'T EXIST, RETURN EARLY ───
+    // ─── USER NOT FOUND ───
     if (!userExists) {
       console.log(`🔍 User not found: ${email}`);
-      
-      // Log the attempt
+
       try {
         await supabase.from("failed_login_attempts").insert({
           email: email.toLowerCase(),
@@ -130,55 +152,83 @@ export async function POST(request: NextRequest) {
       trackFailedAttempt(`email:${email.toLowerCase()}`, email);
 
       return NextResponse.json(
-        { 
+        {
           error: "No account found with this email address.",
-          userNotFound: true 
+          userNotFound: true,
         },
         { status: 404 }
       );
     }
 
-   if (existingUser && !existingUser.email_verified) {
-  console.log(`🔒 Login blocked: ${email} - email not verified (manual flow)`);
+    // ─── ✅ EMAIL VERIFICATION (with self-heal) ───
+    if (existingUser && !existingUser.email_verified) {
+      let isVerifiedInSupabase = false;
+      try {
+        const { data: authUserData } =
+          await supabaseAdmin.auth.admin.getUserById(existingUser.id);
+        isVerifiedInSupabase = !!authUserData?.user?.email_confirmed_at;
+      } catch (e) {
+        console.error("Failed to check Supabase confirmation:", e);
+      }
 
-  let hasPendingToken = false;
-  try {
-    const { data: tokenRow } = await supabaseAdmin
-      .from("users")
-      .select("email_verification_token, email_verification_token_expires")
-      .eq("id", existingUser.id)
-      .maybeSingle();
+      if (isVerifiedInSupabase) {
+        // 🔧 SELF-HEAL stale flag
+        console.log(`🔧 Auto-healing stale email_verified for ${email}`);
+        try {
+          await supabaseAdmin
+            .from("users")
+            .update({
+              email_verified: true,
+              email_verification_token: null,
+              email_verification_token_expires: null,
+            })
+            .eq("id", existingUser.id);
+        } catch (e) {
+          console.error("Failed to self-heal email_verified:", e);
+        }
+        // Fall through to auth
+      } else {
+        // 🔒 Genuinely unverified
+        console.log(`🔒 Login blocked: ${email} - email not verified`);
 
-    const tokenExpiresAt = tokenRow?.email_verification_token_expires
-      ? new Date(tokenRow.email_verification_token_expires)
-      : null;
+        let hasPendingToken = false;
+        try {
+          const { data: tokenRow } = await supabaseAdmin
+            .from("users")
+            .select(
+              "email_verification_token, email_verification_token_expires"
+            )
+            .eq("id", existingUser.id)
+            .maybeSingle();
 
-    hasPendingToken =
-      !!tokenRow?.email_verification_token &&
-      !!tokenExpiresAt &&
-      tokenExpiresAt.getTime() > Date.now();
-  } catch (e) {
-    console.error("Failed to check pending token:", e);
-  }
+          const tokenExpiresAt = tokenRow?.email_verification_token_expires
+            ? new Date(tokenRow.email_verification_token_expires)
+            : null;
 
-  return NextResponse.json(
-    {
-      error: "Please verify your email before logging in.",
-      requiresVerification: true,
-      email,
-      hasPendingToken,
-      resendAvailable: true,
-    },
-    { status: 403 }
-  );
-}
+          hasPendingToken =
+            !!tokenRow?.email_verification_token &&
+            !!tokenExpiresAt &&
+            tokenExpiresAt.getTime() > Date.now();
+        } catch (e) {
+          console.error("Failed to check pending token:", e);
+        }
+
+        return NextResponse.json(
+          {
+            error: "Please verify your email before logging in.",
+            requiresVerification: true,
+            email,
+            hasPendingToken,
+            resendAvailable: true,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // ─── AUTHENTICATION ───
     const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      await supabase.auth.signInWithPassword({ email, password });
 
     if (authError || !authData?.session) {
       console.error("Auth error:", authError?.message);
@@ -198,9 +248,10 @@ export async function POST(request: NextRequest) {
       trackFailedAttempt(`ip:${ip}`, email);
       trackFailedAttempt(`email:${email.toLowerCase()}`, email);
 
-      // ─── DISTINGUISH BETWEEN WRONG PASSWORD AND OTHER ERRORS ───
-      if (authError?.message?.toLowerCase().includes("invalid login credentials") ||
-          authError?.message?.toLowerCase().includes("invalid password")) {
+      if (
+        authError?.message?.toLowerCase().includes("invalid login credentials") ||
+        authError?.message?.toLowerCase().includes("invalid password")
+      ) {
         return NextResponse.json(
           { error: "Invalid password. Please try again." },
           { status: 401 }
@@ -229,7 +280,8 @@ export async function POST(request: NextRequest) {
     if (userProfile.is_blocked) {
       return NextResponse.json(
         {
-          error: "Your account has been blocked. Please contact support for assistance.",
+          error:
+            "Your account has been blocked. Please contact support for assistance.",
           blocked: true,
           blockedReason: userProfile.block_reason,
           blockedAt: userProfile.blocked_at,
@@ -258,7 +310,9 @@ export async function POST(request: NextRequest) {
       (ip === "127.0.0.1" || ip === "::1" || ip === "unknown");
 
     if (isDevLocalhost) {
-      console.log("🔓 Development localhost detected — bypassing geo/time risk checks");
+      console.log(
+        "🔓 Development localhost detected — bypassing geo/time risk checks"
+      );
       securityContext = {
         ...securityContext,
         riskScore: 0,
@@ -275,7 +329,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── GENERATE UNIQUE SESSION TOKEN ───
+    // ─── GENERATE SESSION TOKEN ───
     const sessionToken = generateSessionId();
     const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -308,13 +362,14 @@ export async function POST(request: NextRequest) {
 
     const displayName = businessData?.business_name || userProfile.full_name;
 
-    // ─── ✅ FETCH STORE DATA (Optimized - non-blocking) ───
+    // ─── FETCH STORE DATA (non-blocking) ───
     let storeData = null;
     try {
-      // Quick query, not blocking the login flow
       const { data: store, error: storeError } = await supabaseAdmin
         .from("online_stores")
-        .select("id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at")
+        .select(
+          "id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at"
+        )
         .eq("owner_id", userId)
         .maybeSingle();
 
@@ -348,8 +403,10 @@ export async function POST(request: NextRequest) {
         console.log("✅ Store data fetched:", storeData.slug);
       }
     } catch (storeFetchError) {
-      // Silent fail - store data is optional and shouldn't block login
-      console.debug("Store fetch skipped or failed (non-critical):", storeFetchError);
+      console.debug(
+        "Store fetch skipped or failed (non-critical):",
+        storeFetchError
+      );
     }
 
     // ─── SET COOKIES ───
@@ -423,19 +480,24 @@ export async function POST(request: NextRequest) {
           session_token: sessionToken,
         });
       } catch (e) {
-        // Silent fail - login history is non-critical
+        // silent
       }
     });
 
-    // ─── UPDATE TRUSTED DEVICES (fire and forget) ───
-    if (device.fingerprint) {
-      Promise.resolve().then(async () => {
-        try {
-          await supabase.from("trusted_devices").upsert(
+    // ─── ✅ TRUSTED DEVICES (matches YOUR schema exactly) ───
+    Promise.resolve().then(async () => {
+      try {
+        const deviceName = `${device.platform || "Unknown"} - ${(
+          device.userAgent || "Browser"
+        ).slice(0, 100)}`;
+
+        const { error: upsertError } = await supabaseAdmin
+          .from("trusted_devices")
+          .upsert(
             {
               user_id: userId,
-              device_fingerprint: device.fingerprint,
-              device_name: `${device.platform} - ${device.userAgent?.split(" ").slice(-1)[0] || "Browser"}`,
+              device_fingerprint: device.fingerprint!,
+              device_name: deviceName,
               last_location: `${location.city}, ${location.country}`,
               last_ip: ip,
               last_used: new Date().toISOString(),
@@ -445,13 +507,16 @@ export async function POST(request: NextRequest) {
               onConflict: "user_id,device_fingerprint",
             }
           );
-        } catch (e) {
-          // Silent fail
-        }
-      });
-    }
 
-    // ─── ✅ RESPONSE WITH PROFILE AND STORE DATA ───
+        if (upsertError) {
+          console.error("Trusted device upsert error:", upsertError);
+        }
+      } catch (e) {
+        console.error("Trusted device upsert failed (non-critical):", e);
+      }
+    });
+
+    // ─── RESPONSE ───
     const profile = {
       id: userProfile.id,
       fullName: displayName,
@@ -472,16 +537,18 @@ export async function POST(request: NextRequest) {
       subscriptionExpiresAt: userProfile.subscription_expires_at,
       isBlocked: userProfile.is_blocked,
       pinSet: userProfile.pin_set,
-      // ✅ Store data included in profile (non-blocking)
       store: storeData,
       hasStore: storeData !== null,
-      storeIsActive: storeData?.is_active === true && storeData?.activation_paid === true,
-      storePendingActivation: storeData !== null && (storeData.is_active === false || storeData.activation_paid === false),
+      storeIsActive:
+        storeData?.is_active === true && storeData?.activation_paid === true,
+      storePendingActivation:
+        storeData !== null &&
+        (storeData.is_active === false || storeData.activation_paid === false),
     };
 
     const responseTime = Date.now() - startTime;
     console.log(
-      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ''}`
+      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`
     );
 
     return NextResponse.json({

@@ -1,3 +1,5 @@
+// app/store/[storeSlug]/[productSlug]/page.tsx
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import StoreProductClient from "./client";
@@ -30,7 +32,7 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
 
   let images: string[] = [];
   if (product.product_images) {
-    if (typeof product.product_images === 'string') {
+    if (typeof product.product_images === "string") {
       try {
         images = JSON.parse(product.product_images);
       } catch (e) {
@@ -45,10 +47,14 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
 
   return {
     title: `${product.title} | Store`,
-    description: product.description?.replace(/<[^>]*>/g, '') || `Buy ${product.title} on Zidwell.`,
+    description:
+      product.description?.replace(/<[^>]*>/g, "") ||
+      `Buy ${product.title} on Zidwell.`,
     openGraph: {
       title: `${product.title} | Store`,
-      description: product.description?.replace(/<[^>]*>/g, '') || `Buy ${product.title} on Zidwell.`,
+      description:
+        product.description?.replace(/<[^>]*>/g, "") ||
+        `Buy ${product.title} on Zidwell.`,
       url: `https://zidwell.com/store/${storeSlug}/${productSlug}`,
       siteName: "Zidwell",
       type: "website",
@@ -57,10 +63,11 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
   };
 }
 
-export default async function StoreProductPage({ params }: StoreProductPageProps) {
+export default async function StoreProductPage({
+  params,
+}: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
 
-  // ✅ Step 1: Fetch store by slug
   const { data: store, error: storeError } = await supabase
     .from("online_stores")
     .select("*")
@@ -75,22 +82,20 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
   }
 
   const storeData = Array.isArray(store) ? store[0] : store;
-  
+
   if (!storeData) {
     console.error("❌ Store data is invalid:", store);
     notFound();
   }
 
-  console.log("✅ Store found:", storeData.name);
-  console.log("📦 Store owner_id:", storeData.owner_id);
-
-  // ✅ Step 2: Fetch product by slug
   const { data: page, error: pageError } = await supabase
     .from("payment_pages")
     .select("*")
     .eq("slug", productSlug)
     .eq("is_published", true)
-    .or(`user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`)
+    .or(
+      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
+    )
     .maybeSingle();
 
   if (pageError || !page) {
@@ -102,16 +107,11 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     notFound();
   }
 
-  console.log("✅ Product found:", page.title);
-  console.log("📦 Product ID:", page.id);
-  console.log("📦 Product user_id:", page.user_id);
-
-  // ✅ Parse product_images
   let productImages: string[] = [];
   let coverImage: string | null = page.cover_image || null;
 
   if (page.product_images) {
-    if (typeof page.product_images === 'string') {
+    if (typeof page.product_images === "string") {
       try {
         const parsed = JSON.parse(page.product_images);
         productImages = Array.isArray(parsed) ? parsed : [];
@@ -128,9 +128,8 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     productImages = [coverImage];
   }
 
-  // ✅ Parse metadata if it's a string
   let parsedMetadata = page.metadata;
-  if (typeof page.metadata === 'string') {
+  if (typeof page.metadata === "string") {
     try {
       parsedMetadata = JSON.parse(page.metadata);
     } catch (e) {
@@ -139,7 +138,78 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     }
   }
 
-  // ✅ Create a clean page object with the current view count
+  // ─── Public paid-students map for school pages ───
+  // Aggregates ALL completed payments on this page — no buyer filter.
+  // Every visitor sees the same map, which is what makes the "paid"
+  // green markers appear regardless of who is looking.
+  let initialPaidStudents: Record<string, number> = {};
+
+  if (page.page_type === "school") {
+    const { data: payments, error: paymentsError } = await supabase
+      .from("payment_page_payments")
+      .select("amount, student_name, selected_students, status")
+      .eq("payment_page_id", page.id)
+      .eq("status", "completed");
+
+    if (paymentsError) {
+      console.error("❌ Failed to load school payments:", paymentsError);
+    }
+
+    for (const p of payments || []) {
+      const amount = Number(p.amount) || 0;
+      const names: string[] = [];
+
+      const rawSelected: any = p.selected_students;
+
+      if (Array.isArray(rawSelected) && rawSelected.length > 0) {
+        for (const n of rawSelected) {
+          if (typeof n === "string" && n.trim().length > 0) {
+            names.push(n.trim());
+          }
+        }
+      } else if (typeof rawSelected === "string" && rawSelected.length > 0) {
+        // Handle both JSON-encoded arrays and plain strings.
+        try {
+          const parsed = JSON.parse(rawSelected);
+          if (Array.isArray(parsed)) {
+            for (const n of parsed) {
+              if (typeof n === "string" && n.trim().length > 0) {
+                names.push(n.trim());
+              }
+            }
+          } else if (typeof parsed === "string" && parsed.trim().length > 0) {
+            names.push(parsed.trim());
+          }
+        } catch {
+          if (rawSelected.trim().length > 0) {
+            names.push(rawSelected.trim());
+          }
+        }
+      }
+
+      if (
+        names.length === 0 &&
+        typeof p.student_name === "string" &&
+        p.student_name.trim().length > 0
+      ) {
+        names.push(p.student_name.trim());
+      }
+
+      if (names.length === 0) continue;
+
+      const perStudent = amount / names.length;
+      for (const name of names) {
+        initialPaidStudents[name] =
+          (initialPaidStudents[name] || 0) + perStudent;
+      }
+    }
+
+    for (const key of Object.keys(initialPaidStudents)) {
+      initialPaidStudents[key] =
+        Math.round(initialPaidStudents[key] * 100) / 100;
+    }
+  }
+
   const cleanPage = {
     id: page.id,
     title: page.title,
@@ -165,6 +235,19 @@ export default async function StoreProductPage({ params }: StoreProductPageProps
     updatedAt: page.updated_at || null,
   };
 
-  // ✅ Pass store data and clean page data to client
-  return <StoreProductClient page={cleanPage} store={storeData} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FDC020]" />
+        </div>
+      }
+    >
+      <StoreProductClient
+        page={cleanPage}
+        store={storeData}
+        initialPaidStudents={initialPaidStudents}
+      />
+    </Suspense>
+  );
 }

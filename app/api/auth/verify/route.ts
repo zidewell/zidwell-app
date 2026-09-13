@@ -6,6 +6,7 @@ import { transporter } from "@/lib/node-mailer";
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
 export async function GET(request: NextRequest) {
@@ -26,34 +27,35 @@ export async function GET(request: NextRequest) {
     const decodedEmail = decodeURIComponent(email).toLowerCase();
     console.log(`📧 Looking up user: ${decodedEmail}`);
 
-    // Try to find user in users table
-    let { data: user, error: userError } = await supabase
+    // ─── FIND USER IN public.users ───
+    let { data: user } = await supabase
       .from("users")
-      .select("id, email, full_name, email_verification_token, email_verification_token_expires, email_verified")
+      .select(
+        "id, email, full_name, email_verification_token, email_verification_token_expires, email_verified"
+      )
       .eq("email", decodedEmail)
       .maybeSingle();
 
-    // If not found, try case-insensitive
+    // Case-insensitive fallback
     if (!user) {
       console.log(`⚠️ User not found with exact email, trying case-insensitive...`);
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("users")
-        .select("id, email, full_name, email_verification_token, email_verification_token_expires, email_verified")
+        .select(
+          "id, email, full_name, email_verification_token, email_verification_token_expires, email_verified"
+        )
         .ilike("email", decodedEmail)
         .maybeSingle();
-      
       user = data;
     }
 
-    // If still not found, try to get user from auth and create record
+    // ─── FALLBACK: CREATE public.users ROW FROM auth.users ───
     if (!user) {
       console.log(`🔄 User not in users table, checking auth...`);
-      
+
       try {
-        const { data: authData, error: authError } = await supabase.auth.admin
-          .listUsers({
-            perPage: 1000,
-          });
+        const { data: authData, error: authError } =
+          await supabase.auth.admin.listUsers({ perPage: 1000 });
 
         if (authError) {
           console.error("❌ Auth list error:", authError);
@@ -64,24 +66,27 @@ export async function GET(request: NextRequest) {
 
           if (authUser) {
             console.log(`✅ Auth user found: ${authUser.id}`);
-            
-            const fullName = authUser.user_metadata?.full_name || 
-                            authUser.email?.split('@')[0] || 
-                            'User';
-            
+
+            const fullName =
+              authUser.user_metadata?.full_name ||
+              authUser.email?.split("@")[0] ||
+              "User";
+
             const { data: newUser, error: createError } = await supabase
               .from("users")
               .insert({
                 id: authUser.id,
                 email: decodedEmail,
                 full_name: fullName,
-                phone: authUser.user_metadata?.phone || '',
+                phone: authUser.user_metadata?.phone || "",
                 email_verification_token: token,
-                email_verification_token_expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                email_verification_token_expires: new Date(
+                  Date.now() + 24 * 60 * 60 * 1000
+                ).toISOString(),
                 email_verified: false,
                 wallet_balance: 0,
                 zidcoin_balance: 20,
-                subscription_tier: 'free',
+                subscription_tier: "free",
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 invoice_lifetime_limit: 10,
@@ -95,19 +100,21 @@ export async function GET(request: NextRequest) {
                 },
                 pin_set: false,
                 is_blocked: false,
-                bvn_verification: 'not_submitted',
-                kyc_level: 'unverified',
-                verification_status: 'pending',
+                bvn_verification: "not_submitted",
+                kyc_level: "unverified",
+                verification_status: "pending",
                 onboarding_step: 0,
                 onboarding_completed: false,
                 bank78_verified: false,
-                primary_provider: 'nomba',
-                wallet_provider: 'nomba',
+                primary_provider: "nomba",
+                wallet_provider: "nomba",
               })
               .select()
               .single();
 
-            if (newUser) {
+            if (createError) {
+              console.error("❌ Failed to create user record:", createError);
+            } else if (newUser) {
               console.log(`✅ User record created in DB: ${newUser.id}`);
               user = newUser;
             }
@@ -128,20 +135,36 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ User found: ${user.email}`);
 
-    // ✅ CHECK IF ALREADY VERIFIED - Return specific status
+    // ─── ✅ ALREADY VERIFIED: SELF-HEAL AUTH, RETURN 200 ───
     if (user.email_verified) {
-      console.log("ℹ️ Email already verified");
+      console.log("ℹ️ Email already verified — ensuring Supabase auth confirmed");
+
+      // Idempotent: re-confirm in Supabase Auth if somehow out of sync
+      try {
+        const { data: authUserData } = await supabase.auth.admin.getUserById(
+          user.id
+        );
+        if (!authUserData?.user?.email_confirmed_at) {
+          await supabase.auth.admin.updateUserById(user.id, {
+            email_confirm: true,
+          });
+          console.log("✅ Supabase auth confirmed on re-visit (was out of sync)");
+        }
+      } catch (e) {
+        console.error("⚠️ Could not confirm auth on re-visit:", e);
+      }
+
       return NextResponse.json(
-        { 
-          error: "Email already verified",
+        {
+          success: true,
           alreadyVerified: true,
-          message: "This email has already been verified."
+          message: "This email has already been verified.",
         },
-        { status: 400 }
+        { status: 200 }
       );
     }
 
-    // Check if token matches
+    // ─── TOKEN MATCH CHECK ───
     if (user.email_verification_token !== token) {
       console.log(`❌ Token mismatch`);
       return NextResponse.json(
@@ -150,7 +173,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if token expired
+    // ─── TOKEN EXPIRY CHECK ───
     if (user.email_verification_token_expires) {
       const expiresAt = new Date(user.email_verification_token_expires);
       if (expiresAt < new Date()) {
@@ -162,7 +185,37 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ✅ Update user - mark email as verified
+    // ─── ✅ STEP 1: CONFIRM IN SUPABASE AUTH FIRST ───
+    // If this fails, we MUST NOT flip email_verified = true in public.users,
+    // otherwise the login self-heal will permanently block the user.
+    let authConfirmed = false;
+    try {
+      const { error: authErr } = await supabase.auth.admin.updateUserById(
+        user.id,
+        { email_confirm: true }
+      );
+
+      if (authErr) {
+        console.error("❌ Supabase auth confirm failed:", authErr);
+      } else {
+        authConfirmed = true;
+        console.log("✅ Supabase auth user confirmed");
+      }
+    } catch (authError) {
+      console.error("❌ Supabase auth confirm threw:", authError);
+    }
+
+    if (!authConfirmed) {
+      return NextResponse.json(
+        {
+          error:
+            "Verification failed. Please try the link again or request a new one.",
+        },
+        { status: 500 }
+      );
+    }
+
+    // ─── ✅ STEP 2: UPDATE public.users ───
     const { error: updateError } = await supabase
       .from("users")
       .update({
@@ -175,25 +228,22 @@ export async function GET(request: NextRequest) {
 
     if (updateError) {
       console.error("❌ Error updating user verification:", updateError);
+      // Auth is confirmed but DB update failed. Login self-heal will
+      // reconcile on next login. Return 200 so user isn't confused.
       return NextResponse.json(
-        { error: "Failed to verify email" },
-        { status: 500 }
+        {
+          success: true,
+          message:
+            "Email verified. Please log in — the database will sync automatically.",
+          warning: "db_sync_pending",
+        },
+        { status: 200 }
       );
     }
 
     console.log(`✅ Email verified for: ${user.email}`);
 
-    // ✅ Confirm email in Supabase Auth
-    try {
-      await supabase.auth.admin.updateUserById(user.id, {
-        email_confirm: true,
-      });
-      console.log("✅ Auth user confirmed");
-    } catch (authError) {
-      console.error("⚠️ Could not update auth user:", authError);
-    }
-
-    // ✅ Send welcome email
+    // ─── SEND WELCOME EMAIL (fire-and-forget) ───
     (async () => {
       try {
         const baseUrl =
@@ -202,8 +252,7 @@ export async function GET(request: NextRequest) {
             : process.env.NEXT_PUBLIC_BASE_URL;
 
         const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-        const welcomeImageUrl = `${baseUrl}/Zidwell Welcome Email 2026.png`
-
+        const welcomeImageUrl = `${baseUrl}/Zidwell Welcome Email 2026.png`;
         const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
         await transporter.sendMail({
@@ -216,14 +265,12 @@ export async function GET(request: NextRequest) {
               <h3 style="color: #22c55e;">✅ Account Verified!</h3>
               <p>Hi ${user.full_name},</p>
               <p>Your account has been successfully verified and is now ready to use!</p>
-              
+
               <img src="${welcomeImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
 
-            
-
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${baseUrl}/dashboard" 
-                   style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px; 
+                <a href="${baseUrl}/dashboard"
+                   style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px;
                           text-decoration: none; display: inline-block; font-weight: bold;">
                   Go to Dashboard
                 </a>
@@ -243,7 +290,6 @@ export async function GET(request: NextRequest) {
       success: true,
       message: "Email verified successfully",
     });
-
   } catch (error: any) {
     console.error("❌ Verification error:", error);
     return NextResponse.json(

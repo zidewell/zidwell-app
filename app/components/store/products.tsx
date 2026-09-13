@@ -13,6 +13,39 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
+/**
+ * Format large numbers compactly:
+ *   999           → "999"
+ *   1500          → "1,500"
+ *   150000        → "150K"
+ *   1500000       → "1.5M"
+ *   1500000000    → "1.5B"
+ *   1500000000000 → "1.5T"
+ *
+ * Use this for sales/views badges where space is tight. For the
+ * price itself we keep the full number but let it wrap / shrink.
+ */
+function compactNumber(n: number): string {
+  const v = Number(n) || 0;
+  if (Math.abs(v) < 1000) return v.toString();
+  if (Math.abs(v) < 1_000_000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
+  if (Math.abs(v) < 1_000_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (Math.abs(v) < 1_000_000_000_000) return `${(v / 1_000_000_000).toFixed(v % 1_000_000_000 === 0 ? 0 : 1)}B`;
+  return `${(v / 1_000_000_000_000).toFixed(1)}T`;
+}
+
+/**
+ * Price formatter. Uses compact form only when the number is very
+ * long, so normal prices show in full (₦3,000) but huge ones shrink
+ * (₦1.5B) instead of blowing the card width.
+ */
+function formatPrice(n: number): string {
+  const v = Number(n) || 0;
+  const full = v.toLocaleString();
+  if (full.length <= 12) return full;      // up to ₦999,999,999,999
+  return compactNumber(v);
+}
+
 function ProductCard({ product }: { product: any }) {
   const [copied, setCopied] = useState(false);
 
@@ -33,13 +66,14 @@ function ProductCard({ product }: { product: any }) {
   const isActive = product.isPublished === true;
 
   return (
-    <article className="group flex flex-col rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)]">
-      <div className="relative flex h-40 items-center justify-center rounded-[1.5rem] bg-muted/30">
+    <article className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)]">
+      {/* Image */}
+      <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-muted/30">
         {product.coverImage || product.logo ? (
           <img
             src={product.coverImage || product.logo}
             alt={product.title}
-            className="w-full h-full object-cover rounded-[1.5rem] group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
@@ -110,17 +144,33 @@ function ProductCard({ product }: { product: any }) {
         </DropdownMenu>
       </div>
 
-      <div className="mt-4 flex-1 px-1">
-        <p className="eyebrow text-muted-foreground">{product.pageType || "Product"}</p>
-        <h3 className="mt-1 font-display text-lg font-bold leading-tight">{product.title}</h3>
-        <p className="mt-2 font-display text-xl font-bold">
-          ₦{(product.price || 0).toLocaleString()}
+      {/* Body — flex-1 min-w-0 lets children shrink properly */}
+      <div className="mt-4 flex-1 min-w-0 px-1">
+        <p className="eyebrow truncate text-muted-foreground">
+          {product.pageType || "Product"}
+        </p>
+        <h3
+          className="mt-1 font-display text-lg font-bold leading-tight line-clamp-2 break-words"
+          title={product.title}
+        >
+          {product.title}
+        </h3>
+        <p
+          className="mt-2 font-display text-xl font-bold tabular-nums break-all"
+          title={`₦${(product.price || 0).toLocaleString()}`}
+        >
+          ₦{formatPrice(product.price || 0)}
         </p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
-        <span>{product.totalPayments || 0} sales</span>
-        <span>{product.pageViews || 0} views</span>
+      {/* Footer — compact numbers keep it on one line */}
+      <div className="mt-4 flex items-center justify-between gap-2 border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
+        <span className="truncate tabular-nums" title={`${product.totalPayments || 0} sales`}>
+          {compactNumber(product.totalPayments || 0)} sales
+        </span>
+        <span className="truncate tabular-nums" title={`${product.pageViews || 0} views`}>
+          {compactNumber(product.pageViews || 0)} views
+        </span>
       </div>
     </article>
   );

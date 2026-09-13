@@ -1,7 +1,8 @@
+// app/dashboard/services/payment/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -17,21 +18,13 @@ import {
   Link2,
   Trash2,
   EyeOff,
-  Store,
   Package,
   Coins,
-  Users,
-  BarChart3,
-  Settings,
-  HelpCircle,
   RefreshCw,
   Waves,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
 import Loader from "@/app/components/Loader";
 import { useStore } from "@/app/context/StoreContext";
-import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
-import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import { toast } from "sonner";
 import { DateFilter } from "@/app/components/date-filter";
 import type { DateRange } from "react-day-picker";
@@ -46,48 +39,30 @@ import {
 import { cn } from "@/lib/utils";
 import { CreateStoreForm } from "@/app/components/store/create-store";
 import { useUserContextData } from "@/app/context/userData";
+import { useStoreWallet } from "@/app/hooks/useStoreWallet";
 import Swal from "sweetalert2";
+import { ZidwellShell } from "@/app/components/zidwell-shell";
 
-// Store Navigation Component
-function StoreNav({ pathname }: { pathname: string }) {
-  const STORE_LINKS = [
-    { label: "Overview", href: "/dashboard/services/payment/dashboard", icon: Store },
-    { label: "Products", href: "/store/products", icon: Package },
-    { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
-    { label: "Transactions", href: "/store/transactions", icon: CreditCard },
-    { label: "Customers", href: "/store/customers", icon: Users },
-    { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
-    { label: "Settings", href: "#", icon: Settings },
-    // { label: "Settings", href: "/store/settings", icon: Settings },
-  ];
+// ─── Formatting helpers ───
+function compactNumber(n: number): string {
+  const v = Number(n) || 0;
+  if (Math.abs(v) < 1000) return v.toString();
+  if (Math.abs(v) < 1_000_000)
+    return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
+  if (Math.abs(v) < 1_000_000_000)
+    return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (Math.abs(v) < 1_000_000_000_000)
+    return `${(v / 1_000_000_000).toFixed(
+      v % 1_000_000_000 === 0 ? 0 : 1
+    )}B`;
+  return `${(v / 1_000_000_000_000).toFixed(1)}T`;
+}
 
-  return (
-    <div className="flex items-center gap-6 overflow-x-auto px-5 py-3 sm:px-8 border-b border-border bg-card/50 backdrop-blur-sm">
-      <nav className="flex items-center gap-1">
-        {STORE_LINKS.map((link) => {
-          const active = pathname === link.href || pathname?.startsWith(link.href + '/');
-          return (
-            <a
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 font-display text-[13px] font-bold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                active && "bg-foreground text-background hover:bg-foreground hover:text-background"
-              )}
-            >
-              <link.icon className="size-4" />
-              {link.label}
-            </a>
-          );
-        })}
-      </nav>
-      <div className="ml-auto flex items-center gap-2">
-        <button className="rounded-full p-2 hover:bg-muted transition-colors">
-          <HelpCircle className="size-4 text-muted-foreground" />
-        </button>
-      </div>
-    </div>
-  );
+function formatCurrencyCompact(n: number): string {
+  const v = Number(n) || 0;
+  const full = v.toLocaleString();
+  if (full.length <= 12) return `₦${full}`;
+  return `₦${compactNumber(v)}`;
 }
 
 // Stat Card Component
@@ -113,7 +88,7 @@ function StatCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "rounded-[2rem] border border-border p-7 transition-all bg-card shadow-sm",
+        "rounded-[2rem] border border-border p-7 transition-all bg-card shadow-sm min-w-0 overflow-hidden",
         highlight ? "bg-foreground text-background" : "bg-card",
         empty && "opacity-50"
       )}
@@ -121,7 +96,7 @@ function StatCard({
       <div className="flex items-center justify-between">
         <span
           className={cn(
-            "flex size-11 items-center justify-center rounded-2xl",
+            "flex size-11 shrink-0 items-center justify-center rounded-2xl",
             highlight ? "bg-primary text-primary-foreground" : "bg-muted"
           )}
         >
@@ -130,12 +105,12 @@ function StatCard({
         {!empty && (
           <span
             className={cn(
-              "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold",
+              "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap",
               highlight
                 ? "bg-background/15 text-background"
                 : deltaPositive
-                  ? "bg-[#E8F5E9] text-[#2E7D32] dark:bg-[#2E7D32]/20 dark:text-[#66BB6A]"
-                  : "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                ? "bg-[#E8F5E9] text-[#2E7D32] dark:bg-[#2E7D32]/20 dark:text-[#66BB6A]"
+                : "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
             )}
           >
             <ArrowUpRight
@@ -153,7 +128,10 @@ function StatCard({
       >
         {label}
       </p>
-      <p className="mt-2 font-display text-[2.1rem] font-bold leading-none tracking-tight">
+      <p
+        className="mt-2 font-display text-[2.1rem] font-bold leading-none tracking-tight tabular-nums break-all"
+        title={empty ? "—" : value}
+      >
         {empty ? "—" : value}
       </p>
     </motion.div>
@@ -161,9 +139,14 @@ function StatCard({
 }
 
 // Payment Page Card Component
-function PaymentPageCard({ page, index, storeSlug, onRefresh }: { 
-  page: any; 
-  index: number; 
+function PaymentPageCard({
+  page,
+  index,
+  storeSlug,
+  onRefresh,
+}: {
+  page: any;
+  index: number;
   storeSlug?: string;
   onRefresh: () => void;
 }) {
@@ -171,11 +154,12 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
   const { updatePage } = useStore();
 
   const getPageUrl = () => {
-    return `/store/${storeSlug || ''}/${page.slug || page.id}`;
+    return `/store/${storeSlug || ""}/${page.slug || page.id}`;
   };
 
   const getFullPageUrl = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
     const path = getPageUrl();
     return `${origin}${path}`;
   };
@@ -184,12 +168,12 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 
   const stripHtml = (html: string) => {
     if (!html) return "No description";
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const tmp = document.createElement("div");
       tmp.innerHTML = html;
       return tmp.textContent || tmp.innerText || "No description";
     }
-    return html.replace(/<[^>]*>/g, '').trim() || "No description";
+    return html.replace(/<[^>]*>/g, "").trim() || "No description";
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -199,14 +183,12 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 
   const handleToggleActive = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
     try {
       const newStatus = !isActive;
-      
       const result = await Swal.fire({
         icon: "question",
         title: newStatus ? "Activate Page?" : "Deactivate Page?",
-        text: newStatus 
+        text: newStatus
           ? `Are you sure you want to activate "${page.title}"? It will become visible to customers.`
           : `Are you sure you want to deactivate "${page.title}"? It will no longer be visible to customers.`,
         showCancelButton: true,
@@ -215,10 +197,11 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
         confirmButtonText: newStatus ? "Yes, Activate" : "Yes, Deactivate",
         cancelButtonText: "Cancel",
       });
-
       if (result.isConfirmed) {
         await updatePage(page.id, { isPublished: newStatus });
-        toast.success(`Page ${newStatus ? 'activated' : 'deactivated'} successfully!`);
+        toast.success(
+          `Page ${newStatus ? "activated" : "deactivated"} successfully!`
+        );
         onRefresh();
       }
     } catch (error: any) {
@@ -229,7 +212,6 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
     const result = await Swal.fire({
       icon: "warning",
       title: "Delete Page?",
@@ -251,19 +233,16 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
       cancelButtonText: "Cancel",
       width: 500,
     });
-
     if (result.isConfirmed) {
       try {
         const response = await fetch(`/api/payment-page/delete/${page.id}`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
         });
-
         if (!response.ok) {
           const data = await response.json();
           throw new Error(data.error || "Failed to delete page");
         }
-
         toast.success(`"${page.title}" deleted successfully!`);
         onRefresh();
       } catch (error: any) {
@@ -275,15 +254,13 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const fullUrl = getFullPageUrl();
-    navigator.clipboard?.writeText(fullUrl);
+    navigator.clipboard?.writeText(getFullPageUrl());
     toast.success("Page URL copied to clipboard!");
   };
 
   const handleViewPublic = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const fullUrl = getFullPageUrl();
-    window.open(fullUrl, "_blank");
+    window.open(getFullPageUrl(), "_blank");
   };
 
   const handleDownloadQR = (e: React.MouseEvent) => {
@@ -296,26 +273,31 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() => router.push(`/dashboard/services/payment/page/${page.id}`)}
-      className="group flex flex-col rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
+      onClick={() =>
+        router.push(`/dashboard/services/payment/page/${page.id}`)
+      }
+      className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
     >
-      <div className="relative flex h-40 items-center justify-center rounded-[1.5rem] bg-muted/30">
+      <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-muted/30">
         {page.coverImage ? (
           <img
             src={page.coverImage}
             alt={page.title}
-            className="w-full h-full object-cover rounded-[1.5rem] group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : page.productImages && page.productImages.length > 0 ? (
           <img
             src={page.productImages[0]}
             alt={page.title}
-            className="w-full h-full object-cover rounded-[1.5rem] group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <CreditCard className="size-14 text-muted-foreground/40" strokeWidth={1.5} />
+          <CreditCard
+            className="size-14 text-muted-foreground/40"
+            strokeWidth={1.5}
+          />
         )}
         <span
           className={cn(
@@ -327,7 +309,7 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
         >
           {isActive ? "Active" : "Inactive"}
         </span>
-        
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -338,22 +320,34 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 rounded-2xl bg-card border-border shadow-xl">
+          <DropdownMenuContent
+            align="end"
+            className="w-56 rounded-2xl bg-card border-border shadow-xl"
+          >
             <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
               <Pencil className="size-4 mr-2" /> Edit page
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleViewPublic} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleViewPublic}
+              className="cursor-pointer"
+            >
               <ExternalLink className="size-4 mr-2" /> View public link
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDownloadQR} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleDownloadQR}
+              className="cursor-pointer"
+            >
               <QrCode className="size-4 mr-2" /> Download QR code
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCopyUrl} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleCopyUrl}
+              className="cursor-pointer"
+            >
               <Link2 className="size-4 mr-2" /> Copy URL
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={handleToggleActive} 
+            <DropdownMenuItem
+              onClick={handleToggleActive}
               className={cn(
                 "cursor-pointer",
                 isActive ? "text-yellow-600" : "text-green-600"
@@ -362,8 +356,8 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
               <EyeOff className="size-4 mr-2" />{" "}
               {isActive ? "Make inactive" : "Make active"}
             </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleDelete} 
+            <DropdownMenuItem
+              onClick={handleDelete}
               className="text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
             >
               <Trash2 className="size-4 mr-2" /> Delete
@@ -372,30 +366,48 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
         </DropdownMenu>
       </div>
 
-      <div className="mt-4 flex-1 px-1">
-        <p className="eyebrow text-muted-foreground">
+      <div className="mt-4 flex-1 min-w-0 px-1">
+        <p className="eyebrow truncate text-muted-foreground">
           {page.pageType || "Payment"}
         </p>
-        <h3 className="mt-1 font-display text-lg font-bold leading-tight text-foreground">
+        <h3
+          className="mt-1 font-display text-lg font-bold leading-tight text-foreground line-clamp-2 break-words"
+          title={page.title}
+        >
           {page.title}
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
+        <p className="mt-1 text-sm text-muted-foreground line-clamp-1 break-words">
           {stripHtml(page.description)}
         </p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Wallet className="size-3.5" />
-          ₦{(page.pageBalance || 0).toLocaleString()}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${(page.pageBalance || 0).toLocaleString()} balance`}
+        >
+          <Wallet className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {formatCurrencyCompact(page.pageBalance || 0)}
+          </span>
         </span>
-        <span className="flex items-center gap-1">
-          <Eye className="size-3.5" />
-          {page.pageViews || 0} views
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.pageViews || 0} views`}
+        >
+          <Eye className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.pageViews || 0)} views
+          </span>
         </span>
-        <span className="flex items-center gap-1">
-          <CreditCard className="size-3.5" />
-          {page.totalPayments || 0} payments
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.totalPayments || 0} payments`}
+        >
+          <CreditCard className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.totalPayments || 0)} payments
+          </span>
         </span>
       </div>
     </motion.article>
@@ -403,7 +415,13 @@ function PaymentPageCard({ page, index, storeSlug, onRefresh }: {
 }
 
 // Greeting Component
-function Greeting({ storeName, firstName }: { storeName?: string; firstName?: string }) {
+function Greeting({
+  storeName,
+  firstName,
+}: {
+  storeName?: string;
+  firstName?: string;
+}) {
   const [greeting, setGreeting] = useState("Good morning");
   const [emoji, setEmoji] = useState("🌅");
 
@@ -433,16 +451,17 @@ function Greeting({ storeName, firstName }: { storeName?: string; firstName?: st
       className="mb-2"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
           <Waves className="size-6 text-primary" />
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-foreground break-words">
             {greeting}, {displayName} {emoji}
           </h1>
           {storeName && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Welcome to <span className="text-primary font-medium">{storeName}</span>
+            <p className="text-sm text-muted-foreground mt-1 break-words">
+              Welcome to{" "}
+              <span className="text-primary font-medium">{storeName}</span>
             </p>
           )}
         </div>
@@ -452,24 +471,23 @@ function Greeting({ storeName, firstName }: { storeName?: string; firstName?: st
 }
 
 // ============================================================
-// MAIN DASHBOARD COMPONENT - DEFAULT EXPORT
+// MAIN DASHBOARD COMPONENT
 // ============================================================
 export default function PaymentDashboardPage() {
   const router = useRouter();
-  const pathname = usePathname();
-  const { 
-    store, 
-    pages, 
-    loading, 
-    hasStore, 
-    hasPendingActivation, 
-    fetchStore, 
-    fetchPages, 
-    refreshPages 
+  const {
+    store,
+    pages,
+    loading,
+    hasStore,
+    hasPendingActivation,
+    fetchStore,
+    fetchPages,
+    refreshPages,
   } = useStore();
   const { userData } = useUserContextData();
-  
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { wallet, loading: walletLoading, fetchBalance } = useStoreWallet();
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodKey>("30d");
@@ -478,61 +496,42 @@ export default function PaymentDashboardPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
   const [dataReady, setDataReady] = useState(false);
-  
-  // Refs for scalability - prevent multiple simultaneous calls
+
   const isRefreshingRef = useRef(false);
   const lastRefreshTime = useRef(0);
-  const MIN_REFRESH_INTERVAL = 2000; // 2 seconds minimum between refreshes
+  const MIN_REFRESH_INTERVAL = 2000;
 
-  // ============================================================
-  // STEP 1: Check store status on mount
-  // ============================================================
+  // STEP 1: Check store
   useEffect(() => {
     let isMounted = true;
-    
     const checkStoreStatus = async () => {
       try {
         setIsLoading(true);
         await fetchStore();
-        
-        if (isMounted) {
-          setIsStoreCheckComplete(true);
-        }
+        if (isMounted) setIsStoreCheckComplete(true);
       } catch (error) {
         console.error("Error checking store:", error);
-        if (isMounted) {
-          setIsStoreCheckComplete(true);
-        }
+        if (isMounted) setIsStoreCheckComplete(true);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     };
-    
     checkStoreStatus();
-    
     return () => {
       isMounted = false;
     };
   }, [fetchStore]);
 
-  // ============================================================
-  // STEP 2: Load pages when store is active
-  // ============================================================
+  // STEP 2: Load pages
   useEffect(() => {
     let isMounted = true;
-    
     const loadPages = async () => {
       if (hasStore && isStoreCheckComplete && !isLoading) {
         try {
           await fetchPages();
-          if (isMounted) {
-            setInitialLoadComplete(true);
-            setDataReady(true);
-          }
         } catch (error) {
           console.error("Error loading pages:", error);
+        } finally {
           if (isMounted) {
             setInitialLoadComplete(true);
             setDataReady(true);
@@ -540,105 +539,86 @@ export default function PaymentDashboardPage() {
         }
       }
     };
-    
     loadPages();
-    
     return () => {
       isMounted = false;
     };
   }, [hasStore, isStoreCheckComplete, isLoading, fetchPages]);
 
-  // ============================================================
-  // STEP 3: Filter pages based on selected period
-  // ============================================================
+  // STEP 3: Filter
   useEffect(() => {
     if (pages.length === 0) {
       setFilteredPages([]);
       return;
     }
-
     let filtered = [...pages];
-
     if (period !== "all" && period !== "custom") {
       const days = parseInt(period);
       if (!isNaN(days)) {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
-        
-        filtered = filtered.filter((page) => {
-          const createdAt = new Date(page.createdAt);
-          return createdAt >= cutoffDate;
-        });
+        filtered = filtered.filter(
+          (page) => new Date(page.createdAt) >= cutoffDate
+        );
       }
     } else if (period === "custom" && range?.from) {
       const from = new Date(range.from);
       const to = range.to ? new Date(range.to) : new Date();
       to.setHours(23, 59, 59, 999);
-      
       filtered = filtered.filter((page) => {
         const createdAt = new Date(page.createdAt);
         return createdAt >= from && createdAt <= to;
       });
     }
-
     setFilteredPages(filtered);
   }, [pages, period, range]);
 
-  // ============================================================
-  // STEP 4: Handle refresh with throttling for scalability
-  // ============================================================
   const handleRefresh = useCallback(async () => {
-    // Prevent multiple simultaneous refreshes
-    if (isRefreshingRef.current) {
-      console.log("⏳ Refresh already in progress, skipping");
-      return;
-    }
-
-    // Throttle refreshes to prevent API overload
+    if (isRefreshingRef.current) return;
     const now = Date.now();
-    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) {
-      console.log("⏳ Refresh throttled, skipping");
-      return;
-    }
-
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) return;
     isRefreshingRef.current = true;
     setIsRefreshing(true);
     lastRefreshTime.current = now;
-
     try {
-      await refreshPages();
-      toast.success("Pages refreshed");
-    } catch (error) {
-      toast.error("Failed to refresh pages");
+      await Promise.all([refreshPages(), fetchBalance(true)]);
+      toast.success("Dashboard refreshed");
+    } catch {
+      toast.error("Failed to refresh");
     } finally {
       setIsRefreshing(false);
       isRefreshingRef.current = false;
     }
-  }, [refreshPages]);
+  }, [refreshPages, fetchBalance]);
 
   const handlePageRefresh = useCallback(() => {
-    // Throttle page refresh
     const now = Date.now();
-    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) {
-      return;
-    }
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) return;
     lastRefreshTime.current = now;
     refreshPages();
   }, [refreshPages]);
 
-  // ============================================================
-  // Calculate metrics from real data
-  // ============================================================
   const metrics = useMemo(() => {
-    const totalBalance = filteredPages.reduce((sum, p) => sum + (p.pageBalance || 0), 0);
-    const totalRevenue = filteredPages.reduce((sum, p) => sum + (p.totalRevenue || 0), 0);
-    const totalPayments = filteredPages.reduce((sum, p) => sum + (p.totalPayments || 0), 0);
-    const totalViews = filteredPages.reduce((sum, p) => sum + (p.pageViews || 0), 0);
-    const avgOrder = filteredPages.length > 0 && totalPayments > 0 ? totalRevenue / totalPayments : 0;
-    const activePages = filteredPages.filter((p) => p.isPublished === true).length;
-
+    const totalRevenue = filteredPages.reduce(
+      (sum, p) => sum + (p.totalRevenue || 0),
+      0
+    );
+    const totalPayments = filteredPages.reduce(
+      (sum, p) => sum + (p.totalPayments || 0),
+      0
+    );
+    const totalViews = filteredPages.reduce(
+      (sum, p) => sum + (p.pageViews || 0),
+      0
+    );
+    const avgOrder =
+      filteredPages.length > 0 && totalPayments > 0
+        ? totalRevenue / totalPayments
+        : 0;
+    const activePages = filteredPages.filter(
+      (p) => p.isPublished === true
+    ).length;
     return {
-      totalBalance,
       totalRevenue,
       totalPayments,
       totalViews,
@@ -648,245 +628,241 @@ export default function PaymentDashboardPage() {
     };
   }, [filteredPages]);
 
-  // ============================================================
-  // ✅ FIXED: Wait for store check to complete before rendering
-  // ============================================================
-  
-  // Show loader while checking store or loading data
+  const walletBalance =
+    wallet?.available_balance != null
+      ? Number(wallet.available_balance)
+      : null;
+  const walletReady = !walletLoading && walletBalance !== null;
+
   if (isLoading || loading || !isStoreCheckComplete) {
     return <Loader />;
   }
 
-  // ✅ Only after store check is complete, check if user has store
   if (!hasStore || hasPendingActivation) {
     return (
-      <div className="min-h-screen bg-background">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
-          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            <CreateStoreForm />
-          </main>
-        </div>
-      </div>
+      <ZidwellShell>
+        <CreateStoreForm />
+      </ZidwellShell>
     );
   }
 
-  // ✅ Show loader while pages are loading
   if (!dataReady || !initialLoadComplete) {
     return (
-      <div className="min-h-screen bg-background">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
-          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
-            <Loader />
-          </main>
+      <ZidwellShell>
+        <div className="flex items-center justify-center py-24">
+          <Loader />
         </div>
-      </div>
+      </ZidwellShell>
     );
   }
 
-  // ============================================================
-  // RENDER DASHBOARD WITH DATA
-  // ============================================================
   const isEmpty = filteredPages.length === 0;
-  const firstName = userData?.full_name?.split(' ')[0] || userData?.first_name || '';
-  const storeName = store?.name || '';
-  const storeSlug = store?.slug || '';
+  const firstName =
+    userData?.full_name?.split(" ")[0] || userData?.first_name || "";
+  const storeName = store?.name || "";
+  const storeSlug = store?.slug || "";
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-
-      <div className="lg:pl-72 min-h-screen flex flex-col">
-        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
-        <StoreNav pathname={pathname || ''} />
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-          {/* Header with Greeting */}
-          <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
-            <div>
-              <p className="eyebrow text-muted-foreground">Online Store</p>
-              <Greeting storeName={storeName} firstName={firstName} />
-              <div className="mt-7 flex items-center gap-3 w-full">
-                <a
-                  href={`/store/${storeSlug}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-transparent px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
-                >
-                  <ExternalLink className="size-4" />
-                  Visit storefront
-                </a>
-                <button
-                  onClick={() => router.push("/dashboard/services/payment/create")}
-                  className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
-                >
-                  <Plus className="size-4" /> Add New product
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <DateFilter
-                value={period}
-                onChange={setPeriod}
-                range={range}
-                onRangeChange={setRange}
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
-                >
-                  <RefreshCw
-                    className={cn(
-                      "size-4",
-                      isRefreshing && "animate-spin"
-                    )}
-                  />
-                </button>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Click to refresh
-                </p>
-              </div>
-            </div>
+    <ZidwellShell>
+      {/* Header with Greeting */}
+      <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
+        <div className="min-w-0">
+          <p className="eyebrow text-muted-foreground">Online Store</p>
+          <Greeting storeName={storeName} firstName={firstName} />
+          <div className="mt-7 flex flex-wrap items-center gap-3 w-full">
+            <a
+              href={`/store/${storeSlug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-transparent px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
+            >
+              <ExternalLink className="size-4" />
+              Visit storefront
+            </a>
+            <button
+              onClick={() =>
+                router.push("/dashboard/services/payment/create")
+              }
+              className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
+            >
+              <Plus className="size-4" /> Add New product
+            </button>
           </div>
-
-          {/* Primary Metrics */}
-          <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Total balance"
-              value={isEmpty ? "₦0" : `₦${metrics.totalBalance.toLocaleString()}`}
-              delta="0%"
-              icon={Coins}
-              highlight
-              empty={isEmpty}
-            />
-            <StatCard
-              label="Total revenue"
-              value={isEmpty ? "₦0" : `₦${metrics.totalRevenue.toLocaleString()}`}
-              delta="0%"
-              icon={TrendingUp}
-              empty={isEmpty}
-            />
-            <StatCard
-              label="Total payments"
-              value={isEmpty ? "0" : metrics.totalPayments.toLocaleString()}
-              delta="0%"
-              icon={CreditCard}
-              empty={isEmpty}
-            />
-            <StatCard
-              label="Page views"
-              value={isEmpty ? "0" : metrics.totalViews.toLocaleString()}
-              delta="0%"
-              icon={Eye}
-              empty={isEmpty}
-            />
-          </section>
-
-          {/* Secondary Metrics */}
-          <section className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              {
-                label: "Average order value",
-                value: isEmpty ? "₦0" : `₦${Math.round(metrics.avgOrder).toLocaleString()}`,
-              },
-              {
-                label: "Conversion rate",
-                value: isEmpty ? "0%" : "3.2%",
-              },
-              {
-                label: "Active pages",
-                value: isEmpty ? "0" : metrics.activePages.toLocaleString(),
-              },
-              {
-                label: "Total pages",
-                value: isEmpty ? "0" : metrics.pageCount.toLocaleString(),
-              },
-            ].map((s) => (
-              <div key={s.label} className={cn(
-                "rounded-[2rem] p-7 bg-card border border-border shadow-sm",
-                isEmpty ? "bg-muted/30 border border-border" : "bg-card"
-              )}>
-                <p className="eyebrow text-muted-foreground">{s.label}</p>
-                <p className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground">
-                  {s.value}
-                </p>
-              </div>
-            ))}
-          </section>
-
-          {/* Page Grid or Empty State */}
-          <section className="mt-20">
-            {isEmpty ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card rounded-3xl border border-border shadow-sm">
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50">
-                  <Package className="size-12 text-muted-foreground/40" />
-                </div>
-                <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
-                  No pages yet
-                </h3>
-                <p className="mt-2 max-w-md text-muted-foreground">
-                  Create your first payment page to start collecting money from your customers.
-                </p>
-                <button
-                  onClick={() => router.push("/dashboard/services/payment/create")}
-                  className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
-                >
-                  <Plus className="size-4" />
-                  Create Payment Page
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                  <div>
-                    <p className="eyebrow text-muted-foreground">Collection</p>
-                    <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl text-foreground">
-                      Your Store Products
-                    </h2>
-                  </div>
-                  <p className="text-base font-medium text-muted-foreground">
-                    {filteredPages.filter((p) => p.isPublished === true).length} active pages
-                  </p>
-                </div>
-                <div className="mt-8">
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                    {/* Add Page Button */}
-                    <button
-                      onClick={() => router.push("/dashboard/services/payment/create")}
-                      className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
-                    >
-                      <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-                        <Plus className="size-6" strokeWidth={2.6} />
-                      </span>
-                      <span className="font-display text-base font-bold">
-                        Add page
-                      </span>
-                      <span className="max-w-[180px] text-center text-sm">
-                        Create a new payment page
-                      </span>
-                    </button>
-                    {filteredPages.map((page, i) => (
-                      <PaymentPageCard 
-                        key={page.id} 
-                        page={page} 
-                        index={i} 
-                        storeSlug={storeSlug}
-                        onRefresh={handlePageRefresh}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </section>
-        </main>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <DateFilter
+            value={period}
+            onChange={setPeriod}
+            range={range}
+            onRangeChange={setRange}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
+            >
+              <RefreshCw
+                className={cn("size-4", isRefreshing && "animate-spin")}
+              />
+            </button>
+            <p className="text-sm font-medium text-muted-foreground">
+              Click to refresh
+            </p>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Primary Metrics */}
+      <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total balance"
+          value={
+            walletReady ? formatCurrencyCompact(walletBalance!) : "—"
+          }
+          delta="0%"
+          icon={Coins}
+          highlight
+          empty={!walletReady}
+        />
+        <StatCard
+          label="Total revenue"
+          value={
+            isEmpty ? "₦0" : formatCurrencyCompact(metrics.totalRevenue)
+          }
+          delta="0%"
+          icon={TrendingUp}
+          empty={isEmpty}
+        />
+        <StatCard
+          label="Total payments"
+          value={isEmpty ? "0" : compactNumber(metrics.totalPayments)}
+          delta="0%"
+          icon={CreditCard}
+          empty={isEmpty}
+        />
+        <StatCard
+          label="Page views"
+          value={isEmpty ? "0" : compactNumber(metrics.totalViews)}
+          delta="0%"
+          icon={Eye}
+          empty={isEmpty}
+        />
+      </section>
+
+      {/* Secondary Metrics */}
+      <section className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Average order value",
+            value: isEmpty
+              ? "₦0"
+              : formatCurrencyCompact(Math.round(metrics.avgOrder)),
+          },
+          {
+            label: "Conversion rate",
+            value: isEmpty ? "0%" : "3.2%",
+          },
+          {
+            label: "Active pages",
+            value: isEmpty ? "0" : compactNumber(metrics.activePages),
+          },
+          {
+            label: "Total pages",
+            value: isEmpty ? "0" : compactNumber(metrics.pageCount),
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className={cn(
+              "rounded-[2rem] p-7 bg-card border border-border shadow-sm min-w-0 overflow-hidden",
+              isEmpty ? "bg-muted/30 border border-border" : "bg-card"
+            )}
+          >
+            <p className="eyebrow text-muted-foreground">{s.label}</p>
+            <p
+              className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground tabular-nums break-all"
+              title={s.value}
+            >
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      {/* Page Grid or Empty State */}
+      <section className="mt-20">
+        {isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card rounded-3xl border border-border shadow-sm">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50">
+              <Package className="size-12 text-muted-foreground/40" />
+            </div>
+            <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
+              No pages yet
+            </h3>
+            <p className="mt-2 max-w-md text-muted-foreground">
+              Create your first payment page to start collecting money
+              from your customers.
+            </p>
+            <button
+              onClick={() =>
+                router.push("/dashboard/services/payment/create")
+              }
+              className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              <Plus className="size-4" />
+              Create Payment Page
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="eyebrow text-muted-foreground">Collection</p>
+                <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl text-foreground break-words">
+                  Your Store Products
+                </h2>
+              </div>
+              <p className="text-base font-medium text-muted-foreground">
+                {
+                  filteredPages.filter((p) => p.isPublished === true)
+                    .length
+                }{" "}
+                active pages
+              </p>
+            </div>
+            <div className="mt-8">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <button
+                  onClick={() =>
+                    router.push("/dashboard/services/payment/create")
+                  }
+                  className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
+                >
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                    <Plus className="size-6" strokeWidth={2.6} />
+                  </span>
+                  <span className="font-display text-base font-bold">
+                    Add page
+                  </span>
+                  <span className="max-w-[180px] text-center text-sm">
+                    Create a new payment page
+                  </span>
+                </button>
+                {filteredPages.map((page, i) => (
+                  <PaymentPageCard
+                    key={page.id}
+                    page={page}
+                    index={i}
+                    storeSlug={storeSlug}
+                    onRefresh={handlePageRefresh}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </ZidwellShell>
   );
 }

@@ -1,3 +1,4 @@
+// app/components/payment-page-components/pageTypeSelector.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -35,28 +36,24 @@ const types: {
     label: "Donation",
     icon: Heart,
     description: "Accept donations with suggested amounts & donor messages",
-    disabled: true,
   },
   {
     value: "physical",
     label: "Physical Product",
     icon: Package,
     description: "Sell items with variants, quantity & shipping",
-    disabled: true,
   },
   {
     value: "digital",
     label: "Digital Product",
     icon: FileDown,
     description: "Sell downloads, links or files with instant delivery",
-     disabled: true,
   },
   {
     value: "services",
     label: "Services",
     icon: Briefcase,
     description: "Offer services with optional booking & customer notes",
-    disabled: true,
   },
   {
     value: "link",
@@ -66,6 +63,9 @@ const types: {
   },
 ];
 
+// ─── All investment & savings page types are disabled for now. ───
+// The `disabled: true` flag hides their interactivity; the click
+// guards in this file already skip them.
 const investmentTypes: {
   value: PageType;
   label: string;
@@ -112,7 +112,7 @@ const PageTypeSelector = ({ onSelect }: Props) => {
 
   const handleTypeClick = (t: typeof types[0]) => {
     if (t.disabled) return;
-    
+
     if (t.value === "link") {
       router.push("/dashboard/services/payment/create-link");
     } else {
@@ -146,7 +146,10 @@ const PageTypeSelector = ({ onSelect }: Props) => {
               pages
             </li>
             <li>
-              We charge a 2% fee on every payment — set your prices accordingly
+              We charge a 3% fee on every payment — set your prices accordingly
+            </li>
+            <li>
+              All page types support installments (weekly, bi-weekly or monthly)
             </li>
             <li>
               We manually review all pages — fraudulent/suspicious pages will be
@@ -171,7 +174,11 @@ const PageTypeSelector = ({ onSelect }: Props) => {
             }`}
           >
             <t.icon
-              className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${t.disabled ? "text-[var(--text-secondary)]" : "text-[var(--color-accent-yellow)]"}`}
+              className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${
+                t.disabled
+                  ? "text-[var(--text-secondary)]"
+                  : "text-[var(--color-accent-yellow)]"
+              }`}
             />
             <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
               {t.label}
@@ -188,7 +195,7 @@ const PageTypeSelector = ({ onSelect }: Props) => {
         ))}
       </div>
 
-      {/* Investment & Savings Section */}
+      {/* Investment & Savings Section — currently disabled */}
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="h-px flex-1 bg-[var(--border-color)]" />
@@ -205,32 +212,20 @@ const PageTypeSelector = ({ onSelect }: Props) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: (types.length + i) * 0.05 }}
-              onClick={() => !t.disabled && onSelect(t.value)}
-              className={`p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg ${
-                t.disabled
-                  ? "border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
-                  : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
-              }`}
+              disabled
+              aria-disabled="true"
+              className="p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
             >
-              {!t.disabled && (
-                <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-[10px] font-bold">
-                  <AlertTriangle className="h-3 w-3" /> Disclaimer
-                </div>
-              )}
-              <t.icon
-                className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${t.disabled ? "text-[var(--text-secondary)]" : "text-[var(--color-accent-yellow)]"}`}
-              />
+              <t.icon className="h-7 w-7 mb-3 text-[var(--text-secondary)]" />
               <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
                 {t.label}
               </h3>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
                 {t.description}
               </p>
-              {t.disabled && (
-                <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
-                  Coming Soon
-                </span>
-              )}
+              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
+                Coming Soon
+              </span>
             </motion.button>
           ))}
         </div>

@@ -1,732 +1,57 @@
-// // import { NextResponse } from "next/server";
-// // import type { NextRequest } from "next/server";
-// // import { createClient } from "@supabase/supabase-js";
-
-// // // Add this function to check subscription access
-// // async function checkSubscriptionAccess(userId: string, requiredTier: string = 'free'): Promise<boolean> {
-// //   try {
-// //     const supabaseAdmin = createClient(
-// //       process.env.SUPABASE_URL!,
-// //       process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //     );
-
-// //     // Check user's subscription tier
-// //     const { data: user, error: userError } = await supabaseAdmin
-// //       .from('users')
-// //       .select('subscription_tier, subscription_expires_at')
-// //       .eq('id', userId)
-// //       .single();
-
-// //     if (userError || !user) {
-// //       console.log('User not found for subscription check');
-// //       return false;
-// //     }
-
-// //     const userTier = user.subscription_tier || 'free';
-
-// //     // Define tier hierarchy - updated to include zidlite
-// //     const tierHierarchy = ['free', 'zidlite', 'growth', 'premium', 'elite'];
-// //     const userTierIndex = tierHierarchy.indexOf(userTier);
-// //     const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
-
-// //     // Check if user's tier meets requirement
-// //     if (userTierIndex < requiredTierIndex) {
-// //       console.log(`User tier ${userTier} insufficient for required tier ${requiredTier}`);
-// //       return false;
-// //     }
-
-// //     // For paid tiers, check if subscription is active and not expired
-// //     if (userTier !== 'free') {
-// //       // Check if subscription is expired
-// //       if (user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
-// //         console.log('Subscription expired');
-// //         return false;
-// //       }
-
-// //       // Verify active subscription exists
-// //       const { data: subscription } = await supabaseAdmin
-// //         .from('subscriptions')
-// //         .select('status')
-// //         .eq('user_id', userId)
-// //         .eq('status', 'active')
-// //         .order('created_at', { ascending: false })
-// //         .limit(1)
-// //         .single();
-
-// //       if (!subscription) {
-// //         console.log('No active subscription found');
-// //         return false;
-// //       }
-// //     }
-
-// //     return true;
-// //   } catch (error) {
-// //     console.error('Error checking subscription access:', error);
-// //     return false;
-// //   }
-// // }
-
-// // // Function to check if user is verified (BVN verification)
-// // async function checkUserVerification(userId: string): Promise<boolean> {
-// //   try {
-// //     const supabaseAdmin = createClient(
-// //       process.env.SUPABASE_URL!,
-// //       process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //     );
-
-// //     const { data: user, error } = await supabaseAdmin
-// //       .from('users')
-// //       .select('bvn_verification')
-// //       .eq('id', userId)
-// //       .single();
-
-// //     if (error || !user) {
-// //       console.log('User not found for verification check');
-// //       return false;
-// //     }
-
-// //     return user.bvn_verification === 'verified';
-// //   } catch (error) {
-// //     console.error('Error checking user verification:', error);
-// //     return false;
-// //   }
-// // }
-
-// // export async function middleware(req: NextRequest) {
-// //   const currentPath = req.nextUrl.pathname;
-
-// //   // ✅ ALLOW PAYMENT CALLBACK AND AUTO-LOGIN TO PASS THROUGH WITHOUT AUTH
-// //   if (currentPath === '/api/payment-callback' || currentPath === '/api/auth/auto-login') {
-// //     console.log("🔵 Payment callback/auto-login bypassing middleware auth");
-// //     return NextResponse.next();
-// //   }
-
-// //   let accessToken = req.cookies.get("sb-access-token")?.value;
-// //   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-// //   const verified = req.cookies.get("verified")?.value;
-
-// //   // ✅ Allow dashboard access with payment_processed cookie
-// //   if (currentPath.startsWith('/dashboard') && req.cookies.get('payment_processed')) {
-// //     console.log("🟡 Post-payment access granted");
-// //     const response = NextResponse.next();
-// //     response.cookies.delete('payment_processed');
-// //     return response;
-// //   }
-
-// //   // Define premium routes that require specific subscription tiers - updated to include zidlite
-// //   const premiumRoutes = [
-// //     { path: '/dashboard/bookkeeping', requiredTier: 'growth' },
-// //     { path: '/dashboard/tax-calculator', requiredTier: 'growth' },
-// //     { path: '/dashboard/financial-statements', requiredTier: 'premium' },
-// //     { path: '/dashboard/tax-filing', requiredTier: 'premium' },
-// //     { path: '/dashboard/vat-filing', requiredTier: 'elite' },
-// //     { path: '/dashboard/paye-filing', requiredTier: 'elite' },
-// //     { path: '/dashboard/cfo-guidance', requiredTier: 'elite' },
-// //   ];
-
-// //   // Define routes that require BVN verification
-// //   const bvnRequiredRoutes = [
-// //     '/dashboard/fund-account',
-// //     '/dashboard/fund-account/transfer-page',
-// //     '/dashboard/services/buy-airtime',
-// //     '/dashboard/services/buy-data',
-// //     '/dashboard/services/buy-power',
-// //     '/dashboard/services/buy-cable-tv',
-// //   ];
-
-// //   // Check if current path is a BVN required route
-// //   const requiresBVN = bvnRequiredRoutes.some(route =>
-// //     currentPath.startsWith(route)
-// //   );
-
-// //   // Check if current path is a premium route
-// //   const matchedPremiumRoute = premiumRoutes.find(route =>
-// //     currentPath.startsWith(route.path)
-// //   );
-
-// //   if (currentPath === "/app") {
-// //     console.log("Redirecting /app to home page");
-// //     return NextResponse.redirect(new URL("/", req.url));
-// //   }
-
-// //   // Protected routes check
-// //   if (
-// //     currentPath.startsWith("/dashboard") ||
-// //     currentPath.startsWith("/admin") ||
-// //     currentPath.startsWith("/blog/admin")
-// //   ) {
-// //     // No session at all → redirect to login
-// //     if (!accessToken && !refreshToken) {
-// //       console.log("No tokens found, redirecting to login");
-// //       return redirectToLogin(req);
-// //     }
-
-// //     // ✅ Refresh access token using refresh token
-// //     if (!accessToken && refreshToken) {
-// //       console.log("No access token but refresh token exists, attempting refresh");
-
-// //       try {
-// //         const supabase = createClient(
-// //           process.env.SUPABASE_URL!,
-// //           process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //         );
-
-// //         const { data, error } = await supabase.auth.refreshSession({
-// //           refresh_token: refreshToken,
-// //         });
-
-// //         if (error || !data.session) {
-// //           console.log("Token refresh failed:", error?.message);
-// //           return redirectToLogin(req);
-// //         }
-
-// //         // Save new tokens
-// //         console.log("Token refresh successful, updating cookies");
-// //         const res = NextResponse.next();
-
-// //         res.cookies.set("sb-access-token", data.session.access_token, {
-// //           httpOnly: true,
-// //           secure: process.env.NODE_ENV === "production",
-// //           sameSite: "lax",
-// //           path: "/",
-// //           maxAge: 60 * 60 * 24 * 7,
-// //         });
-
-// //         res.cookies.set("sb-refresh-token", data.session.refresh_token!, {
-// //           httpOnly: true,
-// //           secure: process.env.NODE_ENV === "production",
-// //           sameSite: "lax",
-// //           path: "/",
-// //           maxAge: 60 * 60 * 24 * 7,
-// //         });
-
-// //         // Update access token for further checks in this request
-// //         accessToken = data.session.access_token;
-// //       } catch (refreshError) {
-// //         console.log("Token refresh exception:", refreshError);
-// //         return redirectToLogin(req);
-// //       }
-// //     }
-
-// //     // ✅ Check BVN verification for protected routes
-// //     if (requiresBVN && accessToken) {
-// //       try {
-// //         const supabaseAdmin = createClient(
-// //           process.env.SUPABASE_URL!,
-// //           process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //         );
-
-// //         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
-
-// //         if (userError || !user) {
-// //           console.log("User not found for BVN check");
-// //           return redirectToLogin(req);
-// //         }
-
-// //         const isVerified = await checkUserVerification(user.id);
-
-// //         if (!isVerified) {
-// //           console.log(`User lacks BVN verification for ${currentPath}`);
-
-// //           const response = NextResponse.redirect(
-// //             new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url)
-// //           );
-
-// //           response.cookies.set('verification_message', 'Please verify your BVN to access this feature', {
-// //             httpOnly: true,
-// //             maxAge: 5,
-// //             path: '/',
-// //             sameSite: 'lax',
-// //           });
-
-// //           return response;
-// //         }
-// //       } catch (error) {
-// //         console.error('Error checking BVN verification:', error);
-// //       }
-// //     }
-
-// //     // ✅ Check subscription access for premium routes
-// //     if (matchedPremiumRoute && accessToken) {
-// //       try {
-// //         const supabaseAdmin = createClient(
-// //           process.env.SUPABASE_URL!,
-// //           process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //         );
-
-// //         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
-
-// //         if (userError || !user) {
-// //           console.log("User not found for subscription check");
-// //           return redirectToLogin(req);
-// //         }
-
-// //         const hasAccess = await checkSubscriptionAccess(
-// //           user.id,
-// //           matchedPremiumRoute.requiredTier
-// //         );
-
-// //         if (!hasAccess) {
-// //           console.log(`User lacks ${matchedPremiumRoute.requiredTier} access for ${currentPath}`);
-
-// //           const response = NextResponse.redirect(
-// //             new URL(`/pricing?upgrade=${matchedPremiumRoute.requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url)
-// //           );
-
-// //           response.cookies.set('subscription_message', `This feature requires the ${matchedPremiumRoute.requiredTier} plan`, {
-// //             httpOnly: true,
-// //             maxAge: 5,
-// //             path: '/',
-// //             sameSite: 'lax',
-// //           });
-
-// //           return response;
-// //         }
-// //       } catch (error) {
-// //         console.error('Error checking subscription:', error);
-// //       }
-// //     }
-
-// //     // ✅ Admin protection
-// //     if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
-// //       console.log("Admin route detected, checking admin permissions");
-
-// //       if (!accessToken) {
-// //         console.log("No access token for admin check, redirecting to login");
-// //         return redirectToLogin(req);
-// //       }
-
-// //       try {
-// //         const supabaseAdmin = createClient(
-// //           process.env.SUPABASE_URL!,
-// //           process.env.SUPABASE_SERVICE_ROLE_KEY!
-// //         );
-
-// //         const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
-
-// //         if (userError || !user) {
-// //           console.log("User not found or error:", userError?.message);
-// //           return redirectToLogin(req);
-// //         }
-
-// //         console.log(`User found: ${user.email}, checking admin role...`);
-
-// //         const { data: profile, error: profileError } = await supabaseAdmin
-// //           .from("users")
-// //           .select("admin_role")
-// //           .eq("id", user.id)
-// //           .single();
-
-// //         if (profileError) {
-// //           console.log("Error fetching user profile:", profileError.message);
-// //           return redirectToLogin(req);
-// //         }
-
-// //         console.log(`User admin role: ${profile?.admin_role}`);
-
-// //         const allowedAdminRoles = [
-// //           "super_admin",
-// //           "finance_admin",
-// //           "operations_admin",
-// //           "support_admin",
-// //           "legal_admin",
-// //           "blog_admin"
-// //         ];
-
-// //         if (!profile?.admin_role || !allowedAdminRoles.includes(profile.admin_role)) {
-// //           console.log(`User role '${profile?.admin_role}' not authorized for admin access`);
-// //           return NextResponse.redirect(new URL("/dashboard", req.url));
-// //         }
-
-// //         console.log(`Admin access granted for role: ${profile.admin_role}`);
-// //       } catch (adminCheckError) {
-// //         console.log("Admin check exception:", adminCheckError);
-// //         return redirectToLogin(req);
-// //       }
-// //     }
-// //   }
-
-// //   return NextResponse.next();
-// // }
-
-// // function redirectToLogin(req: NextRequest) {
-// //   const { pathname, search } = req.nextUrl;
-// //   const fullUrl = `${pathname}${search}`;
-
-// //   const loginUrl = new URL("/auth/login", req.url);
-// //   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
-
-// //   const res = NextResponse.redirect(loginUrl);
-
-// //   res.cookies.delete("sb-access-token");
-// //   res.cookies.delete("sb-refresh-token");
-// //   res.cookies.delete("verified");
-
-// //   return res;
-// // }
-
-// // export const config = {
-// //   matcher: [
-// //     "/app",
-// //     "/dashboard/:path*",
-// //     "/admin/:path*",
-// //     "/blog/admin/:path*",
-// //     "/api/payment-callback",
-// //     "/api/auth/auto-login",
-// //   ],
-// // };import { NextResponse } from "next/server";
-
-// import { NextResponse, type NextRequest } from "next/server";
-// import { User } from "@supabase/supabase-js";
-// import { 
-//   getSupabaseAdmin, 
-//   getUserWithDetails, 
-//   hasSufficientTier
-// } from "@/lib/suabase-admin"; 
-
-// // Define route configurations
-// const premiumRoutes = [
-//   { path: "/dashboard/bookkeeping", requiredTier: "growth" },
-//   { path: "/dashboard/tax-calculator", requiredTier: "growth" },
-//   { path: "/dashboard/financial-statements", requiredTier: "premium" },
-//   { path: "/dashboard/tax-filing", requiredTier: "premium" },
-//   { path: "/dashboard/vat-filing", requiredTier: "elite" },
-//   { path: "/dashboard/paye-filing", requiredTier: "elite" },
-//   { path: "/dashboard/cfo-guidance", requiredTier: "elite" },
-// ];
-
-// const bvnRequiredRoutes = [
-//   "/dashboard/fund-account",
-//   "/dashboard/fund-account/transfer-page",
-//   "/dashboard/services/buy-airtime",
-//   "/dashboard/services/buy-data",
-//   "/dashboard/services/buy-power",
-//   "/dashboard/services/buy-cable-tv",
-// ];
-
-// const allowedAdminRoles = [
-//   "super_admin",
-//   "finance_admin",
-//   "operations_admin",
-//   "support_admin",
-//   "legal_admin",
-//   "blog_admin",
-// ];
-
-// // Public paths that don't require authentication
-// const publicPaths = [
-//   "/auth/login",
-//   "/auth/signup",
-//   "/auth/password-reset",
-//   "/auth/forgot-password",
-//   "/auth/blocked",
-// ];
-
-
-
-
-// // Fast route matching using Set/Map
-// const bvnRequiredSet = new Set(bvnRequiredRoutes);
-// const premiumRoutesMap = new Map(premiumRoutes.map(route => [route.path, route.requiredTier]));
-
-// function getRequiredTier(pathname: string): string | null {
-//   for (const [routePath, requiredTier] of premiumRoutesMap.entries()) {
-//     if (pathname.startsWith(routePath)) {
-//       return requiredTier;
-//     }
-//   }
-//   return null;
-// }
-
-// function shouldBypassAuth(pathname: string): boolean {
-//   // Check static files
-//   if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)) {
-//     return true;
-//   }
-  
-//   return publicPaths.some(path => pathname.startsWith(path));
-// }
-
-// type TokenValidationResult = User | { error: "expired" } | null;
-
-// async function validateTokenAndGetUser(token: string): Promise<TokenValidationResult> {
-//   if (!token) return null;
-
-//   try {
-//     const supabase = getSupabaseAdmin();
-//     const { data: { user }, error } = await supabase.auth.getUser(token);
-
-//     if (error) {
-//       if (error.message?.includes("JWT expired")) {
-//         return { error: "expired" };
-//       }
-//       console.error("Token validation error:", error.message);
-//       return null;
-//     }
-
-//     return user;
-//   } catch (error) {
-//     console.error("Token validation error:", error);
-//     return null;
-//   }
-// }
-
-// async function refreshAccessToken(refreshToken: string) {
-//   try {
-//     const supabase = getSupabaseAdmin();
-//     const { data, error } = await supabase.auth.refreshSession({
-//       refresh_token: refreshToken,
-//     });
-
-//     if (error || !data.session) {
-//       return null;
-//     }
-
-//     return data.session;
-//   } catch (error) {
-//     console.error("Token refresh error:", error);
-//     return null;
-//   }
-// }
-
-// function isTokenError(result: TokenValidationResult): result is { error: "expired" } {
-//   return result !== null && typeof result === 'object' && 'error' in result && result.error === "expired";
-// }
-
-// function isUser(result: TokenValidationResult): result is User {
-//   return result !== null && !('error' in result) && 'id' in result;
-// }
-
-// function clearAuthCookies(response: NextResponse) {
-//   const cookiesToDelete = [
-//     "sb-access-token",
-//     "sb-refresh-token",
-//     "sb-client-session",
-//     "sb-login-time",
-//     "sb-user-data",
-//     "verified",
-//     "payment_processed"
-//   ];
-  
-//   cookiesToDelete.forEach(cookieName => {
-//     response.cookies.delete(cookieName);
-//   });
-// }
-
-// function redirectToLogin(req: NextRequest) {
-//   const { pathname, search } = req.nextUrl;
-//   const fullUrl = `${pathname}${search}`;
-//   const loginUrl = new URL("/auth/login", req.url);
-//   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
-
-//   console.log(`🔄 Redirecting to login from ${fullUrl}`);
-
-//   const res = NextResponse.redirect(loginUrl);
-//   clearAuthCookies(res);
-//   return res;
-// }
-
-// export async function middleware(req: NextRequest) {
-//   const startTime = Date.now();
-//   const currentPath = req.nextUrl.pathname;
-  
-//   // Bypass auth for public paths
-//   if (shouldBypassAuth(currentPath)) {
-//     return NextResponse.next();
-//   }
-  
-//   // Handle post-payment access
-//   if (currentPath.startsWith("/dashboard") && req.cookies.get("payment_processed")) {
-//     console.log("🟡 Post-payment access granted");
-//     const response = NextResponse.next();
-//     response.cookies.delete("payment_processed");
-//     return response;
-//   }
-
-//   // Redirect /app to home
-//   if (currentPath === "/app") {
-//     return NextResponse.redirect(new URL("/", req.url));
-//   }
-
-//   console.log(`🔒 Checking auth for: ${currentPath}`);
-
-//   // Get tokens
-//   let accessToken = req.cookies.get("sb-access-token")?.value;
-//   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-//   const clientSession = req.cookies.get("sb-client-session")?.value;
-//   const loginTime = req.cookies.get("sb-login-time")?.value;
-
-//   // Only allow client session bypass within 10 seconds of login
-//   if (clientSession === "true" && !accessToken && !refreshToken) {
-//     if (loginTime && (Date.now() - parseInt(loginTime) < 10000)) {
-//       console.log("🟢 Recent login detected (within 10s), allowing temporary access");
-//       return NextResponse.next();
-//     }
-//     console.log("❌ Invalid session state - redirecting to login");
-//     return redirectToLogin(req);
-//   }
-
-//   // No tokens at all
-//   if (!accessToken && !refreshToken) {
-//     console.log("❌ No tokens found, redirecting to login");
-//     return redirectToLogin(req);
-//   }
-
-//   // Try to refresh token if needed
-//   if (!accessToken && refreshToken) {
-//     console.log("🔄 Attempting token refresh");
-//     const session = await refreshAccessToken(refreshToken);
-    
-//     if (!session) {
-//       console.log("❌ Token refresh failed");
-//       return redirectToLogin(req);
-//     }
-
-//     console.log("✅ Token refresh successful");
-//     const response = NextResponse.next();
-//     response.cookies.set("sb-access-token", session.access_token, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === "production",
-//       sameSite: "lax",
-//       path: "/",
-//       maxAge: 60 * 60 * 24 * 7,
-//     });
-//     response.cookies.set("sb-refresh-token", session.refresh_token!, {
-//       httpOnly: true,
-//       secure: process.env.NODE_ENV === "production",
-//       sameSite: "lax",
-//       path: "/",
-//       maxAge: 60 * 60 * 24 * 7,
-//     });
-//     response.cookies.set("sb-client-session", "true", {
-//       httpOnly: false,
-//       secure: process.env.NODE_ENV === "production",
-//       sameSite: "lax",
-//       path: "/",
-//       maxAge: 60 * 60 * 24 * 7,
-//     });
-
-//     accessToken = session.access_token;
-//     return response;
-//   }
-
-//   // Validate token
-//   if (!accessToken) {
-//     return redirectToLogin(req);
-//   }
-
-//   const tokenResult = await validateTokenAndGetUser(accessToken);
-  
-//   if (!tokenResult) {
-//     console.log("❌ Token validation failed");
-//     return redirectToLogin(req);
-//   }
-
-//   if (isTokenError(tokenResult)) {
-//     console.log("⚠️ Token expired");
-//     return redirectToLogin(req);
-//   }
-
-//   if (!isUser(tokenResult)) {
-//     console.log("❌ Invalid user object");
-//     return redirectToLogin(req);
-//   }
-
-//   // Get user details
-//   const userDetails = await getUserWithDetails(tokenResult.id);
-  
-//   if (!userDetails) {
-//     console.log("❌ User details not found");
-//     return redirectToLogin(req);
-//   }
-
-//   // Check if user is blocked
-//   if (userDetails.is_blocked) {
-//     console.log("🚫 User is blocked");
-//     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
-//     clearAuthCookies(response);
-//     return response;
-//   }
-
-//   // Check BVN requirement for specific routes
-//   if (bvnRequiredSet.has(currentPath) && userDetails.bvn_verification !== "verified") {
-//     console.log(`⚠️ BVN verification required for ${currentPath}`);
-//     const response = NextResponse.redirect(
-//       new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url),
-//     );
-//     response.cookies.set("verification_message", "Please verify your BVN to access this feature", 
-//       { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
-//     );
-//     return response;
-//   }
-
-//   // Check subscription tier requirement
-//   const requiredTier = getRequiredTier(currentPath);
-//   if (requiredTier) {
-//     const hasAccess = hasSufficientTier(userDetails, requiredTier);
-    
-//     if (!hasAccess) {
-//       console.log(`⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`);
-//       const response = NextResponse.redirect(
-//         new URL(`/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url),
-//       );
-//       response.cookies.set("subscription_message", `This feature requires the ${requiredTier} plan`,
-//         { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
-//       );
-//       return response;
-//     }
-//   }
-
-//   // Check admin routes
-//   if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
-//     if (!userDetails.admin_role || !allowedAdminRoles.includes(userDetails.admin_role)) {
-//       console.log(`⚠️ Admin access denied for ${currentPath}`);
-//       return NextResponse.redirect(new URL("/dashboard", req.url));
-//     }
-//     console.log(`✅ Admin access granted for role: ${userDetails.admin_role}`);
-//   }
-
-//   const responseTime = Date.now() - startTime;
-//   if (responseTime > 200) {
-//     console.warn(`⚠️ Slow middleware (${responseTime}ms) for ${currentPath}`);
-//   } else {
-//     console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
-//   }
-
-//   return NextResponse.next();
-// }
-
-// export const config = {
-//   matcher: [
-//     "/app",
-//     "/dashboard/:path*",
-//     "/admin/:path*",
-//     "/blog/admin/:path*",
-//     "/auth/:path*",
-//   ],
-// };
-
 // middleware.ts
 
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
-import { 
-  getSupabaseAdmin, 
-  getUserWithDetails, 
-  hasSufficientTier
+import {
+  getSupabaseAdmin,
+  getUserWithDetails,
+  hasSufficientTier,
 } from "@/lib/suabase-admin";
 
-// ─── ROUTE CONFIGURATIONS ───
+// ─── ✅ TIER HIERARCHY (matches your plans array) ───
+export const TIER_HIERARCHY = [
+  "free",
+  "sme",
+  "enterprise",
+  "corporation",
+] as const;
 
-const premiumRoutes = [
-  { path: "/dashboard/bookkeeping", requiredTier: "growth" },
-  { path: "/dashboard/tax-calculator", requiredTier: "growth" },
-  { path: "/dashboard/financial-statements", requiredTier: "premium" },
-  { path: "/dashboard/tax-filing", requiredTier: "premium" },
-  { path: "/dashboard/vat-filing", requiredTier: "elite" },
-  { path: "/dashboard/paye-filing", requiredTier: "elite" },
-  { path: "/dashboard/cfo-guidance", requiredTier: "elite" },
+export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
+
+// ─── ROUTE CONFIGURATIONS ───
+const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
+  // ─── SME tier and above ───
+  { path: "/dashboard/bookkeeping",          requiredTier: "sme" },
+  { path: "/dashboard/bank-statements",      requiredTier: "sme" },
+  { path: "/dashboard/vault",                requiredTier: "sme" },
+  { path: "/dashboard/tax-calculator",       requiredTier: "sme" },
+  { path: "/dashboard/financial-statements", requiredTier: "sme" },
+  { path: "/dashboard/connected-accounts",   requiredTier: "sme" },
+
+  // ─── Enterprise tier and above ───
+  { path: "/dashboard/team",                 requiredTier: "enterprise" },
+  { path: "/dashboard/roles",                requiredTier: "enterprise" },
+  { path: "/dashboard/approvals",            requiredTier: "enterprise" },
+  { path: "/dashboard/reports",              requiredTier: "enterprise" },
+  { path: "/dashboard/contracts",            requiredTier: "enterprise" },
+
+  // ─── Corporation tier and above ───
+  { path: "/dashboard/departments",          requiredTier: "corporation" },
+  { path: "/dashboard/payroll",              requiredTier: "corporation" },
+  { path: "/dashboard/advanced-reporting",   requiredTier: "corporation" },
+  { path: "/dashboard/custom-structure",     requiredTier: "corporation" },
+  { path: "/dashboard/account-manager",      requiredTier: "corporation" },
 ];
+
+// Legacy route names — keep working during migration
+const legacyPremiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
+  { path: "/dashboard/tax-filing", requiredTier: "sme" },
+  { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
+  { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
+  { path: "/dashboard/cfo-guidance", requiredTier: "enterprise" },
+];
+
+const allPremiumRoutes = [...premiumRoutes, ...legacyPremiumRoutes];
 
 const bvnRequiredRoutes = [
   "/dashboard/fund-account",
@@ -737,8 +62,7 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-// ─── ✅ STORE DASHBOARD ROUTES (require store ownership) ───
-// These are the routes that require an active store
+// ─── OWNER DASHBOARD ROUTES UNDER /store/* ───
 const storeProtectedRoutes = [
   "/dashboard/services/payment/dashboard",
   "/dashboard/services/payment/create",
@@ -756,29 +80,16 @@ const storeProtectedRoutes = [
   "/store/settings",
 ];
 
-// ─── ✅ STORE ROUTES THAT ARE PUBLIC (no store required to VIEW) ───
-// These are the routes where users can create a store
-const storePublicRoutes = [
-  "/dashboard/services/payment", // The main payment page - shows CreateStoreForm
-];
-
-// ─── ✅ PUBLIC STORE FRONT ROUTES (no auth required at all) ───
-const publicStoreFrontRoutes = [
-  "/store/", // /store/[storeSlug] - public storefront
-  "/store/link/", // /store/[storeSlug]/link/[linkSlug] - public payment link
-];
-
-export const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "ibrahimlawalabbalolo@gmail.com",
-  // "abdullahtimilehin15@gmail.com",
-  // "ebrusikefavour@gmail.com",
-  // "skillfidelafrica@gmail.com",
-  "abbalolo360@gmail.com",
-  "boluwatife525@gmail.com",
-  "verifiedaboki@gmail.com",
+// ─── RESERVED STORE SLUGS ───
+const RESERVED_STORE_SLUGS = new Set([
+  "products",
+  "wallet",
+  "transactions",
+  "customers",
+  "analytics",
+  "settings",
+  "link",
 ]);
-
 
 const allowedAdminRoles = [
   "super_admin",
@@ -789,16 +100,15 @@ const allowedAdminRoles = [
   "blog_admin",
 ];
 
-// ─── PUBLIC PATHS ───
 const publicPaths = [
   "/auth/login",
   "/auth/signup",
   "/auth/password-reset",
   "/auth/forgot-password",
   "/auth/blocked",
-  "/auth/verify",             
-  "/auth/verify-success",      
-  "/api/auth/verify",          
+  "/auth/verify",
+  "/auth/verify-success",
+  "/api/auth/verify",
   "/api/auth/resend-verification",
   "/",
   "/pricing",
@@ -807,18 +117,31 @@ const publicPaths = [
   "/privacy",
   "/terms",
   "/blog",
-  "/api/payment-page/validate-slug",
 ];
 
-// ─── FAST ROUTE MATCHING ───
+export const ALLOWED_PAYMENT_EMAILS = new Set([
+  "characterinternational@gmail.com",
+  "ibrahimlawalabbalolo@gmail.com",
+  "abbalolo360@gmail.com",
+  "boluwatife525@gmail.com",
+  "verifiedaboki@gmail.com",
+]);
 
+// ─── FAST ROUTE MATCHING ───
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
 const storeProtectedSet = new Set(storeProtectedRoutes);
-const premiumRoutesMap = new Map(premiumRoutes.map(route => [route.path, route.requiredTier]));
 
-function getRequiredTier(pathname: string): string | null {
-  for (const [routePath, requiredTier] of premiumRoutesMap.entries()) {
-    if (pathname.startsWith(routePath)) {
+const sortedPremiumRoutes = [...allPremiumRoutes].sort(
+  (a, b) => b.path.length - a.path.length
+);
+
+function getRequiredTier(pathname: string): SubscriptionTier | null {
+  for (const { path, requiredTier } of sortedPremiumRoutes) {
+    if (
+      pathname === path ||
+      pathname.startsWith(path + "/") ||
+      pathname.startsWith(path + "?")
+    ) {
       return requiredTier;
     }
   }
@@ -826,104 +149,88 @@ function getRequiredTier(pathname: string): string | null {
 }
 
 function requiresPaymentEmailRestriction(pathname: string): boolean {
-  // Only the main payment dashboard routes that require email restriction
-  return pathname === "/dashboard/services/payment" || 
-         pathname === "/dashboard/services/payment/dashboard" ||
-         pathname === "/dashboard/services/payment/create" ||
-         pathname === "/dashboard/services/payment/create-link";
+  return (
+    pathname === "/dashboard/services/payment" ||
+    pathname === "/dashboard/services/payment/dashboard" ||
+    pathname === "/dashboard/services/payment/create" ||
+    pathname === "/dashboard/services/payment/create-link"
+  );
 }
 
-// ─── ✅ Check if a path requires store ownership ───
 function requiresStoreOwnership(pathname: string): boolean {
-  // Exact match check
   for (const route of storeProtectedSet) {
-    if (pathname === route || pathname.startsWith(route + '/') || pathname.startsWith(route + '?')) {
+    if (
+      pathname === route ||
+      pathname.startsWith(route + "/") ||
+      pathname.startsWith(route + "?")
+    ) {
       return true;
     }
   }
   return false;
 }
 
-// ─── ✅ Check if a path is a public store page (no auth) ───
+// ─── PUBLIC STOREFRONT DETECTION ───
 function isPublicStoreFront(pathname: string): boolean {
-  // Public store home: /store/[storeSlug]
-  if (pathname.match(/^\/store\/[^\/]+$/)) {
+  // ─── /store/[storeSlug] ───
+  const singleMatch = pathname.match(/^\/store\/([^\/]+)$/);
+  if (singleMatch) {
+    const slug = singleMatch[1].toLowerCase();
+    if (RESERVED_STORE_SLUGS.has(slug)) return false;
     return true;
   }
-  // Public product page: /store/[storeSlug]/[productSlug]
-  // But NOT /store/[storeSlug]/link/ (that's handled separately)
-  if (pathname.match(/^\/store\/[^\/]+\/[^\/]+$/) && !pathname.includes('/link/')) {
-    // Check if it's not a protected route
-    const isProtected = storeProtectedSet.has(pathname) || 
-                        storeProtectedSet.has(pathname.split('/').slice(0, 3).join('/'));
-    return !isProtected;
-  }
-  // Public payment link: /store/[storeSlug]/link/[linkSlug]
-  if (pathname.match(/^\/store\/[^\/]+\/link\/[^\/]+$/)) {
+
+  // ─── /store/[storeSlug]/[productSlug] ───
+  const doubleMatch = pathname.match(/^\/store\/([^\/]+)\/([^\/]+)$/);
+  if (doubleMatch) {
+    const storeSlug = doubleMatch[1].toLowerCase();
+    const productSlug = doubleMatch[2].toLowerCase();
+
+    if (productSlug === "link") return false;
+    if (RESERVED_STORE_SLUGS.has(storeSlug)) return false;
+
     return true;
   }
+
+  // ─── /store/[storeSlug]/link/[linkSlug] ───
+  if (/^\/store\/[^\/]+\/link\/[^\/]+$/.test(pathname)) return true;
+
   return false;
 }
 
-// ─── ✅ Check if a path is a public payment page (customers paying) ───
 function isPublicPaymentPage(pathname: string): boolean {
-  if (pathname.match(/^\/pay\/[^\/]+$/)) {
-    return true;
-  }
-  if (pathname.startsWith("/payment-page/status")) {
-    return true;
-  }
-  if (pathname.startsWith("/payment/callback")) {
-    return true;
-  }
-  if (pathname.startsWith("/payment-page-success")) {
-    return true;
-  }
+  if (pathname.match(/^\/pay\/[^\/]+$/)) return true;
+  if (pathname.startsWith("/payment-page/status")) return true;
+  if (pathname.startsWith("/payment/callback")) return true;
+  if (pathname.startsWith("/payment-page-success")) return true;
   return false;
 }
 
 function shouldBypassAuth(pathname: string): boolean {
   // Static files
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/)) {
+  if (
+    pathname.match(
+      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/
+    )
+  ) {
     return true;
   }
-  
-  // Public auth routes
-  if (publicPaths.some(path => pathname === path || pathname.startsWith(path + '/'))) {
+
+  // Static public pages
+  if (
+    publicPaths.some(
+      (path) => pathname === path || pathname.startsWith(path + "/")
+    )
+  ) {
     return true;
   }
-  
-  // Public store front - NO AUTH REQUIRED
-  if (isPublicStoreFront(pathname)) {
-    return true;
-  }
-  
-  // Public payment pages - NO AUTH REQUIRED
-  if (isPublicPaymentPage(pathname)) {
-    return true;
-  }
-  
-  // API routes
-  if (pathname.startsWith("/api/")) {
-    // Allow slug validation API
-    if (pathname === "/api/payment-page/validate-slug") {
-      return true;
-    }
-    // For store APIs, check if it's a public endpoint
-    if (pathname.startsWith("/api/store/") || pathname.startsWith("/api/payment-page/")) {
-      // Public endpoints
-      if (pathname === "/api/payment-page/validate-slug" || 
-          pathname === "/api/payment-page/details" ||
-          pathname.startsWith("/api/payment-page/details/")) {
-        return true;
-      }
-      // Private endpoints require auth
-      return false;
-    }
-    // Other APIs are public
-    return true;
-  }
-  
+
+  // Public storefront (no auth)
+  if (isPublicStoreFront(pathname)) return true;
+
+  // Public payment pages (no auth)
+  if (isPublicPaymentPage(pathname)) return true;
+
   return false;
 }
 
@@ -931,21 +238,21 @@ function shouldBypassAuth(pathname: string): boolean {
 
 type TokenValidationResult = User | { error: "expired" } | null;
 
-async function validateTokenAndGetUser(token: string): Promise<TokenValidationResult> {
+async function validateTokenAndGetUser(
+  token: string
+): Promise<TokenValidationResult> {
   if (!token) return null;
-
   try {
     const supabase = getSupabaseAdmin();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
     if (error) {
-      if (error.message?.includes("JWT expired")) {
-        return { error: "expired" };
-      }
+      if (error.message?.includes("JWT expired")) return { error: "expired" };
       console.error("Token validation error:", error.message);
       return null;
     }
-
     return user;
   } catch (error) {
     console.error("Token validation error:", error);
@@ -959,11 +266,7 @@ async function refreshAccessToken(refreshToken: string) {
     const { data, error } = await supabase.auth.refreshSession({
       refresh_token: refreshToken,
     });
-
-    if (error || !data.session) {
-      return null;
-    }
-
+    if (error || !data.session) return null;
     return data.session;
   } catch (error) {
     console.error("Token refresh error:", error);
@@ -971,15 +274,20 @@ async function refreshAccessToken(refreshToken: string) {
   }
 }
 
-function isTokenError(result: TokenValidationResult): result is { error: "expired" } {
-  return result !== null && typeof result === 'object' && 'error' in result && result.error === "expired";
+function isTokenError(
+  result: TokenValidationResult
+): result is { error: "expired" } {
+  return (
+    result !== null &&
+    typeof result === "object" &&
+    "error" in result &&
+    result.error === "expired"
+  );
 }
 
 function isUser(result: TokenValidationResult): result is User {
-  return result !== null && !('error' in result) && 'id' in result;
+  return result !== null && !("error" in result) && "id" in result;
 }
-
-// ─── COOKIE & REDIRECT HELPERS ───
 
 function clearAuthCookies(response: NextResponse) {
   const cookiesToDelete = [
@@ -991,12 +299,9 @@ function clearAuthCookies(response: NextResponse) {
     "verified",
     "payment_processed",
     "sb-session-id",
-    "sb-session-risk"
+    "sb-session-risk",
   ];
-  
-  cookiesToDelete.forEach(cookieName => {
-    response.cookies.delete(cookieName);
-  });
+  cookiesToDelete.forEach((name) => response.cookies.delete(name));
 }
 
 function redirectToLogin(req: NextRequest, clearCookies: boolean = true) {
@@ -1004,108 +309,120 @@ function redirectToLogin(req: NextRequest, clearCookies: boolean = true) {
   const fullUrl = `${pathname}${search}`;
   const loginUrl = new URL("/auth/login", req.url);
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
-
   console.log(`🔄 Redirecting to login from ${fullUrl}`);
-
   const res = NextResponse.redirect(loginUrl);
-  if (clearCookies) {
-    clearAuthCookies(res);
-  }
+  if (clearCookies) clearAuthCookies(res);
   return res;
 }
 
 function redirectFromPaymentPage(req: NextRequest) {
-  console.log(`🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`);
+  console.log(
+    `🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`
+  );
   const response = NextResponse.redirect(new URL("/dashboard", req.url));
-  
-  response.cookies.set("payment_access_denied", "You don't have permission to access the payment page", {
-    httpOnly: true,
-    maxAge: 5,
-    path: "/",
-    sameSite: "lax",
-  });
-  
+  response.cookies.set(
+    "payment_access_denied",
+    "You don't have permission to access the payment page",
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+  );
   return response;
 }
 
 function redirectNoStore(req: NextRequest) {
   console.log(`🚫 No store found for user accessing ${req.nextUrl.pathname}`);
-  const response = NextResponse.redirect(new URL("/dashboard/services/payment", req.url));
-  
-  response.cookies.set("store_required", "You need to create a store to access this page", {
-    httpOnly: true,
-    maxAge: 5,
-    path: "/",
-    sameSite: "lax",
-  });
-  
+  const response = NextResponse.redirect(
+    new URL("/dashboard/services/payment", req.url)
+  );
+  response.cookies.set(
+    "store_required",
+    "You need to create a store to access this page",
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+  );
+  return response;
+}
+
+function redirectInsufficientTier(
+  req: NextRequest,
+  requiredTier: SubscriptionTier,
+  currentPath: string
+) {
+  console.log(
+    `⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`
+  );
+  const response = NextResponse.redirect(
+    new URL(
+      `/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(
+        currentPath
+      )}`,
+      req.url
+    )
+  );
+  response.cookies.set(
+    "subscription_message",
+    `This feature requires the ${requiredTier} plan`,
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+  );
   return response;
 }
 
 // ─── MAIN MIDDLEWARE ───
-
 export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
-  
-  // FIRST: Check if this is a public store front - bypass auth completely
+
+  // 1. Public storefront — no auth
   if (isPublicStoreFront(currentPath)) {
     console.log(`🌐 Public store front: ${currentPath} - no auth required`);
     return NextResponse.next();
   }
-  
-  // Check for other bypass paths
+
+  // 2. Other public paths
   if (shouldBypassAuth(currentPath)) {
     console.log(`✅ Public path: ${currentPath} - bypassing auth`);
     return NextResponse.next();
   }
-  
-  // ─── PAYMENT PAGE EMAIL RESTRICTION ───
-  // Only apply to the main payment page routes
+
+  // 3. Payment page email restriction
   if (requiresPaymentEmailRestriction(currentPath)) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
-    
     let accessToken = req.cookies.get("sb-access-token")?.value;
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-    
+
     if (!accessToken && refreshToken) {
       const session = await refreshAccessToken(refreshToken);
-      if (session) {
-        accessToken = session.access_token;
-      }
+      if (session) accessToken = session.access_token;
     }
-    
     if (!accessToken) {
       console.log("❌ No valid token for payment page access");
       return redirectToLogin(req);
     }
-    
     const tokenResult = await validateTokenAndGetUser(accessToken);
-    
     if (!tokenResult || isTokenError(tokenResult) || !isUser(tokenResult)) {
       console.log("❌ Invalid user for payment page");
       return redirectToLogin(req);
     }
-    
     const userEmail = tokenResult.email?.toLowerCase();
-    
     if (!userEmail || !ALLOWED_PAYMENT_EMAILS.has(userEmail)) {
-      console.log(`🚫 Unauthorized email: ${userEmail} attempted to access payment page`);
+      console.log(
+        `🚫 Unauthorized email: ${userEmail} attempted to access payment page`
+      );
       return redirectFromPaymentPage(req);
     }
-    
     console.log(`✅ Payment page access granted for: ${userEmail}`);
   }
-  
-  // Handle post-payment access
-  if (currentPath.startsWith("/dashboard") && req.cookies.get("payment_processed")) {
+
+  // 4. Post-payment access
+  if (
+    currentPath.startsWith("/dashboard") &&
+    req.cookies.get("payment_processed")
+  ) {
     console.log("🟡 Post-payment access granted");
     const response = NextResponse.next();
-    response.cookies.delete('payment_processed');
+    response.cookies.delete("payment_processed");
     return response;
   }
 
-  // Redirect /app to home
+  // 5. /app redirect
   if (currentPath === "/app") {
     return NextResponse.redirect(new URL("/", req.url));
   }
@@ -1119,10 +436,12 @@ export async function middleware(req: NextRequest) {
   const loginTime = req.cookies.get("sb-login-time")?.value;
   const sessionIdCookie = req.cookies.get("sb-session-id")?.value;
 
-  // ─── CLIENT SESSION BYPASS ───
+  // ─── CLIENT SESSION BYPASS (5s grace) ───
   if (clientSession === "true" && !accessToken && !refreshToken) {
-    if (loginTime && (Date.now() - parseInt(loginTime) < 5000)) {
-      console.log("🟢 Recent login detected (within 5s), allowing temporary access");
+    if (loginTime && Date.now() - parseInt(loginTime) < 5000) {
+      console.log(
+        "🟢 Recent login detected (within 5s), allowing temporary access"
+      );
       return NextResponse.next();
     }
     console.log("❌ Invalid session state - redirecting to login");
@@ -1137,16 +456,14 @@ export async function middleware(req: NextRequest) {
 
   // ─── TOKEN REFRESH ───
   let refreshedResponse: NextResponse | null = null;
-  
+
   if (!accessToken && refreshToken) {
     console.log("🔄 Attempting token refresh");
     const session = await refreshAccessToken(refreshToken);
-    
     if (!session) {
       console.log("❌ Token refresh failed");
       return redirectToLogin(req);
     }
-
     console.log("✅ Token refresh successful");
     refreshedResponse = NextResponse.next();
     refreshedResponse.cookies.set("sb-access-token", session.access_token, {
@@ -1170,51 +487,50 @@ export async function middleware(req: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     accessToken = session.access_token;
   }
 
-  // ─── VALIDATE TOKEN ───
-  if (!accessToken) {
-    return redirectToLogin(req);
-  }
+  if (!accessToken) return redirectToLogin(req);
 
+  // ─── VALIDATE TOKEN (with timeout) ───
   const tokenValidationPromise = validateTokenAndGetUser(accessToken);
-  const timeoutPromise = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 8000);
-  });
-  
-  const tokenResult = await Promise.race([tokenValidationPromise, timeoutPromise]);
-  
+  const tokenTimeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), 8000)
+  );
+  const tokenResult = await Promise.race([
+    tokenValidationPromise,
+    tokenTimeoutPromise,
+  ]);
+
   if (!tokenResult) {
-    console.log("⏱️ Token validation timed out or failed - allowing access (network may be slow)");
+    console.log("⏱️ Token validation timed out - allowing access");
     return refreshedResponse || NextResponse.next();
   }
-
   if (isTokenError(tokenResult)) {
     console.log("⚠️ Token expired");
     return redirectToLogin(req);
   }
-
   if (!isUser(tokenResult)) {
     console.log("❌ Invalid user object");
     return redirectToLogin(req);
   }
 
-  // ─── GET USER DETAILS ───
+  // ─── GET USER DETAILS (with timeout) ───
   const userDetailsPromise = getUserWithDetails(tokenResult.id);
-  const userTimeoutPromise = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), 8000);
-  });
-  
-  const userDetails = await Promise.race([userDetailsPromise, userTimeoutPromise]);
-  
+  const userTimeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), 8000)
+  );
+  const userDetails = await Promise.race([
+    userDetailsPromise,
+    userTimeoutPromise,
+  ]);
+
   if (!userDetails) {
     console.log("⏱️ User details fetch timed out - allowing access");
     return refreshedResponse || NextResponse.next();
   }
 
-  // ─── CHECK IF BLOCKED ───
+  // ─── BLOCKED USER ───
   if (userDetails.is_blocked) {
     console.log("🚫 User is blocked");
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
@@ -1224,38 +540,45 @@ export async function middleware(req: NextRequest) {
 
   // ─── SESSION VALIDATION ───
   const sessionPromise = getSupabaseAdmin()
-    .from('users')
-    .select('current_session_id, current_session_expires_at')
-    .eq('id', tokenResult.id)
+    .from("users")
+    .select("current_session_id, current_session_expires_at")
+    .eq("id", tokenResult.id)
     .single();
-  
-  const sessionTimeoutPromise = new Promise<{ data: null }>((resolve) => {
-    setTimeout(() => resolve({ data: null }), 8000);
-  });
-  
-  const { data: sessionData } = await Promise.race([sessionPromise, sessionTimeoutPromise]) as any;
+  const sessionTimeoutPromise = new Promise<{ data: null }>((resolve) =>
+    setTimeout(() => resolve({ data: null }), 8000)
+  );
+  const { data: sessionData } = (await Promise.race([
+    sessionPromise,
+    sessionTimeoutPromise,
+  ])) as any;
 
   if (sessionData) {
-    const dbSessionId = (sessionData as any)?.current_session_id as string | null;
-    const dbSessionExpires = (sessionData as any)?.current_session_expires_at as string | null;
+    const dbSessionId = sessionData.current_session_id as string | null;
+    const dbSessionExpires = sessionData.current_session_expires_at as
+      | string
+      | null;
 
     if (dbSessionId && !sessionIdCookie) {
-      console.log("❌ Session ID cookie missing - user logged out on another device");
+      console.log(
+        "❌ Session ID cookie missing - user logged out on another device"
+      );
       return redirectToLogin(req, true);
     }
-
     if (dbSessionId && sessionIdCookie && dbSessionId !== sessionIdCookie) {
-      console.warn(`🚫 Session mismatch. DB: ${dbSessionId.slice(0,8)}... Cookie: ${sessionIdCookie.slice(0,8)}...`);
+      console.warn(
+        `🚫 Session mismatch. DB: ${dbSessionId.slice(
+          0,
+          8
+        )}... Cookie: ${sessionIdCookie.slice(0, 8)}...`
+      );
       const res = redirectToLogin(req, true);
-      res.cookies.set("login_error", "Your session was invalidated because you logged in on another device", {
-        httpOnly: false,
-        maxAge: 30,
-        path: "/",
-        sameSite: "lax",
-      });
+      res.cookies.set(
+        "login_error",
+        "Your session was invalidated because you logged in on another device",
+        { httpOnly: false, maxAge: 30, path: "/", sameSite: "lax" }
+      );
       return res;
     }
-
     if (dbSessionExpires && new Date(dbSessionExpires) < new Date()) {
       console.log("⏰ Session expired in database");
       return redirectToLogin(req, true);
@@ -1264,7 +587,7 @@ export async function middleware(req: NextRequest) {
     console.log("⏱️ Session validation timed out - allowing access");
   }
 
-  // ─── SECURITY COOKIE VALIDATION ───
+  // ─── RISK COOKIE ───
   const sessionRisk = req.cookies.get("sb-session-risk")?.value;
   if (sessionRisk && parseInt(sessionRisk) >= 60) {
     console.log("🚫 High-risk session cookie detected, forcing logout");
@@ -1273,56 +596,57 @@ export async function middleware(req: NextRequest) {
 
   // ─── GEO BLOCKING ───
   const BLOCKED_COUNTRIES: string[] = [];
-  const geoCountry = req.headers.get('x-vercel-ip-country') || req.headers.get('cf-ipcountry');
+  const geoCountry =
+    req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
   if (geoCountry && BLOCKED_COUNTRIES.includes(geoCountry)) {
     console.log(`🚫 Access from blocked country: ${geoCountry}`);
-    return NextResponse.redirect(new URL("/auth/blocked?reason=geo", req.url));
+    return NextResponse.redirect(
+      new URL("/auth/blocked?reason=geo", req.url)
+    );
   }
 
-  // ─── ✅ STORE OWNERSHIP CHECK ───
-  // Check if this path requires store ownership
+  // ─── STORE OWNERSHIP ───
   if (requiresStoreOwnership(currentPath)) {
     console.log(`🏪 Checking store ownership for: ${currentPath}`);
-    
     try {
       const supabase = getSupabaseAdmin();
-      
       const storePromise = supabase
         .from("online_stores")
         .select("id, is_active, activation_paid")
         .eq("owner_id", tokenResult.id)
         .maybeSingle();
-      
-      const storeTimeoutPromise = new Promise<{ data: null, error: null }>((resolve) => {
-        setTimeout(() => resolve({ data: null, error: null }), 8000);
-      });
-      
-      const { data: store, error: storeError } = await Promise.race([storePromise, storeTimeoutPromise]) as any;
+      const storeTimeoutPromise = new Promise<{ data: null; error: null }>(
+        (resolve) => setTimeout(() => resolve({ data: null, error: null }), 8000)
+      );
+      const { data: store, error: storeError } = (await Promise.race([
+        storePromise,
+        storeTimeoutPromise,
+      ])) as any;
 
       if (storeError) {
         console.error("❌ Error checking store:", storeError);
         return redirectNoStore(req);
       }
-
       if (!store) {
-        console.log(`🚫 No store found for user ${tokenResult.id} accessing ${currentPath}`);
+        console.log(
+          `🚫 No store found for user ${tokenResult.id} accessing ${currentPath}`
+        );
         return redirectNoStore(req);
       }
-
-      const hasActiveStore = store !== null && store.is_active === true && store.activation_paid === true;
-
+      const hasActiveStore =
+        store.is_active === true && store.activation_paid === true;
       if (!hasActiveStore) {
-        console.log(`🚫 No active store found for user ${tokenResult.id} accessing ${currentPath}`);
+        console.log(
+          `🚫 No active store found for user ${tokenResult.id} accessing ${currentPath}`
+        );
         const response = redirectNoStore(req);
-        response.cookies.set("store_required_message", store ? "Please activate your store" : "Please create a store", {
-          httpOnly: false,
-          maxAge: 5,
-          path: "/",
-          sameSite: "lax",
-        });
+        response.cookies.set(
+          "store_required_message",
+          store ? "Please activate your store" : "Please create a store",
+          { httpOnly: false, maxAge: 5, path: "/", sameSite: "lax" }
+        );
         return response;
       }
-
       console.log(`✅ Store ownership verified for ${currentPath}`);
     } catch (error) {
       console.error("❌ Store check error:", error);
@@ -1331,12 +655,20 @@ export async function middleware(req: NextRequest) {
   }
 
   // ─── BVN CHECK ───
-  if (bvnRequiredSet.has(currentPath) && userDetails.bvn_verification !== "verified") {
+  if (
+    bvnRequiredSet.has(currentPath) &&
+    userDetails.bvn_verification !== "verified"
+  ) {
     console.log(`⚠️ BVN verification required for ${currentPath}`);
     const response = NextResponse.redirect(
-      new URL(`/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`, req.url),
+      new URL(
+        `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
+        req.url
+      )
     );
-    response.cookies.set("verification_message", "Please verify your BVN to access this feature", 
+    response.cookies.set(
+      "verification_message",
+      "Please verify your BVN to access this feature",
       { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
     );
     return response;
@@ -1346,22 +678,23 @@ export async function middleware(req: NextRequest) {
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier) {
     const hasAccess = hasSufficientTier(userDetails, requiredTier);
-    
     if (!hasAccess) {
-      console.log(`⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`);
-      const response = NextResponse.redirect(
-        new URL(`/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(currentPath)}`, req.url),
-      );
-      response.cookies.set("subscription_message", `This feature requires the ${requiredTier} plan`,
-        { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
-      );
-      return response;
+      return redirectInsufficientTier(req, requiredTier, currentPath);
     }
+    console.log(
+      `✅ Tier check passed for ${currentPath} (requires ${requiredTier})`
+    );
   }
 
-  // ─── ADMIN ROUTES CHECK ───
-  if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
-    if (!userDetails.admin_role || !allowedAdminRoles.includes(userDetails.admin_role)) {
+  // ─── ADMIN ROUTES ───
+  if (
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/blog/admin")
+  ) {
+    if (
+      !userDetails.admin_role ||
+      !allowedAdminRoles.includes(userDetails.admin_role)
+    ) {
       console.log(`⚠️ Admin access denied for ${currentPath}`);
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
@@ -1372,7 +705,9 @@ export async function middleware(req: NextRequest) {
   if (responseTime > 200) {
     console.warn(`⚠️ Slow middleware (${responseTime}ms) for ${currentPath}`);
   } else {
-    console.log(`✅ Auth check passed for ${currentPath} (${responseTime}ms)`);
+    console.log(
+      `✅ Auth check passed for ${currentPath} (${responseTime}ms)`
+    );
   }
 
   return refreshedResponse || NextResponse.next();
@@ -1390,8 +725,5 @@ export const config = {
     "/payment-page/status",
     "/payment/callback",
     "/payment-page-success",
-    "/api/payment-page/validate-slug",
-    "/api/store/:path*",
-    "/api/payment-page/:path*",
   ],
 };

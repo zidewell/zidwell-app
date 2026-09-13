@@ -11,9 +11,8 @@ const supabase = createClient(
 
 export async function GET(req: NextRequest) {
   try {
-    // Check authentication
     const { user, newTokens } = await isAuthenticatedWithRefresh(req);
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Please login to view wallet", logout: true },
@@ -21,78 +20,81 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get wallet balance using RPC
-    const { data: wallet, error } = await supabase.rpc(
-      "get_store_owner_wallet_balance",
-      { p_user_id: user.id }
-    );
+    // ─── 1. Fetch ONLY completed payments ───
+    const { data: payments, error: paymentsError } = await supabase
+      .from("payment_page_payments")
+      .select("payment_page_id, net_amount, amount, total_fee, paid_at, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "completed");
 
-    if (error) {
-      console.error("Error fetching wallet balance:", error);
-      
-      // Check if wallet exists, if not create one
-      const { data: store, error: storeError } = await supabase
-        .from("online_stores")
-        .select("id, owner_id, wallet_balance, total_revenue")
-        .eq("owner_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      if (!storeError && store) {
-        // Create wallet for existing store
-        const { data: newWallet, error: createError } = await supabase
-          .from("store_owner_wallets")
-          .insert({
-            user_id: user.id,
-            store_id: store.id,
-            available_balance: store.wallet_balance || 0,
-            total_earned: store.total_revenue || 0,
-            last_activity_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (!createError && newWallet) {
-          return NextResponse.json({
-            success: true,
-            wallet: {
-              available_balance: Number(newWallet.available_balance),
-              pending_balance: Number(newWallet.pending_balance),
-              total_earned: Number(newWallet.total_earned),
-              total_withdrawn: Number(newWallet.total_withdrawn),
-              last_activity_at: newWallet.last_activity_at,
-              created_at: newWallet.created_at,
-              updated_at: newWallet.updated_at,
-            }
-          });
-        }
-      }
-
+    if (paymentsError) {
+      console.error("Error fetching payments:", paymentsError);
       return NextResponse.json(
-        { error: "Wallet not found" },
-        { status: 404 }
+        { error: "Failed to compute wallet balance" },
+        { status: 500 }
       );
     }
 
-    // Return wallet data
+    // ─── 2. Sum per page ───
+    const pageTotals: Record<string, number> = {};
+    let totalEarned = 0;
+    let lifetimeGross = 0;
+    let lastActivityAt: string | null = null;
+
+    (payments || []).forEach((p) => {
+      const net = Number(p.net_amount) || 0;
+      const gross = Number(p.amount) || 0;
+
+      totalEarned += net;
+      lifetimeGross += gross;
+
+      const id = p.payment_page_id;
+      pageTotals[id] = (pageTotals[id] || 0) + net;
+
+      const ts = p.paid_at || p.created_at;
+      if (ts && (!lastActivityAt || ts > lastActivityAt)) {
+        lastActivityAt = ts;
+      }
+    });
+
+    // ─── 3. Fetch withdrawals (completed + processing) ───
+    const { data: withdrawals, error: withdrawalsError } = await supabase
+      .from("page_withdrawals")
+      .select("amount, net_amount, status, created_at")
+      .eq("user_id", user.id)
+      .in("status", ["completed", "processing"]);
+
+    if (withdrawalsError) {
+      console.error("Error fetching withdrawals:", withdrawalsError);
+    }
+
+    let totalWithdrawn = 0;
+    (withdrawals || []).forEach((w) => {
+      totalWithdrawn += Number(w.net_amount) || Number(w.amount) || 0;
+    });
+
+    // ─── 4. Available balance = completed payments − withdrawals ───
+    const availableBalance = Math.max(0, totalEarned - totalWithdrawn);
+
+    // ─── 5. Response ───
     const responseData = {
       success: true,
       wallet: {
-        available_balance: Number(wallet?.available_balance || 0),
-        pending_balance: Number(wallet?.pending_balance || 0),
-        total_earned: Number(wallet?.total_earned || 0),
-        total_withdrawn: Number(wallet?.total_withdrawn || 0),
-        last_activity_at: wallet?.last_activity_at || null,
-        created_at: wallet?.created_at || null,
-        updated_at: wallet?.updated_at || null,
-      }
+        available_balance: Math.round(availableBalance * 100) / 100,
+        pending_balance: 0,
+        total_earned: Math.round(totalEarned * 100) / 100,
+        total_withdrawn: Math.round(totalWithdrawn * 100) / 100,
+        lifetime_gross: Math.round(lifetimeGross * 100) / 100,
+        page_totals: pageTotals, // ← per-page sums from completed payments
+        last_activity_at: lastActivityAt,
+        created_at: null,
+        updated_at: new Date().toISOString(),
+      },
     };
 
     if (newTokens) {
-      const response = NextResponse.json(responseData);
-      return response;
+      return NextResponse.json(responseData);
     }
-
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Error in wallet balance API:", error);

@@ -1,18 +1,17 @@
 // app/components/store/WithdrawalModal.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  X, 
-  Wallet, 
-  Loader2, 
-  CheckCircle, 
+import {
+  X,
+  Wallet,
+  Loader2,
   AlertCircle,
   Banknote,
   ArrowRight,
-  Shield
+  Shield,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,29 +20,26 @@ interface WithdrawalModalProps {
   onClose: () => void;
   onConfirm: (amount: number) => Promise<void>;
   maxAmount: number;
-  isLoading?: boolean;
   isVerified?: boolean;
   onVerify?: () => void;
 }
 
-// ✅ Updated constants
 const MIN_WITHDRAWAL = 1000;
-const WITHDRAWAL_FEE = 0; // ✅ FREE
 
 export function WithdrawalModal({
   isOpen,
   onClose,
   onConfirm,
   maxAmount,
-  isLoading = false,
   isVerified = true,
   onVerify,
 }: WithdrawalModalProps) {
   const [amount, setAmount] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [step, setStep] = useState<"input" | "confirm">("input");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState<"input" | "confirm" | "success">("input");
 
+  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setAmount("");
@@ -60,28 +56,25 @@ export function WithdrawalModal({
   };
 
   const handleMaxClick = () => {
-    setAmount(String(maxAmount));
+    setAmount(String(Math.floor(maxAmount)));
     setError("");
   };
 
-  const validateAmount = () => {
-    const numAmount = Number(amount);
-    
-    if (!amount || numAmount <= 0) {
+  const validateAmount = (): boolean => {
+    const num = Number(amount);
+
+    if (!amount || num <= 0) {
       setError("Please enter a valid amount");
       return false;
     }
-    
-    if (numAmount < MIN_WITHDRAWAL) {
+    if (num < MIN_WITHDRAWAL) {
       setError(`Minimum withdrawal is ₦${MIN_WITHDRAWAL.toLocaleString()}`);
       return false;
     }
-    
-    if (numAmount > maxAmount) {
-      setError(`Maximum withdrawal is ₦${maxAmount.toLocaleString()}`);
+    if (num > maxAmount) {
+      setError(`You can withdraw at most ₦${maxAmount.toLocaleString()}`);
       return false;
     }
-    
     return true;
   };
 
@@ -90,29 +83,26 @@ export function WithdrawalModal({
       onVerify?.();
       return;
     }
-
     if (validateAmount()) {
       setStep("confirm");
+      setError("");
     }
   };
 
   const handleConfirm = async () => {
-    const numAmount = Number(amount);
-    setIsSubmitting(true);
-    
-    try {
-      await onConfirm(numAmount);
-      setStep("success");
-      setTimeout(() => {
-        onClose();
-      }, 3000);
-    } catch (error: any) {
-      setError(error.message || "Withdrawal failed. Please try again.");
-      setStep("input");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const num = Number(amount);
+  setIsSubmitting(true);
+  setError("");
+
+  try {
+    await onConfirm(num);
+    // No state updates on success — parent closes the modal
+  } catch (err: any) {
+    setError(err?.message || "Withdrawal failed. Please try again.");
+    setStep("input");
+    setIsSubmitting(false);
+  }
+};
 
   const handleBack = () => {
     setStep("input");
@@ -120,15 +110,12 @@ export function WithdrawalModal({
   };
 
   const numAmount = Number(amount) || 0;
-  // ✅ No withdrawal fee
-  const fee = WITHDRAWAL_FEE;
-  const netAmount = numAmount;
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -137,11 +124,11 @@ export function WithdrawalModal({
           className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close Button */}
+          {/* Close button */}
           <button
             onClick={onClose}
-            disabled={isSubmitting || step === "success"}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            disabled={isSubmitting}
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -166,7 +153,7 @@ export function WithdrawalModal({
           {/* Content */}
           <div className="px-6 py-6">
             {!isVerified ? (
-              // BVN Verification Required
+              /* ─── BVN Required ─── */
               <div className="text-center py-6">
                 <div className="flex items-center justify-center mb-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
@@ -188,82 +175,93 @@ export function WithdrawalModal({
                 </button>
               </div>
             ) : step === "input" ? (
-              // Amount Input Step
+              /* ─── INPUT STEP ─── */
               <div className="space-y-4">
-                {/* Balance Display */}
+                {/* Balance */}
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Available Balance</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      Available Balance
+                    </span>
                     <span className="text-lg font-bold text-gray-900 dark:text-white">
                       ₦{maxAmount.toLocaleString()}
                     </span>
                   </div>
                 </div>
 
-                {/* Amount Input */}
+                {/* Amount input */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Enter Amount
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-500 dark:text-gray-400">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-500">
                       ₦
                     </span>
                     <input
                       type="text"
+                      inputMode="numeric"
                       value={amount}
                       onChange={handleAmountChange}
-                      placeholder="0.00"
+                      placeholder="0"
+                      disabled={isSubmitting}
                       className={cn(
-                        "w-full pl-10 pr-4 py-4 text-xl font-semibold bg-gray-50 dark:bg-gray-800 border rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all",
+                        "w-full pl-10 pr-4 py-4 text-xl font-semibold bg-gray-50 dark:bg-gray-800 border rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all disabled:opacity-50",
                         error
-                          ? "border-red-500 dark:border-red-500"
+                          ? "border-red-500"
                           : "border-gray-200 dark:border-gray-700"
                       )}
                       autoFocus
                     />
                   </div>
+
                   {error && (
                     <p className="mt-2 text-sm text-red-500 flex items-center gap-1">
                       <AlertCircle className="h-4 w-4" />
                       {error}
                     </p>
                   )}
+
                   <button
+                    type="button"
                     onClick={handleMaxClick}
-                    className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 hover:underline font-medium"
+                    disabled={isSubmitting}
+                    className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 hover:underline font-medium disabled:opacity-50"
                   >
                     Withdraw All (₦{maxAmount.toLocaleString()})
                   </button>
                 </div>
 
-                {/* ✅ Fee Breakdown - NO FEE */}
+                {/* Summary */}
                 {numAmount > 0 && (
-                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 dark:text-gray-400">Amount</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        ₦{numAmount.toLocaleString()}
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-gray-900 dark:text-white">
+                        You'll Receive
                       </span>
-                    </div>
-                   
-                    <div className="flex justify-between text-sm font-semibold pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <span className="text-gray-900 dark:text-white">You'll Receive</span>
                       <span className="text-green-600 dark:text-green-400">
-                        ₦{netAmount.toLocaleString()}
+                        ₦{numAmount.toLocaleString()}
                       </span>
                     </div>
                   </div>
                 )}
 
-                {/* Next Button */}
+                {/* Continue */}
                 <button
                   onClick={handleNext}
-                  disabled={!amount || Number(amount) < MIN_WITHDRAWAL || Number(amount) > maxAmount}
+                  disabled={
+                    isSubmitting ||
+                    !amount ||
+                    Number(amount) < MIN_WITHDRAWAL ||
+                    Number(amount) > maxAmount
+                  }
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold transition-colors",
-                    !amount || Number(amount) < MIN_WITHDRAWAL || Number(amount) > maxAmount
-                      ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    isSubmitting ||
+                      !amount ||
+                      Number(amount) < MIN_WITHDRAWAL ||
+                      Number(amount) > maxAmount
+                      ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
                       : "bg-yellow-500 text-black hover:bg-yellow-600"
                   )}
                 >
@@ -272,11 +270,12 @@ export function WithdrawalModal({
                 </button>
 
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                  Minimum withdrawal: ₦{MIN_WITHDRAWAL.toLocaleString()} • ✅ Fee: FREE
+                  Minimum withdrawal: ₦{MIN_WITHDRAWAL.toLocaleString()} • Fee:
+                  FREE
                 </p>
               </div>
-            ) : step === "confirm" ? (
-              // Confirm Step
+            ) : (
+              /* ─── CONFIRM STEP ─── */
               <div className="space-y-4">
                 <div className="text-center py-2">
                   <div className="flex items-center justify-center mb-3">
@@ -288,41 +287,52 @@ export function WithdrawalModal({
                     Confirm Withdrawal
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    You are about to withdraw funds to your main wallet
+                    This will transfer funds to your main wallet
                   </p>
                 </div>
 
                 <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Amount</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Amount
+                    </span>
                     <span className="font-medium text-gray-900 dark:text-white">
                       ₦{numAmount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Fee</span>
-                    <span className="font-medium text-green-600">✅ FREE</span>
-                  </div>
                   <div className="flex justify-between text-sm font-semibold pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <span className="text-gray-900 dark:text-white">Net Amount</span>
+                    <span className="text-gray-900 dark:text-white">
+                      Net Amount
+                    </span>
                     <span className="text-green-600 dark:text-green-400">
-                      ₦{netAmount.toLocaleString()}
+                      ₦{numAmount.toLocaleString()}
                     </span>
                   </div>
                 </div>
+
+                {/* Error from a failed confirm attempt */}
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {error}
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button
                     onClick={handleBack}
                     disabled={isSubmitting}
-                    className="flex-1 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700"
+                    className="flex-1 flex items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50"
                   >
+                    <ChevronLeft className="h-4 w-4" />
                     Back
                   </button>
                   <button
                     onClick={handleConfirm}
                     disabled={isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-yellow-500 text-black hover:bg-yellow-600 px-4 py-3 font-semibold transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-yellow-500 text-black hover:bg-yellow-600 px-4 py-3 font-semibold transition-colors disabled:opacity-70"
                   >
                     {isSubmitting ? (
                       <>
@@ -333,29 +343,6 @@ export function WithdrawalModal({
                       "Confirm"
                     )}
                   </button>
-                </div>
-              </div>
-            ) : (
-              // Success Step
-              <div className="text-center py-6">
-                <div className="flex items-center justify-center mb-4">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
-                    <CheckCircle className="h-10 w-10 text-green-500" />
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  Withdrawal Initiated!
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  ₦{netAmount.toLocaleString()} has been sent to your main wallet.
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  ✅ No fees were deducted
-                </p>
-                <div className="mt-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Reference: WDR-{Date.now().toString().slice(-8)}
-                  </p>
                 </div>
               </div>
             )}

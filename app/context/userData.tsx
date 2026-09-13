@@ -13,7 +13,12 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+export type SubscriptionTier =
+  | "free"
+  | "solopreneur"
+  | "sme"
+  | "enterprise"
+  | "corporation";
 
 export interface SupabaseUser {
   id: string;
@@ -36,7 +41,7 @@ export interface SupabaseUser {
 
 export interface SubscriptionInfo {
   tier: SubscriptionTier;
-  status: 'active' | 'expired' | 'cancelled' | 'pending';
+  status: "active" | "expired" | "cancelled" | "pending";
   expiresAt: Date | null;
   features: Record<string, any>;
 }
@@ -76,37 +81,47 @@ interface UserContextType {
   subscription: SubscriptionInfo | null;
   subscriptionLoading: boolean;
   refreshSubscription: () => Promise<void>;
-  checkFeatureAccess: (featureKey: string, currentCount?: number) => Promise<{
+  checkFeatureAccess: (
+    featureKey: string,
+    currentCount?: number
+  ) => Promise<{
     hasAccess: boolean;
     limit?: number;
     message?: string;
     requiredTier?: SubscriptionTier;
   }>;
-  subscribe: (tier: SubscriptionTier, paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
+  subscribe: (
+    tier: SubscriptionTier,
+    paymentMethod: string,
+    amount: number,
+    paymentReference: string,
+    isYearly?: boolean
+  ) => Promise<any>;
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
+  // ✅ NEW — exposed so components can trigger a full session teardown
+  handleSessionExpired: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 // Static public pages
 const STATIC_PUBLIC_PAGES = [
-  '/',
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/auth',
-  '/auth/callback',
-  '/auth/login',
-  '/auth/register',
-  '/pricing',
-  '/pay'
+  "/",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/auth",
+  "/auth/callback",
+  "/auth/login",
+  "/auth/register",
+  "/pricing",
+  "/pay",
 ];
 
 // Regex patterns for dynamic public routes
@@ -139,7 +154,7 @@ class NotificationCache {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl
+      ttl,
     });
   }
 
@@ -185,7 +200,7 @@ class SubscriptionCache {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: this.DEFAULT_TTL
+      ttl: this.DEFAULT_TTL,
     });
   }
 
@@ -216,53 +231,59 @@ const subscriptionCache = new SubscriptionCache();
 // Feature to tier mapping
 const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   // Free features
-  'manual_bookkeeping': 'free',
-  'auto_bookkeeping': 'free',
-  'payment_links': 'free',
-  'business_bank_account': 'free',
-  'basic_financial_overview': 'free',
-  'invoices_5': 'free',
-  'receipts_5': 'free',
-  
+  manual_bookkeeping: "free",
+  auto_bookkeeping: "free",
+  payment_links: "free",
+  business_bank_account: "free",
+  basic_financial_overview: "free",
+  invoices_5: "free",
+  receipts_5: "free",
+
   // Solopreneur features
-  'invoices_10': 'solopreneur',
-  'unlimited_receipts': 'solopreneur',
-  'branded_invoices': 'solopreneur',
-  'expense_tracking': 'solopreneur',
-  'financial_insights': 'solopreneur',
-  
+  invoices_10: "solopreneur",
+  unlimited_receipts: "solopreneur",
+  branded_invoices: "solopreneur",
+  expense_tracking: "solopreneur",
+  financial_insights: "solopreneur",
+
   // SME features
-  'bank_statement_upload': 'sme',
-  'connect_3_bank_accounts': 'sme',
-  'unlimited_invoices': 'sme',
-  'unlimited_receipts_sme': 'sme',
-  'vault': 'sme',
-  'tax_calculator': 'sme',
-  'financial_statements': 'sme',
-  'team_member_1': 'sme',
-  
+  bank_statement_upload: "sme",
+  connect_3_bank_accounts: "sme",
+  unlimited_invoices: "sme",
+  unlimited_receipts_sme: "sme",
+  vault: "sme",
+  tax_calculator: "sme",
+  financial_statements: "sme",
+  team_member_1: "sme",
+
   // Enterprise features
-  'multi_user_access': 'enterprise',
-  'role_permissions': 'enterprise',
-  'approval_system': 'enterprise',
-  'connect_5_bank_accounts': 'enterprise',
-  'downloadable_reports': 'enterprise',
-  'contracts_10': 'enterprise',
-  'dedicated_onboarding': 'enterprise',
-  
+  multi_user_access: "enterprise",
+  role_permissions: "enterprise",
+  approval_system: "enterprise",
+  connect_5_bank_accounts: "enterprise",
+  downloadable_reports: "enterprise",
+  contracts_10: "enterprise",
+  dedicated_onboarding: "enterprise",
+
   // Corporation features
-  'unlimited_contracts': 'corporation',
-  'department_access': 'corporation',
-  'unlimited_bank_accounts': 'corporation',
-  'payroll_system': 'corporation',
-  'advanced_reporting': 'corporation',
-  'custom_financial_structure': 'corporation',
-  'priority_onboarding': 'corporation',
-  'dedicated_account_manager': 'corporation',
+  unlimited_contracts: "corporation",
+  department_access: "corporation",
+  unlimited_bank_accounts: "corporation",
+  payroll_system: "corporation",
+  advanced_reporting: "corporation",
+  custom_financial_structure: "corporation",
+  priority_onboarding: "corporation",
+  dedicated_account_manager: "corporation",
 };
 
 // Tier hierarchy (lowest to highest)
-const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+const TIER_HIERARCHY: SubscriptionTier[] = [
+  "free",
+  "solopreneur",
+  "sme",
+  "enterprise",
+  "corporation",
+];
 
 // Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
@@ -281,7 +302,7 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
   solopreneur: {
     invoices: 10,
-    receipts: 'unlimited',
+    receipts: "unlimited",
     contracts: 0,
     teamMembers: 0,
     bankAccounts: 0,
@@ -293,8 +314,8 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     financialInsights: true,
   },
   sme: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
     contracts: 0,
     teamMembers: 1,
     bankAccounts: 3,
@@ -307,10 +328,10 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     financialStatements: true,
   },
   enterprise: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
     contracts: 10,
-    teamMembers: 'unlimited',
+    teamMembers: "unlimited",
     bankAccounts: 5,
     transferFee: 50,
     manualBookkeeping: true,
@@ -322,11 +343,11 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     dedicatedOnboarding: true,
   },
   corporation: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
-    contracts: 'unlimited',
-    teamMembers: 'unlimited',
-    bankAccounts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
+    contracts: "unlimited",
+    teamMembers: "unlimited",
+    bankAccounts: "unlimited",
     transferFee: 50,
     manualBookkeeping: true,
     autoBookkeeping: true,
@@ -437,6 +458,54 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
   ],
 };
 
+// ─── ✅ Cookie / storage helpers (module-level, no React deps) ───
+
+/**
+ * Cookies that JavaScript CAN clear client-side.
+ * httpOnly cookies (sb-access-token, sb-refresh-token, sb-session-risk,
+ * sb-session-id) MUST be cleared by the server via Set-Cookie.
+ */
+const CLIENT_CLEARABLE_COOKIES = [
+  "sb-client-session",
+  "sb-login-time",
+  "verified",
+  "sb-user-data",
+  "payment_processed",
+];
+
+/**
+ * Best-effort client-side cookie clearing.
+ * Silently does nothing for httpOnly cookies (they're invisible to JS).
+ * The /api/logout route is responsible for those.
+ */
+function clearClientCookies() {
+  if (typeof document === "undefined") return;
+
+  CLIENT_CLEARABLE_COOKIES.forEach((name) => {
+    // Two variants — one with SameSite, one without — to maximize the
+    // chance of matching whatever the browser stored.
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+}
+
+/**
+ * Best-effort localStorage / sessionStorage clearing.
+ * Wrapped in try/catch because Safari private mode can throw.
+ */
+function clearClientStorage() {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem("userData");
+    localStorage.removeItem("zidwell_store_data");
+    localStorage.removeItem("zidwell_store_timestamp");
+    sessionStorage.removeItem("userData");
+  } catch (e) {
+    console.error("Failed to clear storage:", e);
+  }
+}
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
@@ -449,12 +518,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [lifetimeBalance, setLifetimeBalance] = useState(0);
   const [totalOutflow, setTotalOutflow] = useState(0);
   const [totalTransactions, setTotalTransactions] = useState(0);
-  
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [paymentProcessed, setPaymentProcessed] = useState(false);
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(
+    null
+  );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
 
@@ -462,51 +533,88 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const sessionRestoreInProgress = useRef(false);
 
-  // Check if current page is public
+  // ─── Check if current page is public ───
   const isPublicPage = useCallback(() => {
     if (!pathname) return false;
-    
-    if (STATIC_PUBLIC_PAGES.some(page => pathname === page)) {
+
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname === page)) {
       return true;
     }
 
-    if (STATIC_PUBLIC_PAGES.some(page => pathname.startsWith(page + '/'))) {
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname.startsWith(page + "/"))) {
       return true;
     }
 
-    if (PUBLIC_PAGE_PATTERNS.some(pattern => pattern.test(pathname))) {
+    if (PUBLIC_PAGE_PATTERNS.some((pattern) => pattern.test(pathname))) {
       return true;
     }
 
     return false;
   }, [pathname]);
 
-  // Clear session cookies
-  const clearSessionCookies = useCallback(() => {
-    document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-login-time=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  }, []);
+  // ─── ✅ Full session teardown ───
+  // 1. Server clears httpOnly cookies via /api/logout
+  // 2. Client clears non-httpOnly cookies + storage
+  // 3. Context state is reset
+  // 4. Navigate to login
+  const handleSessionExpired = useCallback(async () => {
+    try {
+      // ✅ Step 1: Server clears httpOnly cookies.
+      // Must be awaited — otherwise navigation races the response.
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }).catch((err) => {
+        // Non-fatal — we still clear what we can locally
+        console.error("Logout API failed:", err);
+      });
+    } catch (e) {
+      console.error("Logout API threw:", e);
+    }
 
-  // Restore session from cookies
+    // ✅ Step 2: Clear client-accessible state
+    clearClientCookies();
+    clearClientStorage();
+
+    // ✅ Step 3: Reset context state
+    setUser(null);
+    setUserData(null);
+    setShouldFetchData(false);
+    setBalance(null);
+    setNotifications([]);
+    setUnreadCount(0);
+    setLifetimeBalance(0);
+    setTotalOutflow(0);
+    setTotalTransactions(0);
+    setSubscription(null);
+    subscriptionCache.clear();
+    notificationCache.clear();
+
+    // ✅ Step 4: Navigate to login
+    router.push("/auth/login");
+  }, [router]);
+
+  // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     if (sessionRestoreInProgress.current) return null;
-    
+
     sessionRestoreInProgress.current = true;
-    
+
     try {
-      const hasSessionCookie = document.cookie.includes('sb-client-session=true');
-      
+      const hasSessionCookie = document.cookie.includes(
+        "sb-client-session=true"
+      );
+
       if (!hasSessionCookie) {
         return null;
       }
 
-      const response = await fetch('/api/me', {
-        credentials: 'include',
+      const response = await fetch("/api/me", {
+        credentials: "include",
         headers: {
-          'Cache-Control': 'no-cache'
-        }
+          "Cache-Control": "no-cache",
+        },
       });
 
       if (response.ok) {
@@ -515,25 +623,25 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           return userProfile;
         }
       } else if (response.status === 401) {
-        // Session expired, clear cookies
-        clearSessionCookies();
+        // Session expired server-side — do full teardown
+        await handleSessionExpired();
       }
-      
+
       return null;
     } catch (error) {
-      console.error('Failed to restore session:', error);
+      console.error("Failed to restore session:", error);
       return null;
     } finally {
       sessionRestoreInProgress.current = false;
     }
-  }, [clearSessionCookies]);
+  }, [handleSessionExpired]);
 
-  // Initialize user from localStorage or session
+  // ─── Initialize user from localStorage or session ───
   const initializeUser = useCallback(async () => {
     try {
       // First check localStorage
       const storedUser = localStorage.getItem("userData");
-      
+
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -541,12 +649,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setShouldFetchData(!isPublicPage());
         setLoading(false);
         setInitialCheckDone(true);
+        setSessionRestored(true);
         return;
       }
 
       // No stored user, try to restore from session
       const restoredUser = await restoreSessionFromCookies();
-      
+
       if (restoredUser) {
         setUser(restoredUser);
         setUserData(restoredUser);
@@ -555,61 +664,65 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setSessionRestored(true);
       } else {
         setShouldFetchData(false);
+        setSessionRestored(true); // ✅ mark check as done even on failure
       }
-      
     } catch (error) {
       console.error("Failed to initialize user:", error);
       localStorage.removeItem("userData");
-      clearSessionCookies();
+      await handleSessionExpired();
+      setSessionRestored(true);
     } finally {
       setLoading(false);
       setInitialCheckDone(true);
     }
-  }, [isPublicPage, restoreSessionFromCookies, clearSessionCookies]);
+  }, [isPublicPage, restoreSessionFromCookies, handleSessionExpired]);
 
   // Run initialization on mount
   useEffect(() => {
     initializeUser();
   }, [initializeUser]);
 
-  // Theme initialization - LIGHT MODE DEFAULT
+  // ─── Theme initialization - LIGHT MODE DEFAULT ───
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
-    
+
     if (storedTheme === "dark") {
-      // User previously chose dark mode
       setIsDarkMode(true);
       document.documentElement.classList.add("dark");
     } else {
-      // Default to light mode
       setIsDarkMode(false);
       document.documentElement.classList.remove("dark");
-      // Only set localStorage if not set to keep light as default
       if (!storedTheme) {
         localStorage.setItem("theme", "light");
       }
     }
   }, []);
 
-  // Watch for payment processed cookie
+  // ─── Watch for payment processed cookie ───
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hasPaymentCookie = document.cookie.includes('payment_processed=true');
+    if (typeof window !== "undefined") {
+      const hasPaymentCookie = document.cookie.includes(
+        "payment_processed=true"
+      );
       if (hasPaymentCookie) {
         setPaymentProcessed(true);
-        document.cookie = 'payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie =
+          "payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       }
     }
   }, []);
 
-  // Watch for pathname changes
+  // ─── Watch for pathname changes ───
+  // Only fetch when on a protected page AND we have an authenticated user
   useEffect(() => {
     if (!initialCheckDone) return;
 
     const isPublic = isPublicPage();
-    setShouldFetchData(!isPublic);
-    
-    if (isPublic) {
+    const hasUser = !!userData?.id;
+
+    setShouldFetchData(!isPublic && hasUser);
+
+    if (isPublic || !hasUser) {
       setBalance(null);
       setNotifications([]);
       setUnreadCount(0);
@@ -618,35 +731,44 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setTotalTransactions(0);
       setSubscription(null);
     }
-  }, [pathname, initialCheckDone, isPublicPage]);
+  }, [pathname, initialCheckDone, isPublicPage, userData?.id]);
 
-  // Clear notification cache
+  // ─── Clear notification cache ───
   const clearNotificationCache = useCallback(() => {
     notificationCache.clear();
   }, []);
 
   // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
-  const fetchNotifications = useCallback(async (filter: string = 'all', limit: number = 50) => {
-    console.log('📢 Notifications API disabled - fetchNotifications called but skipped');
-    return;
-  }, []);
+  const fetchNotifications = useCallback(
+    async (filter: string = "all", limit: number = 50) => {
+      console.log(
+        "📢 Notifications API disabled - fetchNotifications called but skipped"
+      );
+      return;
+    },
+    []
+  );
 
   const fetchUnreadCount = useCallback(async () => {
-    console.log('📢 Notifications API disabled - fetchUnreadCount called but skipped');
+    console.log(
+      "📢 Notifications API disabled - fetchUnreadCount called but skipped"
+    );
     return;
   }, []);
 
   const markAsRead = useCallback(async (notificationId: string) => {
-    console.log('📢 Notifications API disabled - markAsRead called but skipped');
+    console.log("📢 Notifications API disabled - markAsRead called but skipped");
     return;
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    console.log('📢 Notifications API disabled - markAllAsRead called but skipped');
+    console.log(
+      "📢 Notifications API disabled - markAllAsRead called but skipped"
+    );
     return;
   }, []);
 
-  // Fetch subscription data
+  // ─── Fetch subscription data ───
   const fetchSubscription = useCallback(async () => {
     if (!shouldFetchData || !userData?.id) {
       setSubscription(null);
@@ -655,7 +777,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const cacheKey = `subscription_${userData.id}`;
     const cached = subscriptionCache.get(cacheKey);
-    
+
     if (cached) {
       setSubscription(cached);
       return;
@@ -664,50 +786,60 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setSubscriptionLoading(true);
     try {
       const response = await fetch(`/api/subscription`, {
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
+
+      // ✅ Handle 401 gracefully — full teardown
+      if (response.status === 401) {
+        await handleSessionExpired();
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.subscription) {
           const subscriptionData = {
             ...data.subscription,
-            expiresAt: data.subscription.expiresAt ? new Date(data.subscription.expiresAt) : null
+            expiresAt: data.subscription.expiresAt
+              ? new Date(data.subscription.expiresAt)
+              : null,
           };
           setSubscription(subscriptionData);
           subscriptionCache.set(cacheKey, subscriptionData);
-          
+
           setUserData((prev: any) => ({
             ...prev,
             subscription_tier: subscriptionData.tier,
-            subscription_expires_at: subscriptionData.expiresAt?.toISOString(),
+            subscription_expires_at:
+              subscriptionData.expiresAt?.toISOString(),
           }));
         }
       } else {
         const defaultSubscription: SubscriptionInfo = {
-          tier: 'free',
-          status: 'active',
+          tier: "free",
+          status: "active",
           expiresAt: null,
           features: {},
         };
         setSubscription(defaultSubscription);
       }
     } catch (error) {
-      console.error('❌ Error fetching subscription:', error);
+      console.error("❌ Error fetching subscription:", error);
       setSubscription({
-        tier: 'free',
-        status: 'active',
+        tier: "free",
+        status: "active",
         expiresAt: null,
         features: {},
       });
     } finally {
       setSubscriptionLoading(false);
     }
-  }, [shouldFetchData, userData?.id]);
+  }, [shouldFetchData, userData?.id, handleSessionExpired]);
 
-  // Refresh subscription
+  // ─── Refresh subscription ───
   const refreshSubscription = useCallback(async () => {
     if (userData?.id) {
       subscriptionCache.delete(`subscription_${userData.id}`);
@@ -715,156 +847,185 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, fetchSubscription]);
 
-  // Check feature access
-  const checkFeatureAccess = useCallback(async (
-    featureKey: string, 
-    currentCount?: number
-  ): Promise<{ hasAccess: boolean; limit?: number; message?: string; requiredTier?: SubscriptionTier }> => {
-    if (!subscription) {
-      return { 
-        hasAccess: false, 
-        message: "Unable to verify subscription",
-        requiredTier: FEATURE_TIER_MAP[featureKey] || 'free'
-      };
-    }
-
-    const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
-    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
-
-    if (userTierIndex < requiredTierIndex) {
-      return {
-        hasAccess: false,
-        message: `This feature requires the ${requiredTier} plan or higher`,
-        requiredTier,
-      };
-    }
-
-    if (!feature) {
-      return {
-        hasAccess: false,
-        message: `This feature is not available in your ${subscription.tier} plan`,
-        requiredTier,
-      };
-    }
-
-    if (feature.value === 'true') {
-      return { hasAccess: true };
-    }
-
-    if (feature.value === 'unlimited') {
-      return { hasAccess: true };
-    }
-
-    if (feature.limit && currentCount !== undefined) {
-      const limit = feature.limit;
-      if (currentCount >= limit) {
+  // ─── Check feature access ───
+  const checkFeatureAccess = useCallback(
+    async (
+      featureKey: string,
+      currentCount?: number
+    ): Promise<{
+      hasAccess: boolean;
+      limit?: number;
+      message?: string;
+      requiredTier?: SubscriptionTier;
+    }> => {
+      if (!subscription) {
         return {
           hasAccess: false,
-          limit,
-          message: `You've reached your ${featureKey.replace(/_/g, ' ')} limit of ${limit} for the ${subscription.tier} plan`,
+          message: "Unable to verify subscription",
+          requiredTier: FEATURE_TIER_MAP[featureKey] || "free",
+        };
+      }
+
+      const feature = subscription.features[featureKey];
+      const requiredTier = FEATURE_TIER_MAP[featureKey] || "free";
+      const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+      const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
+
+      if (userTierIndex < requiredTierIndex) {
+        return {
+          hasAccess: false,
+          message: `This feature requires the ${requiredTier} plan or higher`,
           requiredTier,
         };
       }
-      return { hasAccess: true, limit };
-    }
 
-    return { hasAccess: true };
-  }, [subscription]);
-
-  // Check feature access synchronously
-  const canAccessFeature = useCallback((featureKey: string, currentCount?: number): boolean => {
-    if (!subscription) return false;
-
-    const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
-    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
-
-    if (userTierIndex < requiredTierIndex) {
-      return false;
-    }
-
-    if (!feature) {
-      return false;
-    }
-
-    if (feature.value === 'true' || feature.value === 'unlimited') {
-      return true;
-    }
-
-    if (feature.limit && currentCount !== undefined) {
-      return currentCount < feature.limit;
-    }
-
-    return true;
-  }, [subscription]);
-
-  // Subscribe to a paid tier
-  const subscribe = useCallback(async (
-    tier: SubscriptionTier,
-    paymentMethod: string,
-    amount: number,
-    paymentReference: string,
-    isYearly: boolean = false
-  ) => {
-    if (!userData?.id) {
-      return { success: false, error: 'User not authenticated' };
-    }
-
-    try {
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'subscribe',
-          tier,
-          paymentMethod,
-          amount,
-          paymentReference,
-          isYearly,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        subscriptionCache.delete(`subscription_${userData.id}`);
-        await fetchSubscription();
-        
-        setUserData((prev: any) => ({
-          ...prev,
-          subscription_tier: tier,
-          subscription_expires_at: data.subscription?.expires_at,
-        }));
+      if (!feature) {
+        return {
+          hasAccess: false,
+          message: `This feature is not available in your ${subscription.tier} plan`,
+          requiredTier,
+        };
       }
 
-      return data;
-    } catch (error: any) {
-      console.error('❌ Error subscribing:', error);
-      return { success: false, error: error.message };
-    }
-  }, [userData?.id, fetchSubscription]);
+      if (feature.value === "true") {
+        return { hasAccess: true };
+      }
 
-  // Cancel subscription
+      if (feature.value === "unlimited") {
+        return { hasAccess: true };
+      }
+
+      if (feature.limit && currentCount !== undefined) {
+        const limit = feature.limit;
+        if (currentCount >= limit) {
+          return {
+            hasAccess: false,
+            limit,
+            message: `You've reached your ${featureKey.replace(
+              /_/g,
+              " "
+            )} limit of ${limit} for the ${subscription.tier} plan`,
+            requiredTier,
+          };
+        }
+        return { hasAccess: true, limit };
+      }
+
+      return { hasAccess: true };
+    },
+    [subscription]
+  );
+
+  // ─── Check feature access synchronously ───
+  const canAccessFeature = useCallback(
+    (featureKey: string, currentCount?: number): boolean => {
+      if (!subscription) return false;
+
+      const feature = subscription.features[featureKey];
+      const requiredTier = FEATURE_TIER_MAP[featureKey] || "free";
+      const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+      const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
+
+      if (userTierIndex < requiredTierIndex) {
+        return false;
+      }
+
+      if (!feature) {
+        return false;
+      }
+
+      if (feature.value === "true" || feature.value === "unlimited") {
+        return true;
+      }
+
+      if (feature.limit && currentCount !== undefined) {
+        return currentCount < feature.limit;
+      }
+
+      return true;
+    },
+    [subscription]
+  );
+
+  // ─── Subscribe to a paid tier ───
+  const subscribe = useCallback(
+    async (
+      tier: SubscriptionTier,
+      paymentMethod: string,
+      amount: number,
+      paymentReference: string,
+      isYearly: boolean = false
+    ) => {
+      if (!userData?.id) {
+        return { success: false, error: "User not authenticated" };
+      }
+
+      try {
+        const response = await fetch("/api/subscription", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "subscribe",
+            tier,
+            paymentMethod,
+            amount,
+            paymentReference,
+            isYearly,
+          }),
+        });
+
+        if (response.status === 401) {
+          await handleSessionExpired();
+          return { success: false, error: "Session expired" };
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          subscriptionCache.delete(`subscription_${userData.id}`);
+          await fetchSubscription();
+
+          setUserData((prev: any) => ({
+            ...prev,
+            subscription_tier: tier,
+            subscription_expires_at: data.subscription?.expires_at,
+          }));
+        }
+
+        return data;
+      } catch (error: any) {
+        console.error("❌ Error subscribing:", error);
+        return { success: false, error: error.message };
+      }
+    },
+    [userData?.id, fetchSubscription, handleSessionExpired]
+  );
+
+  // ─── Cancel subscription ───
   const cancelSubscription = useCallback(async () => {
     if (!userData?.id) {
-      return { success: false, error: 'User not authenticated' };
+      return { success: false, error: "User not authenticated" };
     }
 
     try {
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
+      const response = await fetch("/api/subscription", {
+        method: "POST",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: 'cancel',
+          action: "cancel",
         }),
       });
+
+      if (response.status === 401) {
+        await handleSessionExpired();
+        return { success: false, error: "Session expired" };
+      }
 
       const data = await response.json();
 
@@ -875,25 +1036,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       return data;
     } catch (error: any) {
-      console.error('❌ Error cancelling subscription:', error);
+      console.error("❌ Error cancelling subscription:", error);
       return { success: false, error: error.message };
     }
-  }, [userData?.id, fetchSubscription]);
+  }, [userData?.id, fetchSubscription, handleSessionExpired]);
 
-  // Get upgrade benefits
-  const getUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
-    const currentTier = subscription?.tier || 'free';
-    const key = `${currentTier}_to_${targetTier}`;
-    return UPGRADE_BENEFITS[key] || [];
-  }, [subscription?.tier]);
+  // ─── Get upgrade benefits ───
+  const getUpgradeBenefits = useCallback(
+    (targetTier: SubscriptionTier): string[] => {
+      const currentTier = subscription?.tier || "free";
+      const key = `${currentTier}_to_${targetTier}`;
+      return UPGRADE_BENEFITS[key] || [];
+    },
+    [subscription?.tier]
+  );
 
-  // Get plan limits
+  // ─── Get plan limits ───
   const getPlanLimits = useCallback(() => {
-    const tier = subscription?.tier || 'free';
+    const tier = subscription?.tier || "free";
     return PLAN_LIMITS[tier];
   }, [subscription?.tier]);
 
-  // Fetch balance
+  // ─── Fetch balance ───
   useEffect(() => {
     const fetchBalance = async () => {
       if (!shouldFetchData || !userData?.id) return;
@@ -901,23 +1065,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       try {
         const res = await fetch("/api/wallet-balance", {
           method: "POST",
-          headers: { 
+          credentials: "include",
+          headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ userId: userData.id }),
         });
+
+        if (res.status === 401) {
+          await handleSessionExpired();
+          return;
+        }
 
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const data = await res.json();
 
         if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch balance');
+          throw new Error(data.error || "Failed to fetch balance");
         }
 
         setBalance(data.wallet_balance ?? 0);
       } catch (error) {
-        console.error('❌ Error fetching balance:', error);
+        console.error("❌ Error fetching balance:", error);
         setBalance(userData?.zidcoinBalance ?? 0);
       }
     };
@@ -925,66 +1095,77 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (shouldFetchData && userData?.id) {
       fetchBalance();
     }
-  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
+  }, [
+    userData?.id,
+    userData?.zidcoinBalance,
+    shouldFetchData,
+    handleSessionExpired,
+  ]);
 
-  // Fetch transaction stats
+  // ─── Fetch transaction stats ───
   useEffect(() => {
-  const fetchTransactionStats = async () => {
-    if (!shouldFetchData || !userData?.id) return;
+    const fetchTransactionStats = async () => {
+      if (!shouldFetchData || !userData?.id) return;
 
-    const cacheKey = `transaction_stats_${userData.id}`;
-    const cached = notificationCache.get(cacheKey);
-    
-    if (cached) {
-      setLifetimeBalance(cached.lifetimeBalance);
-      setTotalOutflow(cached.totalOutflow);
-      setTotalTransactions(cached.totalTransactions);
-      return;
-    }
+      const cacheKey = `transaction_stats_${userData.id}`;
+      const cached = notificationCache.get(cacheKey);
 
-    try {
-      const res = await fetch("/api/total-inflow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userData.id }),
-      });
-
-      const data = await res.json();
-      
-      if (data.success) {
-        const stats = {
-          // LIFETIME BALANCE = TOTAL INFLOW (money that has come into the account)
-          lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
-          totalOutflow: data.totalOutflow || 0,
-          totalTransactions: data.totalTransactions || 0,
-          totalInflow: data.totalInflow || 0,
-          netBalance: data.netBalance || 0,
-        };
-        
-        setLifetimeBalance(stats.lifetimeBalance);
-        setTotalOutflow(stats.totalOutflow);
-        setTotalTransactions(stats.totalTransactions);
-        notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
-      } else {
-        console.error('❌ API returned error:', data.error);
+      if (cached) {
+        setLifetimeBalance(cached.lifetimeBalance);
+        setTotalOutflow(cached.totalOutflow);
+        setTotalTransactions(cached.totalTransactions);
+        return;
       }
-    } catch (error) {
-      console.error('❌ Error fetching transaction stats:', error);
-    }
-  };
 
-  if (shouldFetchData && userData?.id) {
-    fetchTransactionStats();
-  }
-}, [userData?.id, shouldFetchData]);
-  // Fetch subscription on change
+      try {
+        const res = await fetch("/api/total-inflow", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+
+        if (res.status === 401) {
+          await handleSessionExpired();
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.success) {
+          const stats = {
+            lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
+            totalOutflow: data.totalOutflow || 0,
+            totalTransactions: data.totalTransactions || 0,
+            totalInflow: data.totalInflow || 0,
+            netBalance: data.netBalance || 0,
+          };
+
+          setLifetimeBalance(stats.lifetimeBalance);
+          setTotalOutflow(stats.totalOutflow);
+          setTotalTransactions(stats.totalTransactions);
+          notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
+        } else {
+          console.error("❌ API returned error:", data.error);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching transaction stats:", error);
+      }
+    };
+
+    if (shouldFetchData && userData?.id) {
+      fetchTransactionStats();
+    }
+  }, [userData?.id, shouldFetchData, handleSessionExpired]);
+
+  // ─── Fetch subscription on change ───
   useEffect(() => {
     if (shouldFetchData && userData?.id) {
       fetchSubscription();
     }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
-  // Cache cleanup and refresh intervals
+  // ─── Cache cleanup and refresh intervals ───
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
@@ -1041,6 +1222,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         cancelSubscription,
         getUpgradeBenefits,
         canAccessFeature,
+        handleSessionExpired,
       }}
     >
       {children}

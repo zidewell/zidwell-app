@@ -1,3 +1,4 @@
+// app/api/payment-page/create/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
@@ -7,13 +8,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function uploadImageToStorage(userId: string, base64Image: string, type: string): Promise<string | null> {
+// ============================================================
+// IMAGE UPLOAD HELPER
+// ============================================================
+async function uploadImageToStorage(
+  userId: string,
+  base64Image: string,
+  type: string
+): Promise<string | null> {
   if (!base64Image) return null;
-  if (base64Image.startsWith('http://') || base64Image.startsWith('https://')) {
+  if (base64Image.startsWith("http://") || base64Image.startsWith("https://")) {
     return base64Image;
   }
-  if (!base64Image.startsWith('data:image')) return null;
-  
+  if (!base64Image.startsWith("data:image")) return null;
+
   try {
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
     const imageBuffer = Buffer.from(base64Data, "base64");
@@ -46,10 +54,13 @@ async function uploadImageToStorage(userId: string, base64Image: string, type: s
   }
 }
 
+// ============================================================
+// MAIN POST HANDLER
+// ============================================================
 export async function POST(request: Request) {
   try {
     const { user, newTokens } = await isAuthenticatedWithRefresh(request as any);
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Please login to create a payment page", logout: true },
@@ -58,24 +69,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { 
-      title, 
-      slug, 
-      description, 
-      coverImage, 
-      logo, 
+    const {
+      title,
+      slug,
+      description,
+      coverImage,
+      logo,
       productImages,
-      priceType, 
-      price, 
-      installmentCount, 
+      priceType,
+      price,
+      installmentCount,
       feeMode,
       pageType,
-      metadata 
+      metadata,
     } = body;
 
     console.log("📝 Creating page:", { title, pageType, slug });
 
-    // Validate required fields
+    // ─── VALIDATION ───
     if (!title || !pageType || !slug) {
       return NextResponse.json(
         { error: "Title, page type, and slug are required" },
@@ -83,9 +94,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate page type specific requirements
     if (pageType === "link") {
-      if (metadata?.linkConfig?.amountMode === "fixed" && (!price || price <= 0)) {
+      if (
+        metadata?.linkConfig?.amountMode === "fixed" &&
+        (!price || price <= 0)
+      ) {
         return NextResponse.json(
           { error: "Amount is required for fixed amount payment link" },
           { status: 400 }
@@ -111,7 +124,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ✅ CHECK: User must have an ACTIVE store to create a payment page
+    // ─── CHECK ACTIVE STORE ───
     const { data: store, error: storeError } = await supabase
       .from("online_stores")
       .select("id, is_active, activation_paid")
@@ -132,32 +145,40 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upload images
+    // ─── UPLOAD IMAGES ───
     let uploadedCoverImage = null;
     if (coverImage) {
-      uploadedCoverImage = await uploadImageToStorage(user.id, coverImage, "covers");
+      uploadedCoverImage = await uploadImageToStorage(
+        user.id,
+        coverImage,
+        "covers"
+      );
     }
-    
+
     let uploadedLogo = null;
-    if (logo && logo.startsWith('data:image')) {
+    if (logo && logo.startsWith("data:image")) {
       uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
-    } else if (logo && (logo.startsWith('http://') || logo.startsWith('https://'))) {
+    } else if (logo && (logo.startsWith("http://") || logo.startsWith("https://"))) {
       uploadedLogo = logo;
     }
-    
+
     const uploadedProductImages: string[] = [];
     if (productImages && productImages.length > 0) {
       for (const img of productImages) {
-        if (img.startsWith('data:image')) {
-          const uploadedUrl = await uploadImageToStorage(user.id, img, "products");
+        if (img.startsWith("data:image")) {
+          const uploadedUrl = await uploadImageToStorage(
+            user.id,
+            img,
+            "products"
+          );
           if (uploadedUrl) uploadedProductImages.push(uploadedUrl);
-        } else if (img.startsWith('http://') || img.startsWith('https://')) {
+        } else if (img.startsWith("http://") || img.startsWith("https://")) {
           uploadedProductImages.push(img);
         }
       }
     }
 
-    // Prepare metadata
+    // ─── PREPARE METADATA ───
     const finalMetadata: any = { ...metadata };
 
     // For link pages, store the entire link configuration in metadata
@@ -169,13 +190,16 @@ export async function POST(request: Request) {
       };
     }
 
-    // Calculate final price
+    // ─── CALCULATE FINAL PRICE ───
     let finalPrice = price || 0;
     if (pageType === "school" && finalMetadata.feeBreakdown?.length > 0) {
-      finalPrice = finalMetadata.feeBreakdown.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+      finalPrice = finalMetadata.feeBreakdown.reduce(
+        (sum: number, item: any) => sum + (item.amount || 0),
+        0
+      );
     }
 
-    // Determine final price_type
+    // ─── DETERMINE FINAL PRICE TYPE ───
     let finalPriceType = priceType;
     if (pageType === "link" && metadata?.linkConfig?.amountMode === "variable") {
       finalPriceType = "open";
@@ -184,9 +208,33 @@ export async function POST(request: Request) {
       finalPriceType = "open";
     }
 
-    // ✅ NO VIRTUAL ACCOUNT CREATION - Just insert the page
+    // ─── INSTALLMENT METADATA (ALL PAGE TYPES) ───
+    // Every page type supports installments except donation/open-ended pages.
+    if (
+      finalPriceType === "installment" &&
+      installmentCount &&
+      Number(installmentCount) > 1 &&
+      pageType !== "donation" &&
+      finalPriceType !== "open"
+    ) {
+      const totalAmount = Number(finalPrice) || 0;
+      const count = Number(installmentCount);
+      const perInstallment = totalAmount / count;
+
+      finalMetadata.installmentCount = count;
+      finalMetadata.installmentAmount =
+        Math.round(perInstallment * 100) / 100;
+      finalMetadata.installmentPeriod =
+        metadata?.installmentPeriod || "monthly";
+      finalMetadata.totalAmount = totalAmount;
+      // Populated progressively by webhook services as payments come in.
+      // Keyed by entity ID (student name, variant SKU, or "default").
+      finalMetadata.installmentState = {};
+    }
+
+    // ─── SAVE PAYMENT PAGE ───
     console.log("💾 Saving payment page to database...");
-    
+
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
       .insert({
@@ -199,7 +247,8 @@ export async function POST(request: Request) {
         product_images: uploadedProductImages,
         price_type: finalPriceType,
         price: finalPrice,
-        installment_count: installmentCount,
+        installment_count:
+          finalPriceType === "installment" ? Number(installmentCount) : null,
         fee_mode: feeMode || "bearer",
         page_type: pageType,
         metadata: finalMetadata,
@@ -215,10 +264,7 @@ export async function POST(request: Request) {
 
     if (pageError) {
       console.error("❌ Error creating page:", pageError);
-      return NextResponse.json(
-        { error: pageError.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: pageError.message }, { status: 500 });
     }
 
     console.log(`✅ Payment page created: ${page.id}`);
@@ -233,16 +279,18 @@ export async function POST(request: Request) {
         slug: page.slug,
         pageType: page.page_type,
         coverImage: page.cover_image,
-      }
+        priceType: page.price_type,
+        price: page.price,
+        installmentCount: page.installment_count,
+        metadata: page.metadata,
+      },
     };
 
     if (newTokens) {
-      const response = NextResponse.json(responseData);
-      return response;
+      return NextResponse.json(responseData);
     }
-    
+
     return NextResponse.json(responseData);
-    
   } catch (error: any) {
     console.error("Create page error:", error);
     return NextResponse.json(
