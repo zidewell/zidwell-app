@@ -1,4 +1,4 @@
-// app/lib/seo.ts
+// lib/seo.ts
 import { Metadata } from "next";
 
 export const siteConfig = {
@@ -69,7 +69,9 @@ export function generateBreadcrumbSchema(
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: item.item.startsWith("http") ? item.item : `${siteConfig.url}${item.item}`,
+      item: item.item.startsWith("http")
+        ? item.item
+        : `${siteConfig.url}${item.item}`,
     })),
   };
 }
@@ -154,7 +156,7 @@ export function generateLocalBusinessSchema() {
   };
 }
 
-// ─── Metadata Generator ───
+// ─── Metadata Generator (General) ───
 
 interface PageMetaOptions {
   title: string;
@@ -236,4 +238,333 @@ export function generatePageMetadata(options: PageMetaOptions): Metadata {
           },
         },
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ONLINE STORE SEO
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─── STOREFRONT METADATA ───
+// Used by: app/store/[storeSlug]/page.tsx
+export function generateStoreMetadata(store: {
+  name: string;
+  slug: string;
+  description: string | null;
+  cover_image?: string | null;
+  logo?: string | null;
+  city?: string | null;
+  state?: string | null;
+}): Metadata {
+  const plainDescription =
+    store.description?.replace(/<[^>]*>/g, "").trim().slice(0, 300) ||
+    `Shop at ${store.name} on Zidwell. Browse products, pay securely, and enjoy fast checkout.`;
+
+  const storeUrl = `${siteConfig.url}/store/${store.slug}`;
+  const image =
+    store.cover_image ||
+    store.logo ||
+    `${siteConfig.url}/images/og-image.png`;
+
+  const locationLine =
+    store.city && store.state
+      ? `${store.city}, ${store.state}`
+      : store.city || store.state || "Nigeria";
+
+  return {
+    metadataBase: new URL(siteConfig.url),
+    title: `${store.name} | Zidwell Store`,
+    description: plainDescription,
+    keywords: [
+      store.name,
+      "online store",
+      "buy online",
+      locationLine,
+      "Nigeria",
+      "Zidwell",
+      "secure checkout",
+    ],
+    alternates: {
+      canonical: storeUrl,
+    },
+    openGraph: {
+      title: `${store.name} | Zidwell Store`,
+      description: plainDescription,
+      url: storeUrl,
+      siteName: store.name,
+      locale: siteConfig.locale,
+      type: "website",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: `${store.name} storefront`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${store.name} | Zidwell Store`,
+      description: plainDescription,
+      images: [image],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
+
+// ─── STOREFRONT SCHEMA ───
+// Used by: app/store/[storeSlug]/page.tsx
+export function generateStoreFrontSchema(store: {
+  name: string;
+  slug: string;
+  description: string | null;
+  city?: string | null;
+  state?: string | null;
+  logo?: string | null;
+  cover_image?: string | null;
+  total_views?: number | null;
+  created_at?: string | null;
+  products?: Array<{
+    title: string;
+    slug: string;
+    price: number;
+    price_type?: string;
+    product_images?: string[] | null;
+    cover_image?: string | null;
+  }>;
+}) {
+  const storeUrl = `${siteConfig.url}/store/${store.slug}`;
+  const imageUrl =
+    store.cover_image ||
+    (store.logo ? store.logo : `${siteConfig.url}/images/og-image.png`);
+
+  const products = Array.isArray(store.products) ? store.products : [];
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "@id": storeUrl,
+    name: store.name,
+    description:
+      store.description?.replace(/<[^>]*>/g, "").trim() ||
+      `Shop at ${store.name} on Zidwell.`,
+    url: storeUrl,
+    image: imageUrl,
+    logo: store.logo || `${siteConfig.url}/logo.png`,
+    ...(store.city || store.state
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: store.city || undefined,
+            addressRegion: store.state || undefined,
+            addressCountry: "NG",
+          },
+        }
+      : {}),
+    ...(products.length > 0
+      ? {
+          department: products.slice(0, 20).map((p) => ({
+            "@type": "Product",
+            name: p.title,
+            url: `${storeUrl}/${p.slug}`,
+            image:
+              (Array.isArray(p.product_images) && p.product_images[0]) ||
+              p.cover_image ||
+              undefined,
+            offers: {
+              "@type": "Offer",
+              price: Number(p.price) || 0,
+              priceCurrency: "NGN",
+              availability: "https://schema.org/InStock",
+              url: `${storeUrl}/${p.slug}`,
+            },
+          })),
+        }
+      : {}),
+  };
+}
+
+// ─── PRODUCT METADATA ───
+// Used by: app/store/[storeSlug]/[productSlug]/page.tsx
+export function generateProductMetadata(product: {
+  title: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  productImages?: string[] | null;
+  coverImage?: string | null;
+  storeName: string;
+  storeSlug: string;
+}): Metadata {
+  const plainDescription =
+    product.description?.replace(/<[^>]*>/g, "").trim().slice(0, 300) ||
+    `Buy ${product.title} on ${product.storeName}. Secure checkout with card or bank transfer on Zidwell.`;
+
+  const productUrl = `${siteConfig.url}/store/${product.storeSlug}/${product.slug}`;
+
+  const images =
+    Array.isArray(product.productImages) && product.productImages.length > 0
+      ? product.productImages
+      : product.coverImage
+      ? [product.coverImage]
+      : [`${siteConfig.url}/images/og-image.png`];
+
+  const priceFormatted = `₦${(Number(product.price) || 0).toLocaleString()}`;
+
+  return {
+    metadataBase: new URL(siteConfig.url),
+    title: `${product.title} — ${priceFormatted} | ${product.storeName}`,
+    description: plainDescription,
+    keywords: [
+      product.title,
+      product.storeName,
+      "buy online",
+      "secure checkout",
+      "Zidwell",
+      "Nigeria",
+      priceFormatted,
+    ],
+    alternates: {
+      canonical: productUrl,
+    },
+    openGraph: {
+      title: `${product.title} — ${priceFormatted}`,
+      description: plainDescription,
+      url: productUrl,
+      siteName: product.storeName,
+      locale: siteConfig.locale,
+      type: "website",
+      images: images.map((url) => ({
+        url,
+        width: 1200,
+        height: 630,
+        alt: product.title,
+      })),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${product.title} — ${priceFormatted}`,
+      description: plainDescription,
+      images: [images[0]],
+    },
+    other: {
+      "product:price:amount": String(Number(product.price) || 0),
+      "product:price:currency": "NGN",
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
+
+// ─── PRODUCT SCHEMA ───
+// Used by: app/store/[storeSlug]/[productSlug]/page.tsx
+// Handles all page types: physical, digital, services, school, donation,
+// link, real_estate, stock, savings, crypto
+export function generateProductSchema(product: {
+  title: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  priceType?: string;
+  productImages?: string[] | null;
+  coverImage?: string | null;
+  storeName: string;
+  storeSlug: string;
+  inStock?: boolean;
+  pageType?: string;
+}) {
+  const productUrl = `${siteConfig.url}/store/${product.storeSlug}/${product.slug}`;
+  const images =
+    Array.isArray(product.productImages) && product.productImages.length > 0
+      ? product.productImages
+      : product.coverImage
+      ? [product.coverImage]
+      : [`${siteConfig.url}/images/og-image.png`];
+
+  const availability =
+    product.inStock === false
+      ? "https://schema.org/OutOfStock"
+      : "https://schema.org/InStock";
+
+  // Map internal page types → schema.org types
+  const typeMap: Record<string, string> = {
+    physical: "Product",
+    digital: "DigitalDocument",
+    services: "Service",
+    school: "Service",
+    donation: "DonateAction",
+    link: "WebPage",
+    real_estate: "Product",
+    stock: "FinancialProduct",
+    savings: "FinancialProduct",
+    crypto: "FinancialProduct",
+  };
+
+  const schemaType = typeMap[product.pageType || "physical"] || "Product";
+
+  // Base schema — works for all types
+  const baseSchema: any = {
+    "@context": "https://schema.org",
+    "@type": schemaType,
+    "@id": productUrl,
+    name: product.title,
+    description:
+      product.description?.replace(/<[^>]*>/g, "").trim() ||
+      `${product.title} on ${product.storeName}.`,
+    url: productUrl,
+    image: images,
+    brand: {
+      "@type": "Brand",
+      name: product.storeName,
+    },
+  };
+
+  // Add offers for anything that has a purchasable price
+  if (
+    schemaType === "Product" ||
+    schemaType === "DigitalDocument"
+  ) {
+    baseSchema.offers = {
+      "@type": "Offer",
+      url: productUrl,
+      priceCurrency: "NGN",
+      price: Number(product.price) || 0,
+      availability,
+      seller: {
+        "@type": "Organization",
+        name: product.storeName,
+        url: `${siteConfig.url}/store/${product.storeSlug}`,
+      },
+    };
+  }
+
+  // For services, add provider instead of seller
+  if (schemaType === "Service") {
+    baseSchema.provider = {
+      "@type": "Organization",
+      name: product.storeName,
+      url: `${siteConfig.url}/store/${product.storeSlug}`,
+    };
+  }
+
+  return baseSchema;
 }

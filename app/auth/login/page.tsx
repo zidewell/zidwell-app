@@ -1,15 +1,6 @@
 // app/auth/login/page.tsx
 "use client";
 
-import { generatePageMetadata } from "@/lib/seo";
-
-const metadata = generatePageMetadata({
-  title: "Sign In to Zidwell Wallet | Secure Login",
-  description: "Sign in securely to your Zidwell Wallet. Access your payment pages, invoices, receipts, and manage your finances.",
-  pathname: "/auth/login",
-  keywords: ["login", "sign in", "Zidwell wallet", "secure login", "financial dashboard"],
-});
-
 import Swal from "sweetalert2";
 import { useState, FormEvent, useEffect, Suspense } from "react";
 import Image from "next/image";
@@ -49,18 +40,18 @@ function collectDeviceInfo(): DeviceInfo {
     navigator.language,
     navigator.platform,
     screen.colorDepth,
-    screen.width + 'x' + screen.height,
+    screen.width + "x" + screen.height,
     new Date().getTimezoneOffset(),
     !!window.sessionStorage,
     !!window.localStorage,
     navigator.hardwareConcurrency,
   ];
-  
+
   let hash = 0;
-  const str = components.join('::');
+  const str = components.join("::");
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
 
@@ -106,6 +97,25 @@ const fixDoubleEncodedUrl = (url: string): string => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// ✅ SAFE SWAL WRAPPER
+// Under Turbopack + certain sweetalert2 builds, Swal.fire() can resolve
+// to a non-promise value, which breaks `.then()` / `.catch()` chaining.
+// This wrapper guarantees a real Promise is always returned.
+// ─────────────────────────────────────────────────────────────────────
+function safeSwalFire(options: any): Promise<any> {
+  try {
+    const result = (Swal as any).fire(options);
+    if (result && typeof result.then === "function") {
+      return result;
+    }
+    return Promise.resolve(result);
+  } catch (err) {
+    console.error("Swal.fire threw synchronously:", err);
+    return Promise.resolve(undefined);
+  }
+}
+
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -142,11 +152,16 @@ const LoginForm = () => {
         storePendingActivation: profile.storePendingActivation || false,
       };
       localStorage.setItem("userData", JSON.stringify(userDataToSave));
-      
-      // ✅ Also cache store data separately for quick access
+
       if (profile.store) {
-        localStorage.setItem("zidwell_store_data", JSON.stringify(profile.store));
-        localStorage.setItem("zidwell_store_timestamp", Date.now().toString());
+        localStorage.setItem(
+          "zidwell_store_data",
+          JSON.stringify(profile.store)
+        );
+        localStorage.setItem(
+          "zidwell_store_timestamp",
+          Date.now().toString()
+        );
         console.log("💾 Store data cached on login:", profile.store.slug);
       }
     } catch (error) {
@@ -165,7 +180,7 @@ const LoginForm = () => {
       const data = await response.json();
 
       if (response.ok) {
-        await Swal.fire({
+        await safeSwalFire({
           icon: "success",
           title: "Verification Email Sent!",
           text: "Please check your inbox and spam folder.",
@@ -176,7 +191,7 @@ const LoginForm = () => {
         throw new Error(data.error || "Failed to resend verification");
       }
     } catch (error: any) {
-      await Swal.fire({
+      await safeSwalFire({
         icon: "error",
         title: "Failed to Resend",
         text: error.message || "Please try again later.",
@@ -206,7 +221,8 @@ const LoginForm = () => {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      Swal.fire({
+      // ✅ Use safeSwalFire — do NOT chain .catch() directly on Swal.fire
+      safeSwalFire({
         title: "Signing in...",
         text: "Please wait while we verify your credentials",
         allowOutsideClick: false,
@@ -228,10 +244,14 @@ const LoginForm = () => {
       const result = await res.json();
 
       if (!res.ok) {
-        // ✅ Check if user doesn't exist
-        if (res.status === 404 || result.error?.toLowerCase().includes("not found") || result.userNotFound) {
+        // ✅ Handle 404 / user not found
+        if (
+          res.status === 404 ||
+          result.error?.toLowerCase().includes("not found") ||
+          result.userNotFound
+        ) {
           Swal.close();
-          const { value: action } = await Swal.fire({
+          const { value: action } = await safeSwalFire({
             icon: "info",
             title: "Account Not Found",
             html: `
@@ -259,11 +279,11 @@ const LoginForm = () => {
         throw new Error(result.error || "Invalid email or password");
       }
 
-      // ─── HANDLE UNVERIFIED EMAIL ───
+      // ─── UNVERIFIED EMAIL ───
       if (result.requiresVerification) {
         Swal.close();
-        
-        const { value: action } = await Swal.fire({
+
+        const { value: action } = await safeSwalFire({
           icon: "warning",
           title: "Email Not Verified",
           html: `
@@ -293,17 +313,17 @@ const LoginForm = () => {
         return;
       }
 
-      // ─── HANDLE BLOCKED LOGIN ───
+      // ─── BLOCKED LOGIN ───
       if (result.blocked) {
         Swal.close();
-        await Swal.fire({
+        await safeSwalFire({
           icon: "warning",
           title: "Login Blocked",
           html: `
             <div style="text-align: left;">
               <p>This login was blocked due to unusual activity:</p>
               <ul style="margin-top: 10px;">
-                ${result.reasons?.map((r: string) => `<li>${r}</li>`).join('') || ''}
+                ${result.reasons?.map((r: string) => `<li>${r}</li>`).join("") || ""}
               </ul>
               <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
                 If this was you, please try again from a trusted device or contact support.
@@ -317,10 +337,9 @@ const LoginForm = () => {
         return;
       }
 
-      const { profile, isVerified, sessionEstablished } = result;
+      const { profile, isVerified } = result;
       if (!profile) throw new Error("User profile not found.");
 
-      // ✅ Save user data with store to localStorage
       saveUserDataToLocalStorage(profile);
 
       setUserData(profile);
@@ -344,7 +363,7 @@ const LoginForm = () => {
 
       // ─── SUSPICIOUS LOGIN WARNING ───
       if (result.security?.isSuspicious) {
-        await Swal.fire({
+        await safeSwalFire({
           icon: "warning",
           title: "Unusual Login Detected",
           text: `Login from ${result.security.location?.city || "unknown location"}, ${result.security.location?.country || ""}. A security alert has been sent to your email.`,
@@ -354,11 +373,6 @@ const LoginForm = () => {
           timer: 5000,
           timerProgressBar: true,
         });
-      }
-
-      // ─── CONCURRENT SESSION NOTICE ───
-      if (result.concurrentSessionInvalidated) {
-        console.log("Previous device session was invalidated");
       }
 
       await new Promise((resolve) => setTimeout(resolve, 300));
@@ -374,9 +388,10 @@ const LoginForm = () => {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
 
-      // ─── BACKGROUND TASKS ───
-      Promise.allSettled([
-        (async () => {
+      // ─── BACKGROUND TASKS (fire and forget, never reject) ───
+      // ✅ Wrapped in try/catch instead of .catch() chains.
+      void (async () => {
+        try {
           await fetch("/api/activity/last-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -384,16 +399,20 @@ const LoginForm = () => {
               user_id: profile.id,
               email: profile.email,
             }),
-          }).catch(console.error);
-        })(),
-        (async () => {
-          if (process.env.NODE_ENV === "production") {
-            await sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-              console.error("Failed to send login notification:", err),
-            );
-          }
-        })(),
-      ]).catch((err) => console.error("Background operations failed:", err));
+          });
+        } catch (err) {
+          console.error("last-login ping failed:", err);
+        }
+      })();
+
+      void (async () => {
+        if (process.env.NODE_ENV !== "production") return;
+        try {
+          await sendLoginNotificationWithDeviceInfo(profile);
+        } catch (err) {
+          console.error("Failed to send login notification:", err);
+        }
+      })();
 
       // ─── NAVIGATE ───
       if (process.env.NODE_ENV === "production") {
@@ -403,8 +422,10 @@ const LoginForm = () => {
       }
 
       // ─── WELCOME BACK TOAST ───
+      // ✅ No .catch() here — see comment in safeSwalFire.
+      // Errors are already caught by the outer try/catch.
       setTimeout(() => {
-        Swal.fire({
+        safeSwalFire({
           icon: "success",
           title: "Welcome Back!",
           text: `Hello, ${profile.fullName || profile.email?.split("@")[0] || "User"}`,
@@ -413,7 +434,7 @@ const LoginForm = () => {
           showConfirmButton: false,
           timer: 2000,
           timerProgressBar: true,
-        }).catch(() => {});
+        });
       }, 100);
     } catch (err: any) {
       clearTimeout(timeoutId);
@@ -423,12 +444,13 @@ const LoginForm = () => {
         "Invalid email or password. Please check your credentials and try again.";
 
       if (err.name === "AbortError") {
-        errorMessage = "Request timed out. Please check your internet connection and try again.";
+        errorMessage =
+          "Request timed out. Please check your internet connection and try again.";
       } else if (err.message) {
         errorMessage = err.message;
       }
 
-      await Swal.fire({
+      await safeSwalFire({
         icon: "error",
         title: "Login Failed",
         text: errorMessage,

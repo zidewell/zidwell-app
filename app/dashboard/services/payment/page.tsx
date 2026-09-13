@@ -591,34 +591,26 @@ export default function PaymentPage() {
     };
   }, [filteredPages]);
 
-  // Loading state — keep the shell visible so the nav stays sticky
+  // ─── LOADING ───
+  // No shell — a plain fullscreen loader avoids sidebar flash.
   if (isLoading || !initialLoadComplete || !dataReady) {
     return (
-      <ZidwellShell>
-        <div className="flex flex-col items-center justify-center gap-4 py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-(--color-accent-yellow)" />
-          <p className="text-muted-foreground">Loading your store...</p>
-        </div>
-      </ZidwellShell>
+      <div className="flex flex-col items-center justify-center gap-4 min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-(--color-accent-yellow)" />
+        <p className="text-muted-foreground">Loading your store...</p>
+      </div>
     );
   }
 
-  // No store
+  // ─── ONBOARDING ───
+  // Fullscreen wizard. No ZidwellShell wrapper.
   if (!hasStore && !store) {
-    return (
-      <ZidwellShell>
-        <CreateStoreForm />
-      </ZidwellShell>
-    );
+    return <CreateStoreForm />;
   }
 
-  // Pending activation
+  // ─── ONBOARDING (pending activation) ───
   if (hasPendingActivation) {
-    return (
-      <ZidwellShell>
-        <CreateStoreForm />
-      </ZidwellShell>
-    );
+    return <CreateStoreForm />;
   }
 
   const isEmpty = filteredPages.length === 0;

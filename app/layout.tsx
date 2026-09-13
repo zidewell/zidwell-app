@@ -4,14 +4,12 @@ import { Space_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
-import { SessionRestore } from "./components/SessionRestore";
 import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import { InstallPrompt } from "./components/PushNotificationManager";
 import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
-import AuthChecker from "./components/AuthChecker";
 import { StoreProvider } from "./hooks/useStore";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { ThemeWrapper } from "./components/ThemeWrapper";
@@ -190,9 +188,9 @@ export default function RootLayout({
           <ThemeWrapper>
             <UserProvider>
                 <BlogProvider>
-              <SessionRestore>
+             
                 <SessionWatcher>
-                  <AuthChecker>
+               
                     <VerificationModalProvider>
                       <StoreProvider>
                         {children}
@@ -204,9 +202,9 @@ export default function RootLayout({
                         {/* <NotificationToast /> */}
                       </StoreProvider>
                     </VerificationModalProvider>
-                  </AuthChecker>
+                
                 </SessionWatcher>
-              </SessionRestore>
+            
               </BlogProvider>
             </UserProvider>
           </ThemeWrapper>

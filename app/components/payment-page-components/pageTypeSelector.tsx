@@ -141,10 +141,10 @@ const PageTypeSelector = ({ onSelect }: Props) => {
             <li>The page title = account name of the attached account</li>
             <li>Don't randomly create payment pages</li>
             <li>Inactive payment pages will be deleted after 30 days</li>
-            <li>
+            {/* <li>
               Only verified businesses with an RC Number can create payment
               pages
-            </li>
+            </li> */}
             <li>
               We charge a 3% fee on every payment — set your prices accordingly
             </li>

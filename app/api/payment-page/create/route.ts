@@ -8,6 +8,122 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// ─── Slugs reserved by app infrastructure ───
+// A payment page slug lives at /store/[storeSlug]/[pageSlug], so it
+// only collides with OTHER payment pages — not with store slugs.
+// Still, we reserve a few critical words for defense in depth.
+const RESERVED_PAGE_SLUGS = new Set([
+  "api",
+  "admin",
+  "auth",
+  "dashboard",
+  "new",
+  "create",
+  "edit",
+  "delete",
+  "manage",
+  "link",
+  "settings",
+  "profile",
+  "account",
+  "login",
+  "signup",
+  "register",
+  "checkout",
+  "cart",
+  "order",
+  "orders",
+  "zidwell",
+  "official",
+  "system",
+  "root",
+]);
+
+const MIN_SLUG_LENGTH = 3;
+const MAX_SLUG_LENGTH = 50;
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+
+// ─── Slug cleanup — mirrors client-side slugify ───
+function cleanSlug(raw: string): string {
+  return raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/\s/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+// ============================================================
+// SLUG VALIDATION
+// Returns null if valid, or an error message string if invalid.
+// ============================================================
+async function validateSlugOrFail(
+  rawSlug: string,
+  userId: string
+): Promise<string | null> {
+  const slug = cleanSlug(rawSlug);
+
+  if (slug.length < MIN_SLUG_LENGTH) {
+    return `URL must be at least ${MIN_SLUG_LENGTH} characters`;
+  }
+
+  if (slug.length > MAX_SLUG_LENGTH) {
+    return `URL is too long. Maximum ${MAX_SLUG_LENGTH} characters.`;
+  }
+
+  if (!SLUG_REGEX.test(slug)) {
+    return "URL must start and end with a letter or number, and contain only lowercase letters, numbers, and hyphens.";
+  }
+
+  if (RESERVED_PAGE_SLUGS.has(slug)) {
+    return `"${slug}" is reserved by Zidwell. Please choose a different URL.`;
+  }
+
+  // ─── UNIQUENESS CHECK ───
+  // Payment pages are unique by slug globally (they share the same
+  // /store/[slug] URL namespace as their parent store's slug segment).
+  const { data: existingPage, error: slugCheckError } = await supabase
+    .from("payment_pages")
+    .select("id, user_id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (slugCheckError && slugCheckError.code !== "PGRST116") {
+    console.error("Slug uniqueness check failed:", slugCheckError);
+    return "Failed to validate URL. Please try again.";
+  }
+
+  if (existingPage) {
+    // If it's the same user's page, that's still a collision —
+    // they can't have two pages with the same slug.
+    if (existingPage.user_id === userId) {
+      return "You already have a payment page with this URL. Please choose a different one.";
+    }
+    return "This URL is already taken. Please choose a different one.";
+  }
+
+  // Also check online_stores slug — defense in depth.
+  // A store named "premium-plan" would collide with a page named
+  // "premium-plan" at /store/premium-plan in the URL path.
+  const { data: existingStore, error: storeCheckError } = await supabase
+    .from("online_stores")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (storeCheckError && storeCheckError.code !== "PGRST116") {
+    console.error("Store slug check failed:", storeCheckError);
+    return "Failed to validate URL. Please try again.";
+  }
+
+  if (existingStore) {
+    return "This URL is already used by a store. Please choose a different one.";
+  }
+
+  return null; // ✅ valid
+}
+
 // ============================================================
 // IMAGE UPLOAD HELPER
 // ============================================================
@@ -145,6 +261,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // ─── ✅ SERVER-SIDE SLUG VALIDATION ───
+    // Never trust the client. The frontend validator is UX only.
+    const cleanedSlug = cleanSlug(slug);
+    const slugError = await validateSlugOrFail(cleanedSlug, user.id);
+
+    if (slugError) {
+      console.warn(`❌ Slug validation failed: "${slug}" → ${slugError}`);
+      return NextResponse.json({ error: slugError }, { status: 409 });
+    }
+
     // ─── UPLOAD IMAGES ───
     let uploadedCoverImage = null;
     if (coverImage) {
@@ -158,7 +284,10 @@ export async function POST(request: Request) {
     let uploadedLogo = null;
     if (logo && logo.startsWith("data:image")) {
       uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
-    } else if (logo && (logo.startsWith("http://") || logo.startsWith("https://"))) {
+    } else if (
+      logo &&
+      (logo.startsWith("http://") || logo.startsWith("https://"))
+    ) {
       uploadedLogo = logo;
     }
 
@@ -201,7 +330,10 @@ export async function POST(request: Request) {
 
     // ─── DETERMINE FINAL PRICE TYPE ───
     let finalPriceType = priceType;
-    if (pageType === "link" && metadata?.linkConfig?.amountMode === "variable") {
+    if (
+      pageType === "link" &&
+      metadata?.linkConfig?.amountMode === "variable"
+    ) {
       finalPriceType = "open";
     }
     if (pageType === "donation") {
@@ -240,7 +372,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: user.id,
         title,
-        slug,
+        slug: cleanedSlug, // ✅ use the cleaned slug
         description: description || "",
         cover_image: uploadedCoverImage,
         logo: uploadedLogo,
@@ -264,6 +396,25 @@ export async function POST(request: Request) {
 
     if (pageError) {
       console.error("❌ Error creating page:", pageError);
+
+      // ─── HANDLE POSTGRES UNIQUE VIOLATION ───
+      // Even with our pre-check, a concurrent request could have
+      // grabbed the slug. Catch the DB error and return a friendly
+      // 409 instead of a raw 500.
+      if (
+        pageError.code === "23505" ||
+        pageError.message?.includes("duplicate key") ||
+        pageError.message?.includes("unique constraint")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "This URL was just taken. Please choose a different one and try again.",
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json({ error: pageError.message }, { status: 500 });
     }
 

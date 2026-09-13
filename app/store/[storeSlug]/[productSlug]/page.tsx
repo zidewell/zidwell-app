@@ -1,8 +1,25 @@
 // app/store/[storeSlug]/[productSlug]/page.tsx
+// ─────────────────────────────────────────────────────────────────────────────
+// SEO:
+//   • generateProductMetadata()  → title with price, OG image, product:price tags
+//   • generateProductSchema()    → JSON-LD Product / Service / DigitalDocument / FinancialProduct
+//   • generateBreadcrumbSchema() → Home > Store > Product breadcrumbs
+//   • ISR (revalidate = 60)
+//   • Slug sanitization
+//   • Public paid-students map for school pages
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import StoreProductClient from "./client";
+import {
+  generateProductMetadata,
+  generateProductSchema,
+  generateBreadcrumbSchema,
+} from "@/lib/seo";
+
+export const revalidate = 60;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,20 +30,48 @@ interface StoreProductPageProps {
   params: Promise<{ storeSlug: string; productSlug: string }>;
 }
 
+function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{0,100}$/i.test(slug);
+}
+
+// ─── SEO: Dynamic metadata ───
 export async function generateMetadata({ params }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
-
-  const { data: product } = await supabase
-    .from("payment_pages")
-    .select("title, description, product_images")
-    .eq("slug", productSlug)
-    .eq("is_published", true)
-    .maybeSingle();
-
-  if (!product) {
+  if (!isValidSlug(storeSlug) || !isValidSlug(productSlug)) {
     return {
       title: "Product Not Found",
-      description: "This product does not exist or is not available.",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const [storeRes, productRes] = await Promise.all([
+    supabase
+      .from("online_stores")
+      .select("name, slug, is_active, activation_paid")
+      .eq("slug", storeSlug)
+      .maybeSingle(),
+    supabase
+      .from("payment_pages")
+      .select(
+        "title, description, product_images, cover_image, price, price_type, slug, page_type"
+      )
+      .eq("slug", productSlug)
+      .eq("is_published", true)
+      .maybeSingle(),
+  ]);
+
+  const store = storeRes.data;
+  const product = productRes.data;
+
+  if (
+    !store ||
+    !product ||
+    store.is_active !== true ||
+    store.activation_paid !== true
+  ) {
+    return {
+      title: "Product Not Found",
+      robots: { index: false, follow: false },
     };
   }
 
@@ -35,7 +80,7 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     if (typeof product.product_images === "string") {
       try {
         images = JSON.parse(product.product_images);
-      } catch (e) {
+      } catch {
         images = [];
       }
     } else if (Array.isArray(product.product_images)) {
@@ -43,30 +88,26 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     }
   }
 
-  const imageUrl = images.length > 0 ? images[0] : null;
-
-  return {
-    title: `${product.title} | Store`,
-    description:
-      product.description?.replace(/<[^>]*>/g, "") ||
-      `Buy ${product.title} on Zidwell.`,
-    openGraph: {
-      title: `${product.title} | Store`,
-      description:
-        product.description?.replace(/<[^>]*>/g, "") ||
-        `Buy ${product.title} on Zidwell.`,
-      url: `https://zidwell.com/store/${storeSlug}/${productSlug}`,
-      siteName: "Zidwell",
-      type: "website",
-      images: imageUrl ? [{ url: imageUrl }] : [],
-    },
-  };
+  return generateProductMetadata({
+    title: product.title,
+    slug: product.slug,
+    description: product.description,
+    price: Number(product.price) || 0,
+    productImages: images,
+    coverImage: product.cover_image,
+    storeName: store.name,
+    storeSlug: store.slug,
+  });
 }
 
 export default async function StoreProductPage({
   params,
 }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
+
+  if (!isValidSlug(storeSlug) || !isValidSlug(productSlug)) {
+    notFound();
+  }
 
   const { data: store, error: storeError } = await supabase
     .from("online_stores")
@@ -139,9 +180,6 @@ export default async function StoreProductPage({
   }
 
   // ─── Public paid-students map for school pages ───
-  // Aggregates ALL completed payments on this page — no buyer filter.
-  // Every visitor sees the same map, which is what makes the "paid"
-  // green markers appear regardless of who is looking.
   let initialPaidStudents: Record<string, number> = {};
 
   if (page.page_type === "school") {
@@ -168,7 +206,6 @@ export default async function StoreProductPage({
           }
         }
       } else if (typeof rawSelected === "string" && rawSelected.length > 0) {
-        // Handle both JSON-encoded arrays and plain strings.
         try {
           const parsed = JSON.parse(rawSelected);
           if (Array.isArray(parsed)) {
@@ -235,19 +272,56 @@ export default async function StoreProductPage({
     updatedAt: page.updated_at || null,
   };
 
+  // ─── SEO: Determine stock status ───
+  const stockValue = parsedMetadata?.stock;
+  const inStock = stockValue == null ? true : Number(stockValue) > 0;
+
+  // ─── SEO: JSON-LD schemas ───
+  const productSchema = generateProductSchema({
+    title: page.title,
+    slug: page.slug,
+    description: page.description,
+    price: Number(page.price) || 0,
+    priceType: page.price_type,
+    productImages: productImages,
+    coverImage: coverImage,
+    storeName: storeData.name,
+    storeSlug: storeData.slug,
+    inStock,
+    pageType: page.page_type,
+  });
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: "Home", item: "/" },
+    { name: storeData.name, item: `/store/${storeData.slug}` },
+    { name: page.title, item: `/store/${storeData.slug}/${page.slug}` },
+  ]);
+
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FDC020]" />
-        </div>
-      }
-    >
-      <StoreProductClient
-        page={cleanPage}
-        store={storeData}
-        initialPaidStudents={initialPaidStudents}
+    <>
+      {/* ─── SEO: JSON-LD structured data ─── */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
       />
-    </Suspense>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#FDC020]" />
+          </div>
+        }
+      >
+        <StoreProductClient
+          page={cleanPage}
+          store={storeData}
+          initialPaidStudents={initialPaidStudents}
+        />
+      </Suspense>
+    </>
   );
 }

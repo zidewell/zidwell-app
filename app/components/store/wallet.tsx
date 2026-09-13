@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WithdrawalModal } from "./WithdrawalModal";
+import { useRouter } from "next/navigation";
 
 interface WalletResponse {
   available_balance: number;
@@ -36,7 +37,7 @@ export function StoreWallet() {
   const [walletLoading, setWalletLoading] = useState(true);
 
   const isVerified = userData?.bvnVerification === "verified";
-
+const router = useRouter()
   // ─── FETCH WALLET ───
   const fetchWallet = useCallback(async () => {
     if (!userData?.id) {
@@ -231,7 +232,7 @@ const handleWithdrawConfirm = async (amount: number) => {
                 Withdraw Funds
               </button>
             )}
-            <button className="rounded-2xl border border-background/20 px-6 py-3 text-sm font-bold hover:bg-background/10 transition-colors">
+            <button onClick={() => router.push("/store/transactions")} className="rounded-2xl border border-background/20 px-6 py-3 text-sm font-bold hover:bg-background/10 transition-colors">
               Transaction History
             </button>
           </div>

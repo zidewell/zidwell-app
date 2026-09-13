@@ -1,4 +1,3 @@
-// app/components/subscription-components/UpgradeBanner.tsx
 "use client";
 
 import { Sparkles, Zap, X } from "lucide-react";
@@ -40,7 +39,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
   }
 
   const handleUpgrade = () => {
-    router.push("/pricing?upgrade=solopreneur");
+    router.push("/#pricing");
   };
 
   const handleDismiss = () => {
@@ -64,13 +63,6 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
               whileHover={{ scale: 1.01 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             >
-              <div className="absolute inset-0 bg-linear-to-r from-(--color-accent-yellow) via-[#3a9b6e] to-(--color-accent-yellow) bg-size-[200%_100%] animate-gradient-x opacity-10 dark:opacity-20" />
-
-              <div className="absolute inset-0 bg-linear-to-br from-(--color-accent-yellow)/5 via-transparent to-(--color-accent-yellow)/10 dark:from-(--color-accent-yellow)/20 dark:via-transparent dark:to-(--color-accent-yellow)/30" />
-
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-(--color-accent-yellow)/20 rounded-full blur-3xl animate-pulse" />
-              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-(--color-accent-yellow)/10 rounded-full blur-3xl animate-pulse delay-1000" />
-
               <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-4 py-3 sm:px-6">
                 <div className="flex items-center gap-3">
                   <motion.div
@@ -82,25 +74,25 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       ease: "easeInOut",
                     }}
                   >
-                    <div className="h-8 w-8 rounded-xl bg-linear-to-br from-(--color-accent-yellow) to-[#1e5f43] flex items-center justify-center shadow-lg shadow-(--color-accent-yellow)/30">
-                      <Sparkles className="h-4 w-4 text-white" />
+                    <div className="h-8 w-8 rounded-xl bg-(--color-accent-yellow) flex items-center justify-center shadow-lg shadow-(--color-accent-yellow)/30">
+                      <Sparkles className="h-4 w-4 text-black dark:text-white" />
                     </div>
                   </motion.div>
 
                   <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <h4 className="text-sm sm:text-base font-bold text-gray-900 dark:text-gray-50 flex items-center gap-2">
+                      <h4 className="text-sm sm:text-base font-bold text-black dark:text-white flex items-center gap-2">
                         You're on the Free Plan
                         <motion.span
-                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) text-[10px] font-semibold"
+                          className="inline-flex items-center px-2 py-0.5 rounded-full bg-(--color-accent-yellow)/10 text-black dark:text-white text-[10px] font-semibold"
                           animate={{ opacity: [0.7, 1, 0.7] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         >
                           Upgrade Available
                         </motion.span>
                       </h4>
-                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        Upgrade to Solopreneur to get 10 invoices, unlimited receipts, branded invoices, and better expense tracking.
+                      <p className="text-xs sm:text-sm text-black dark:text-white">
+                        Upgrade to SME to unlock unlimited invoices & receipts, bank statement uploads, tax calculator, financial statements, and more.
                       </p>
                     </div>
 
@@ -111,9 +103,9 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
                       <Button
                         onClick={handleUpgrade}
                         size="sm"
-                        className="bg-linear-to-r from-(--color-accent-yellow) to-[#1e5f43] hover:from-[#1e5f43] hover:to-(--color-accent-yellow) text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-(--color-accent-yellow)/30 border border-(--color-accent-yellow)/50"
+                        className="bg-(--color-accent-yellow) hover:bg-[#1e5f43] text-black dark:text-white h-8 sm:h-9 text-xs sm:text-sm whitespace-nowrap shadow-lg shadow-(--color-accent-yellow)/30 border border-(--color-accent-yellow)/50"
                       >
-                        Upgrade to Solopreneur
+                        Upgrade to SME
                         <Zap className="h-3 w-3 sm:h-4 sm:w-4 ml-1.5" />
                       </Button>
                     </motion.div>
@@ -121,7 +113,7 @@ export function UpgradeBanner({ className = "" }: UpgradeBannerProps) {
 
                   <motion.button
                     onClick={handleDismiss}
-                    className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-1.5 transition-colors"
+                    className="shrink-0 text-black dark:text-white bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full p-1.5 transition-colors"
                     aria-label="Dismiss"
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}

@@ -634,26 +634,21 @@ export default function PaymentDashboardPage() {
       : null;
   const walletReady = !walletLoading && walletBalance !== null;
 
+  // ─── LOADING ───
+  // No shell — a plain fullscreen loader avoids sidebar flash.
   if (isLoading || loading || !isStoreCheckComplete) {
     return <Loader />;
   }
 
+  // ─── ONBOARDING ───
+  // Fullscreen wizard. No ZidwellShell wrapper.
   if (!hasStore || hasPendingActivation) {
-    return (
-      <ZidwellShell>
-        <CreateStoreForm />
-      </ZidwellShell>
-    );
+    return <CreateStoreForm />;
   }
 
+  // ─── DATA LOADING (store exists) ───
   if (!dataReady || !initialLoadComplete) {
-    return (
-      <ZidwellShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader />
-        </div>
-      </ZidwellShell>
-    );
+    return <Loader />;
   }
 
   const isEmpty = filteredPages.length === 0;

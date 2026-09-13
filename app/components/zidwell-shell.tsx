@@ -22,15 +22,39 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 export const STORE_LINKS = [
   {
     label: "Overview",
-    href: "/dashboard/services/payment/dashboard",
+    href: "/dashboard/payment/dashboard",
     icon: Store,
   },
-  { label: "Products", href: "/store/products", icon: Package },
-  { label: "Store Wallet", href: "/store/wallet", icon: Wallet },
-  { label: "Transactions", href: "/store/transactions", icon: CreditCard },
-  { label: "Customers", href: "/store/customers", icon: Users },
-  { label: "Analytics", href: "/store/analytics", icon: BarChart3 },
-  { label: "Bookkeeping", href: "/store/bookkeeping", icon: BookOpen },
+  {
+    label: "Products",
+    href: "/dashboard/services/payment/store/products",
+    icon: Package,
+  },
+  {
+    label: "Store Wallet",
+    href: "/dashboard/services/payment/store/wallet",
+    icon: Wallet,
+  },
+  {
+    label: "Transactions",
+    href: "/dashboard/services/payment/store/transactions",
+    icon: CreditCard,
+  },
+  {
+    label: "Customers",
+    href: "/dashboard/services/payment/store/customers",
+    icon: Users,
+  },
+  {
+    label: "Analytics",
+    href: "/dashboard/services/payment/store/analytics",
+    icon: BarChart3,
+  },
+  {
+    label: "Bookkeeping",
+    href: "/dashboard/services/payment/store/bookkeeping",
+    icon: BookOpen,
+  },
   { label: "Settings", href: "#", icon: Settings },
 ] as const;
 
@@ -64,7 +88,7 @@ export function StoreNav({ pathname }: { pathname: string }) {
   }, [pathname]);
 
   return (
-    <div className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
+    <div className="sticky top-16 z-40 border-b border-border bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center px-5 sm:px-8">
         {/* Fixed label */}
         <div className="flex shrink-0 items-center gap-2 border-r border-border pr-4">

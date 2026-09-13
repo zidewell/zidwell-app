@@ -1,4 +1,11 @@
 // middleware.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// SIMPLIFIED after migration:
+//   • Owner store tools now live under /dashboard/services/payment/store/*
+//   • Public storefronts are ONLY /store/[slug] and /store/[slug]/[product]
+//   • Middleware matcher captures /dashboard/* — which covers everything owner
+//   • Public storefronts never enter middleware
+// ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
 import { User } from "@supabase/supabase-js";
@@ -8,7 +15,6 @@ import {
   hasSufficientTier,
 } from "@/lib/suabase-admin";
 
-// ─── ✅ TIER HIERARCHY (matches your plans array) ───
 export const TIER_HIERARCHY = [
   "free",
   "sme",
@@ -18,32 +24,26 @@ export const TIER_HIERARCHY = [
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 
-// ─── ROUTE CONFIGURATIONS ───
+// ─── PREMIUM ROUTES ───
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
-  // ─── SME tier and above ───
-  { path: "/dashboard/bookkeeping",          requiredTier: "sme" },
-  { path: "/dashboard/bank-statements",      requiredTier: "sme" },
-  { path: "/dashboard/vault",                requiredTier: "sme" },
-  { path: "/dashboard/tax-calculator",       requiredTier: "sme" },
+  { path: "/dashboard/bookkeeping", requiredTier: "sme" },
+  { path: "/dashboard/bank-statements", requiredTier: "sme" },
+  { path: "/dashboard/vault", requiredTier: "sme" },
+  { path: "/dashboard/tax-calculator", requiredTier: "sme" },
   { path: "/dashboard/financial-statements", requiredTier: "sme" },
-  { path: "/dashboard/connected-accounts",   requiredTier: "sme" },
-
-  // ─── Enterprise tier and above ───
-  { path: "/dashboard/team",                 requiredTier: "enterprise" },
-  { path: "/dashboard/roles",                requiredTier: "enterprise" },
-  { path: "/dashboard/approvals",            requiredTier: "enterprise" },
-  { path: "/dashboard/reports",              requiredTier: "enterprise" },
-  { path: "/dashboard/contracts",            requiredTier: "enterprise" },
-
-  // ─── Corporation tier and above ───
-  { path: "/dashboard/departments",          requiredTier: "corporation" },
-  { path: "/dashboard/payroll",              requiredTier: "corporation" },
-  { path: "/dashboard/advanced-reporting",   requiredTier: "corporation" },
-  { path: "/dashboard/custom-structure",     requiredTier: "corporation" },
-  { path: "/dashboard/account-manager",      requiredTier: "corporation" },
+  { path: "/dashboard/connected-accounts", requiredTier: "sme" },
+  { path: "/dashboard/team", requiredTier: "enterprise" },
+  { path: "/dashboard/roles", requiredTier: "enterprise" },
+  { path: "/dashboard/approvals", requiredTier: "enterprise" },
+  { path: "/dashboard/reports", requiredTier: "enterprise" },
+  { path: "/dashboard/contracts", requiredTier: "enterprise" },
+  { path: "/dashboard/departments", requiredTier: "corporation" },
+  { path: "/dashboard/payroll", requiredTier: "corporation" },
+  { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
+  { path: "/dashboard/custom-structure", requiredTier: "corporation" },
+  { path: "/dashboard/account-manager", requiredTier: "corporation" },
 ];
 
-// Legacy route names — keep working during migration
 const legacyPremiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
@@ -62,34 +62,29 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-// ─── OWNER DASHBOARD ROUTES UNDER /store/* ───
+// ─── OWNER STORE ROUTES (now nested under /dashboard/payment/store) ───
 const storeProtectedRoutes = [
-  "/dashboard/services/payment/dashboard",
-  "/dashboard/services/payment/create",
-  "/dashboard/services/payment/create-link",
-  "/dashboard/services/payment/edit",
-  "/dashboard/services/payment/page",
-  "/dashboard/services/payment/settings",
-  "/dashboard/services/payment/analytics",
-  "/dashboard/services/payment/transactions",
-  "/store/products",
-  "/store/wallet",
-  "/store/transactions",
-  "/store/customers",
-  "/store/analytics",
-  "/store/settings",
+  "/dashboard/payment/dashboard",
+  "/dashboard/payment/create",
+  "/dashboard/payment/create-link",
+  "/dashboard/payment/edit",
+  "/dashboard/payment/page",
+  "/dashboard/payment/store",
+  // Specific sub-paths for clarity
+  "/dashboard/services/payment/store/products",
+  "/dashboard/services/payment/store/wallet",
+  "/dashboard/services/payment/store/transactions",
+  "/dashboard/services/payment/store/customers",
+  "/dashboard/services/payment/store/analytics",
+  "/dashboard/services/payment/store/bookkeeping",
+  "/dashboard/services/payment/store/settings",
 ];
 
-// ─── RESERVED STORE SLUGS ───
-const RESERVED_STORE_SLUGS = new Set([
-  "products",
-  "wallet",
-  "transactions",
-  "customers",
-  "analytics",
-  "settings",
-  "link",
-]);
+// ─── PUBLIC STOREFRONT PATTERNS ───
+// Only /store/[slug] and /store/[slug]/[product] are public.
+// We keep RESERVED_STORE_SLUGS for the "link" pattern:
+// /store/[slug]/link/[linkSlug] — that path is NOT public.
+const RESERVED_STORE_SLUGS = new Set<string>(["link"]);
 
 const allowedAdminRoles = [
   "super_admin",
@@ -127,7 +122,6 @@ export const ALLOWED_PAYMENT_EMAILS = new Set([
   "verifiedaboki@gmail.com",
 ]);
 
-// ─── FAST ROUTE MATCHING ───
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
 const storeProtectedSet = new Set(storeProtectedRoutes);
 
@@ -150,10 +144,10 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
 
 function requiresPaymentEmailRestriction(pathname: string): boolean {
   return (
-    pathname === "/dashboard/services/payment" ||
-    pathname === "/dashboard/services/payment/dashboard" ||
-    pathname === "/dashboard/services/payment/create" ||
-    pathname === "/dashboard/services/payment/create-link"
+    pathname === "/dashboard/payment" ||
+    pathname === "/dashboard/payment/dashboard" ||
+    pathname === "/dashboard/payment/create" ||
+    pathname === "/dashboard/payment/create-link"
   );
 }
 
@@ -172,7 +166,7 @@ function requiresStoreOwnership(pathname: string): boolean {
 
 // ─── PUBLIC STOREFRONT DETECTION ───
 function isPublicStoreFront(pathname: string): boolean {
-  // ─── /store/[storeSlug] ───
+  // /store/[slug]
   const singleMatch = pathname.match(/^\/store\/([^\/]+)$/);
   if (singleMatch) {
     const slug = singleMatch[1].toLowerCase();
@@ -180,19 +174,17 @@ function isPublicStoreFront(pathname: string): boolean {
     return true;
   }
 
-  // ─── /store/[storeSlug]/[productSlug] ───
+  // /store/[slug]/[product]
   const doubleMatch = pathname.match(/^\/store\/([^\/]+)\/([^\/]+)$/);
   if (doubleMatch) {
     const storeSlug = doubleMatch[1].toLowerCase();
     const productSlug = doubleMatch[2].toLowerCase();
-
     if (productSlug === "link") return false;
     if (RESERVED_STORE_SLUGS.has(storeSlug)) return false;
-
     return true;
   }
 
-  // ─── /store/[storeSlug]/link/[linkSlug] ───
+  // /store/[slug]/link/[linkSlug] — public
   if (/^\/store\/[^\/]+\/link\/[^\/]+$/.test(pathname)) return true;
 
   return false;
@@ -206,8 +198,17 @@ function isPublicPaymentPage(pathname: string): boolean {
   return false;
 }
 
+function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{0,100}$/i.test(slug);
+}
+
+function areStoreFrontSlugsValid(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts.slice(1).every((p) => isValidSlug(p));
+}
+
 function shouldBypassAuth(pathname: string): boolean {
-  // Static files
   if (
     pathname.match(
       /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/
@@ -216,7 +217,6 @@ function shouldBypassAuth(pathname: string): boolean {
     return true;
   }
 
-  // Static public pages
   if (
     publicPaths.some(
       (path) => pathname === path || pathname.startsWith(path + "/")
@@ -225,17 +225,13 @@ function shouldBypassAuth(pathname: string): boolean {
     return true;
   }
 
-  // Public storefront (no auth)
   if (isPublicStoreFront(pathname)) return true;
-
-  // Public payment pages (no auth)
   if (isPublicPaymentPage(pathname)) return true;
 
   return false;
 }
 
 // ─── TYPE GUARDS ───
-
 type TokenValidationResult = User | { error: "expired" } | null;
 
 async function validateTokenAndGetUser(
@@ -331,7 +327,7 @@ function redirectFromPaymentPage(req: NextRequest) {
 function redirectNoStore(req: NextRequest) {
   console.log(`🚫 No store found for user accessing ${req.nextUrl.pathname}`);
   const response = NextResponse.redirect(
-    new URL("/dashboard/services/payment", req.url)
+    new URL("/dashboard/payment", req.url)
   );
   response.cookies.set(
     "store_required",
@@ -370,19 +366,21 @@ export async function middleware(req: NextRequest) {
   const startTime = Date.now();
   const currentPath = req.nextUrl.pathname;
 
-  // 1. Public storefront — no auth
+  // Public storefront — bypass ALL auth work
   if (isPublicStoreFront(currentPath)) {
-    console.log(`🌐 Public store front: ${currentPath} - no auth required`);
+    if (!areStoreFrontSlugsValid(currentPath)) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    console.log(`🌐 Public storefront bypass: ${currentPath}`);
     return NextResponse.next();
   }
 
-  // 2. Other public paths
   if (shouldBypassAuth(currentPath)) {
-    console.log(`✅ Public path: ${currentPath} - bypassing auth`);
+    console.log(`✅ Public path bypass: ${currentPath}`);
     return NextResponse.next();
   }
 
-  // 3. Payment page email restriction
+  // ─── PAYMENT PAGE EMAIL RESTRICTION ───
   if (requiresPaymentEmailRestriction(currentPath)) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
     let accessToken = req.cookies.get("sb-access-token")?.value;
@@ -411,7 +409,7 @@ export async function middleware(req: NextRequest) {
     console.log(`✅ Payment page access granted for: ${userEmail}`);
   }
 
-  // 4. Post-payment access
+  // ─── POST-PAYMENT ACCESS ───
   if (
     currentPath.startsWith("/dashboard") &&
     req.cookies.get("payment_processed")
@@ -422,7 +420,6 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // 5. /app redirect
   if (currentPath === "/app") {
     return NextResponse.redirect(new URL("/", req.url));
   }
@@ -436,19 +433,15 @@ export async function middleware(req: NextRequest) {
   const loginTime = req.cookies.get("sb-login-time")?.value;
   const sessionIdCookie = req.cookies.get("sb-session-id")?.value;
 
-  // ─── CLIENT SESSION BYPASS (5s grace) ───
   if (clientSession === "true" && !accessToken && !refreshToken) {
     if (loginTime && Date.now() - parseInt(loginTime) < 5000) {
-      console.log(
-        "🟢 Recent login detected (within 5s), allowing temporary access"
-      );
+      console.log("🟢 Recent login detected (within 5s), allowing access");
       return NextResponse.next();
     }
     console.log("❌ Invalid session state - redirecting to login");
     return redirectToLogin(req);
   }
 
-  // ─── NO TOKENS ───
   if (!accessToken && !refreshToken) {
     console.log("❌ No tokens found, redirecting to login");
     return redirectToLogin(req);
@@ -492,7 +485,7 @@ export async function middleware(req: NextRequest) {
 
   if (!accessToken) return redirectToLogin(req);
 
-  // ─── VALIDATE TOKEN (with timeout) ───
+  // ─── VALIDATE TOKEN ───
   const tokenValidationPromise = validateTokenAndGetUser(accessToken);
   const tokenTimeoutPromise = new Promise<null>((resolve) =>
     setTimeout(() => resolve(null), 8000)
@@ -515,7 +508,7 @@ export async function middleware(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // ─── GET USER DETAILS (with timeout) ───
+  // ─── USER DETAILS ───
   const userDetailsPromise = getUserWithDetails(tokenResult.id);
   const userTimeoutPromise = new Promise<null>((resolve) =>
     setTimeout(() => resolve(null), 8000)
@@ -530,7 +523,6 @@ export async function middleware(req: NextRequest) {
     return refreshedResponse || NextResponse.next();
   }
 
-  // ─── BLOCKED USER ───
   if (userDetails.is_blocked) {
     console.log("🚫 User is blocked");
     const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
@@ -538,7 +530,7 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // ─── SESSION VALIDATION ───
+  // ─── SESSION ID MATCH ───
   const sessionPromise = getSupabaseAdmin()
     .from("users")
     .select("current_session_id, current_session_expires_at")
@@ -559,9 +551,7 @@ export async function middleware(req: NextRequest) {
       | null;
 
     if (dbSessionId && !sessionIdCookie) {
-      console.log(
-        "❌ Session ID cookie missing - user logged out on another device"
-      );
+      console.log("❌ Session ID cookie missing");
       return redirectToLogin(req, true);
     }
     if (dbSessionId && sessionIdCookie && dbSessionId !== sessionIdCookie) {
@@ -583,26 +573,13 @@ export async function middleware(req: NextRequest) {
       console.log("⏰ Session expired in database");
       return redirectToLogin(req, true);
     }
-  } else {
-    console.log("⏱️ Session validation timed out - allowing access");
   }
 
   // ─── RISK COOKIE ───
   const sessionRisk = req.cookies.get("sb-session-risk")?.value;
   if (sessionRisk && parseInt(sessionRisk) >= 60) {
-    console.log("🚫 High-risk session cookie detected, forcing logout");
+    console.log("🚫 High-risk session cookie, forcing logout");
     return redirectToLogin(req, true);
-  }
-
-  // ─── GEO BLOCKING ───
-  const BLOCKED_COUNTRIES: string[] = [];
-  const geoCountry =
-    req.headers.get("x-vercel-ip-country") || req.headers.get("cf-ipcountry");
-  if (geoCountry && BLOCKED_COUNTRIES.includes(geoCountry)) {
-    console.log(`🚫 Access from blocked country: ${geoCountry}`);
-    return NextResponse.redirect(
-      new URL("/auth/blocked?reason=geo", req.url)
-    );
   }
 
   // ─── STORE OWNERSHIP ───
@@ -628,17 +605,13 @@ export async function middleware(req: NextRequest) {
         return redirectNoStore(req);
       }
       if (!store) {
-        console.log(
-          `🚫 No store found for user ${tokenResult.id} accessing ${currentPath}`
-        );
+        console.log(`🚫 No store found for user ${tokenResult.id}`);
         return redirectNoStore(req);
       }
       const hasActiveStore =
         store.is_active === true && store.activation_paid === true;
       if (!hasActiveStore) {
-        console.log(
-          `🚫 No active store found for user ${tokenResult.id} accessing ${currentPath}`
-        );
+        console.log(`🚫 No active store found for user ${tokenResult.id}`);
         const response = redirectNoStore(req);
         response.cookies.set(
           "store_required_message",
@@ -674,7 +647,7 @@ export async function middleware(req: NextRequest) {
     return response;
   }
 
-  // ─── SUBSCRIPTION TIER CHECK ───
+  // ─── SUBSCRIPTION TIER ───
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier) {
     const hasAccess = hasSufficientTier(userDetails, requiredTier);
@@ -713,6 +686,9 @@ export async function middleware(req: NextRequest) {
   return refreshedResponse || NextResponse.next();
 }
 
+// ─── MATCHER ───
+// Public storefronts (/store/[slug], /store/[slug]/[product]) are NOT in
+// the matcher. Everything owner-side lives under /dashboard/*.
 export const config = {
   matcher: [
     "/app",
@@ -720,7 +696,6 @@ export const config = {
     "/admin/:path*",
     "/blog/admin/:path*",
     "/auth/:path*",
-    "/store/:path*",
     "/pay/:path*",
     "/payment-page/status",
     "/payment/callback",

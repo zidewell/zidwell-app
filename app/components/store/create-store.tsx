@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   MapPin,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -65,6 +67,18 @@ const initialFormData: StoreFormData = {
   longitude: null,
   locationAccuracy: null,
 };
+
+// ─── Slugify — mirrors the server-side cleaning ───
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+}
 
 function inputClass(error?: string) {
   return cn(
@@ -244,7 +258,7 @@ function CongratulationsModal({
         <div className="mt-5 sm:mt-6 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color) text-left space-y-2">
           {[
             "Your store is now publicly visible",
-            "You can now accept card payments",
+            "You can now accept payments",
             "Your business wallet is ready to receive funds",
             "Create unlimited payment pages & products",
           ].map((t) => (
@@ -306,11 +320,59 @@ export function CreateStoreForm() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
+  // ─── ✅ Name validation state ───
+  const [nameValidation, setNameValidation] = useState<{
+    isValid: boolean;
+    isChecking: boolean;
+    message: string;
+    isTaken: boolean;
+    isReserved: boolean;
+    isOwnStore: boolean;
+    hasChecked: boolean;
+  }>({
+    isValid: true,
+    isChecking: false,
+    message: "",
+    isTaken: false,
+    isReserved: false,
+    isOwnStore: false,
+    hasChecked: false,
+  });
+
+  // ─── ✅ Slug validation state ───
+  const [slugValidation, setSlugValidation] = useState<{
+    isValid: boolean;
+    isChecking: boolean;
+    message: string;
+    isTaken: boolean;
+    isReserved: boolean;
+    isOwnStore: boolean;
+    hasChecked: boolean;
+  }>({
+    isValid: true,
+    isChecking: false,
+    message: "",
+    isTaken: false,
+    isReserved: false,
+    isOwnStore: false,
+    hasChecked: false,
+  });
+
   // Guards to prevent duplicate API calls
   const draftFetchStartedRef = useRef(false);
   const autoLoadDoneRef = useRef(false);
-  // ✅ Autosave debounce timer
+  // Autosave debounce timer
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Slug validation debounce timer
+  const slugValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Name validation debounce timer
+  const nameValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Tracks whether the user manually edited the slug
+  const slugManuallyEditedRef = useRef(false);
 
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
@@ -359,6 +421,221 @@ export function CreateStoreForm() {
       setStep(4);
     }
   }, [store, hasLoadedStoreData]);
+
+  // ============================================================
+  // ✅ NAME VALIDATION (debounced)
+  // ============================================================
+  const validateNameWithDebounce = useCallback(
+    async (nameToValidate: string) => {
+      if (!nameToValidate || nameToValidate.trim().length < 2) {
+        setNameValidation({
+          isValid: false,
+          isChecking: false,
+          message: "",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: false,
+        });
+        return;
+      }
+
+      setNameValidation((prev) => ({
+        ...prev,
+        isChecking: true,
+        hasChecked: false,
+      }));
+
+      try {
+        const res = await fetch("/api/store/validate-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: nameToValidate,
+            storeId: store?.id,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setNameValidation({
+            isValid: false,
+            isChecking: false,
+            message: data.error || "Failed to validate store name",
+            isTaken: false,
+            isReserved: false,
+            isOwnStore: false,
+            hasChecked: true,
+          });
+          return;
+        }
+
+        setNameValidation({
+          isValid: !!data.valid,
+          isChecking: false,
+          message: data.message || "",
+          isTaken: !!data.isTaken,
+          isReserved: !!data.isReserved,
+          isOwnStore: !!data.isOwnStore,
+          hasChecked: true,
+        });
+      } catch (err) {
+        console.error("Name validation failed:", err);
+        setNameValidation({
+          isValid: false,
+          isChecking: false,
+          message: "Could not check name availability. Try again.",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: true,
+        });
+      }
+    },
+    [store?.id]
+  );
+
+  // ============================================================
+  // ✅ SLUG VALIDATION (debounced)
+  // ============================================================
+  const validateSlugWithDebounce = useCallback(
+    async (slugToValidate: string) => {
+      if (!slugToValidate || slugToValidate.length < 1) {
+        setSlugValidation({
+          isValid: false,
+          isChecking: false,
+          message: "",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: false,
+        });
+        return;
+      }
+
+      setSlugValidation((prev) => ({
+        ...prev,
+        isChecking: true,
+        hasChecked: false,
+      }));
+
+      try {
+        const res = await fetch("/api/store/validate-slug", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug: slugToValidate,
+            storeId: store?.id,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setSlugValidation({
+            isValid: false,
+            isChecking: false,
+            message: data.error || "Failed to validate URL",
+            isTaken: false,
+            isReserved: false,
+            isOwnStore: false,
+            hasChecked: true,
+          });
+          return;
+        }
+
+        setSlugValidation({
+          isValid: !!data.valid,
+          isChecking: false,
+          message: data.message || "",
+          isTaken: !!data.isTaken,
+          isReserved: !!data.isReserved,
+          isOwnStore: !!data.isOwnStore,
+          hasChecked: true,
+        });
+      } catch (err) {
+        console.error("Slug validation failed:", err);
+        setSlugValidation({
+          isValid: false,
+          isChecking: false,
+          message: "Could not check URL availability. Try again.",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: true,
+        });
+      }
+    },
+    [store?.id]
+  );
+
+  // ============================================================
+  // ✅ AUTO-POPULATE SLUG FROM NAME + DEBOUNCED NAME VALIDATION
+  // ============================================================
+  useEffect(() => {
+    const trimmedName = formData.name.trim();
+
+    // ─── Debounced NAME validation ───
+    if (!trimmedName) {
+      setNameValidation({
+        isValid: true,
+        isChecking: false,
+        message: "",
+        isTaken: false,
+        isReserved: false,
+        isOwnStore: false,
+        hasChecked: false,
+      });
+    } else {
+      if (nameValidationTimerRef.current) {
+        clearTimeout(nameValidationTimerRef.current);
+      }
+      nameValidationTimerRef.current = setTimeout(() => {
+        validateNameWithDebounce(trimmedName);
+      }, 600);
+    }
+
+    // ─── Auto-populate SLUG (unless user manually edited) ───
+    if (!slugManuallyEditedRef.current) {
+      if (!trimmedName) {
+        if (formData.slug) {
+          setFormData((prev) => ({ ...prev, slug: "" }));
+        }
+        setSlugValidation({
+          isValid: true,
+          isChecking: false,
+          message: "",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: false,
+        });
+      } else {
+        const auto = slugify(trimmedName);
+        setFormData((prev) =>
+          prev.slug === auto ? prev : { ...prev, slug: auto }
+        );
+
+        if (slugValidationTimerRef.current) {
+          clearTimeout(slugValidationTimerRef.current);
+        }
+        slugValidationTimerRef.current = setTimeout(() => {
+          validateSlugWithDebounce(auto);
+        }, 600);
+      }
+    }
+
+    return () => {
+      if (nameValidationTimerRef.current) {
+        clearTimeout(nameValidationTimerRef.current);
+      }
+      if (slugValidationTimerRef.current) {
+        clearTimeout(slugValidationTimerRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.name]);
 
   // ============================================================
   // loadDraft with meaningful-content check + draftAvailable
@@ -427,6 +704,12 @@ export function CreateStoreForm() {
         locationAccuracy: draft.location_accuracy ?? null,
       });
 
+      // If the draft had a slug, treat it as manually edited so auto-fill
+      // doesn't overwrite it when the user edits the name.
+      if (draft.slug && String(draft.slug).trim()) {
+        slugManuallyEditedRef.current = true;
+      }
+
       if (draft.step >= 1 && draft.step <= 3) {
         setStep(draft.step);
       }
@@ -486,7 +769,7 @@ export function CreateStoreForm() {
   }, [hasPendingActivation, hasActiveStore, loadDraft]);
 
   // ============================================================
-  // ✅ DEBOUNCED AUTOSAVE — saves the draft as the user types
+  // DEBOUNCED AUTOSAVE — saves the draft as the user types
   // ============================================================
   useEffect(() => {
     if (hasPendingActivation || hasActiveStore) return;
@@ -596,13 +879,17 @@ export function CreateStoreForm() {
     [errors.description]
   );
 
+  // ✅ Slug input — mark as manually edited so auto-populate stops
   const handleSlugChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      slugManuallyEditedRef.current = true;
       const value = e.target.value
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, "")
         .replace(/\s/g, "-")
-        .replace(/-+/g, "-");
+        .replace(/-+/g, "-")
+        .slice(0, 50);
+
       setFormData((prev) => ({ ...prev, slug: value }));
       if (errors.slug) {
         setErrors((prev) => {
@@ -611,8 +898,28 @@ export function CreateStoreForm() {
           return newErrors;
         });
       }
+
+      // Validate the manual edit
+      if (slugValidationTimerRef.current) {
+        clearTimeout(slugValidationTimerRef.current);
+      }
+      if (!value) {
+        setSlugValidation({
+          isValid: true,
+          isChecking: false,
+          message: "",
+          isTaken: false,
+          isReserved: false,
+          isOwnStore: false,
+          hasChecked: false,
+        });
+        return;
+      }
+      slugValidationTimerRef.current = setTimeout(() => {
+        validateSlugWithDebounce(value);
+      }, 600);
     },
-    [errors.slug]
+    [errors.slug, validateSlugWithDebounce]
   );
 
   const requestPreciseLocation = useCallback(async (): Promise<{
@@ -688,6 +995,7 @@ export function CreateStoreForm() {
     [requestPreciseLocation]
   );
 
+  // ✅ validateStep now also blocks on invalid name / slug
   const validateStep = useCallback(
     (stepNumber: number) => {
       const newErrors: Record<string, string> = {};
@@ -695,12 +1003,20 @@ export function CreateStoreForm() {
         if (!formData.name?.trim()) newErrors.name = "Store name is required";
         else if (formData.name.trim().length < 2)
           newErrors.name = "Store name must be at least 2 characters";
+        else if (!nameValidation.isValid || nameValidation.isChecking)
+          newErrors.name =
+            nameValidation.message || "Store name is not available";
+
         if (!formData.slug?.trim()) newErrors.slug = "Store URL is required";
         else if (!/^[a-z0-9-]+$/.test(formData.slug))
           newErrors.slug =
             "Only lowercase letters, numbers, and hyphens allowed";
         else if (formData.slug.length < 3)
           newErrors.slug = "URL must be at least 3 characters";
+        else if (!slugValidation.isValid || slugValidation.isChecking)
+          newErrors.slug =
+            slugValidation.message || "Store URL is not available";
+
         const cleanDescription = formData.description
           .replace(/<[^>]*>/g, "")
           .trim();
@@ -721,7 +1037,7 @@ export function CreateStoreForm() {
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     },
-    [formData]
+    [formData, nameValidation, slugValidation]
   );
 
   const handleNext = useCallback(() => {
@@ -732,6 +1048,23 @@ export function CreateStoreForm() {
 
   const handleSaveAndContinueLater = useCallback(async () => {
     if (savingDraft) return;
+
+    // ✅ Block save if name or slug is invalid
+    if (!nameValidation.isValid) {
+      toast.error("Cannot save", {
+        description:
+          nameValidation.message || "Store name is not available.",
+      });
+      return;
+    }
+    if (!slugValidation.isValid) {
+      toast.error("Cannot save", {
+        description:
+          slugValidation.message || "Store URL is not available.",
+      });
+      return;
+    }
+
     setSavingDraft(true);
     try {
       const keywordsArray = formData.keywords
@@ -779,7 +1112,7 @@ export function CreateStoreForm() {
     } finally {
       setSavingDraft(false);
     }
-  }, [formData, step, router, savingDraft]);
+  }, [formData, step, router, savingDraft, nameValidation, slugValidation]);
 
   const handleDiscardDraft = useCallback(async () => {
     try {
@@ -790,6 +1123,26 @@ export function CreateStoreForm() {
       setStep(1);
       setErrors({});
       setLocationError(null);
+      // Reset manual-edit flag so auto-populate starts fresh
+      slugManuallyEditedRef.current = false;
+      setNameValidation({
+        isValid: true,
+        isChecking: false,
+        message: "",
+        isTaken: false,
+        isReserved: false,
+        isOwnStore: false,
+        hasChecked: false,
+      });
+      setSlugValidation({
+        isValid: true,
+        isChecking: false,
+        message: "",
+        isTaken: false,
+        isReserved: false,
+        isOwnStore: false,
+        hasChecked: false,
+      });
       toast.success("Draft discarded", {
         description: "You can start fresh.",
       });
@@ -966,6 +1319,7 @@ export function CreateStoreForm() {
               </p>
             </div>
 
+            {/* ─── Store / Brand Name ─── */}
             <div className="space-y-1">
               <FieldLabel
                 label="Store / Brand Name"
@@ -985,8 +1339,41 @@ export function CreateStoreForm() {
                 className={inputClass(errors.name)}
                 style={{ outline: "none", boxShadow: "none" }}
               />
+
+              {/* ✅ Live name validation feedback */}
+              {formData.name.trim().length >= 2 && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                  {nameValidation.isChecking ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
+                      <span className="text-(--text-secondary)">
+                        Checking name availability…
+                      </span>
+                    </>
+                  ) : nameValidation.hasChecked ? (
+                    nameValidation.isValid ? (
+                      <>
+                        <CheckCircle className="size-3.5 text-green-600" />
+                        <span className="text-green-600">
+                          {nameValidation.isOwnStore
+                            ? "This is your current store name"
+                            : "Store name is available"}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="size-3.5 text-red-500" />
+                        <span className="text-red-500">
+                          {nameValidation.message}
+                        </span>
+                      </>
+                    )
+                  ) : null}
+                </div>
+              )}
             </div>
 
+            {/* ─── Store URL / Slug ─── */}
             <div className="space-y-1">
               <FieldLabel
                 label="Store URL / Slug"
@@ -1011,6 +1398,38 @@ export function CreateStoreForm() {
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
+
+              {/* ✅ Live slug validation feedback */}
+              {formData.slug.trim().length >= 3 && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
+                  {slugValidation.isChecking ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
+                      <span className="text-(--text-secondary)">
+                        Checking URL availability…
+                      </span>
+                    </>
+                  ) : slugValidation.hasChecked ? (
+                    slugValidation.isValid ? (
+                      <>
+                        <CheckCircle className="size-3.5 text-green-600" />
+                        <span className="text-green-600">
+                          {slugValidation.isOwnStore
+                            ? "This is your current store URL"
+                            : "URL is available"}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="size-3.5 text-red-500" />
+                        <span className="text-red-500">
+                          {slugValidation.message}
+                        </span>
+                      </>
+                    )
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -1324,7 +1743,7 @@ export function CreateStoreForm() {
               </div>
               <div className="mt-5 pt-5 border-t border-gray-700 space-y-2 text-sm">
                 <Benefit text="Publish your public store page" />
-                <Benefit text="Accept card payments" />
+                <Benefit text="Accept online payments" />
                 <Benefit text="Free business wallet to receive funds" />
                 <Benefit text="Unlimited payment pages & products" />
               </div>
@@ -1603,7 +2022,13 @@ export function CreateStoreForm() {
             {step === 1 && !hasPendingActivation && (
               <button
                 onClick={handleNext}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
+                disabled={
+                  nameValidation.isChecking ||
+                  slugValidation.isChecking ||
+                  !nameValidation.isValid ||
+                  !slugValidation.isValid
+                }
+                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <ChevronRight className="size-4" />
               </button>

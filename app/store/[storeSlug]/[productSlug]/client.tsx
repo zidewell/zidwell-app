@@ -29,6 +29,7 @@ import {
   Info,
   Lock,
   CalendarIcon,
+   Store as StoreIcon, 
 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/app/components/ui/button";
@@ -1371,27 +1372,52 @@ export default function StoreProductClient({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="mx-auto flex h-20 max-w-[1320px] items-center justify-between px-5 lg:px-10">
-        <a href="#" aria-label="Store home" className="flex items-center gap-2">
-          <span className="text-sm font-semibold tracking-widest uppercase text-foreground">
-            {storeNameUpper}
-          </span>
-        </a>
-        <nav className="flex items-center gap-2 sm:gap-5">
-          <button
-            className="relative rounded-full border border-border p-2.5"
-            type="button"
-            aria-label="Shopping cart"
-          >
-            <ShoppingCart size={18} className="text-foreground/60" />
-            <span
-              className={`absolute -right-1 -top-1 flex min-w-4 h-4 items-center justify-center rounded-full ${PRIMARY_BG} text-[10px] font-semibold ${PRIMARY_TEXT} px-1`}
-            >
-              {canPickQuantity ? quantity : selectedEntityIds.size || 0}
-            </span>
-          </button>
-        </nav>
-      </header>
+     <header className="mx-auto flex h-20 max-w-[1320px] items-center justify-between px-5 lg:px-10">
+  {/* Store name → links back to the storefront */}
+  <a
+    href={`/store/${store.slug}`}
+    aria-label={`Back to ${store.name}`}
+    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+  >
+    <span className="text-sm font-semibold tracking-widest uppercase text-foreground">
+      {storeNameUpper}
+    </span>
+  </a>
+
+  <nav className="flex items-center gap-2 sm:gap-3">
+    {/* ✅ Go to Store button */}
+    <a
+      href={`/store/${store.slug}`}
+      className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-xs font-medium text-foreground/70 transition hover:border-[#FDC020] hover:text-foreground"
+      aria-label={`Go to ${store.name}`}
+    >
+      <StoreIcon className="h-3.5 w-3.5" />
+      <span>Go to store</span>
+    </a>
+
+    {/* ✅ Mobile-only icon version */}
+    <a
+      href={`/store/${store.slug}`}
+      className="inline-flex sm:hidden items-center justify-center rounded-full border border-border p-2.5 text-foreground/70 transition hover:border-[#FDC020] hover:text-foreground"
+      aria-label={`Go to ${store.name}`}
+    >
+      <StoreIcon className="h-4 w-4" />
+    </a>
+
+    <button
+      className="relative rounded-full border border-border p-2.5"
+      type="button"
+      aria-label="Shopping cart"
+    >
+      <ShoppingCart size={18} className="text-foreground/60" />
+      <span
+        className={`absolute -right-1 -top-1 flex min-w-4 h-4 items-center justify-center rounded-full ${PRIMARY_BG} text-[10px] font-semibold ${PRIMARY_TEXT} px-1`}
+      >
+        {canPickQuantity ? quantity : selectedEntityIds.size || 0}
+      </span>
+    </button>
+  </nav>
+</header>
 
       <section className="mx-auto grid max-w-[1320px] gap-10 px-5 pb-20 pt-7 lg:grid-cols-[minmax(380px,1fr)_minmax(420px,1.65fr)] lg:gap-12 lg:px-10 lg:pt-8">
         <div className="relative lg:pt-1">
