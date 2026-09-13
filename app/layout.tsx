@@ -198,7 +198,7 @@ export default function RootLayout({
                         {/* <div className="fixed bottom-4 right-4 z-50">
                           <InstallPrompt />
                         </div> */}
-                        <FloatingWhatsApp />
+                      <FloatingWhatsApp />
                         {/* <NotificationToast /> */}
                       </StoreProvider>
                     </VerificationModalProvider>
