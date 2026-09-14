@@ -26,10 +26,11 @@ export async function POST(request: Request) {
     .toString(36)
     .slice(2, 8)}`;
 
-  console.log(`\n========== [${requestId}] CHECKOUT START ==========`);
+  console.log(
+    `\n========== [${requestId}] PAYMENT-PAGE CHECKOUT START ==========`
+  );
 
   try {
-    // ===== DEBUG: Environment =====
     console.log(`[${requestId}] 🔧 ENV CHECK:`, {
       NODE_ENV: process.env.NODE_ENV,
       NOMBA_URL: process.env.NOMBA_URL,
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     console.log(
-      `[${requestId}] 📥 Incoming request body:`,
+      `[${requestId}] 📥 Request body:`,
       JSON.stringify(body, null, 2)
     );
 
@@ -56,8 +57,8 @@ export async function POST(request: Request) {
       metadata,
     } = body;
 
+    // Validate required fields
     if (!pageSlug || !customerName || !customerEmail) {
-      console.warn(`[${requestId}] ⚠️ Missing required fields`);
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -106,9 +107,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // FIX: Round amount to avoid floating-point artifacts
+    // e.g. 5000.0000000001 would break Nomba's amount validation
+    finalAmount = Number(Number(finalAmount).toFixed(2));
+
+    // Fee calculation (creator bears it)
     const fee = Math.min(finalAmount * 0.02, 2000);
     const numberOfStudents = metadata?.numberOfStudents || 1;
-    const totalForCustomer = finalAmount * numberOfStudents;
+
+    // FIX: Round total to 2 decimals and keep as number, then convert
+    // to a clean string in the payload below
+    const totalForCustomer = Number(
+      (finalAmount * numberOfStudents).toFixed(2)
+    );
+
     const orderReference = generateOrderReference(page.id);
 
     console.log(`[${requestId}] 🧮 Amount calc:`, {
@@ -116,6 +128,7 @@ export async function POST(request: Request) {
       fee,
       numberOfStudents,
       totalForCustomer,
+      totalForCustomerString: totalForCustomer.toFixed(2),
       orderReference,
     });
 
@@ -124,8 +137,10 @@ export async function POST(request: Request) {
       payment_page_id: page.id,
       user_id: page.user_id,
       amount: totalForCustomer,
-      fee: fee * numberOfStudents,
-      net_amount: (finalAmount - fee) * numberOfStudents,
+      fee: Number((fee * numberOfStudents).toFixed(2)),
+      net_amount: Number(
+        ((finalAmount - fee) * numberOfStudents).toFixed(2)
+      ),
       status: "pending",
       customer_name: customerName,
       customer_email: customerEmail,
@@ -138,12 +153,14 @@ export async function POST(request: Request) {
       metadata: metadata,
     };
 
+    // Add student tracking for school payments
     if (page.page_type === "school") {
       if (
         metadata?.selectedStudents &&
         metadata.selectedStudents.length === 1
       ) {
-        paymentData.student_name = metadata.selectedStudents[0];
+        paymentData.student_name =
+          metadata.selectedStudents[0];
         paymentData.parent_name = metadata.parentName;
       } else if (
         metadata?.selectedStudents &&
@@ -202,17 +219,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const sessionId = `${payment.id}_${Date.now()}`;
+    // FIX: use dash instead of underscore in the callback query so
+    // Nomba's URL validation is happy
+    const sessionId = `${payment.id}-${Date.now()}`;
 
-    // ===== FIXED CHECKOUT PAYLOAD =====
-    // - Removed accountId from order (uses parent account by default)
-    // - Renamed metadata -> orderMetaData
-    // - All orderMetaData values are strings
+    // FIX: Build the checkout payload per Nomba docs:
+    // - accountId removed from the order (it belongs only in the header
+    //   unless you're routing to a sub-account; the header authenticates)
+    // - metadata renamed to orderMetaData (that's the documented field)
+    // - all orderMetaData values are strings
+    // - amount sent as a clean 2-decimal string
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/payment-page/callback?session_id=${sessionId}`,
+        callbackUrl: `${baseUrl}/api/payment-page/callback?session_id=${encodeURIComponent(
+          sessionId
+        )}`,
         customerEmail: customerEmail,
-        amount: totalForCustomer.toString(),
+        amount: totalForCustomer.toFixed(2),
         currency: "NGN",
         orderReference: orderReference,
         customerId: String(page.user_id),
@@ -232,16 +255,24 @@ export async function POST(request: Request) {
       JSON.stringify(checkoutPayload, null, 2)
     );
     console.log(
-      `[${requestId}] 🔎 allowedPaymentMethods:`,
+      `[${requestId}] 🔎 KEY — amount:`,
+      checkoutPayload.order.amount
+    );
+    console.log(
+      `[${requestId}] 🔎 KEY — allowedPaymentMethods:`,
       checkoutPayload.order.allowedPaymentMethods
     );
     console.log(
-      `[${requestId}] 🔎 accountId header:`,
-      process.env.NOMBA_ACCOUNT_ID
+      `[${requestId}] 🔎 KEY — callbackUrl:`,
+      checkoutPayload.order.callbackUrl
     );
     console.log(
-      `[${requestId}] 🔎 Endpoint:`,
+      `[${requestId}] 🔎 KEY — endpoint:`,
       `${process.env.NOMBA_URL}/v1/checkout/order`
+    );
+    console.log(
+      `[${requestId}] 🔎 KEY — accountId header:`,
+      process.env.NOMBA_ACCOUNT_ID
     );
 
     const response = await fetch(
@@ -298,7 +329,10 @@ export async function POST(request: Request) {
       amount: totalForCustomer,
     });
   } catch (error: any) {
-    console.error(`[${requestId}] ❌ ERROR:`, error.message);
+    console.error(
+      `[${requestId}] ❌ ERROR:`,
+      error.message
+    );
     console.log(
       `[${requestId}] ========== END (ERROR) ==========\n`
     );
