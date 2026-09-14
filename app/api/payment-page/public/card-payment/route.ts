@@ -256,7 +256,7 @@ export async function POST(request: Request) {
         orderReference,
         customerId: page.user_id,
         accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card"],
+        allowedPaymentMethods: ["Card", "Transfer"],
         metadata: {
           type: "payment_page",
           paymentPageId: page.id,
