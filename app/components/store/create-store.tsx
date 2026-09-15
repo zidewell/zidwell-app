@@ -9,14 +9,12 @@ import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
 import {
   Store,
-  ChevronRight,
   Loader2,
-  Shield,
   CreditCard,
-  Sparkles,
   Check,
   AlertCircle,
   ArrowLeft,
+  ArrowRight,
   PartyPopper,
   Rocket,
   Save,
@@ -25,6 +23,8 @@ import {
   MapPin,
   CheckCircle,
   XCircle,
+  Building2,
+  BadgeCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -80,90 +80,127 @@ function slugify(text: string): string {
     .slice(0, 50);
 }
 
-function inputClass(error?: string) {
-  return cn(
-    "w-full px-3 py-2 border bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) squircle-md",
-    error ? "border-red-500" : "border-(--border-color)"
+// ============================================================
+// BROWSER PENDING-MARKER HELPERS
+// ============================================================
+const PENDING_CHECKOUT_KEY = "pendingStoreCheckout";
+
+function clearPendingMarkers() {
+  try {
+    sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+    localStorage.removeItem(PENDING_CHECKOUT_KEY);
+  } catch {
+    // storage may be unavailable in some privacy modes — ignore
+  }
+}
+
+// ============================================================
+// DESIGN HELPERS
+// ============================================================
+
+function SectionCard({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-[2rem] border border-(--border-color) bg-(--bg-primary) p-6 sm:p-8",
+        className
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
-function FieldLabel({
+function StepHead({ title, copy }: { title: string; copy: string }) {
+  return (
+    <div>
+      <h2 className="font-bold text-2xl sm:text-3xl text-(--text-primary)">
+        {title}
+      </h2>
+      <p className="mt-3 max-w-2xl text-sm sm:text-base font-medium text-(--text-secondary)">
+        {copy}
+      </p>
+    </div>
+  );
+}
+
+function Field({
   label,
-  required,
-  optional,
   hint,
+  optional,
   error,
   htmlFor,
+  children,
 }: {
   label: string;
-  required?: boolean;
-  optional?: boolean;
   hint?: string;
+  optional?: boolean;
   error?: string;
   htmlFor?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <>
+    <div>
       <Label
         htmlFor={htmlFor}
-        className="text-sm font-medium text-(--text-primary) block mb-1"
+        className="text-sm font-bold text-(--text-primary) block"
       >
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
         {optional && (
-          <span className="text-xs text-(--text-secondary) ml-2">Optional</span>
+          <span className="text-xs font-medium text-(--text-secondary) ml-2">
+            Optional
+          </span>
         )}
       </Label>
       {hint && !error && (
-        <p className="mb-1 text-xs text-(--text-secondary)">{hint}</p>
+        <p className="mt-1 mb-2 text-xs text-(--text-secondary) font-medium">
+          {hint}
+        </p>
       )}
       {error && (
-        <p className="mb-1 text-sm text-destructive flex items-center gap-1">
+        <p className="mt-1 mb-2 text-sm text-destructive flex items-center gap-1 font-medium">
           <AlertCircle className="size-3" /> {error}
         </p>
       )}
-    </>
+      {children}
+    </div>
   );
 }
 
-function ReviewRow({
-  label,
-  value,
-  mono,
-  multiline,
-  html,
+function Summary({
+  title,
+  rows,
 }: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  multiline?: boolean;
-  html?: boolean;
+  title: string;
+  rows: [string, string][];
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 py-2 border-b border-(--border-color) last:border-0">
-      <span className="text-sm text-(--text-secondary) shrink-0 font-medium sm:min-w-[120px]">
-        {label}
-      </span>
-      <div className="flex-1 min-w-0">
-        {html ? (
-          <div
-            className="text-sm font-medium prose prose-sm dark:prose-invert max-w-none
-              prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
-              prose-strong:text-(--text-primary) break-words"
-            dangerouslySetInnerHTML={{ __html: value || "—" }}
-          />
-        ) : (
-          <span
-            className={cn(
-              "text-sm font-medium text-(--text-primary) break-words",
-              mono && "font-mono",
-              multiline && "whitespace-pre-wrap"
-            )}
-          >
-            {value || "—"}
-          </span>
-        )}
-      </div>
+    <div className="rounded-[1.5rem] bg-(--bg-secondary) p-6">
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-(--text-secondary)">
+        {title}
+      </p>
+      <dl className="mt-4 space-y-3">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-[11px] font-bold uppercase tracking-wider text-(--text-secondary)">
+              {k}
+            </dt>
+            <dd className="text-[15px] font-semibold text-(--text-primary)">
+              {v || (
+                <span className="text-(--text-secondary) font-medium">
+                  Not provided
+                </span>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -172,7 +209,7 @@ function Benefit({ text }: { text: string }) {
   return (
     <div className="flex items-center gap-2">
       <CheckCircle2 className="size-4 text-green-500 shrink-0" />
-      <span className="text-white/85 text-sm">{text}</span>
+      <span className="text-white/85 text-sm font-medium">{text}</span>
     </div>
   );
 }
@@ -235,10 +272,10 @@ function CongratulationsModal({
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.8, opacity: 0, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative max-w-md w-full bg-(--bg-primary) rounded-2xl border border-(--border-color) p-6 sm:p-8 text-center shadow-2xl max-h-[90vh] overflow-y-auto tiny-scrollbar"
+        className="relative max-w-md w-full bg-(--bg-primary) rounded-[2rem] border border-(--border-color) p-6 sm:p-8 text-center shadow-2xl max-h-[90vh] overflow-y-auto tiny-scrollbar"
       >
         <div className="flex justify-center mb-5 sm:mb-6">
-          <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-yellow-500/10">
+          <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-yellow-500/10">
             <PartyPopper className="size-10 sm:size-12 text-yellow-500" />
           </div>
         </div>
@@ -247,7 +284,7 @@ function CongratulationsModal({
           Store Activated
         </h2>
 
-        <p className="mt-3 text-sm sm:text-base text-(--text-secondary)">
+        <p className="mt-3 text-sm sm:text-base font-medium text-(--text-secondary)">
           Your store{" "}
           <span className="font-semibold text-(--color-accent-yellow)">
             "{storeName}"
@@ -255,7 +292,7 @@ function CongratulationsModal({
           is now live and ready to accept payments.
         </p>
 
-        <div className="mt-5 sm:mt-6 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color) text-left space-y-2">
+        <div className="mt-5 sm:mt-6 p-4 rounded-2xl bg-(--bg-secondary) border border-(--border-color) text-left space-y-2">
           {[
             "Your store is now publicly visible",
             "You can now accept payments",
@@ -264,7 +301,7 @@ function CongratulationsModal({
           ].map((t) => (
             <div key={t} className="flex items-start gap-3 text-sm">
               <CheckCircle2 className="size-4 text-green-500 shrink-0 mt-0.5" />
-              <span className="text-(--text-primary)">{t}</span>
+              <span className="text-(--text-primary) font-medium">{t}</span>
             </div>
           ))}
         </div>
@@ -272,14 +309,14 @@ function CongratulationsModal({
         <div className="mt-5 sm:mt-6 space-y-3">
           <button
             onClick={onGoToDashboard}
-            className="w-full rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3 text-sm font-semibold transition-colors"
+            className="w-full rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-4 text-sm font-bold transition-colors"
           >
             <Rocket className="size-4 inline mr-2" />
             Go to Store Dashboard
           </button>
           <button
             onClick={onClose}
-            className="w-full rounded-xl px-6 py-3 text-sm font-medium text-(--text-secondary) hover:bg-(--bg-secondary) transition-colors"
+            className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-(--text-secondary) hover:bg-(--bg-secondary) transition-colors"
           >
             I'll check it out later
           </button>
@@ -320,7 +357,7 @@ export function CreateStoreForm() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // ─── ✅ Name validation state ───
+  // ─── Name validation state ───
   const [nameValidation, setNameValidation] = useState<{
     isValid: boolean;
     isChecking: boolean;
@@ -339,7 +376,7 @@ export function CreateStoreForm() {
     hasChecked: false,
   });
 
-  // ─── ✅ Slug validation state ───
+  // ─── Slug validation state ───
   const [slugValidation, setSlugValidation] = useState<{
     isValid: boolean;
     isChecking: boolean;
@@ -377,11 +414,15 @@ export function CreateStoreForm() {
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
 
-  // Reset processing state when page is restored from bfcache
+  // ============================================================
+  // PENDING-MARKER LIFECYCLE
+  // ============================================================
+  // Reset processing state when page is restored from bfcache, then
+  // clear the pending marker.
   useEffect(() => {
     const handlePageShow = () => {
-      if (sessionStorage.getItem("pendingStoreCheckout") === "true") {
-        sessionStorage.removeItem("pendingStoreCheckout");
+      if (sessionStorage.getItem(PENDING_CHECKOUT_KEY) === "true") {
+        clearPendingMarkers();
         setIsProcessingCheckout(false);
         setIsActivating(false);
       }
@@ -390,7 +431,29 @@ export function CreateStoreForm() {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  // Redirect if user has active store
+  // Clear pending markers when the user leaves the page (close tab,
+  // hard navigate away, or refresh without completing checkout).
+  useEffect(() => {
+    const handleLeave = () => clearPendingMarkers();
+
+    window.addEventListener("pagehide", handleLeave);
+    window.addEventListener("beforeunload", handleLeave);
+
+    return () => {
+      window.removeEventListener("pagehide", handleLeave);
+      window.removeEventListener("beforeunload", handleLeave);
+    };
+  }, []);
+
+  // Clear pending markers when the component unmounts (SPA navigation
+  // away from the create-store page).
+  useEffect(() => {
+    return () => {
+      clearPendingMarkers();
+    };
+  }, []);
+
+  // Redirect if user has an active (live) store
   useEffect(() => {
     if (hasActiveStore) {
       router.push("/dashboard/services/payment/dashboard");
@@ -423,7 +486,7 @@ export function CreateStoreForm() {
   }, [store, hasLoadedStoreData]);
 
   // ============================================================
-  // ✅ NAME VALIDATION (debounced)
+  // NAME VALIDATION (debounced)
   // ============================================================
   const validateNameWithDebounce = useCallback(
     async (nameToValidate: string) => {
@@ -497,7 +560,7 @@ export function CreateStoreForm() {
   );
 
   // ============================================================
-  // ✅ SLUG VALIDATION (debounced)
+  // SLUG VALIDATION (debounced)
   // ============================================================
   const validateSlugWithDebounce = useCallback(
     async (slugToValidate: string) => {
@@ -571,7 +634,7 @@ export function CreateStoreForm() {
   );
 
   // ============================================================
-  // ✅ AUTO-POPULATE SLUG FROM NAME + DEBOUNCED NAME VALIDATION
+  // AUTO-POPULATE SLUG FROM NAME + DEBOUNCED NAME VALIDATION
   // ============================================================
   useEffect(() => {
     const trimmedName = formData.name.trim();
@@ -879,7 +942,7 @@ export function CreateStoreForm() {
     [errors.description]
   );
 
-  // ✅ Slug input — mark as manually edited so auto-populate stops
+  // Slug input — mark as manually edited so auto-populate stops
   const handleSlugChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       slugManuallyEditedRef.current = true;
@@ -899,7 +962,6 @@ export function CreateStoreForm() {
         });
       }
 
-      // Validate the manual edit
       if (slugValidationTimerRef.current) {
         clearTimeout(slugValidationTimerRef.current);
       }
@@ -995,7 +1057,6 @@ export function CreateStoreForm() {
     [requestPreciseLocation]
   );
 
-  // ✅ validateStep now also blocks on invalid name / slug
   const validateStep = useCallback(
     (stepNumber: number) => {
       const newErrors: Record<string, string> = {};
@@ -1049,7 +1110,6 @@ export function CreateStoreForm() {
   const handleSaveAndContinueLater = useCallback(async () => {
     if (savingDraft) return;
 
-    // ✅ Block save if name or slug is invalid
     if (!nameValidation.isValid) {
       toast.error("Cannot save", {
         description:
@@ -1123,7 +1183,6 @@ export function CreateStoreForm() {
       setStep(1);
       setErrors({});
       setLocationError(null);
-      // Reset manual-edit flag so auto-populate starts fresh
       slugManuallyEditedRef.current = false;
       setNameValidation({
         isValid: true,
@@ -1175,10 +1234,9 @@ export function CreateStoreForm() {
     }
 
     setIsProcessingCheckout(true);
-    sessionStorage.setItem("pendingStoreCheckout", "true");
+    sessionStorage.setItem(PENDING_CHECKOUT_KEY, "true");
 
-    // ✅ Force-save the draft right now, before opening Nomba.
-    // This guarantees the draft exists even if autosave hasn't fired.
+    // Force-save the draft right now, before opening Nomba.
     try {
       const keywordsArray = formData.keywords
         .split(",")
@@ -1210,7 +1268,7 @@ export function CreateStoreForm() {
     }
 
     const safetyTimer = setTimeout(() => {
-      sessionStorage.removeItem("pendingStoreCheckout");
+      clearPendingMarkers();
       setIsProcessingCheckout(false);
       setIsActivating(false);
     }, 30000);
@@ -1257,7 +1315,7 @@ export function CreateStoreForm() {
       throw new Error("No checkout URL returned");
     } catch (error: any) {
       clearTimeout(safetyTimer);
-      sessionStorage.removeItem("pendingStoreCheckout");
+      clearPendingMarkers();
       console.error("Checkout error:", error);
       await Swal.fire({
         icon: "error",
@@ -1293,9 +1351,9 @@ export function CreateStoreForm() {
   if (!draftCheckDone && !hasActiveStore) {
     return (
       <div className="max-w-3xl mx-auto py-6 sm:py-8 px-3 sm:px-4">
-        <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-8 sm:p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
+        <div className="rounded-[2rem] border border-(--border-color) bg-(--bg-primary) p-8 sm:p-12 flex flex-col items-center justify-center gap-4 min-h-[400px]">
           <Loader2 className="size-8 animate-spin text-(--color-accent-yellow)" />
-          <p className="text-sm text-(--text-secondary) text-center">
+          <p className="text-sm font-medium text-(--text-secondary) text-center">
             Loading your saved progress...
           </p>
         </div>
@@ -1305,505 +1363,557 @@ export function CreateStoreForm() {
 
   if (hasActiveStore) return null;
 
+  // ============================================================
+  // STEP INDICATOR (new design — icon cards + progress bar)
+  // ============================================================
+  const STEPS = [
+    { n: 1, label: "Brand", icon: Building2 },
+    { n: 2, label: "Location", icon: MapPin },
+    { n: 3, label: "Review", icon: BadgeCheck },
+    { n: 4, label: "Activate", icon: CreditCard },
+  ] as const;
+
+  const renderStepIndicator = () => (
+    <div className="mt-8 rounded-[2rem] border border-(--border-color) bg-(--bg-primary) p-4">
+      <div className="flex items-center gap-2 overflow-x-auto">
+        {STEPS.map((s) => {
+          const state = s.n === step ? "current" : s.n < step ? "done" : "todo";
+          const clickable = s.n < step;
+          return (
+            <button
+              key={s.n}
+              onClick={() => clickable && setStep(s.n)}
+              disabled={!clickable}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-2xl px-4 py-3 text-[13px] font-bold uppercase tracking-[0.08em] transition-colors",
+                state === "current" &&
+                  "bg-(--color-accent-yellow) text-(--color-ink)",
+                state === "done" &&
+                  "bg-green-500/10 text-green-600 hover:bg-green-500/20",
+                state === "todo" && "text-(--text-secondary) cursor-default"
+              )}
+            >
+              {state === "done" ? (
+                <Check className="size-4" />
+              ) : (
+                <s.icon className="size-4" />
+              )}
+              <span className="whitespace-nowrap">{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-(--bg-secondary)">
+        <div
+          className="h-full rounded-full bg-(--color-accent-yellow) transition-[width] duration-300"
+          style={{ width: `${(step / STEPS.length) * 100}%` }}
+        />
+      </div>
+    </div>
+  );
+
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                Store / Brand Details
-              </h2>
-              <p className="text-xs sm:text-sm text-(--text-secondary)">
-                Tell customers about your brand. The name appears publicly.
-              </p>
-            </div>
+          <SectionCard>
+            <StepHead
+              title="Store / Brand Details"
+              copy="Tell customers about your brand. The name appears publicly on your storefront, receipts and payment links."
+            />
 
-            {/* ─── Store / Brand Name ─── */}
-            <div className="space-y-1">
-              <FieldLabel
+            <div className="mt-8 space-y-7">
+              {/* ─── Store / Brand Name ─── */}
+              <Field
                 label="Store / Brand Name"
-                required
+                hint="The public name of your store. Shown on your storefront, receipts and payment links."
                 error={errors.name}
                 htmlFor="name"
-              />
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="e.g., Juice Hub"
-                autoComplete="organization"
-                disabled={isWorking}
-                className={inputClass(errors.name)}
-                style={{ outline: "none", boxShadow: "none" }}
-              />
-
-              {/* ✅ Live name validation feedback */}
-              {formData.name.trim().length >= 2 && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-                  {nameValidation.isChecking ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
-                      <span className="text-(--text-secondary)">
-                        Checking name availability…
-                      </span>
-                    </>
-                  ) : nameValidation.hasChecked ? (
-                    nameValidation.isValid ? (
-                      <>
-                        <CheckCircle className="size-3.5 text-green-600" />
-                        <span className="text-green-600">
-                          {nameValidation.isOwnStore
-                            ? "This is your current store name"
-                            : "Store name is available"}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="size-3.5 text-red-500" />
-                        <span className="text-red-500">
-                          {nameValidation.message}
-                        </span>
-                      </>
-                    )
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            {/* ─── Store URL / Slug ─── */}
-            <div className="space-y-1">
-              <FieldLabel
-                label="Store URL / Slug"
-                required
-                error={errors.slug}
-                htmlFor="slug"
-              />
-              <div className="flex items-center rounded-md border border-(--border-color) bg-(--bg-primary) focus-within:ring-2 focus-within:ring-(--color-accent-yellow) focus-within:border-(--color-accent-yellow) transition-all overflow-hidden squircle-md">
-                <span className="px-2 sm:px-3 text-xs sm:text-sm text-(--text-secondary) bg-(--bg-secondary) py-2 whitespace-nowrap">
-                  zidwell.com/
-                </span>
-                <input
-                  id="slug"
-                  name="slug"
+              >
+                <Input
+                  id="name"
+                  name="name"
                   type="text"
-                  value={formData.slug}
-                  onChange={handleSlugChange}
-                  placeholder="your-store"
-                  autoComplete="off"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Juice Hub"
+                  autoComplete="organization"
                   disabled={isWorking}
-                  className="flex-1 min-w-0 bg-transparent px-2 sm:px-3 py-2 text-sm focus:outline-none text-(--text-primary)"
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
+                    errors.name ? "border-red-500" : "border-(--border-color)"
+                  )}
                   style={{ outline: "none", boxShadow: "none" }}
                 />
-              </div>
 
-              {/* ✅ Live slug validation feedback */}
-              {formData.slug.trim().length >= 3 && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs">
-                  {slugValidation.isChecking ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
-                      <span className="text-(--text-secondary)">
-                        Checking URL availability…
-                      </span>
-                    </>
-                  ) : slugValidation.hasChecked ? (
-                    slugValidation.isValid ? (
+                {/* Live name validation feedback */}
+                {formData.name.trim().length >= 2 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs font-medium">
+                    {nameValidation.isChecking ? (
                       <>
-                        <CheckCircle className="size-3.5 text-green-600" />
-                        <span className="text-green-600">
-                          {slugValidation.isOwnStore
-                            ? "This is your current store URL"
-                            : "URL is available"}
+                        <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
+                        <span className="text-(--text-secondary)">
+                          Checking name availability…
                         </span>
                       </>
-                    ) : (
-                      <>
-                        <XCircle className="size-3.5 text-red-500" />
-                        <span className="text-red-500">
-                          {slugValidation.message}
-                        </span>
-                      </>
-                    )
-                  ) : null}
-                </div>
-              )}
-            </div>
+                    ) : nameValidation.hasChecked ? (
+                      nameValidation.isValid ? (
+                        <>
+                          <CheckCircle className="size-3.5 text-green-600" />
+                          <span className="text-green-600">
+                            {nameValidation.isOwnStore
+                              ? "This is your current store name"
+                              : "Store name is available"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="size-3.5 text-red-500" />
+                          <span className="text-red-500">
+                            {nameValidation.message}
+                          </span>
+                        </>
+                      )
+                    ) : null}
+                  </div>
+                )}
+              </Field>
 
-            <div className="space-y-1">
-              <Label
-                htmlFor="description"
-                className="text-sm font-medium text-(--text-primary) block mb-1"
+              {/* ─── Store URL / Slug ─── */}
+              <Field
+                label="Store URL / Slug"
+                hint="Your store's web address. Keep it short and easy to say out loud — you can share it anywhere."
+                error={errors.slug}
+                htmlFor="slug"
               >
-                Store Description <span className="text-red-500 ml-1">*</span>
-              </Label>
-              <RichTextArea
-                value={formData.description}
-                onChange={handleDescriptionChange}
-                placeholder="Describe what your business is all about to potential customers..."
-                minHeight="180px"
-                maxHeight="350px"
-              />
-              {errors.description && (
-                <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                  <AlertCircle className="size-3" /> {errors.description}
-                </p>
-              )}
-              <p className="mt-2 text-xs text-(--text-secondary)">
-                Use the toolbar to format your description (bold, italic, lists,
-                etc.)
-              </p>
-            </div>
+                <div className="flex items-center rounded-2xl border border-(--border-color) bg-(--bg-primary) pr-4 focus-within:border-foreground transition-colors overflow-hidden">
+                  <span className="px-3 sm:px-4 py-3.5 text-sm font-bold text-(--text-secondary) bg-(--bg-secondary) whitespace-nowrap">
+                    zidwell.com/
+                  </span>
+                  <input
+                    id="slug"
+                    name="slug"
+                    type="text"
+                    value={formData.slug}
+                    onChange={handleSlugChange}
+                    placeholder="your-store"
+                    autoComplete="off"
+                    disabled={isWorking}
+                    className="flex-1 min-w-0 bg-transparent px-3 py-3.5 text-[15px] font-semibold focus:outline-none text-(--text-primary) placeholder:font-medium placeholder:text-(--text-secondary)"
+                    style={{ outline: "none", boxShadow: "none" }}
+                  />
+                </div>
 
-            <div className="space-y-1">
-              <FieldLabel
-                label="Keywords"
-                hint="Words or phrases describing your business, separated by commas."
+                {/* Live slug validation feedback */}
+                {formData.slug.trim().length >= 3 && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs font-medium">
+                    {slugValidation.isChecking ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin text-(--text-secondary)" />
+                        <span className="text-(--text-secondary)">
+                          Checking URL availability…
+                        </span>
+                      </>
+                    ) : slugValidation.hasChecked ? (
+                      slugValidation.isValid ? (
+                        <>
+                          <CheckCircle className="size-3.5 text-green-600" />
+                          <span className="text-green-600">
+                            {slugValidation.isOwnStore
+                              ? "This is your current store URL"
+                              : "URL is available"}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="size-3.5 text-red-500" />
+                          <span className="text-red-500">
+                            {slugValidation.message}
+                          </span>
+                        </>
+                      )
+                    ) : null}
+                  </div>
+                )}
+              </Field>
+
+              {/* ─── Description ─── */}
+              <Field
+                label="Store Description"
+                hint="Describe your business and what you do for potential customers. 2–3 sentences is plenty."
+                error={errors.description}
+                htmlFor="description"
+              >
+                <RichTextArea
+                  value={formData.description}
+                  onChange={handleDescriptionChange}
+                  placeholder="Describe what your business is all about to potential customers..."
+                  minHeight="180px"
+                  maxHeight="350px"
+                />
+                <p className="mt-2 text-xs text-(--text-secondary) font-medium">
+                  Use the toolbar to format your description (bold, italic,
+                  lists, etc.)
+                </p>
+              </Field>
+
+              {/* ─── Keywords ─── */}
+              <Field
+                label="Business Keywords / Phrases"
+                hint="Type words or phrases people would search to find a business like yours, separated by commas."
                 htmlFor="keywords"
-              />
-              <Input
-                id="keywords"
-                name="keywords"
-                type="text"
-                value={formData.keywords}
-                onChange={handleInputChange}
-                placeholder="fruit juice seller, fruit vendor, juice delivery Lagos"
-                autoComplete="off"
-                disabled={isWorking}
-                className={inputClass()}
-                style={{ outline: "none", boxShadow: "none" }}
-              />
+              >
+                <Input
+                  id="keywords"
+                  name="keywords"
+                  type="text"
+                  value={formData.keywords}
+                  onChange={handleInputChange}
+                  placeholder="fruit juice seller, fruit vendor, juice delivery Lagos"
+                  autoComplete="off"
+                  disabled={isWorking}
+                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)"
+                  style={{ outline: "none", boxShadow: "none" }}
+                />
+              </Field>
             </div>
-          </div>
+          </SectionCard>
         );
 
       case 2:
         return (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                Location Details
-              </h2>
-              <p className="text-xs sm:text-sm text-(--text-secondary)">
-                Where is your store based?
-              </p>
-            </div>
+          <SectionCard>
+            <StepHead
+              title="Location Details"
+              copy="Where is your store based? This helps with local search, delivery estimates and customer trust."
+            />
 
-            <div className="space-y-1">
-              <FieldLabel
+            <div className="mt-8 space-y-7">
+              {/* ─── Country ─── */}
+              <Field
                 label="Country"
-                required
+                hint="The country where your business is registered and operates."
                 error={errors.country}
                 htmlFor="country"
-              />
-              <select
-                id="country"
-                name="country"
-                value={formData.country}
-                onChange={handleInputChange}
-                autoComplete="country"
-                disabled={isWorking}
-                className={inputClass(errors.country)}
-                style={{ outline: "none", boxShadow: "none" }}
               >
-                <option value="Nigeria">Nigeria</option>
-                <option value="Ghana">Ghana</option>
-                <option value="Kenya">Kenya</option>
-                <option value="South Africa">South Africa</option>
-                <option value="United Kingdom">United Kingdom</option>
-                <option value="United States">United States</option>
-              </select>
-            </div>
+                <select
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  autoComplete="country"
+                  disabled={isWorking}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors",
+                    errors.country ? "border-red-500" : "border-(--border-color)"
+                  )}
+                  style={{ outline: "none", boxShadow: "none" }}
+                >
+                  <option value="Nigeria">Nigeria</option>
+                  <option value="Ghana">Ghana</option>
+                  <option value="Kenya">Kenya</option>
+                  <option value="South Africa">South Africa</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="United States">United States</option>
+                </select>
+              </Field>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <FieldLabel
+              {/* ─── State / City ─── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                <Field
                   label="State"
-                  required
+                  hint="The state or region your business operates from."
                   error={errors.state}
                   htmlFor="state"
-                />
-                <Input
-                  id="state"
-                  name="state"
-                  type="text"
-                  value={formData.state}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Lagos"
-                  autoComplete="address-level1"
-                  disabled={isWorking}
-                  className={inputClass(errors.state)}
-                  style={{ outline: "none", boxShadow: "none" }}
-                />
-              </div>
+                >
+                  <Input
+                    id="state"
+                    name="state"
+                    type="text"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Lagos"
+                    autoComplete="address-level1"
+                    disabled={isWorking}
+                    className={cn(
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
+                      errors.state ? "border-red-500" : "border-(--border-color)"
+                    )}
+                    style={{ outline: "none", boxShadow: "none" }}
+                  />
+                </Field>
 
-              <div className="space-y-1">
-                <FieldLabel
+                <Field
                   label="City"
-                  required
+                  hint="The city or town your store is based in."
                   error={errors.city}
                   htmlFor="city"
-                />
-                <Input
-                  id="city"
-                  name="city"
-                  type="text"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Ikeja"
-                  autoComplete="address-level2"
-                  disabled={isWorking}
-                  className={inputClass(errors.city)}
-                  style={{ outline: "none", boxShadow: "none" }}
-                />
+                >
+                  <Input
+                    id="city"
+                    name="city"
+                    type="text"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Ikeja"
+                    autoComplete="address-level2"
+                    disabled={isWorking}
+                    className={cn(
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
+                      errors.city ? "border-red-500" : "border-(--border-color)"
+                    )}
+                    style={{ outline: "none", boxShadow: "none" }}
+                  />
+                </Field>
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <FieldLabel
+              {/* ─── Street Address ─── */}
+              <Field
                 label="Street Address"
-                required
+                hint="Where you operate from. Helps with local search, delivery estimates and customer trust."
                 error={errors.streetAddress}
                 htmlFor="streetAddress"
-              />
-              <Input
-                id="streetAddress"
-                name="streetAddress"
-                type="text"
-                value={formData.streetAddress}
-                onChange={handleInputChange}
-                placeholder="e.g., 123 Main Street"
-                autoComplete="street-address"
-                disabled={isWorking}
-                className={inputClass(errors.streetAddress)}
-                style={{ outline: "none", boxShadow: "none" }}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl bg-(--bg-secondary) border border-(--border-color)">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <MapPin className="size-4 text-(--text-secondary) shrink-0" />
-                  <p className="font-medium text-sm text-(--text-primary)">
-                    Allow precise location
-                  </p>
-                </div>
-                <p className="text-xs text-(--text-secondary) mt-1">
-                  Zidwell would like to use your precise location for better
-                  delivery and customer matching.
-                </p>
-
-                {formData.latitude != null && formData.longitude != null && (
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all">
-                    Captured: {formData.latitude.toFixed(5)},{" "}
-                    {formData.longitude.toFixed(5)}
-                    {formData.locationAccuracy
-                      ? ` (±${Math.round(formData.locationAccuracy)}m)`
-                      : ""}
-                  </p>
-                )}
-
-                {locationError && (
-                  <p className="text-xs text-red-500 mt-2">{locationError}</p>
-                )}
-              </div>
-
-              <label
-                className={cn(
-                  "relative inline-flex items-center shrink-0 self-start sm:self-center",
-                  locationLoading ? "cursor-wait" : "cursor-pointer"
-                )}
               >
-                <input
-                  type="checkbox"
-                  checked={formData.locationEnabled}
-                  onChange={(e) => handleLocationToggle(e.target.checked)}
-                  disabled={locationLoading || isWorking}
-                  className="sr-only peer"
+                <Input
+                  id="streetAddress"
+                  name="streetAddress"
+                  type="text"
+                  value={formData.streetAddress}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 123 Main Street"
+                  autoComplete="street-address"
+                  disabled={isWorking}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
+                    errors.streetAddress
+                      ? "border-red-500"
+                      : "border-(--border-color)"
+                  )}
+                  style={{ outline: "none", boxShadow: "none" }}
                 />
-                <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-(--color-accent-yellow) transition-colors duration-200 relative">
-                  <div
-                    className={cn(
-                      "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 flex items-center justify-center",
-                      formData.locationEnabled && "translate-x-5"
-                    )}
-                  >
-                    {locationLoading && (
-                      <Loader2 className="size-2.5 animate-spin text-gray-700" />
-                    )}
+              </Field>
+
+              {/* ─── Precise Location ─── */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 rounded-[1.5rem] bg-(--bg-secondary) border border-(--border-color)">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-4 text-(--text-secondary) shrink-0" />
+                    <p className="font-bold text-sm text-(--text-primary)">
+                      Allow precise location
+                    </p>
                   </div>
+                  <p className="text-xs text-(--text-secondary) mt-1 font-medium">
+                    Zidwell would like to use your precise location for better
+                    delivery and customer matching.
+                  </p>
+
+                  {formData.latitude != null && formData.longitude != null && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all font-medium">
+                      Captured: {formData.latitude.toFixed(5)},{" "}
+                      {formData.longitude.toFixed(5)}
+                      {formData.locationAccuracy
+                        ? ` (±${Math.round(formData.locationAccuracy)}m)`
+                        : ""}
+                    </p>
+                  )}
+
+                  {locationError && (
+                    <p className="text-xs text-red-500 mt-2 font-medium">
+                      {locationError}
+                    </p>
+                  )}
                 </div>
-              </label>
+
+                <label
+                  className={cn(
+                    "relative inline-flex items-center shrink-0 self-start sm:self-center",
+                    locationLoading ? "cursor-wait" : "cursor-pointer"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.locationEnabled}
+                    onChange={(e) => handleLocationToggle(e.target.checked)}
+                    disabled={locationLoading || isWorking}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-(--color-accent-yellow) transition-colors duration-200 relative">
+                    <div
+                      className={cn(
+                        "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 flex items-center justify-center",
+                        formData.locationEnabled && "translate-x-5"
+                      )}
+                    >
+                      {locationLoading && (
+                        <Loader2 className="size-2.5 animate-spin text-gray-700" />
+                      )}
+                    </div>
+                  </div>
+                </label>
+              </div>
             </div>
-          </div>
+          </SectionCard>
         );
 
       case 3:
         return (
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-(--text-primary)">
-                Review Your Store
-              </h2>
-              <p className="text-xs sm:text-sm text-(--text-secondary)">
-                Confirm everything looks correct before activation.
-              </p>
+          <SectionCard>
+            <StepHead
+              title="Review Your Store"
+              copy="Confirm everything looks correct before activation. Tap the Brand or Location step above to go back and edit."
+            />
+
+            <div className="mt-8 grid gap-5 sm:grid-cols-2">
+              <Summary
+                title="Brand"
+                rows={[
+                  ["Store Name", formData.name],
+                  ["Store URL", `zidwell.com/${formData.slug}`],
+                  ["Keywords", formData.keywords],
+                ]}
+              />
+              <Summary
+                title="Location"
+                rows={[
+                  ["City", formData.city],
+                  ["State", formData.state],
+                  ["Country", formData.country],
+                  ["Address", formData.streetAddress],
+                ]}
+              />
             </div>
 
-            <div className="rounded-xl bg-(--bg-secondary) p-4 sm:p-5 space-y-1 border border-(--border-color)">
-              <ReviewRow label="Store Name" value={formData.name} />
-              <ReviewRow
-                label="Store URL"
-                value={`zidwell.com/${formData.slug}`}
-                mono
-              />
-              <ReviewRow
-                label="Location"
-                value={`${formData.city}, ${formData.state}, ${formData.country}`}
-              />
-              <ReviewRow label="Address" value={formData.streetAddress} />
-
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 py-2 border-b border-(--border-color) last:border-0">
-                <span className="text-sm text-(--text-secondary) shrink-0 font-medium sm:min-w-[120px]">
-                  Description
-                </span>
-                <div className="flex-1 min-w-0">
-                  {formData.description ? (
-                    <div
-                      className="text-sm font-medium prose prose-sm dark:prose-invert max-w-none
-                        prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
-                        prose-strong:text-(--text-primary) break-words"
-                      dangerouslySetInnerHTML={{ __html: formData.description }}
-                    />
-                  ) : (
-                    <span className="text-sm text-(--text-secondary)">
-                      No description provided
-                    </span>
-                  )}
-                </div>
+            <div className="mt-5 rounded-[1.5rem] bg-(--bg-secondary) p-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-(--text-secondary)">
+                Description
+              </p>
+              <div className="mt-4">
+                {formData.description ? (
+                  <div
+                    className="text-sm font-medium prose prose-sm dark:prose-invert max-w-none
+                      prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+                      prose-strong:text-(--text-primary) break-words"
+                    dangerouslySetInnerHTML={{ __html: formData.description }}
+                  />
+                ) : (
+                  <span className="text-sm text-(--text-secondary) font-medium">
+                    No description provided
+                  </span>
+                )}
               </div>
-
-              {formData.keywords && (
-                <ReviewRow label="Keywords" value={formData.keywords} />
-              )}
-              <ReviewRow
-                label="Precise location"
-                value={
-                  formData.locationEnabled && formData.latitude != null
-                    ? `Enabled (${formData.latitude.toFixed(4)}, ${formData.longitude?.toFixed(4)})`
-                    : "Disabled"
-                }
-              />
             </div>
 
-            <div className="rounded-xl border border-(--border-color) bg-(--bg-secondary) p-4 text-sm">
-              <p className="text-(--text-secondary)">
-                A one-time activation fee of{" "}
-                <span className="font-bold text-(--text-primary)">
-                  ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
-                </span>{" "}
-                will be charged via card to activate your store.
-              </p>
+            <div className="mt-5 flex items-center gap-4 rounded-[1.5rem] bg-(--bg-secondary) p-5">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-(--color-accent-yellow) font-bold text-xl text-(--color-ink)">
+                {(formData.name || "Z").charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-base text-(--text-primary)">
+                  {formData.name || "Your store"}
+                </p>
+                <p className="text-sm font-medium text-(--text-secondary)">
+                  {formData.locationEnabled && formData.latitude != null
+                    ? `Precise location enabled`
+                    : "Precise location disabled"}
+                </p>
+              </div>
             </div>
-          </div>
+          </SectionCard>
         );
 
       case 4:
         return (
-          <div className="space-y-5">
-            <div className="text-center">
-              <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-(--bg-secondary) mx-auto">
-                <Sparkles className="size-6 sm:size-7 text-(--text-secondary)" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-bold mt-4 text-(--text-primary)">
-                {hasPendingActivation
-                  ? "Complete Your Store Activation"
-                  : "Activate Your Store"}
-              </h2>
-              <p className="text-xs sm:text-sm text-(--text-secondary) mt-2">
-                {hasPendingActivation
+          <SectionCard>
+            <StepHead
+              title="Activate Your Store"
+              copy={
+                hasPendingActivation
                   ? "Your store has been created. Pay the activation fee to publish it."
-                  : "Pay a one-time activation fee via card to publish your store."}
+                  : "Pay a one-time activation fee via card to publish your store."
+              }
+            />
+
+            <div className="mt-8 space-y-5">
+              <div className="rounded-[1.75rem] border border-(--border-color) bg-[#191919] text-white p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-gray-400 text-[10px] uppercase tracking-[0.14em] font-bold">
+                      Activation Fee
+                    </p>
+                    <p className="text-4xl sm:text-5xl font-bold mt-2 leading-none">
+                      ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
+                    </p>
+                    <p className="mt-3 max-w-md text-sm font-medium text-gray-300">
+                      Covers store creation and activation — your storefront,
+                      payment links and store wallet go live immediately.
+                    </p>
+                  </div>
+                  <CreditCard className="size-9 text-gray-400 shrink-0" />
+                </div>
+                <div className="mt-5 pt-5 border-t border-gray-700 space-y-2 text-sm">
+                  <Benefit text="Publish your public store page" />
+                  <Benefit text="Accept online payments" />
+                  <Benefit text="Free business wallet to receive funds" />
+                  <Benefit text="Unlimited payment pages & products" />
+                </div>
+              </div>
+
+              {isVerified ? (
+                <div className="rounded-[1.5rem] border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-5 flex items-start sm:items-center gap-3">
+                  <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5 sm:mt-0" />
+                  <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                    BVN verified. You're ready to activate.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-[1.5rem] border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-5 flex items-start gap-3">
+                  <AlertTriangle className="size-5 text-yellow-500 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-yellow-700 dark:text-yellow-400">
+                      User credentials not verified
+                    </p>
+                    <p className="text-xs text-yellow-600 dark:text-yellow-500 font-medium">
+                      You can still activate your store. Verify later to
+                      enable withdrawals.
+                    </p>
+                    <button
+                      onClick={openVerificationModal}
+                      className="mt-2 text-xs font-bold text-yellow-600 dark:text-yellow-400 hover:underline"
+                    >
+                      Verify Now →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={handleActivate}
+                disabled={isWorking || isProcessingCheckout}
+                className="w-full rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-4 text-sm sm:text-base font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isActivating || isProcessingCheckout ? (
+                  <>
+                    <Loader2 className="size-5 inline mr-2 animate-spin" />
+                    {isProcessingCheckout
+                      ? "Preparing Checkout..."
+                      : "Activating..."}
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="size-5 inline mr-2" />
+                    {hasPendingActivation
+                      ? "Pay & Activate"
+                      : "Pay Now & Activate Store"}
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-xs text-(--text-secondary) font-medium">
+                You will be redirected to pay ₦
+                {ACTIVATION_FEE_NAIRA.toLocaleString()} via card.
               </p>
             </div>
-
-            <div className="rounded-xl border border-(--border-color) bg-[#191919] text-white p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
-                    Activation Fee
-                  </p>
-                  <p className="text-3xl sm:text-4xl font-bold mt-2">
-                    ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
-                  </p>
-                </div>
-                <CreditCard className="size-8 sm:size-10 text-gray-400 shrink-0" />
-              </div>
-              <div className="mt-5 pt-5 border-t border-gray-700 space-y-2 text-sm">
-                <Benefit text="Publish your public store page" />
-                <Benefit text="Accept online payments" />
-                <Benefit text="Free business wallet to receive funds" />
-                <Benefit text="Unlimited payment pages & products" />
-              </div>
-            </div>
-
-            {isVerified ? (
-              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-4 flex items-start sm:items-center gap-3">
-                <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5 sm:mt-0" />
-                <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                  BVN verified. You're ready to activate.
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 p-4 flex items-start gap-3">
-                <AlertTriangle className="size-5 text-yellow-500 shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
-                    User credentials not verified
-                  </p>
-                  <p className="text-xs text-yellow-600 dark:text-yellow-500">
-                    You can still activate your store. Verify later to enable
-                    withdrawals.
-                  </p>
-                  <button
-                    onClick={openVerificationModal}
-                    className="mt-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline"
-                  >
-                    Verify Now →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={handleActivate}
-              disabled={isWorking || isProcessingCheckout}
-              className="w-full rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 sm:py-4 text-sm sm:text-base font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isActivating || isProcessingCheckout ? (
-                <>
-                  <Loader2 className="size-5 inline mr-2 animate-spin" />
-                  {isProcessingCheckout
-                    ? "Preparing Checkout..."
-                    : "Activating..."}
-                </>
-              ) : (
-                <>
-                  <CreditCard className="size-5 inline mr-2" />
-                  {hasPendingActivation
-                    ? "Pay & Activate"
-                    : "Pay Now & Activate Store"}
-                </>
-              )}
-            </button>
-
-            <p className="text-center text-xs text-(--text-secondary)">
-              You will be redirected to pay ₦
-              {ACTIVATION_FEE_NAIRA.toLocaleString()} via card.
-            </p>
-          </div>
+          </SectionCard>
         );
 
       default:
@@ -1834,7 +1944,7 @@ export function CreateStoreForm() {
 
       <div className="text-center mb-6 sm:mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-(--bg-secondary)">
+          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-3xl bg-(--bg-secondary)">
             <Store className="size-7 sm:size-8 text-(--text-secondary)" />
           </div>
         </div>
@@ -1843,10 +1953,10 @@ export function CreateStoreForm() {
             ? "Complete Your Store Activation"
             : "Create Your Online Store"}
         </h1>
-        <p className="mt-2 text-sm sm:text-base text-(--text-secondary) px-2">
+        <p className="mt-3 text-sm sm:text-base font-medium text-(--text-secondary) px-2 max-w-2xl mx-auto">
           {hasPendingActivation
             ? "Your store is almost ready! Pay the activation fee to publish it."
-            : "Set up your store and activate it to start accepting payments"}
+            : "Four short steps. Everything Zidwell already knows about your business is filled in for you — you only complete what's missing."}
         </p>
       </div>
 
@@ -1863,8 +1973,8 @@ export function CreateStoreForm() {
         !hasExistingDraft &&
         step === 1 &&
         !formData.name && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
-            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[1.5rem] border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-5 py-4 text-sm">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
               <AlertCircle className="size-4 shrink-0" />
               <span>Have a saved draft? Load it to continue.</span>
             </div>
@@ -1877,7 +1987,7 @@ export function CreateStoreForm() {
               }}
               disabled={loadingDraftManually}
               type="button"
-              className="self-start sm:self-auto text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline flex items-center gap-1 disabled:opacity-50"
+              className="self-start sm:self-auto text-xs font-bold text-blue-700 dark:text-blue-300 hover:underline flex items-center gap-1 disabled:opacity-50"
             >
               {loadingDraftManually ? (
                 <>
@@ -1892,15 +2002,15 @@ export function CreateStoreForm() {
 
       {/* Draft restored banner */}
       {hasExistingDraft && !hasPendingActivation && step <= 3 && (
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
-          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[1.5rem] border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-5 py-4 text-sm">
+          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
             <AlertCircle className="size-4 shrink-0" />
             <span>Continuing from your saved draft.</span>
           </div>
           <button
             onClick={handleDiscardDraft}
             type="button"
-            className="self-start sm:self-auto text-xs font-semibold text-blue-700 dark:text-blue-300 hover:underline"
+            className="self-start sm:self-auto text-xs font-bold text-blue-700 dark:text-blue-300 hover:underline"
           >
             Start over
           </button>
@@ -1908,150 +2018,107 @@ export function CreateStoreForm() {
       )}
 
       {/* Step indicator */}
-      {!hasPendingActivation && (
-        <div className="flex items-center justify-center gap-1 sm:gap-2 mb-6 sm:mb-8 overflow-x-auto px-1">
-          {[
-            { n: 1, label: "Brand" },
-            { n: 2, label: "Location" },
-            { n: 3, label: "Review" },
-            { n: 4, label: "Activate" },
-          ].map((s, i, arr) => (
-            <div key={s.n} className="flex items-center shrink-0">
-              <div className="flex flex-col items-center">
-                <div
-                  className={cn(
-                    "flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs sm:text-sm font-bold transition-colors",
-                    s.n === step &&
-                      "bg-(--color-accent-yellow) text-(--color-ink)",
-                    s.n < step && "bg-(--bg-secondary) text-(--text-primary)",
-                    s.n > step &&
-                      "bg-(--bg-secondary) text-(--text-secondary) opacity-50"
-                  )}
-                >
-                  {s.n < step ? (
-                    <Check className="size-3.5 sm:size-4" />
-                  ) : (
-                    s.n
-                  )}
-                </div>
-                <span className="mt-1 text-[9px] sm:text-[10px] font-medium uppercase tracking-wide text-(--text-secondary) hidden sm:block">
-                  {s.label}
-                </span>
-              </div>
-              {i < arr.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 w-6 sm:w-12 mx-1 sm:mx-2",
-                    s.n < step
-                      ? "bg-(--text-secondary)"
-                      : "bg-(--border-color)"
-                  )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {!hasPendingActivation && renderStepIndicator()}
 
       {hasPendingActivation && (
         <div className="text-center mb-6 sm:mb-8">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm font-medium">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 text-xs sm:text-sm font-bold">
             <AlertCircle className="size-4" />
             Pending Activation
           </div>
           <h2 className="text-xl sm:text-2xl font-bold mt-4 text-(--text-primary)">
             Step 4: Activate Your Store
           </h2>
-          <p className="text-xs sm:text-sm text-(--text-secondary) px-2">
+          <p className="text-xs sm:text-sm text-(--text-secondary) px-2 font-medium">
             Your store "{formData.name}" has been created. Pay the activation
             fee to publish it.
           </p>
         </div>
       )}
 
-      <div className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-4 sm:p-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            {renderStepContent()}
-          </motion.div>
-        </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.2 }}
+          className="mt-6"
+        >
+          {renderStepContent()}
+        </motion.div>
+      </AnimatePresence>
 
-        <div className="flex flex-wrap justify-between items-center gap-3 mt-6 pt-6 border-t border-(--border-color)">
-          {step > 1 && !hasPendingActivation ? (
+      {/* Footer nav — single source of truth for Back/Next */}
+      <div className="mt-8 flex items-center justify-between gap-4">
+        {/* Back button — always visible except on step 1 */}
+        {step > 1 ? (
+          <button
+            onClick={handleBack}
+            type="button"
+            className="flex items-center gap-2 rounded-2xl border border-(--border-color) px-5 py-3.5 text-sm font-bold text-(--text-primary) hover:bg-(--bg-secondary) transition-colors"
+          >
+            <ArrowLeft className="size-5" /> Back
+          </button>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex items-center gap-3">
+          {/* Save for later — only on steps 1-3 (not on Activate) */}
+          {step <= 3 && (
             <button
-              onClick={handleBack}
+              onClick={handleSaveAndContinueLater}
               type="button"
-              aria-label="Go back"
-              title="Go back"
-              className="flex items-center justify-center h-10 w-10 rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-secondary) hover:bg-(--bg-secondary) transition-colors"
+              disabled={savingDraft}
+              className="rounded-2xl px-4 py-3.5 text-sm font-bold text-(--text-secondary) hover:text-(--text-primary) transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              <ArrowLeft className="size-5" />
+              {savingDraft ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              <span className="hidden sm:inline">
+                {savingDraft ? "Saving..." : "Save for later"}
+              </span>
             </button>
-          ) : (
-            <div className="h-10 w-10" />
           )}
 
-          <div className="flex flex-wrap gap-2 sm:gap-3 ml-auto">
-            {step >= 1 && step <= 3 && !hasPendingActivation && (
-              <button
-                onClick={handleSaveAndContinueLater}
-                type="button"
-                disabled={savingDraft}
-                className="rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) px-3 sm:px-6 py-2.5 text-xs sm:text-sm font-medium hover:bg-(--bg-secondary) transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {savingDraft ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                <span className="hidden sm:inline">
-                  {savingDraft ? "Saving..." : "Save & Continue Later"}
-                </span>
-                <span className="sm:hidden">
-                  {savingDraft ? "..." : "Save"}
-                </span>
-              </button>
-            )}
+          {/* Continue on step 1 */}
+          {step === 1 && (
+            <button
+              onClick={handleNext}
+              disabled={
+                nameValidation.isChecking ||
+                slugValidation.isChecking ||
+                !nameValidation.isValid ||
+                !slugValidation.isValid
+              }
+              className="flex items-center gap-2 rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 text-sm font-bold disabled:opacity-40 transition-colors"
+            >
+              Continue <ArrowRight className="size-5" />
+            </button>
+          )}
 
-            {step === 1 && !hasPendingActivation && (
-              <button
-                onClick={handleNext}
-                disabled={
-                  nameValidation.isChecking ||
-                  slugValidation.isChecking ||
-                  !nameValidation.isValid ||
-                  !slugValidation.isValid
-                }
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <ChevronRight className="size-4" />
-              </button>
-            )}
+          {/* Continue on step 2 */}
+          {step === 2 && (
+            <button
+              onClick={handleNext}
+              className="flex items-center gap-2 rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 text-sm font-bold transition-colors"
+            >
+              Continue <ArrowRight className="size-5" />
+            </button>
+          )}
 
-            {step === 2 && !hasPendingActivation && (
-              <button
-                onClick={handleNext}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                Next <ChevronRight className="size-4" />
-              </button>
-            )}
-
-            {step === 3 && !hasPendingActivation && (
-              <button
-                onClick={handleGoToActivation}
-                className="rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2"
-              >
-                Proceed to Activation <ChevronRight className="size-4" />
-              </button>
-            )}
-          </div>
+          {/* Proceed to Activation on step 3 */}
+          {step === 3 && (
+            <button
+              onClick={handleGoToActivation}
+              className="flex items-center gap-2 rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 text-sm font-bold transition-colors"
+            >
+              Proceed to Activation <ArrowRight className="size-5" />
+            </button>
+          )}
         </div>
       </div>
     </div>

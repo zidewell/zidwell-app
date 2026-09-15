@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
+import { normalizeVariants } from "@/lib/payment-page/normalize";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -170,6 +171,19 @@ export async function PUT(
         }
       }
 
+      // ✅ NORMALIZE VARIANT STOCK + PRICE (physical products)
+      // Ensures `stock: 0` / null / "" becomes `null` (unlimited) and
+      // any invalid price becomes 0 (buyer falls back to page price).
+      if (
+        existingPage.page_type === "physical" &&
+        Array.isArray(updatedMetadata.variants) &&
+        updatedMetadata.variants.length > 0
+      ) {
+        updatedMetadata.variants = normalizeVariants(
+          updatedMetadata.variants
+        );
+      }
+
       updateData.metadata = updatedMetadata;
     } else if (
       // If metadata isn't sent, but priceType/installmentCount changed, still update metadata
@@ -208,6 +222,17 @@ export async function PUT(
         delete updatedMetadata.installmentCount;
         delete updatedMetadata.installmentAmount;
         delete updatedMetadata.installmentPeriod;
+      }
+
+      // ✅ NORMALIZE VARIANT STOCK + PRICE (physical products)
+      if (
+        existingPage.page_type === "physical" &&
+        Array.isArray(updatedMetadata.variants) &&
+        updatedMetadata.variants.length > 0
+      ) {
+        updatedMetadata.variants = normalizeVariants(
+          updatedMetadata.variants
+        );
       }
 
       updateData.metadata = updatedMetadata;

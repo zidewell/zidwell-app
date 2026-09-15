@@ -7,12 +7,25 @@
 //   • ISR (revalidate = 60)
 //   • Slug sanitization + HTML sanitization
 //   • Single RPC for view increments (no N+1)
+//
+// UI/UX:
+//   • Fully compatible with light & dark modes via design tokens
+//   • Mobile-first grid (2 cols on mobile → 4 on XL)
+//   • Squircle radii matching the Zidwell design system
+//   • Card-based product layout with hover lift + accent border
+//   • Location section with embedded map + address card
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import { Package, MapPin, Store as StoreIcon, Eye } from "lucide-react";
+import {
+  Package,
+  MapPin,
+  Store as StoreIcon,
+  Eye,
+  Navigation,
+} from "lucide-react";
 import {
   generateStoreMetadata,
   generateStoreFrontSchema,
@@ -41,6 +54,13 @@ function sanitizeHtml(html: string): string {
     .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
     .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
     .replace(/javascript:/gi, "");
+}
+
+/** Safe numeric parse for lat/lng coming back as numeric/string from Postgres. */
+function toNumberOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 // ─── SEO: Dynamic metadata ───
@@ -120,6 +140,38 @@ export default async function PublicStorePage({ params }: StorePageProps) {
 
   const safeDescription = sanitizeHtml(store.description || "");
 
+  // ─── Location bits ───
+  const lat = toNumberOrNull(store.latitude);
+  const lng = toNumberOrNull(store.longitude);
+  const hasCoordinates = lat !== null && lng !== null;
+
+  const hasAddress = Boolean(
+    store.street_address || store.city || store.state || store.country
+  );
+
+  const addressLine = [
+    store.street_address,
+    store.city,
+    store.state,
+    store.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  // Google Maps embed URLs — no API key required for the `output=embed` form.
+  const mapQuery = hasCoordinates
+    ? `${lat},${lng}`
+    : encodeURIComponent(
+        [store.street_address, store.city, store.state, store.country]
+          .filter(Boolean)
+          .join(", ")
+      );
+
+  const mapEmbedSrc = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
+  const mapDirectionsHref = hasCoordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${mapQuery}`;
+
   // ─── SEO: JSON-LD schemas ───
   const storeSchema = generateStoreFrontSchema({
     name: store.name,
@@ -147,7 +199,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
   ]);
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e]">
+    <div className="min-h-screen bg-(--bg-primary)">
       {/* ─── SEO: JSON-LD structured data ─── */}
       <script
         type="application/ld+json"
@@ -159,17 +211,41 @@ export default async function PublicStorePage({ params }: StorePageProps) {
       />
 
       {/* ─── Store Header ─── */}
-      <div className="bg-[#023528] text-white">
-        <div className="max-w-6xl mx-auto px-4 py-12 md:py-16">
-          <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10">
-              <StoreIcon className="h-8 w-8 text-[#e1bf46]" />
+      <header className="border-b border-(--border-color) bg-(--bg-secondary)">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12 md:py-14">
+          {store.cover_url && (
+            <div className="squircle-lg mb-6 overflow-hidden border border-(--border-color)">
+              <img
+                src={store.cover_url}
+                alt={`${store.name} cover`}
+                className="h-40 w-full object-cover sm:h-52 md:h-64"
+                loading="eager"
+              />
             </div>
-            <div className="flex-1">
-              <h1 className="text-3xl md:text-4xl font-bold">{store.name}</h1>
+          )}
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+            <div className="squircle-md flex h-16 w-16 shrink-0 items-center justify-center border border-(--border-color) bg-(--bg-primary) shadow-(--shadow-soft) sm:h-20 sm:w-20">
+              {store.logo_url ? (
+                <img
+                  src={store.logo_url}
+                  alt={store.name}
+                  className="squircle-md h-full w-full object-cover"
+                />
+              ) : (
+                <StoreIcon className="h-8 w-8 text-(--color-accent-yellow) sm:h-10 sm:w-10" />
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow text-(--text-secondary)">Online Store</p>
+
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-(--text-primary) sm:text-3xl md:text-4xl">
+                {store.name}
+              </h1>
 
               {safeDescription && (
-                <div className="mt-4 text-base leading-7 text-white/70 prose prose-invert prose-sm max-w-none">
+                <div className="prose prose-sm dark:prose-invert mt-4 max-w-2xl text-sm leading-6 text-(--text-secondary) prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:text-(--text-primary)">
                   <div
                     dangerouslySetInnerHTML={{
                       __html: safeDescription
@@ -188,39 +264,44 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-4 mt-4">
-                <span className="text-sm bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
-                  <Package className="h-4 w-4" />
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
+                  <Package className="mr-1.5 h-3.5 w-3.5" />
                   {validPages.length} product
                   {validPages.length !== 1 ? "s" : ""}
                 </span>
+
                 {store.city && store.state && (
-                  <span className="text-sm bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
+                  <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
+                    <MapPin className="mr-1.5 h-3.5 w-3.5" />
                     {store.city}, {store.state}
                   </span>
                 )}
-                <span className="text-sm bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
+
+                <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
+                  <Eye className="mr-1.5 h-3.5 w-3.5" />
                   {(store.total_views || 0).toLocaleString()} views
                 </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* ─── Products Grid ─── */}
-      <div className="max-w-6xl mx-auto py-8 px-4">
+      {/* ─── Products Section ─── */}
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
         {validPages.length > 0 ? (
           <>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-white">Products</h2>
-              <span className="text-sm text-gray-400">
-                {validPages.length} items
+            <div className="mb-6 flex items-baseline justify-between">
+              <h2 className="text-lg font-semibold text-(--text-primary) sm:text-xl">
+                Products
+              </h2>
+              <span className="text-sm text-(--text-secondary)">
+                {validPages.length} item{validPages.length !== 1 ? "s" : ""}
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
               {validPages.map((page) => {
                 const productStoreSlug = page.metadata?.storeSlug || storeSlug;
                 const safeProductDesc = sanitizeHtml(page.description || "");
@@ -230,61 +311,64 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                     href={`/store/${productStoreSlug}/${page.slug}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group bg-[#1a1a1a] rounded-xl border border-gray-800 overflow-hidden hover:border-[#e1bf46] transition-all duration-300 hover:shadow-lg hover:shadow-[#e1bf46]/5"
+                    className="squircle-lg group flex flex-col overflow-hidden border border-(--border-color) bg-(--bg-secondary) transition-all duration-300 hover:-translate-y-0.5 hover:border-(--color-accent-yellow)/40 hover:shadow-(--shadow-pop)"
                   >
-                    <div className="aspect-[5/4] overflow-hidden bg-[#2a2a2a] relative">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-(--bg-primary)">
                       {page.product_images && page.product_images.length > 0 ? (
                         <img
                           src={page.product_images[0]}
                           alt={page.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
                       ) : page.cover_image ? (
                         <img
                           src={page.cover_image}
                           alt={page.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Package className="h-16 w-16 text-gray-600" />
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Package className="h-10 w-10 text-(--text-secondary)/40 sm:h-12 sm:w-12" />
                         </div>
                       )}
-                      <div className="absolute top-3 left-3">
-                        <span className="text-xs bg-black/70 text-[#e1bf46] px-2 py-1 rounded-full">
+
+                      <div className="absolute left-2.5 top-2.5">
+                        <span className="rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
                           {page.page_type || "Product"}
                         </span>
                       </div>
                     </div>
 
-                    <div className="p-4">
-                      <h3 className="font-semibold text-white group-hover:text-[#e1bf46] transition-colors line-clamp-1">
+                    <div className="flex flex-1 flex-col p-3 sm:p-4">
+                      <h3 className="line-clamp-1 text-sm font-semibold text-(--text-primary) transition-colors group-hover:text-(--color-accent-yellow)">
                         {page.title}
                       </h3>
 
                       {safeProductDesc && (
                         <div
-                          className="text-sm text-gray-400 mt-1 line-clamp-3 prose prose-invert prose-sm max-w-none prose-p:text-gray-400 prose-p:my-0.5 prose-ul:text-gray-400 prose-ul:list-disc prose-ul:pl-4 prose-ul:my-0.5 prose-ol:text-gray-400 prose-ol:list-decimal prose-ol:pl-4 prose-ol:my-0.5 prose-li:text-gray-400 prose-li:my-0 prose-strong:text-gray-300 prose-em:text-gray-400 prose-headings:text-gray-300"
-                          dangerouslySetInnerHTML={{ __html: safeProductDesc }}
+                          className="prose prose-sm dark:prose-invert mt-1 line-clamp-2 max-w-none text-xs leading-5 text-(--text-secondary) prose-p:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0"
+                          dangerouslySetInnerHTML={{
+                            __html: safeProductDesc.replace(
+                              /<p>/g,
+                              '<p class="mb-1">'
+                            ),
+                          }}
                         />
                       )}
 
-                      <div className="flex items-center justify-between mt-3">
-                        <p className="text-lg font-bold text-[#e1bf46]">
+                      <div className="mt-auto flex items-baseline justify-between pt-3">
+                        <p className="text-sm font-bold text-(--color-accent-yellow) sm:text-base">
                           ₦{Number(page.price || 0).toLocaleString()}
                         </p>
                         {page.price_type === "installment" &&
                           page.installment_count && (
-                            <span className="text-xs text-gray-400">
-                              {page.installment_count}x payments
+                            <span className="text-[10px] font-medium text-(--text-secondary)">
+                              {page.installment_count}×
                             </span>
                           )}
                       </div>
-                      <button className="w-full mt-3 bg-[#e1bf46] text-[#023528] font-semibold py-2 rounded-lg hover:opacity-90 transition-opacity text-sm">
-                        View Product
-                      </button>
                     </div>
                   </Link>
                 );
@@ -292,30 +376,108 @@ export default async function PublicStorePage({ params }: StorePageProps) {
             </div>
           </>
         ) : (
-          <div className="text-center py-16">
-            <Package className="h-20 w-20 text-gray-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="squircle-md flex h-16 w-16 items-center justify-center border border-(--border-color) bg-(--bg-secondary)">
+              <Package className="h-8 w-8 text-(--text-secondary)/50" />
+            </div>
+            <h3 className="mt-5 text-lg font-semibold text-(--text-primary)">
               No products yet
             </h3>
-            <p className="text-gray-400 mt-2">
-              This store hasn't added any products yet.
+            <p className="mt-1.5 max-w-xs text-sm text-(--text-secondary)">
+              This store hasn&apos;t added any products yet. Check back soon.
             </p>
-            <p className="text-gray-500 text-sm mt-1">Check back soon!</p>
           </div>
         )}
-      </div>
+      </section>
+
+      {/* ─── Location / Map Section ─── */}
+      {(hasCoordinates || hasAddress) && (
+        <section className="border-t border-(--border-color) bg-(--bg-secondary)">
+          <div className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+            <div className="mb-6 flex items-baseline justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-(--text-primary) sm:text-xl">
+                  Visit this store
+                </h2>
+                <p className="mt-1 text-sm text-(--text-secondary)">
+                  Find us on the map or get directions.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+              {/* Address card */}
+              <div className="squircle-lg flex flex-col border border-(--border-color) bg-(--bg-primary) p-5 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <div className="squircle-md flex h-10 w-10 shrink-0 items-center justify-center bg-(--bg-secondary)">
+                    <MapPin className="h-5 w-5 text-(--color-accent-yellow)" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="eyebrow text-(--text-secondary)">Address</p>
+                    <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                      {addressLine || "Location details not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                {store.location_enabled && hasCoordinates && (
+                  <p className="mt-4 text-xs text-(--text-secondary)">
+                    <span className="font-medium text-(--text-primary)">
+                      Precise location enabled
+                    </span>{" "}
+                    · {lat!.toFixed(4)}, {lng!.toFixed(4)}
+                  </p>
+                )}
+
+                <a
+                  href={mapDirectionsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="squircle-md mt-6 inline-flex items-center justify-center gap-2 bg-(--color-accent-yellow) px-4 py-3 text-sm font-semibold text-(--color-ink) transition-opacity hover:opacity-90"
+                >
+                  <Navigation className="h-4 w-4" />
+                  Get directions
+                </a>
+              </div>
+
+              {/* Map embed */}
+              <div className="squircle-lg overflow-hidden border border-(--border-color) bg-(--bg-primary) lg:col-span-2">
+                {hasCoordinates || hasAddress ? (
+                  <iframe
+                    title={`Map of ${store.name}`}
+                    src={mapEmbedSrc}
+                    className="h-72 w-full sm:h-80 lg:h-full lg:min-h-[320px]"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="flex h-72 w-full items-center justify-center sm:h-80">
+                    <p className="text-sm text-(--text-secondary)">
+                      No location provided.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── Footer ─── */}
-      <div className="border-t border-gray-800 py-6">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="text-sm text-gray-500">
-            Powered by <span className="text-[#e1bf46]">Zidwell</span>
+      <footer className="border-t border-(--border-color) bg-(--bg-primary)">
+        <div className="mx-auto max-w-6xl px-4 py-8 text-center">
+          <p className="text-sm text-(--text-secondary)">
+            Powered by{" "}
+            <span className="font-semibold text-(--color-accent-yellow)">
+              Zidwell
+            </span>
           </p>
-          <p className="text-xs text-gray-600 mt-1">
-            Secure payments • Fast checkout • Trusted by merchants
+          <p className="mt-1.5 text-xs text-(--text-secondary)/70">
+            Secure payments · Fast checkout · Trusted by merchants
           </p>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

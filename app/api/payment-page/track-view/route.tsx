@@ -63,8 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     pageViews = newViews;
-    console.log("✅ Page views updated to:", newViews);
-
+  
     // ✅ Update store views (optional)
     if (storeId) {
       const { data: store, error: storeFetchError } = await supabase
@@ -82,7 +81,7 @@ export async function POST(request: NextRequest) {
 
         if (!storeUpdateError) {
           storeViews = newStoreViews;
-          console.log("✅ Store views updated to:", newStoreViews);
+          
         }
       }
     }

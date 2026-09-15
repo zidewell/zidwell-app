@@ -33,63 +33,7 @@ function calculateFees(amount: number) {
   };
 }
 
-// ============================================================
-// STOCK DECREMENT
-// ============================================================
-async function decrementStock(
-  paymentPageId: string,
-  quantity: number,
-  selectedVariantSku: string | null
-): Promise<void> {
-  try {
-    const qty = Math.max(1, Number(quantity) || 1);
 
-    const { data: page, error } = await supabase
-      .from("payment_pages")
-      .select("metadata")
-      .eq("id", paymentPageId)
-      .single();
-
-    if (error || !page) return;
-
-    const meta: any = { ...(page.metadata || {}) };
-    let changed = false;
-
-    if (
-      selectedVariantSku &&
-      Array.isArray(meta.variants) &&
-      meta.variants.length > 0
-    ) {
-      meta.variants = meta.variants.map((v: any) => {
-        const key = v.sku || v.name;
-        if (key !== selectedVariantSku) return v;
-        const current = Number(v.stock);
-        if (!Number.isFinite(current)) return v;
-        const next = Math.max(0, current - qty);
-        if (next !== current) changed = true;
-        return { ...v, stock: next };
-      });
-    } else if (meta.stock != null) {
-      const current = Number(meta.stock);
-      if (Number.isFinite(current)) {
-        const next = Math.max(0, current - qty);
-        if (next !== current) {
-          meta.stock = next;
-          changed = true;
-        }
-      }
-    }
-
-    if (!changed) return;
-
-    await supabase
-      .from("payment_pages")
-      .update({ metadata: meta, updated_at: new Date().toISOString() })
-      .eq("id", paymentPageId);
-  } catch (err) {
-    console.error("Stock decrement failed:", err);
-  }
-}
 
 // ============================================================
 // RECORD INSTALLMENT ACCOUNT
@@ -420,12 +364,7 @@ export async function processCardPaymentWebhook(
       return { error: "Failed to update payment", status: 500 };
     }
 
-    // ─── 2. Decrement stock ───
-    await decrementStock(
-      payment.payment_page_id,
-      Number(payment.metadata?.quantity) || 1,
-      payment.metadata?.selectedVariantSku || null
-    );
+
 
     // ─── 3. Record the installment account ───
     const isInstallment = payment.payment_type === "installment";

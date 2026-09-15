@@ -10,7 +10,6 @@ import {
   Plus,
   Trash2,
   GripVertical,
-  Eye,
   Link2,
   CheckCircle,
   Copy,
@@ -172,227 +171,6 @@ function LinkPricingSummaryCard({
 }
 
 // ============================================================
-// LIVE PREVIEW MODAL
-// ============================================================
-function LivePreviewModal({
-  isOpen,
-  onClose,
-  title,
-  description,
-  productImage,
-  previewPrice,
-  config,
-  isInstallment,
-  installmentCount,
-  installmentPeriod,
-  installmentAmount,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  description: string;
-  productImage: string | null;
-  previewPrice: string;
-  config: LinkConfig;
-  isInstallment?: boolean;
-  installmentCount?: string;
-  installmentPeriod?: string;
-  installmentAmount?: number;
-}) {
-  const images = productImage ? [productImage] : [];
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-[#1a1a1a] rounded-2xl border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-            style={{ borderTop: `4px solid ${config.brandColor}` }}
-          >
-            <div className="bg-[#023528] px-6 py-4 border-b border-gray-800 flex items-center justify-between sticky top-0 z-10">
-              <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-[#e1bf46]" />
-                <span className="text-lg font-semibold text-white">
-                  Live Preview
-                </span>
-                <span className="text-xs text-gray-400 ml-2">
-                  What shoppers will see
-                </span>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="md:w-1/2">
-                  <div className="relative aspect-[5/4] rounded-xl overflow-hidden bg-[#1a1a1a] border border-gray-700">
-                    {images.length > 0 ? (
-                      <img
-                        src={images[0]}
-                        alt={title || "Product"}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = "/placeholder-image.png";
-                          e.currentTarget.onerror = null;
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-500">
-                        <Package className="h-16 w-16 mb-2 opacity-30" />
-                        <p className="text-sm">No image uploaded</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="md:w-1/2 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${config.brandColor}15` }}
-                    >
-                      <Link2
-                        className="h-4 w-4"
-                        style={{ color: config.brandColor }}
-                      />
-                    </div>
-                    <span className="text-xs bg-[#e1bf46]/10 text-[#e1bf46] px-2 py-0.5 rounded-full">
-                      Payment Link
-                    </span>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-white leading-tight">
-                    {title || "Your Link Title"}
-                  </h3>
-
-                  {description && (
-                    <div
-                      className="text-sm text-gray-400 line-clamp-3 prose prose-invert prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: description }}
-                    />
-                  )}
-
-                  {/* Price Display — with installment support */}
-                  <div className="py-2">
-                    {isInstallment && installmentAmount ? (
-                      <>
-                        <div className="text-xs text-gray-400">
-                          Pay in installments
-                        </div>
-                        <p
-                          className="text-2xl font-bold"
-                          style={{ color: config.brandColor }}
-                        >
-                          {formatNaira(installmentAmount)}
-                          <span className="text-sm text-gray-400 ml-1">
-                            × {installmentCount}
-                          </span>
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {installmentPeriod} — total{" "}
-                          {formatNaira(
-                            installmentAmount * Number(installmentCount || 0)
-                          )}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-xs text-gray-400">Amount</div>
-                        <p
-                          className="text-2xl font-bold"
-                          style={{ color: config.brandColor }}
-                        >
-                          {previewPrice}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div>
-                      <div className="text-[10px] text-gray-400 mb-0.5">
-                        Full Name *
-                      </div>
-                      <div className="h-8 rounded-md border border-gray-700 bg-[#1a1a1a]" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-gray-400 mb-0.5">
-                        Email *
-                      </div>
-                      <div className="h-8 rounded-md border border-gray-700 bg-[#1a1a1a]" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-gray-400 mb-0.5">
-                        Phone
-                      </div>
-                      <div className="h-8 rounded-md border border-gray-700 bg-[#1a1a1a]" />
-                    </div>
-                    {config.customFields.slice(0, 3).map((f) => (
-                      <div key={f.id}>
-                        <div className="text-[10px] text-gray-400 mb-0.5">
-                          {f.label}
-                          {f.required ? " *" : ""}
-                        </div>
-                        <div className="h-8 rounded-md border border-gray-700 bg-[#1a1a1a]" />
-                      </div>
-                    ))}
-                    {config.customFields.length > 3 && (
-                      <p className="text-xs text-gray-400">
-                        + {config.customFields.length - 3} more fields
-                      </p>
-                    )}
-                  </div>
-
-                  <button
-                    className="w-full py-3 rounded-xl font-bold text-sm transition-colors"
-                    style={{ background: config.buttonColor, color: "#191919" }}
-                  >
-                    {config.buttonText}
-                  </button>
-
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                    <Shield className="h-3.5 w-3.5" />
-                    Secured by Zidwell
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-800 px-6 py-4 flex justify-end">
-              <Button
-                onClick={onClose}
-                variant="outline"
-                className="border-gray-700 text-gray-300 hover:bg-gray-800"
-              >
-                Close Preview
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-// ============================================================
 // MAIN COMPONENT
 // ============================================================
 const CreatePaymentLink = () => {
@@ -421,7 +199,6 @@ const CreatePaymentLink = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
 
   // Slug validation state
   const [slugValidation, setSlugValidation] = useState<{
@@ -509,7 +286,7 @@ const CreatePaymentLink = () => {
         });
       }
     },
-    [validateSlug]
+    [validateSlug],
   );
 
   useEffect(() => {
@@ -552,14 +329,14 @@ const CreatePaymentLink = () => {
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/heic"];
     if (!validTypes.includes(file.type)) {
       alert(
-        `File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`
+        `File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`,
       );
       return;
     }
 
     if (file.size > PRODUCT_IMAGE_SPECS.maxSize) {
       alert(
-        `File "${file.name}" exceeds 10MB limit. Please compress your image.`
+        `File "${file.name}" exceeds 10MB limit. Please compress your image.`,
       );
       return;
     }
@@ -588,14 +365,14 @@ const CreatePaymentLink = () => {
   const updateField = (id: string, patch: Partial<CustomField>) => {
     set(
       "customFields",
-      config.customFields.map((f) => (f.id === id ? { ...f, ...patch } : f))
+      config.customFields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     );
   };
 
   const removeField = (id: string) =>
     set(
       "customFields",
-      config.customFields.filter((f) => f.id !== id)
+      config.customFields.filter((f) => f.id !== id),
     );
 
   const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
@@ -603,14 +380,14 @@ const CreatePaymentLink = () => {
 
   const canCreate = Boolean(
     title.trim() &&
-      !slugValidation.isChecking &&
-      isSlugAvailable &&
-      (config.amountMode === "variable" ||
-        (Number(price) > 0 &&
-          (priceType === "fixed" ||
-            (priceType === "installment" &&
-              Number(installmentCount) >= 2 &&
-              Number(installmentCount) <= 24))))
+    !slugValidation.isChecking &&
+    isSlugAvailable &&
+    (config.amountMode === "variable" ||
+      (Number(price) > 0 &&
+        (priceType === "fixed" ||
+          (priceType === "installment" &&
+            Number(installmentCount) >= 2 &&
+            Number(installmentCount) <= 24)))),
   );
 
   const generateFinalSlug = () => slug || slugify(title);
@@ -618,10 +395,7 @@ const CreatePaymentLink = () => {
   const getPageUrl = () => {
     const storeSlug = store?.slug || "";
     if (!storeSlug) return "#";
-    return `/store/${storeSlug}/${createdSlug}`.replace(
-      /\/+/g,
-      "/"
-    );
+    return `/store/${storeSlug}/${createdSlug}`.replace(/\/+/g, "/");
   };
 
   const pageUrl = getPageUrl();
@@ -682,8 +456,6 @@ const CreatePaymentLink = () => {
         currency: config.currency,
         amountMode: config.amountMode,
         active: config.active,
-        brandColor: config.brandColor,
-        buttonColor: config.buttonColor,
         buttonText: config.buttonText,
         successMessage: config.successMessage,
         thankYouMessage: config.thankYouMessage,
@@ -691,9 +463,6 @@ const CreatePaymentLink = () => {
         altRedirectUrl: config.altRedirectUrl,
         referenceCode: config.referenceCode,
         customFields: config.customFields,
-        qrColor: config.qrColor,
-        qrBackground: config.qrBackground,
-        qrFrame: config.qrFrame,
         createdAt: new Date().toISOString(),
       };
 
@@ -726,8 +495,8 @@ const CreatePaymentLink = () => {
         priceType: isInstallment
           ? "installment"
           : config.amountMode === "variable"
-          ? "open"
-          : "fixed",
+            ? "open"
+            : "fixed",
         price: config.amountMode === "variable" ? 0 : Number(price) || 0,
         installmentCount: isInstallment ? Number(installmentCount) : null,
         feeMode: "bearer",
@@ -757,19 +526,6 @@ const CreatePaymentLink = () => {
       setIsCreating(false);
     }
   };
-
-  const isInstallment =
-    priceType === "installment" &&
-    config.amountMode === "fixed" &&
-    Number(installmentCount) > 1 &&
-    Number(price) > 0;
-
-  const previewPrice =
-    config.amountMode === "variable"
-      ? "Buyer chooses"
-      : `${config.currency === "NGN" ? "₦" : config.currency + " "}${(
-          Number(price) || 0
-        ).toLocaleString()}`;
 
   if (!isMounted || loading) {
     return (
@@ -818,17 +574,6 @@ const CreatePaymentLink = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-8 pb-32"
       >
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            onClick={() => setShowPreview(true)}
-            className="border-[#e1bf46] text-[#e1bf46] hover:bg-[#e1bf46]/10"
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Preview Page
-          </Button>
-        </div>
-
         {/* Product Image */}
         <div>
           <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
@@ -984,10 +729,7 @@ const CreatePaymentLink = () => {
             <select
               value={config.currency}
               onChange={(e) =>
-                set(
-                  "currency",
-                  e.target.value as "NGN" | "USD" | "GBP" | "EUR"
-                )
+                set("currency", e.target.value as "NGN" | "USD" | "GBP" | "EUR")
               }
               className="h-12 w-full rounded-xl border border-(--border-color) bg-(--bg-primary) px-3 focus:border-(--color-accent-yellow) focus:ring-0 focus:outline-none"
             >
@@ -1046,9 +788,7 @@ const CreatePaymentLink = () => {
                         : "border-(--border-color) bg-(--bg-secondary) text-(--text-secondary) hover:border-(--color-accent-yellow)/50"
                     }`}
                   >
-                    {val === "fixed"
-                      ? "One-time Payment"
-                      : "Installments"}
+                    {val === "fixed" ? "One-time Payment" : "Installments"}
                   </button>
                 ))}
               </div>
@@ -1057,9 +797,7 @@ const CreatePaymentLink = () => {
             {/* Amount */}
             <div>
               <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                {priceType === "installment"
-                  ? "Total Amount *"
-                  : "Amount *"}
+                {priceType === "installment" ? "Total Amount *" : "Amount *"}
               </Label>
               <Input
                 type="number"
@@ -1150,20 +888,6 @@ const CreatePaymentLink = () => {
             checked={config.active}
             onCheckedChange={(v) => set("active", v)}
             className="data-[state=checked]:bg-(--color-accent-yellow)"
-          />
-        </div>
-
-        {/* Branding Colors */}
-        <div className="grid grid-cols-2 gap-3">
-          <ColorField
-            label="Brand Color"
-            value={config.brandColor}
-            onChange={(v) => set("brandColor", v)}
-          />
-          <ColorField
-            label="Button Color"
-            value={config.buttonColor}
-            onChange={(v) => set("buttonColor", v)}
           />
         </div>
 
@@ -1336,15 +1060,15 @@ const CreatePaymentLink = () => {
             ))}
             {config.customFields.length === 0 && (
               <p className="text-xs text-(--text-secondary) text-center py-4">
-                No custom fields added. Add fields like Passport Number,
-                Booking Date, etc.
+                No custom fields added. Add fields like Passport Number, Booking
+                Date, etc.
               </p>
             )}
           </div>
         </div>
 
-        {/* Sticky CTA */}
-        <div className="fixed bottom-0 left-0 right-0 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
+        {/* Sticky CTA — anchored inside the component */}
+        <div className="sticky bottom-0 -mx-4 md:-mx-6 lg:-mx-8 mt-8 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto">
             <Button
               variant="default"
@@ -1364,21 +1088,6 @@ const CreatePaymentLink = () => {
           </div>
         </div>
       </motion.div>
-
-      {/* Live Preview Modal */}
-      <LivePreviewModal
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        title={title || "Your link title"}
-        description={description}
-        productImage={productPreview}
-        previewPrice={previewPrice}
-        config={config}
-        isInstallment={isInstallment}
-        installmentCount={installmentCount}
-        installmentPeriod={installmentPeriod}
-        installmentAmount={installmentAmount}
-      />
 
       {/* Success Modal */}
       <AnimatePresence>
@@ -1441,16 +1150,6 @@ const CreatePaymentLink = () => {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  variant="outline"
-                  className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
-                  onClick={() => {
-                    setShowSuccess(false);
-                    window.open(pageUrl, "_blank", "noopener,noreferrer");
-                  }}
-                >
-                  Preview Page
-                </Button>
-                <Button
                   variant="default"
                   className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                   onClick={() => {
@@ -1475,37 +1174,5 @@ const CreatePaymentLink = () => {
     </div>
   );
 };
-
-// ============================================================
-// COLOR FIELD HELPER
-// ============================================================
-const ColorField = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) => (
-  <div>
-    <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-      {label}
-    </Label>
-    <div className="flex items-center gap-2 rounded-xl border border-(--border-color) bg-(--bg-primary) px-2 h-12">
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-8 w-10 rounded cursor-pointer bg-transparent border-0"
-      />
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="bg-transparent text-sm font-mono flex-1 outline-none text-(--text-primary)"
-      />
-    </div>
-  </div>
-);
 
 export default CreatePaymentLink;

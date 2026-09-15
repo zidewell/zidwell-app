@@ -1,4 +1,3 @@
-// app/components/payment-page-components/CreatePage/index.tsx
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -20,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -75,59 +75,57 @@ const ZIDWELL_FEE_RATE = 0.03;
 
 const getPlaceholderText = (
   pageType: PageType | null,
-  field: "title" | "description"
+  field: "title" | "description",
 ): string => {
   if (!pageType)
     return field === "title"
       ? "Enter page title"
       : "Describe your product or service...";
 
-  const placeholders: Record<
-    PageType,
-    { title: string; description: string }
-  > = {
-    school: {
-      title: "Harmony International School - Term Fees 2025",
-      description: "Quality education for every child...",
-    },
-    donation: {
-      title: "Help Build a School in Africa",
-      description: "Your donation helps provide quality education...",
-    },
-    physical: {
-      title: "Premium Leather Backpack",
-      description: "Handcrafted genuine leather backpack...",
-    },
-    digital: {
-      title: "Pastry Baking Course",
-      description: "Master the art of pastry baking...",
-    },
-    services: {
-      title: "Professional Web Design Service",
-      description: "Custom website design tailored to your business...",
-    },
-    real_estate: {
-      title: "Luxury 4-Bedroom Villa",
-      description: "Modern luxury villa with swimming pool...",
-    },
-    stock: {
-      title: "Tech Growth Investment Fund",
-      description: "Invest in Africa's fastest-growing tech startups...",
-    },
-    savings: {
-      title: "High-Yield Savings Plan",
-      description: "Save towards your financial goals...",
-    },
-    crypto: {
-      title: "Bitcoin Investment Package",
-      description:
-        "Start your crypto journey with our secure investment packages...",
-    },
-    link: {
-      title: "Premium Service Payment",
-      description: "Secure payment link for your premium service...",
-    },
-  };
+  const placeholders: Record<PageType, { title: string; description: string }> =
+    {
+      school: {
+        title: "Harmony International School - Term Fees 2025",
+        description: "Quality education for every child...",
+      },
+      donation: {
+        title: "Help Build a School in Africa",
+        description: "Your donation helps provide quality education...",
+      },
+      physical: {
+        title: "Premium Leather Backpack",
+        description: "Handcrafted genuine leather backpack...",
+      },
+      digital: {
+        title: "Pastry Baking Course",
+        description: "Master the art of pastry baking...",
+      },
+      services: {
+        title: "Professional Web Design Service",
+        description: "Custom website design tailored to your business...",
+      },
+      real_estate: {
+        title: "Luxury 4-Bedroom Villa",
+        description: "Modern luxury villa with swimming pool...",
+      },
+      stock: {
+        title: "Tech Growth Investment Fund",
+        description: "Invest in Africa's fastest-growing tech startups...",
+      },
+      savings: {
+        title: "High-Yield Savings Plan",
+        description: "Save towards your financial goals...",
+      },
+      crypto: {
+        title: "Bitcoin Investment Package",
+        description:
+          "Start your crypto journey with our secure investment packages...",
+      },
+      link: {
+        title: "Premium Service Payment",
+        description: "Secure payment link for your premium service...",
+      },
+    };
 
   return (
     placeholders[pageType]?.[field] ||
@@ -167,7 +165,7 @@ const triggerConfetti = () => {
 
 const copyToClipboard = async (
   text: string,
-  setCopied: (value: boolean) => void
+  setCopied: (value: boolean) => void,
 ) => {
   try {
     await navigator.clipboard.writeText(text);
@@ -193,18 +191,123 @@ function PricingSummaryCard({
   installmentCount,
   installmentPeriod,
   installmentAmount,
+  variants,
+  isPhysicalWithVariants,
 }: {
   priceType: "fixed" | "installment";
   price: number;
   installmentCount: string;
   installmentPeriod: string;
   installmentAmount: number;
+  variants?: { name: string; price: number }[];
+  isPhysicalWithVariants?: boolean;
 }) {
-  if (price <= 0) return null;
+  if (price <= 0 && !isPhysicalWithVariants) return null;
 
   const isInstallment =
     priceType === "installment" && Number(installmentCount) > 1;
+  const count = Math.max(1, Number(installmentCount) || 1);
 
+  // ─────────────────────────────────────────────────────────────
+  // VARIANT-AWARE MODE
+  // Physical products with variants: show per-variant per-payment
+  // amounts. The single "per installment" number is meaningless
+  // because it depends on which variant the buyer picks.
+  // ─────────────────────────────────────────────────────────────
+  if (isPhysicalWithVariants && variants && variants.length > 0) {
+    const pricedVariants = variants.filter((v) => Number(v.price) > 0);
+    if (pricedVariants.length === 0) return null;
+
+    const fmt = (n: number) =>
+      `₦${n.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+
+    return (
+      <div className="rounded-2xl border border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5 overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-(--color-accent-yellow)/10 border-b border-(--color-accent-yellow)/20">
+          <Info className="h-4 w-4 text-(--color-accent-yellow)" />
+          <h4 className="text-sm font-bold text-(--text-primary)">
+            {isInstallment ? "Installment Plan Summary" : "Payment Summary"}
+          </h4>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="space-y-3">
+            {pricedVariants.map((v, i) => {
+              const variantTotal = Number(v.price) || 0;
+              const variantFee = variantTotal * ZIDWELL_FEE_RATE;
+              const variantNet = variantTotal - variantFee;
+
+              const perPaymentBuyer = isInstallment
+                ? variantTotal / count
+                : variantTotal;
+              const perPaymentFee = isInstallment
+                ? perPaymentBuyer * ZIDWELL_FEE_RATE
+                : variantFee;
+              const perPaymentNet = perPaymentBuyer - perPaymentFee;
+
+              return (
+                <div
+                  key={i}
+                  className="rounded-xl border border-(--border-color) bg-(--bg-primary) p-3"
+                >
+                  <p className="text-xs font-bold text-(--text-primary) mb-2">
+                    {v.name || `Variant ${i + 1}`}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <p className="text-(--text-secondary) mb-0.5">
+                        {isInstallment ? "Per payment (buyer)" : "Buyer pays"}
+                      </p>
+                      <p className="font-bold text-(--text-primary)">
+                        {fmt(perPaymentBuyer)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-(--text-secondary) mb-0.5">
+                        {isInstallment
+                          ? "Per payment (you)"
+                          : "You receive"}
+                      </p>
+                      <p className="font-bold text-(--color-lemon-green)">
+                        {fmt(perPaymentNet)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isInstallment && (
+                    <div className="mt-2 pt-2 border-t border-(--border-color) text-xs flex justify-between">
+                      <span className="text-(--text-secondary)">
+                        Total across {count} payments
+                      </span>
+                      <span className="font-bold text-(--text-primary)">
+                        {fmt(variantTotal)}{" "}
+                        <span className="text-(--text-secondary) font-normal">
+                          (you get {fmt(variantNet)})
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11px] text-(--text-secondary) leading-relaxed pt-2 border-t border-(--color-accent-yellow)/20">
+            ✓ Buyers pay the price of the variant they pick. The 3% fee is
+            deducted from your payout — you never charge the buyer extra.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DEFAULT MODE (non-variant pages)
+  // ─────────────────────────────────────────────────────────────
   const fee = price * ZIDWELL_FEE_RATE;
   const youReceiveTotal = price - fee;
   const perInstallmentFee = isInstallment
@@ -286,7 +389,6 @@ function PricingSummaryCard({
     </div>
   );
 }
-
 // ============================================================
 // LIVE PREVIEW MODAL
 // ============================================================
@@ -364,7 +466,7 @@ function LivePreviewModal({
                           <button
                             onClick={() =>
                               setCurrentImageIndex((prev) =>
-                                prev === 0 ? images.length - 1 : prev - 1
+                                prev === 0 ? images.length - 1 : prev - 1,
                               )
                             }
                             className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5"
@@ -374,7 +476,7 @@ function LivePreviewModal({
                           <button
                             onClick={() =>
                               setCurrentImageIndex((prev) =>
-                                prev === images.length - 1 ? 0 : prev + 1
+                                prev === images.length - 1 ? 0 : prev + 1,
                               )
                             }
                             className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5"
@@ -524,7 +626,7 @@ export default function CreatePage() {
   const [isCreating, setIsCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [dynamicId, setDynamicId] = useState(() =>
-    Math.floor(100 + Math.random() * 900).toString()
+    Math.floor(100 + Math.random() * 900).toString(),
   );
   const [showPreview, setShowPreview] = useState(false);
 
@@ -611,13 +713,54 @@ export default function CreatePage() {
 
   const productRef = useRef<HTMLInputElement>(null);
 
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ PHYSICAL PRODUCT — EVERY VARIANT PRICED
+  //
+  // When a physical product has variants AND every variant has its own
+  // price > 0, the page-level "Amount (₦)" becomes dead data. We:
+  //   • Disable the input
+  //   • Change its label
+  //   • Auto-fill it with the cheapest variant price
+  //   • Show an info note explaining why
+  // ─────────────────────────────────────────────────────────────────────
+  const isPhysical = pageType === "physical";
+  const hasVariants = isPhysical && variants.length > 0;
+
+  const everyVariantPriced =
+    hasVariants &&
+    variants.every((v) => {
+      const p = Number(v?.price);
+      return Number.isFinite(p) && p > 0;
+    });
+
+  const someVariantMissingPrice = hasVariants && !everyVariantPriced;
+
+  const pageAmountLocked = isPhysical && everyVariantPriced;
+
+  // ─── Auto-fill page amount with TOTAL of all variant prices when locked ───
+  useEffect(() => {
+    if (!pageAmountLocked) return;
+
+    const prices = variants
+      .map((v) => Number(v?.price) || 0)
+      .filter((p) => p > 0);
+    if (prices.length === 0) return;
+
+    const total = prices.reduce((sum, p) => sum + p, 0);
+
+    setForm((f) => {
+      const current = Number(f.price);
+      if (Number.isFinite(current) && current === total) return f;
+      return { ...f, price: String(total) };
+    });
+  }, [pageAmountLocked, variants]);
   // Installment amount recompute
   useEffect(() => {
     if (form.priceType === "installment") {
       const totalAmount = Number(form.price) || 0;
       const count = Number(form.installmentCount) || 1;
       setInstallmentAmount(
-        totalAmount > 0 && count > 0 ? totalAmount / count : 0
+        totalAmount > 0 && count > 0 ? totalAmount / count : 0,
       );
     }
   }, [form.price, form.installmentCount, form.priceType]);
@@ -627,7 +770,7 @@ export default function CreatePage() {
     if (pageType === "school") {
       const total = feeBreakdown.reduce(
         (sum, item) => sum + (item.amount || 0),
-        0
+        0,
       );
       if (total > 0) setForm((f) => ({ ...f, price: total.toString() }));
     }
@@ -712,7 +855,7 @@ export default function CreatePage() {
         });
       }
     },
-    [validateSlug]
+    [validateSlug],
   );
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -728,13 +871,13 @@ export default function CreatePage() {
       ];
       if (!validTypes.includes(file.type)) {
         alert(
-          `File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`
+          `File "${file.name}" is not supported. Please upload JPG, PNG, WEBP, or HEIC images.`,
         );
         return;
       }
       if (file.size > PRODUCT_IMAGE_SPECS.maxSize) {
         alert(
-          `File "${file.name}" exceeds 10MB limit. Please compress your image.`
+          `File "${file.name}" exceeds 10MB limit. Please compress your image.`,
         );
         return;
       }
@@ -761,6 +904,39 @@ export default function CreatePage() {
   const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
   const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
 
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ VARIANT STOCK VALIDATION (physical products only)
+  // Returns true if the current variant stock allocation is valid.
+  // ─────────────────────────────────────────────────────────────────────
+  const isVariantStockValid = (): boolean => {
+    if (!isPhysical || variants.length === 0) return true;
+
+    const parsedPageStock =
+      stock != null && String(stock).trim() !== "" ? Number(stock) : null;
+    const hasRealPageStock =
+      parsedPageStock !== null &&
+      Number.isFinite(parsedPageStock) &&
+      parsedPageStock > 0;
+
+    if (!hasRealPageStock) return true;
+
+    const variantStockValues = variants
+      .map((v) => {
+        const raw = v?.stock;
+        const parsed = raw != null && raw !== "" ? Number(raw) : NaN;
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      })
+      .filter((n): n is number => n !== null);
+
+    const allVariantsCounted = variantStockValues.length === variants.length;
+    const variantSum = variantStockValues.reduce((s, n) => s + n, 0);
+
+    if (allVariantsCounted && variantSum > parsedPageStock!) {
+      return false;
+    }
+    return true;
+  };
+
   const canCreate = () => {
     if (!form.title.trim() || !pageType) return false;
     if (!titleValidation.isValid) return false;
@@ -773,8 +949,7 @@ export default function CreatePage() {
         students.some((s) => s.name && s.name.trim() !== "");
       if (!hasValidStudents) return false;
       const hasValidFeeItems =
-        feeBreakdown.length > 0 &&
-        feeBreakdown.some((item) => item.amount > 0);
+        feeBreakdown.length > 0 && feeBreakdown.some((item) => item.amount > 0);
       if (!hasValidFeeItems) return false;
     }
 
@@ -789,6 +964,9 @@ export default function CreatePage() {
       if (termsAndConditions.length < 100) return false;
       if (!riskExplanation.trim()) return false;
     }
+
+    // ✅ Variant stock must not exceed page stock
+    if (!isVariantStockValid()) return false;
 
     return true;
   };
@@ -821,7 +999,7 @@ export default function CreatePage() {
           body: JSON.stringify({ image: img, type: "products" }),
         })
           .then((res) => res.json())
-          .then((data) => data.url)
+          .then((data) => data.url),
       );
 
       const uploadedProducts = await Promise.all(productUploadPromises);
@@ -853,7 +1031,11 @@ export default function CreatePage() {
         metadata.requireDonorName = requireDonorName;
         metadata.minimumDonation = minimumDonation;
       } else if (pageType === "physical") {
-        metadata.variants = variants;
+        // ✅ Strip the dashboard-only `priceOverridden` flag before saving
+        metadata.variants = variants.map((v) => {
+          const { priceOverridden, ...rest } = v as any;
+          return rest;
+        });
         metadata.requiresShipping = requiresShipping;
         metadata.stock = stock;
         metadata.allowMultiple = allowMultiple;
@@ -1231,6 +1413,7 @@ export default function CreatePage() {
                       setStock={setStock}
                       allowMultiple={allowMultiple}
                       setAllowMultiple={setAllowMultiple}
+                      pagePrice={Number(form.price) || 0}
                     />
                   )}
 
@@ -1333,27 +1516,64 @@ export default function CreatePage() {
                       </div>
                     </div>
 
+                    {/* ✅ PAGE AMOUNT — locked when all variants priced (physical only) */}
                     <div>
                       <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                        {form.priceType === "installment"
+                        {pageType === "school"
                           ? "Total Amount (₦)"
-                          : "Amount (₦)"}
+                          : pageAmountLocked
+                            ? "Page Amount (₦) — not used"
+                            : form.priceType === "installment"
+                              ? "Total Amount (₦)"
+                              : "Amount (₦)"}
                       </Label>
+
                       <Input
                         type="number"
                         placeholder="0.00"
                         value={form.price}
                         onChange={(e) =>
                           pageType !== "school" &&
+                          !pageAmountLocked &&
                           setForm((f) => ({ ...f, price: e.target.value }))
                         }
-                        className="h-12 text-base border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
-                        disabled={pageType === "school"}
+                        className={`h-12 text-base border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0 ${
+                          pageAmountLocked
+                            ? "opacity-60 cursor-not-allowed"
+                            : ""
+                        }`}
+                        disabled={pageType === "school" || pageAmountLocked}
                       />
+
                       {pageType === "school" && (
                         <p className="text-xs text-(--text-secondary) mt-1">
                           Amount is calculated from your fee breakdown above
                         </p>
+                      )}
+
+                      {pageAmountLocked && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-lg bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/20">
+                          <Info className="h-3.5 w-3.5 text-(--color-accent-yellow) shrink-0 mt-0.5" />
+                          <p className="text-xs text-(--text-secondary)">
+                            Every variant has its own price, so this field isn't
+                            used for checkout. Buyers pay the price of the
+                            variant they pick. Shown for reference:{" "}
+                            <strong className="text-(--text-primary)">
+                              ₦{Number(form.price).toLocaleString()}
+                            </strong>{" "}
+                            (total of all variant prices).
+                          </p>
+                        </div>
+                      )}
+
+                      {someVariantMissingPrice && (
+                        <div className="mt-2 flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <AlertTriangle className="h-3.5 w-3.5 text-yellow-600 shrink-0 mt-0.5" />
+                          <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                            Some variants don't have a price. Buyers who pick
+                            those will pay this page amount instead.
+                          </p>
+                        </div>
                       )}
                     </div>
 
@@ -1405,13 +1625,18 @@ export default function CreatePage() {
                       </div>
                     )}
 
-                    <PricingSummaryCard
-                      priceType={form.priceType}
-                      price={numericPrice}
-                      installmentCount={form.installmentCount}
-                      installmentPeriod={installmentPeriod}
-                      installmentAmount={installmentAmount}
-                    />
+                  <PricingSummaryCard
+  priceType={form.priceType}
+  price={numericPrice}
+  installmentCount={form.installmentCount}
+  installmentPeriod={installmentPeriod}
+  installmentAmount={installmentAmount}
+  variants={variants.map((v) => ({
+    name: v.name || "",
+    price: Number(v.price) || 0,
+  }))}
+  isPhysicalWithVariants={isPhysical && hasVariants}
+/>
                   </>
                 )}
               </motion.div>
@@ -1422,6 +1647,57 @@ export default function CreatePage() {
         {/* Sticky CTA */}
         <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto">
+            {/* ✅ Variant stock over-allocation warning */}
+            {isPhysical &&
+              variants.length > 0 &&
+              (() => {
+                const parsedPageStock =
+                  stock != null && String(stock).trim() !== ""
+                    ? Number(stock)
+                    : null;
+                const hasRealPageStock =
+                  parsedPageStock !== null &&
+                  Number.isFinite(parsedPageStock) &&
+                  parsedPageStock > 0;
+
+                const variantStockValues = variants
+                  .map((v) => {
+                    const raw = v?.stock;
+                    const parsed =
+                      raw != null && raw !== "" ? Number(raw) : NaN;
+                    return Number.isFinite(parsed) && parsed > 0
+                      ? parsed
+                      : null;
+                  })
+                  .filter((n): n is number => n !== null);
+
+                const allVariantsCounted =
+                  variantStockValues.length === variants.length;
+                const variantSum = variantStockValues.reduce(
+                  (s, n) => s + n,
+                  0,
+                );
+
+                if (
+                  hasRealPageStock &&
+                  allVariantsCounted &&
+                  variantSum > parsedPageStock!
+                ) {
+                  return (
+                    <div className="mb-3 flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                      <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                        Variant stock ({variantSum}) exceeds page stock (
+                        {parsedPageStock}). Fix your inventory before creating
+                        this page.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
+
             <Button
               variant="default"
               size="lg"

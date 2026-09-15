@@ -27,7 +27,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Banknote,
   CreditCard,
   Truck,
   MessageSquare,
@@ -126,6 +125,8 @@ function PaymentExtraInfo({
   payment: any;
   allPayments?: any[];
 }) {
+  if (!payment) return null;
+
   const info = getPaymentExtraInfo(payment);
   const items: { icon: any; label: string; value: string }[] = [];
 
@@ -164,7 +165,6 @@ function PaymentExtraInfo({
     });
   }
 
-  // Installment — computed from the buyer's payment sequence
   const seq = computeInstallmentSequence(payment, allPayments);
   if (seq) {
     items.push({
@@ -193,15 +193,13 @@ function PaymentExtraInfo({
         return (
           <div
             key={idx}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-(--border-color) bg-(--bg-secondary) px-2.5 py-1 text-xs"
           >
-            <Icon className="h-3 w-3 text-blue-600 dark:text-blue-400 shrink-0" />
-            <span className="font-medium text-blue-700 dark:text-blue-300">
+            <Icon className="h-3 w-3 shrink-0 text-(--color-accent-yellow)" />
+            <span className="font-medium text-(--text-secondary)">
               {item.label}:
             </span>
-            <span className="text-blue-900 dark:text-blue-200">
-              {item.value}
-            </span>
+            <span className="text-(--text-primary)">{item.value}</span>
           </div>
         );
       })}
@@ -211,18 +209,19 @@ function PaymentExtraInfo({
 
 // ─── RENDER: customer note / donor message ───
 function PaymentMessage({ payment }: { payment: any }) {
+  if (!payment) return null;
   const info = getPaymentExtraInfo(payment);
 
   if (info.customerNote) {
     return (
-      <div className="mt-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-3">
+      <div className="mt-2 rounded-lg border border-(--border-color) bg-(--bg-secondary) p-3">
         <div className="flex items-start gap-2">
-          <MessageSquare className="h-3.5 w-3.5 text-gray-500 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+          <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-(--text-secondary)" />
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold text-(--text-primary)">
               Customer note
             </p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap break-words">
+            <p className="whitespace-pre-wrap break-words text-xs text-(--text-secondary)">
               {info.customerNote}
             </p>
           </div>
@@ -233,14 +232,14 @@ function PaymentMessage({ payment }: { payment: any }) {
 
   if (info.donorMessage) {
     return (
-      <div className="mt-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3">
+      <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
         <div className="flex items-start gap-2">
-          <Heart className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">
+          <Heart className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-xs font-semibold text-red-700 dark:text-red-400">
               Donor message
             </p>
-            <p className="text-xs text-red-800 dark:text-red-300 whitespace-pre-wrap break-words">
+            <p className="whitespace-pre-wrap break-words text-xs text-red-800 dark:text-red-300">
               {info.donorMessage}
             </p>
           </div>
@@ -254,23 +253,24 @@ function PaymentMessage({ payment }: { payment: any }) {
 
 // ─── RENDER: digital delivery links ───
 function DigitalDelivery({ payment }: { payment: any }) {
+  if (!payment) return null;
   const info = getPaymentExtraInfo(payment);
   const link = info.downloadUrl || info.accessLink;
   if (!link) return null;
 
   return (
-    <div className="mt-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
+    <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20">
       <div className="flex items-start gap-2">
-        <Download className="h-3.5 w-3.5 text-green-600 mt-0.5 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">
+        <Download className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 text-xs font-semibold text-green-700 dark:text-green-400">
             Delivered link
           </p>
           <a
             href={link}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-green-700 dark:text-green-300 underline break-all hover:text-green-900"
+            className="break-all text-xs text-green-700 underline hover:text-green-900 dark:text-green-300"
           >
             {link}
           </a>
@@ -331,7 +331,7 @@ const PageDetail = () => {
         icon: "error",
         title: "Error",
         text: "Failed to load page details",
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     }
   };
@@ -381,7 +381,7 @@ const PageDetail = () => {
           <p class="font-medium">You need to verify your BVN before you can withdraw funds.</p>
           <p class="text-sm text-gray-600 mt-2">This is required for security and regulatory compliance.</p>
         </div>`,
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
         confirmButtonText: "Verify BVN Now",
         showCancelButton: true,
         cancelButtonText: "Cancel",
@@ -409,7 +409,7 @@ const PageDetail = () => {
           step: "100",
         },
         showCancelButton: true,
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
         confirmButtonText: "Withdraw",
         cancelButtonText: "Cancel",
         inputValidator: (value) => {
@@ -443,7 +443,7 @@ const PageDetail = () => {
             <p>✅ ₦${withdrawAmount.toLocaleString()} has been withdrawn successfully.</p>
             <p class="text-sm text-gray-600 mt-2">Funds will be sent to your wallet shortly.</p>
           </div>`,
-          confirmButtonColor: "#F5B81B",
+          confirmButtonColor: "var(--color-accent-yellow)",
         });
 
         refreshData();
@@ -454,7 +454,7 @@ const PageDetail = () => {
         icon: "error",
         title: "Withdrawal Failed",
         html: `<p>${error.message || "Please try again later."}</p>`,
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     } finally {
       setWithdrawing(false);
@@ -471,7 +471,7 @@ const PageDetail = () => {
         icon: "warning",
         title: "Select Student",
         text: "Please select a student to assign this payment to.",
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
       return;
     }
@@ -504,7 +504,7 @@ const PageDetail = () => {
             ${data.data.isFullyPaid ? '<span class="text-green-600">🎉 Student is now fully paid!</span>' : `<span class="text-yellow-600">Remaining: ₦${data.data.remainingAmount.toLocaleString()}</span>`}
           </p>
         </div>`,
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
 
       await loadPayments(page.id);
@@ -516,7 +516,7 @@ const PageDetail = () => {
         icon: "error",
         title: "Assignment Failed",
         text: error.message || "Failed to assign payment. Please try again.",
-        confirmButtonColor: "#F5B81B",
+        confirmButtonColor: "var(--color-accent-yellow)",
       });
     } finally {
       setAssigningPayment(null);
@@ -794,40 +794,43 @@ const PageDetail = () => {
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
+      <div className="flex min-h-screen items-center justify-center bg-(--bg-primary)">
+        <Loader2 className="h-8 w-8 animate-spin text-(--color-accent-yellow)" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-(--bg-primary)">
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="flex min-h-screen flex-col lg:pl-72">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="mx-auto max-w-7xl space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
               <button
                 onClick={() => router.back()}
-                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                className="flex items-center gap-2 text-sm text-(--text-secondary) transition-colors hover:text-(--text-primary)"
               >
                 <ArrowLeft className="h-4 w-4" /> Back
               </button>
               <button
                 onClick={refreshData}
                 disabled={refreshing}
-                className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                className="flex items-center gap-2 text-sm text-(--text-secondary) transition-colors hover:text-(--text-primary)"
               >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+                <RefreshCw
+                  className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                />{" "}
+                Refresh
               </button>
             </div>
 
             {/* Page Info */}
-            <div className="flex items-center justify-between bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-800">
+            <div className="squircle-lg flex flex-col gap-4 border border-(--border-color) bg-(--bg-primary) p-6 shadow-(--shadow-soft) sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                <div className="squircle-md flex h-14 w-14 items-center justify-center overflow-hidden bg-(--bg-secondary)">
                   {page.coverImage ? (
                     <img
                       src={page.coverImage}
@@ -835,14 +838,14 @@ const PageDetail = () => {
                       alt={page.title}
                     />
                   ) : (
-                    <CreditCard className="h-6 w-6 text-gray-400" />
+                    <CreditCard className="h-6 w-6 text-(--text-secondary)" />
                   )}
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-semibold text-(--text-primary)">
                     {page.title}
                   </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-(--text-secondary)">
                     {typeLabels[pageType] || pageType || "Payment Page"}
                   </p>
                 </div>
@@ -852,49 +855,55 @@ const PageDetail = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary)"
                   >
-                    <Edit2 className="h-4 w-4 mr-1" /> Edit
+                    <Edit2 className="mr-1 h-4 w-4" /> Edit
                   </Button>
                 </Link>
                 <Link href={getPaymentPageUrl()} target="_blank">
-                  <Button size="sm" className="bg-yellow-500 text-black hover:bg-yellow-600">
-                    <ExternalLink className="h-4 w-4 mr-1" /> View
+                  <Button
+                    size="sm"
+                    className="squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90"
+                  >
+                    <ExternalLink className="mr-1 h-4 w-4" /> View
                   </Button>
                 </Link>
               </div>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
-                <Eye className="h-5 w-5 text-gray-400 mb-2" />
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <div className="squircle-lg border border-(--border-color) bg-(--bg-primary) p-5 shadow-(--shadow-soft)">
+                <Eye className="mb-2 h-5 w-5 text-(--text-secondary)" />
+                <p className="text-2xl font-bold text-(--text-primary)">
                   {page.pageViews || 0}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Views</p>
+                <p className="text-sm text-(--text-secondary)">Views</p>
               </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
-                <DollarSign className="h-5 w-5 text-green-500 mb-2" />
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="squircle-lg border border-(--border-color) bg-(--bg-primary) p-5 shadow-(--shadow-soft)">
+                <DollarSign className="mb-2 h-5 w-5 text-green-500" />
+                <p className="text-2xl font-bold text-(--text-primary)">
                   ₦
-                  {(isSchoolPage ? totalCollected : totalPaymentsAmount).toLocaleString()}
+                  {(isSchoolPage
+                    ? totalCollected
+                    : totalPaymentsAmount
+                  ).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Collected</p>
+                <p className="text-sm text-(--text-secondary)">Collected</p>
               </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
-                <Wallet className="h-5 w-5 text-yellow-500 mb-2" />
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="squircle-lg border border-(--border-color) bg-(--bg-primary) p-5 shadow-(--shadow-soft)">
+                <Wallet className="mb-2 h-5 w-5 text-(--color-accent-yellow)" />
+                <p className="text-2xl font-bold text-(--text-primary)">
                   ₦{(page.pageBalance || 0).toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Balance</p>
+                <p className="text-sm text-(--text-secondary)">Balance</p>
               </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
-                <Users className="h-5 w-5 text-blue-500 mb-2" />
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="squircle-lg border border-(--border-color) bg-(--bg-primary) p-5 shadow-(--shadow-soft)">
+                <Users className="mb-2 h-5 w-5 text-blue-500" />
+                <p className="text-2xl font-bold text-(--text-primary)">
                   {isSchoolPage ? studentsWithStatus.length : customers.length}
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-(--text-secondary)">
                   {isSchoolPage ? "Students" : "Customers"}
                 </p>
               </div>
@@ -902,58 +911,60 @@ const PageDetail = () => {
 
             {/* ─── SCHOOL SECTION ─── */}
             {isSchoolPage && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <div className="squircle-lg overflow-hidden border border-(--border-color) bg-(--bg-primary) shadow-(--shadow-soft)">
+                <div className="border-b border-(--border-color) px-6 py-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-                      <h2 className="font-semibold text-gray-900 dark:text-white">
+                      <GraduationCap className="h-5 w-5 text-(--text-secondary)" />
+                      <h2 className="font-semibold text-(--text-primary)">
                         Students ({studentsWithStatus.length})
                       </h2>
                     </div>
                     {studentsWithStatus.length > 0 && (
                       <div className="flex gap-1">
-                        {(["all", "paid", "partial", "unpaid"] as const).map((tab) => {
-                          const labels = {
-                            all: `All (${studentsWithStatus.length})`,
-                            paid: `Paid (${fullyPaidCount})`,
-                            partial: `Partial (${partiallyPaidCount})`,
-                            unpaid: `Pending (${unpaidCount})`,
-                          };
-                          const isActive = activeTab === tab;
-                          return (
-                            <button
-                              key={tab}
-                              onClick={() => setActiveTab(tab)}
-                              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                                isActive
-                                  ? "bg-yellow-500 text-black font-medium"
-                                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                              }`}
-                            >
-                              {labels[tab]}
-                            </button>
-                          );
-                        })}
+                        {(["all", "paid", "partial", "unpaid"] as const).map(
+                          (tab) => {
+                            const labels = {
+                              all: `All (${studentsWithStatus.length})`,
+                              paid: `Paid (${fullyPaidCount})`,
+                              partial: `Partial (${partiallyPaidCount})`,
+                              unpaid: `Pending (${unpaidCount})`,
+                            };
+                            const isActive = activeTab === tab;
+                            return (
+                              <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`squircle-md px-3 py-1.5 text-xs transition-colors ${
+                                  isActive
+                                    ? "bg-(--color-accent-yellow) font-medium text-(--color-ink)"
+                                    : "text-(--text-secondary) hover:bg-(--bg-secondary)"
+                                }`}
+                              >
+                                {labels[tab]}
+                              </button>
+                            );
+                          }
+                        )}
                       </div>
                     )}
                   </div>
                   {studentsWithStatus.length > 0 && (
-                    <div className="mt-3 relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <div className="relative mt-3">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--text-secondary)" />
                       <input
                         type="text"
                         placeholder="Search student..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full sm:w-64 pl-9 pr-8 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                        className="squircle-md w-full border border-(--border-color) bg-(--bg-secondary) py-2 pl-9 pr-8 text-sm text-(--text-primary) placeholder:text-(--text-secondary) focus:border-(--color-accent-yellow) focus:outline-none sm:w-64"
                       />
                       {searchQuery && (
                         <button
                           onClick={() => setSearchQuery("")}
                           className="absolute right-3 top-1/2 -translate-y-1/2"
                         >
-                          <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                          <X className="h-4 w-4 text-(--text-secondary) hover:text-(--text-primary)" />
                         </button>
                       )}
                     </div>
@@ -962,21 +973,24 @@ const PageDetail = () => {
 
                 {studentsWithStatus.length === 0 ? (
                   <div className="p-12 text-center">
-                    <GraduationCap className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">No students added yet</p>
+                    <GraduationCap className="mx-auto mb-3 h-12 w-12 text-(--text-secondary)/40" />
+                    <p className="text-(--text-secondary)">
+                      No students added yet
+                    </p>
                   </div>
                 ) : (
                   <>
-                    <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                        <span className="text-gray-900 dark:text-white font-medium">
-                          ₦{totalCollected.toLocaleString()} / ₦{totalExpected.toLocaleString()}
+                    <div className="border-b border-(--border-color) px-6 py-4">
+                      <div className="mb-2 flex justify-between text-sm">
+                        <span className="text-(--text-secondary)">Progress</span>
+                        <span className="font-medium text-(--text-primary)">
+                          ₦{totalCollected.toLocaleString()} / ₦
+                          {totalExpected.toLocaleString()}
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-(--bg-secondary)">
                         <div
-                          className="h-full bg-yellow-500 rounded-full transition-all"
+                          className="h-full rounded-full bg-(--color-accent-yellow) transition-all"
                           style={{
                             width: `${
                               totalExpected > 0
@@ -988,41 +1002,47 @@ const PageDetail = () => {
                       </div>
                     </div>
 
-                    <div className="divide-y divide-gray-200 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
+                    <div className="max-h-[500px] divide-y divide-(--border-color) overflow-y-auto">
                       {filteredStudents.map((student: any, idx: number) => {
                         const isFullyPaid = student.isFullyPaid;
                         const isPartiallyPaid = student.isPartiallyPaid;
                         return (
                           <div
                             key={idx}
-                            className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                            className="px-6 py-4 transition-colors hover:bg-(--bg-secondary)/50"
                           >
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-medium text-gray-900 dark:text-white">
+                                  <span className="font-medium text-(--text-primary)">
                                     {student.name}
                                   </span>
                                   {isFullyPaid && (
-                                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                       <CheckCircle className="h-3 w-3" /> Paid
                                     </span>
                                   )}
                                   {isPartiallyPaid && (
-                                    <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span className="flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-0.5 text-xs text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
                                       <Clock className="h-3 w-3" /> Partial
                                     </span>
                                   )}
                                   {!isFullyPaid && !isPartiallyPaid && (
-                                    <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <span className="flex items-center gap-1 rounded-full bg-(--bg-secondary) px-2 py-0.5 text-xs text-(--text-secondary)">
                                       <Clock className="h-3 w-3" /> Pending
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex gap-3 text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                  {student.className && <span>Class: {student.className}</span>}
-                                  {student.regNumber && <span>Reg: {student.regNumber}</span>}
-                                  {student.parentName && <span>Parent: {student.parentName}</span>}
+                                <div className="mt-1 flex gap-3 text-xs text-(--text-secondary)">
+                                  {student.className && (
+                                    <span>Class: {student.className}</span>
+                                  )}
+                                  {student.regNumber && (
+                                    <span>Reg: {student.regNumber}</span>
+                                  )}
+                                  {student.parentName && (
+                                    <span>Parent: {student.parentName}</span>
+                                  )}
                                 </div>
                                 {student.payments?.[0] && (
                                   <PaymentExtraInfo
@@ -1038,15 +1058,15 @@ const PageDetail = () => {
                                   </span>
                                 ) : isPartiallyPaid ? (
                                   <div>
-                                    <span className="font-semibold text-yellow-600 dark:text-yellow-400">
+                                    <span className="font-semibold text-(--color-accent-yellow)">
                                       ₦{student.paidAmount.toLocaleString()}
                                     </span>
-                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                                    <span className="ml-2 text-sm text-(--text-secondary)">
                                       / ₦{student.totalAmount.toLocaleString()}
                                     </span>
                                   </div>
                                 ) : (
-                                  <span className="font-semibold text-gray-500 dark:text-gray-400">
+                                  <span className="font-semibold text-(--text-secondary)">
                                     ₦{student.totalAmount.toLocaleString()}
                                   </span>
                                 )}
@@ -1058,33 +1078,36 @@ const PageDetail = () => {
                     </div>
 
                     {unassignedPayments.length > 0 && (
-                      <div className="border-t border-gray-200 dark:border-gray-800 p-6">
-                        <div className="flex items-center gap-2 mb-4">
-                          <AlertCircle className="h-5 w-5 text-yellow-600" />
-                          <h3 className="font-medium text-gray-900 dark:text-white">
+                      <div className="border-t border-(--border-color) p-6">
+                        <div className="mb-4 flex items-center gap-2">
+                          <AlertCircle className="h-5 w-5 text-(--color-accent-yellow)" />
+                          <h3 className="font-medium text-(--text-primary)">
                             Unassigned Payments ({unassignedPayments.length})
                           </h3>
                         </div>
                         <div className="space-y-3">
                           {unassignedPayments.map((payment: any) => {
                             const paymentAmount = payment.amount || 0;
-                            const senderName = payment.customer_name || "Unknown";
+                            const senderName =
+                              payment.customer_name || "Unknown";
                             const paymentDate =
                               payment.paid_at || payment.created_at;
-                            const availableStudents = studentsWithStatus.filter(
-                              (s: any) => !s.isFullyPaid
-                            );
+                            const availableStudents =
+                              studentsWithStatus.filter(
+                                (s: any) => !s.isFullyPaid
+                              );
 
                             return (
                               <div
                                 key={payment.id}
-                                className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                                className="squircle-md flex flex-col gap-3 bg-(--bg-secondary) p-4 md:flex-row md:items-center md:justify-between"
                               >
                                 <div className="flex-1">
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    ₦{paymentAmount.toLocaleString()} — {senderName}
+                                  <p className="font-medium text-(--text-primary)">
+                                    ₦{paymentAmount.toLocaleString()} —{" "}
+                                    {senderName}
                                   </p>
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  <p className="text-sm text-(--text-secondary)">
                                     {new Date(paymentDate).toLocaleDateString()}
                                   </p>
                                   <PaymentExtraInfo
@@ -1101,13 +1124,17 @@ const PageDetail = () => {
                                         [payment.id]: e.target.value,
                                       }))
                                     }
-                                    className="px-3 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
+                                    className="squircle-md border border-(--border-color) bg-(--bg-primary) px-3 py-2 text-sm text-(--text-primary)"
                                   >
                                     <option value="">Assign to...</option>
                                     {availableStudents.map((student: any) => (
-                                      <option key={student.name} value={student.name}>
+                                      <option
+                                        key={student.name}
+                                        value={student.name}
+                                      >
                                         {student.name} (Remaining: ₦
-                                        {student.remainingAmount.toLocaleString()})
+                                        {student.remainingAmount.toLocaleString()}
+                                        )
                                       </option>
                                     ))}
                                   </select>
@@ -1124,12 +1151,12 @@ const PageDetail = () => {
                                       assigningPayment === payment.id
                                     }
                                     size="sm"
-                                    className="bg-yellow-500 text-black hover:bg-yellow-600"
+                                    className="squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90"
                                   >
                                     {assigningPayment === payment.id ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      <CheckCircle className="mr-1 h-4 w-4" />
                                     )}
                                     Assign
                                   </Button>
@@ -1150,43 +1177,48 @@ const PageDetail = () => {
               <Button
                 variant="outline"
                 onClick={() => setShowQRModal(true)}
-                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="squircle-md border-(--border-color) bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary)"
               >
-                <QrCode className="h-4 w-4 mr-2" /> QR Code
+                <QrCode className="mr-2 h-4 w-4" /> QR Code
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowEmbedModal(true)}
-                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="squircle-md border-(--border-color) bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary)"
               >
-                <Code2 className="h-4 w-4 mr-2" /> Embed
+                <Code2 className="mr-2 h-4 w-4" /> Embed
               </Button>
               <Button
                 variant="outline"
-                onClick={() => copyToClipboard(getPaymentPageUrl(), "Payment link")}
-                className="border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() =>
+                  copyToClipboard(getPaymentPageUrl(), "Payment link")
+                }
+                className="squircle-md border-(--border-color) bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary)"
               >
-                <Copy className="h-4 w-4 mr-2" /> Copy Link
+                <Copy className="mr-2 h-4 w-4" /> Copy Link
               </Button>
             </div>
 
             {/* ─── CUSTOMERS ─── */}
             {showCustomersSection && (
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <div className="squircle-lg overflow-hidden border border-(--border-color) bg-(--bg-primary) shadow-(--shadow-soft)">
+                <div className="border-b border-(--border-color) px-6 py-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <Users className="h-5 w-5 text-gray-500" />
-                      {isDonationPage ? "Donors" : "Customers"} ({customers.length})
+                    <h3 className="flex items-center gap-2 font-medium text-(--text-primary)">
+                      <Users className="h-5 w-5 text-(--text-secondary)" />
+                      {isDonationPage ? "Donors" : "Customers"} (
+                      {customers.length})
                     </h3>
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--text-secondary)" />
                       <input
                         type="text"
                         placeholder="Search..."
                         value={customerSearchQuery}
-                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                        className="pl-9 pr-8 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400"
+                        onChange={(e) =>
+                          setCustomerSearchQuery(e.target.value)
+                        }
+                        className="squircle-md border border-(--border-color) bg-(--bg-secondary) py-2 pl-9 pr-8 text-sm text-(--text-primary) placeholder:text-(--text-secondary) focus:border-(--color-accent-yellow) focus:outline-none"
                       />
                     </div>
                   </div>
@@ -1194,45 +1226,46 @@ const PageDetail = () => {
 
                 {customers.length === 0 ? (
                   <div className="p-12 text-center">
-                    <Users className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-700 mb-3" />
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <Users className="mx-auto mb-3 h-12 w-12 text-(--text-secondary)/40" />
+                    <p className="text-(--text-secondary)">
                       No {isDonationPage ? "donors" : "customers"} yet
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-200 dark:divide-gray-800 max-h-[600px] overflow-y-auto">
+                  <div className="max-h-[600px] divide-y divide-(--border-color) overflow-y-auto">
                     {filteredCustomers.map((customer, idx) => {
-                      // `payments` is ordered DESC, so pushing into
-                      // customer.payments keeps newest at index 0.
                       const latestPayment = customer.payments?.[0];
                       return (
                         <div
                           key={idx}
-                          className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                          className="px-6 py-4 transition-colors hover:bg-(--bg-secondary)/50"
                         >
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 dark:text-white">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-(--text-primary)">
                                 {customer.name}
                               </p>
-                              <div className="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              <div className="mt-1 flex flex-wrap gap-3 text-sm text-(--text-secondary)">
                                 {customer.email && (
                                   <span className="flex items-center gap-1">
-                                    <Mail className="h-3 w-3" /> {customer.email}
+                                    <Mail className="h-3 w-3" />{" "}
+                                    {customer.email}
                                   </span>
                                 )}
                                 {customer.phone && (
                                   <span className="flex items-center gap-1">
-                                    <Phone className="h-3 w-3" /> {customer.phone}
+                                    <Phone className="h-3 w-3" />{" "}
+                                    {customer.phone}
                                   </span>
                                 )}
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />{" "}
-                                  {new Date(customer.firstPayment).toLocaleDateString()}
+                                  {new Date(
+                                    customer.firstPayment
+                                  ).toLocaleDateString()}
                                 </span>
                               </div>
 
-                              {/* TYPE-SPECIFIC INFO */}
                               <PaymentExtraInfo
                                 payment={latestPayment}
                                 allPayments={payments}
@@ -1240,49 +1273,57 @@ const PageDetail = () => {
                               <PaymentMessage payment={latestPayment} />
                               <DigitalDelivery payment={latestPayment} />
                             </div>
-                            <div className="text-right shrink-0">
+                            <div className="shrink-0 text-right">
                               <p className="font-semibold text-green-600 dark:text-green-400">
                                 ₦{customer.totalPaid.toLocaleString()}
                               </p>
-                              <p className="text-xs text-gray-400 dark:text-gray-500">
+                              <p className="text-xs text-(--text-secondary)">
                                 {customer.payments.length} payment
                                 {customer.payments.length > 1 ? "s" : ""}
                               </p>
                             </div>
                           </div>
 
-                          {/* Payment history */}
                           {customer.payments.length > 1 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                            <div className="mt-3 border-t border-(--border-color) pt-3">
+                              <p className="mb-2 text-xs font-semibold text-(--text-secondary)">
                                 Payment history ({customer.payments.length})
                               </p>
                               <div className="space-y-1.5">
                                 {[...customer.payments]
                                   .sort(
                                     (a, b) =>
-                                      new Date(b.paid_at || b.created_at).getTime() -
-                                      new Date(a.paid_at || a.created_at).getTime()
+                                      new Date(
+                                        b.paid_at || b.created_at
+                                      ).getTime() -
+                                      new Date(
+                                        a.paid_at || a.created_at
+                                      ).getTime()
                                   )
                                   .map((p) => {
-                                    const seq = computeInstallmentSequence(p, payments);
+                                    const seq = computeInstallmentSequence(
+                                      p,
+                                      payments
+                                    );
                                     return (
                                       <div
                                         key={p.id}
                                         className="flex items-center justify-between text-xs"
                                       >
-                                        <span className="text-gray-600 dark:text-gray-400">
+                                        <span className="text-(--text-secondary)">
                                           {new Date(
                                             p.paid_at || p.created_at
                                           ).toLocaleString()}
                                           {seq && (
-                                            <span className="ml-2 text-gray-400 dark:text-gray-500">
-                                              (Installment {seq.current} of {seq.total})
+                                            <span className="ml-2 text-(--text-secondary)/70">
+                                              (Installment {seq.current} of{" "}
+                                              {seq.total})
                                             </span>
                                           )}
                                         </span>
-                                        <span className="font-medium text-gray-900 dark:text-white">
-                                          ₦{(p.amount || 0).toLocaleString()}
+                                        <span className="font-medium text-(--text-primary)">
+                                          ₦
+                                          {(p.amount || 0).toLocaleString()}
                                         </span>
                                       </div>
                                     );
@@ -1291,23 +1332,23 @@ const PageDetail = () => {
                             </div>
                           )}
 
-                          {/* Custom fields (link pages) */}
-                          {Object.keys(customer.customFields || {}).length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">
+                          {Object.keys(customer.customFields || {}).length >
+                            0 && (
+                            <div className="mt-3 border-t border-(--border-color) pt-3">
+                              <p className="mb-1.5 text-xs font-semibold text-(--text-secondary)">
                                 Submitted information
                               </p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {Object.entries(customer.customFields).map(
                                   ([label, value]: [string, any]) => (
                                     <div
                                       key={label}
                                       className="flex items-start gap-2 text-xs"
                                     >
-                                      <span className="text-gray-500 dark:text-gray-400 shrink-0">
+                                      <span className="shrink-0 text-(--text-secondary)">
                                         {label}:
                                       </span>
-                                      <span className="text-gray-900 dark:text-white break-words">
+                                      <span className="break-words text-(--text-primary)">
                                         {String(value)}
                                       </span>
                                     </div>
@@ -1329,15 +1370,15 @@ const PageDetail = () => {
 
       {/* QR Modal */}
       {showQRModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="squircle-lg w-full max-w-sm border border-(--border-color) bg-(--bg-primary) p-6 shadow-(--shadow-pop)">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-(--text-primary)">
                 QR Code
               </h3>
               <button
                 onClick={() => setShowQRModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-(--text-secondary) hover:text-(--text-primary)"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1348,16 +1389,16 @@ const PageDetail = () => {
                   getPaymentPageUrl()
                 )}`}
                 alt="QR Code"
-                className="w-48 h-48 bg-white rounded-xl p-2"
+                className="squircle-md h-48 w-48 bg-white p-2"
               />
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
+              <p className="mt-4 text-center text-sm text-(--text-secondary)">
                 Scan to open payment page
               </p>
               <Button
                 onClick={downloadQRCode}
-                className="mt-4 bg-yellow-500 text-black hover:bg-yellow-600 w-full"
+                className="squircle-md mt-4 w-full bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90"
               >
-                <Download className="h-4 w-4 mr-2" /> Download
+                <Download className="mr-2 h-4 w-4" /> Download
               </Button>
             </div>
           </div>
@@ -1366,32 +1407,32 @@ const PageDetail = () => {
 
       {/* Embed Modal */}
       {showEmbedModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="squircle-lg w-full max-w-sm border border-(--border-color) bg-(--bg-primary) p-6 shadow-(--shadow-pop)">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-(--text-primary)">
                 Embed Code
               </h3>
               <button
                 onClick={() => setShowEmbedModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-(--text-secondary) hover:text-(--text-primary)"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4 overflow-x-auto">
-              <code className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all whitespace-pre-wrap">
+            <div className="squircle-md mb-4 overflow-x-auto bg-(--bg-secondary) p-3">
+              <code className="whitespace-pre-wrap break-all font-mono text-xs text-(--text-primary)">
                 {getEmbedCode()}
               </code>
             </div>
             <Button
               onClick={copyEmbedCode}
-              className="bg-yellow-500 text-black hover:bg-yellow-600 w-full"
+              className="squircle-md w-full bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90"
             >
               {copiedEmbed ? (
-                <CheckCircle className="h-4 w-4 mr-2" />
+                <CheckCircle className="mr-2 h-4 w-4" />
               ) : (
-                <Copy className="h-4 w-4 mr-2" />
+                <Copy className="mr-2 h-4 w-4" />
               )}
               {copiedEmbed ? "Copied!" : "Copy Code"}
             </Button>

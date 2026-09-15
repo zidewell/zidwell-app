@@ -278,19 +278,19 @@ function PaymentPageCard({
       }
       className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
     >
-      <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-muted/30">
+      <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/30">
         {page.coverImage ? (
           <img
             src={page.coverImage}
             alt={page.title}
-            className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : page.productImages && page.productImages.length > 0 ? (
           <img
             src={page.productImages[0]}
             alt={page.title}
-            className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (

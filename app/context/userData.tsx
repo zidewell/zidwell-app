@@ -501,6 +501,8 @@ function clearClientStorage() {
     localStorage.removeItem("zidwell_store_data");
     localStorage.removeItem("zidwell_store_timestamp");
     sessionStorage.removeItem("userData");
+    sessionStorage.removeItem("pendingStoreCheckout");
+    localStorage.removeItem("pendingStoreCheckout");
   } catch (e) {
     console.error("Failed to clear storage:", e);
   }
@@ -552,11 +554,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
-  // ─── ✅ Full session teardown ───
-  // 1. Server clears httpOnly cookies via /api/logout
-  // 2. Client clears non-httpOnly cookies + storage
-  // 3. Context state is reset
-  // 4. Navigate to login
+ 
   const handleSessionExpired = useCallback(async () => {
     try {
       // ✅ Step 1: Server clears httpOnly cookies.

@@ -22,7 +22,7 @@ import DashboardHeader from "@/app/components/dashboard-component/DashboardHeade
 export const STORE_LINKS = [
   {
     label: "Overview",
-    href: "/dashboard/payment/dashboard",
+    href: "/dashboard/services/payment/dashboard",
     icon: Store,
   },
   {
@@ -30,31 +30,34 @@ export const STORE_LINKS = [
     href: "/dashboard/services/payment/store/products",
     icon: Package,
   },
-  {
-    label: "Store Wallet",
-    href: "/dashboard/services/payment/store/wallet",
-    icon: Wallet,
-  },
-  {
+   {
     label: "Transactions",
     href: "/dashboard/services/payment/store/transactions",
     icon: CreditCard,
   },
+  
   {
     label: "Customers",
     href: "/dashboard/services/payment/store/customers",
     icon: Users,
   },
   {
-    label: "Analytics",
-    href: "/dashboard/services/payment/store/analytics",
-    icon: BarChart3,
+    label: "Store Wallet",
+    href: "/dashboard/services/payment/store/wallet",
+    icon: Wallet,
   },
-  {
+   {
     label: "Bookkeeping",
     href: "/dashboard/services/payment/store/bookkeeping",
     icon: BookOpen,
   },
+ 
+  {
+    label: "Analytics",
+    href: "/dashboard/services/payment/store/analytics",
+    icon: BarChart3,
+  },
+ 
   { label: "Settings", href: "#", icon: Settings },
 ] as const;
 

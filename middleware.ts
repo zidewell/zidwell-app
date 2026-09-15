@@ -62,14 +62,13 @@ const bvnRequiredRoutes = [
   "/dashboard/services/buy-cable-tv",
 ];
 
-// ─── OWNER STORE ROUTES (now nested under /dashboard/payment/store) ───
+// ─── OWNER STORE ROUTES (now nested under /dashboard/services/payment/store) ───
 const storeProtectedRoutes = [
-  "/dashboard/payment/dashboard",
-  "/dashboard/payment/create",
-  "/dashboard/payment/create-link",
-  "/dashboard/payment/edit",
-  "/dashboard/payment/page",
-  "/dashboard/payment/store",
+  "/dashboard/services/payment/create",
+  "/dashboard/services/payment/create-link",
+  "/dashboard/services/payment/edit",
+  "/dashboard/services/payment/page",
+  "/dashboard/services/payment/store",
   // Specific sub-paths for clarity
   "/dashboard/services/payment/store/products",
   "/dashboard/services/payment/store/wallet",
@@ -144,10 +143,9 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
 
 function requiresPaymentEmailRestriction(pathname: string): boolean {
   return (
-    pathname === "/dashboard/payment" ||
-    pathname === "/dashboard/payment/dashboard" ||
-    pathname === "/dashboard/payment/create" ||
-    pathname === "/dashboard/payment/create-link"
+    pathname === "/dashboard/services/payment" ||
+    pathname === "/dashboard/services/payment/create" ||
+    pathname === "/dashboard/services/payment/create-link"
   );
 }
 
@@ -327,7 +325,7 @@ function redirectFromPaymentPage(req: NextRequest) {
 function redirectNoStore(req: NextRequest) {
   console.log(`🚫 No store found for user accessing ${req.nextUrl.pathname}`);
   const response = NextResponse.redirect(
-    new URL("/dashboard/payment", req.url)
+    new URL("/dashboard/services/payment", req.url)
   );
   response.cookies.set(
     "store_required",

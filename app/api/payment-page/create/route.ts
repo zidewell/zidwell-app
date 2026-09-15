@@ -2,48 +2,24 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
+import { normalizeVariants } from "@/lib/payment-page/normalize";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// ─── Slugs reserved by app infrastructure ───
-// A payment page slug lives at /store/[storeSlug]/[pageSlug], so it
-// only collides with OTHER payment pages — not with store slugs.
-// Still, we reserve a few critical words for defense in depth.
 const RESERVED_PAGE_SLUGS = new Set([
-  "api",
-  "admin",
-  "auth",
-  "dashboard",
-  "new",
-  "create",
-  "edit",
-  "delete",
-  "manage",
-  "link",
-  "settings",
-  "profile",
-  "account",
-  "login",
-  "signup",
-  "register",
-  "checkout",
-  "cart",
-  "order",
-  "orders",
-  "zidwell",
-  "official",
-  "system",
-  "root",
+  "api", "admin", "auth", "dashboard", "new", "create", "edit", "delete",
+  "manage", "link", "settings", "profile", "account", "login", "signup",
+  "register", "checkout", "cart", "order", "orders", "zidwell", "official",
+  "system", "root",
 ]);
 
 const MIN_SLUG_LENGTH = 3;
 const MAX_SLUG_LENGTH = 50;
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
 
-// ─── Slug cleanup — mirrors client-side slugify ───
 function cleanSlug(raw: string): string {
   return raw
     .toLowerCase()
@@ -54,10 +30,6 @@ function cleanSlug(raw: string): string {
     .replace(/^-|-$/g, "");
 }
 
-// ============================================================
-// SLUG VALIDATION
-// Returns null if valid, or an error message string if invalid.
-// ============================================================
 async function validateSlugOrFail(
   rawSlug: string,
   userId: string
@@ -67,22 +39,16 @@ async function validateSlugOrFail(
   if (slug.length < MIN_SLUG_LENGTH) {
     return `URL must be at least ${MIN_SLUG_LENGTH} characters`;
   }
-
   if (slug.length > MAX_SLUG_LENGTH) {
     return `URL is too long. Maximum ${MAX_SLUG_LENGTH} characters.`;
   }
-
   if (!SLUG_REGEX.test(slug)) {
     return "URL must start and end with a letter or number, and contain only lowercase letters, numbers, and hyphens.";
   }
-
   if (RESERVED_PAGE_SLUGS.has(slug)) {
     return `"${slug}" is reserved by Zidwell. Please choose a different URL.`;
   }
 
-  // ─── UNIQUENESS CHECK ───
-  // Payment pages are unique by slug globally (they share the same
-  // /store/[slug] URL namespace as their parent store's slug segment).
   const { data: existingPage, error: slugCheckError } = await supabase
     .from("payment_pages")
     .select("id, user_id")
@@ -95,17 +61,12 @@ async function validateSlugOrFail(
   }
 
   if (existingPage) {
-    // If it's the same user's page, that's still a collision —
-    // they can't have two pages with the same slug.
     if (existingPage.user_id === userId) {
       return "You already have a payment page with this URL. Please choose a different one.";
     }
     return "This URL is already taken. Please choose a different one.";
   }
 
-  // Also check online_stores slug — defense in depth.
-  // A store named "premium-plan" would collide with a page named
-  // "premium-plan" at /store/premium-plan in the URL path.
   const { data: existingStore, error: storeCheckError } = await supabase
     .from("online_stores")
     .select("id")
@@ -121,12 +82,9 @@ async function validateSlugOrFail(
     return "This URL is already used by a store. Please choose a different one.";
   }
 
-  return null; // ✅ valid
+  return null;
 }
 
-// ============================================================
-// IMAGE UPLOAD HELPER
-// ============================================================
 async function uploadImageToStorage(
   userId: string,
   base64Image: string,
@@ -170,9 +128,6 @@ async function uploadImageToStorage(
   }
 }
 
-// ============================================================
-// MAIN POST HANDLER
-// ============================================================
 export async function POST(request: Request) {
   try {
     const { user, newTokens } = await isAuthenticatedWithRefresh(request as any);
@@ -186,23 +141,12 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const {
-      title,
-      slug,
-      description,
-      coverImage,
-      logo,
-      productImages,
-      priceType,
-      price,
-      installmentCount,
-      feeMode,
-      pageType,
-      metadata,
+      title, slug, description, coverImage, logo, productImages,
+      priceType, price, installmentCount, feeMode, pageType, metadata,
     } = body;
 
     console.log("📝 Creating page:", { title, pageType, slug });
 
-    // ─── VALIDATION ───
     if (!title || !pageType || !slug) {
       return NextResponse.json(
         { error: "Title, page type, and slug are required" },
@@ -240,7 +184,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // ─── CHECK ACTIVE STORE ───
     const { data: store, error: storeError } = await supabase
       .from("online_stores")
       .select("id, is_active, activation_paid")
@@ -261,8 +204,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── ✅ SERVER-SIDE SLUG VALIDATION ───
-    // Never trust the client. The frontend validator is UX only.
     const cleanedSlug = cleanSlug(slug);
     const slugError = await validateSlugOrFail(cleanedSlug, user.id);
 
@@ -271,23 +212,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: slugError }, { status: 409 });
     }
 
-    // ─── UPLOAD IMAGES ───
     let uploadedCoverImage = null;
     if (coverImage) {
-      uploadedCoverImage = await uploadImageToStorage(
-        user.id,
-        coverImage,
-        "covers"
-      );
+      uploadedCoverImage = await uploadImageToStorage(user.id, coverImage, "covers");
     }
 
     let uploadedLogo = null;
     if (logo && logo.startsWith("data:image")) {
       uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
-    } else if (
-      logo &&
-      (logo.startsWith("http://") || logo.startsWith("https://"))
-    ) {
+    } else if (logo && (logo.startsWith("http://") || logo.startsWith("https://"))) {
       uploadedLogo = logo;
     }
 
@@ -295,11 +228,7 @@ export async function POST(request: Request) {
     if (productImages && productImages.length > 0) {
       for (const img of productImages) {
         if (img.startsWith("data:image")) {
-          const uploadedUrl = await uploadImageToStorage(
-            user.id,
-            img,
-            "products"
-          );
+          const uploadedUrl = await uploadImageToStorage(user.id, img, "products");
           if (uploadedUrl) uploadedProductImages.push(uploadedUrl);
         } else if (img.startsWith("http://") || img.startsWith("https://")) {
           uploadedProductImages.push(img);
@@ -307,10 +236,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // ─── PREPARE METADATA ───
     const finalMetadata: any = { ...metadata };
 
-    // For link pages, store the entire link configuration in metadata
     if (pageType === "link" && metadata?.linkConfig) {
       finalMetadata.pageType = "link";
       finalMetadata.linkConfig = {
@@ -319,7 +246,15 @@ export async function POST(request: Request) {
       };
     }
 
-    // ─── CALCULATE FINAL PRICE ───
+    // ✅ NORMALIZE VARIANT STOCK + PRICE
+    if (
+      pageType === "physical" &&
+      Array.isArray(finalMetadata.variants) &&
+      finalMetadata.variants.length > 0
+    ) {
+      finalMetadata.variants = normalizeVariants(finalMetadata.variants);
+    }
+
     let finalPrice = price || 0;
     if (pageType === "school" && finalMetadata.feeBreakdown?.length > 0) {
       finalPrice = finalMetadata.feeBreakdown.reduce(
@@ -328,20 +263,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // ─── DETERMINE FINAL PRICE TYPE ───
     let finalPriceType = priceType;
-    if (
-      pageType === "link" &&
-      metadata?.linkConfig?.amountMode === "variable"
-    ) {
+    if (pageType === "link" && metadata?.linkConfig?.amountMode === "variable") {
       finalPriceType = "open";
     }
     if (pageType === "donation") {
       finalPriceType = "open";
     }
 
-    // ─── INSTALLMENT METADATA (ALL PAGE TYPES) ───
-    // Every page type supports installments except donation/open-ended pages.
     if (
       finalPriceType === "installment" &&
       installmentCount &&
@@ -354,17 +283,12 @@ export async function POST(request: Request) {
       const perInstallment = totalAmount / count;
 
       finalMetadata.installmentCount = count;
-      finalMetadata.installmentAmount =
-        Math.round(perInstallment * 100) / 100;
-      finalMetadata.installmentPeriod =
-        metadata?.installmentPeriod || "monthly";
+      finalMetadata.installmentAmount = Math.round(perInstallment * 100) / 100;
+      finalMetadata.installmentPeriod = metadata?.installmentPeriod || "monthly";
       finalMetadata.totalAmount = totalAmount;
-      // Populated progressively by webhook services as payments come in.
-      // Keyed by entity ID (student name, variant SKU, or "default").
       finalMetadata.installmentState = {};
     }
 
-    // ─── SAVE PAYMENT PAGE ───
     console.log("💾 Saving payment page to database...");
 
     const { data: page, error: pageError } = await supabase
@@ -372,7 +296,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: user.id,
         title,
-        slug: cleanedSlug, // ✅ use the cleaned slug
+        slug: cleanedSlug,
         description: description || "",
         cover_image: uploadedCoverImage,
         logo: uploadedLogo,
@@ -397,10 +321,6 @@ export async function POST(request: Request) {
     if (pageError) {
       console.error("❌ Error creating page:", pageError);
 
-      // ─── HANDLE POSTGRES UNIQUE VIOLATION ───
-      // Even with our pre-check, a concurrent request could have
-      // grabbed the slug. Catch the DB error and return a friendly
-      // 409 instead of a raw 500.
       if (
         pageError.code === "23505" ||
         pageError.message?.includes("duplicate key") ||
@@ -437,10 +357,7 @@ export async function POST(request: Request) {
       },
     };
 
-    if (newTokens) {
-      return NextResponse.json(responseData);
-    }
-
+    if (newTokens) return NextResponse.json(responseData);
     return NextResponse.json(responseData);
   } catch (error: any) {
     console.error("Create page error:", error);
