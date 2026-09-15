@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
-import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
+import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers";
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -70,16 +70,16 @@ export async function POST(req: NextRequest) {
     if (userData.pin_locked_until && new Date(userData.pin_locked_until) > new Date()) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000);
-      
+
       const response = NextResponse.json(
-        { 
+        {
           message: `PIN is locked due to multiple failed attempts. Please try again in ${minutesLeft} minutes or reset your PIN via email.`,
           locked: true,
           lockedUntil: userData.pin_locked_until
         },
         { status: 401 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -88,12 +88,12 @@ export async function POST(req: NextRequest) {
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
-    
+
     if (!isValid) {
       const newAttempts = (userData.pin_attempts || 0) + 1;
       let updateData: any = { pin_attempts: newAttempts };
       let shouldSendEmail = false;
-      
+
       if (newAttempts >= 3) {
         const lockDuration = 30 * 60 * 1000;
         updateData.pin_locked_until = new Date(Date.now() + lockDuration);
@@ -103,26 +103,26 @@ export async function POST(req: NextRequest) {
         updateData.pin_reset_token_expires = tokenExpiry;
         shouldSendEmail = true;
       }
-      
+
       await supabase
         .from("users")
         .update(updateData)
         .eq("id", userId);
-      
+
       if (shouldSendEmail && userData.email) {
-        const userName = userData.first_name && userData.last_name 
+        const userName = userData.first_name && userData.last_name
           ? `${userData.first_name} ${userData.last_name}`
           : undefined;
-        
+
         await sendPinResetEmail(
           userData.email,
           updateData.pin_reset_token,
           userId,
           userName
         );
-        
+
         const response = NextResponse.json(
-          { 
+          {
             message: `PIN locked due to ${newAttempts} failed attempts. A reset link has been sent to your email.`,
             locked: true,
             remainingAttempts: 0,
@@ -130,29 +130,29 @@ export async function POST(req: NextRequest) {
           },
           { status: 401 }
         );
-        
+
         if (newTokens) {
           return createAuthResponse(await response.json(), newTokens);
         }
         return response;
       }
-      
+
       const remainingAttempts = 3 - newAttempts;
       const response = NextResponse.json(
-        { 
+        {
           message: `Invalid transaction PIN. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before PIN is locked.`,
           remainingAttempts,
           attempts: newAttempts
         },
         { status: 401 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
       return response;
     }
-    
+
     // ✅ PIN is valid - reset attempts
     await supabase
       .from("users")
@@ -165,14 +165,14 @@ export async function POST(req: NextRequest) {
       .eq("id", userId);
 
     const totalDeduction = totalDebit || amount + (fee || 0);
-    
+
     // ✅ Check sufficient balance
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
         { status: 400 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
         { message: "Unable to process transfer at this time" },
         { status: 503 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
         { error: "Could not create transaction record" },
         { status: 500 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -263,24 +263,31 @@ export async function POST(req: NextRequest) {
     console.log("📤 Nomba response:", {
       status: nombaResponse.status,
       merchantTxRef,
-      nombaReference: nombaData?.data?.reference,
+      nombaId: nombaData?.data?.id,
     });
 
     // ✅ Check if transfer was immediately successful
     const isSuccess = nombaResponse.ok && nombaData?.data?.status === "success";
     const finalStatus = isSuccess ? "success" : "processing";
 
+    // ✅ Capture Nomba's transaction ID (they return `id`, not `reference`)
+    const nombaTransactionId = nombaData?.data?.id || null;
+
     // ✅ Update transaction with initial status
+    // NOTE: `reference` is NOT set here. We only record the authoritative
+    // Nomba transaction ID once the webhook confirms the payout. Until then,
+    // `merchant_tx_ref` is our lookup key and `external_response.nomba_transaction_id`
+    // carries the provisional ID for convenience.
     await supabase
       .from("transactions")
       .update({
         status: finalStatus,
         description: `Transfer of ₦${amount} to ${accountName}`,
-        reference: nombaData?.data?.reference || null,
         external_response: {
           nomba_request: nombaData,
           requested_at: new Date().toISOString(),
           merchant_tx_ref: merchantTxRef,
+          nomba_transaction_id: nombaTransactionId,
         },
         updated_at: new Date().toISOString(),
       })
@@ -289,7 +296,7 @@ export async function POST(req: NextRequest) {
     // ✅ If immediately successful, deduct balance and send receipt email
     if (isSuccess) {
       console.log(`✅ Transfer immediately successful for transaction ${pendingTx.id}`);
-      
+
       // Deduct wallet balance
       const { error: deductError } = await supabase.rpc(
         "deduct_wallet_balance",
@@ -312,6 +319,15 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
       } else {
+        // Record Nomba transaction ID as `reference` now that it's confirmed
+        await supabase
+          .from("transactions")
+          .update({
+            reference: nombaTransactionId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", pendingTx.id);
+
         // Generate receipt HTML for email
         const receiptHtml = generateTransferReceipt({
           transactionId: pendingTx.id,
@@ -367,7 +383,7 @@ export async function POST(req: NextRequest) {
       status: finalStatus,
       requiresPolling: !isSuccess,
       category: category || null,
-      ...(isSuccess && { reference: nombaData?.data?.reference }),
+      ...(isSuccess && nombaTransactionId && { reference: nombaTransactionId }),
     };
 
     if (newTokens) {
@@ -378,16 +394,16 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("Withdraw API error:", error);
-    
+
     const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }
     );
-    
+
     if ((error as any).newTokens) {
       return createAuthResponse(await response.json(), (error as any).newTokens);
     }
-    
+
     return response;
   }
 }
