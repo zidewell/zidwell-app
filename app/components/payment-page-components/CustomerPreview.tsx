@@ -409,7 +409,7 @@ function StorePreviewContent({
             </div>
           )}
 
-          {/* ─── PRICE (non-school, non-donation) ─── */}
+          {/* ─── PRICE (non-school, non-donation, fixed mode) ─── */}
           {!isSchool &&
             !isDonation &&
             data.amountMode === "fixed" &&
@@ -419,20 +419,17 @@ function StorePreviewContent({
                   <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#FDC020]">
                     {formatNaira(isInstallment ? perInstallment : totalPrice)}
                   </span>
-                  {isInstallment ? (
+                  {isInstallment && (
                     <span className="text-sm text-foreground/50">
                       per {periodLabel} · {instCount} payments
                     </span>
-                  ) : data.amountMode === "variable" ? (
-                    <span className="text-sm text-foreground/50">
-                      (customer chooses amount)
-                    </span>
-                  ) : null}
+                  )}
                 </div>
 
                 {isInstallment && (
                   <p className="mt-2 text-xs text-foreground/50">
-                    Total: <strong className="text-foreground/80">
+                    Total:{" "}
+                    <strong className="text-foreground/80">
                       {formatNaira(totalPrice)}
                     </strong>{" "}
                     · Pay over {instCount} {periodLabel}s
@@ -441,7 +438,7 @@ function StorePreviewContent({
               </div>
             )}
 
-          {/* ─── INSTALLMENT CARD (matches real page style) ─── */}
+          {/* ─── INSTALLMENT CARD ─── */}
           {isInstallment && !isSchool && !isDonation && (
             <div className="mt-5 rounded-xl border border-border bg-muted/20 p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -462,7 +459,9 @@ function StorePreviewContent({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-foreground/60">Number of payments</span>
+                  <span className="text-foreground/60">
+                    Number of payments
+                  </span>
                   <span className="font-medium">{instCount}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 mt-2">
@@ -476,18 +475,16 @@ function StorePreviewContent({
           )}
 
           {/* ─── VARIABLE amount ─── */}
-          {!isSchool &&
-            !isDonation &&
-            data.amountMode === "variable" && (
-              <div className="mt-5">
-                <span className="text-2xl font-semibold text-foreground/70">
-                  Enter amount
-                </span>
-                <p className="mt-1 text-sm text-foreground/50">
-                  Customer chooses how much to pay
-                </p>
-              </div>
-            )}
+          {!isSchool && !isDonation && data.amountMode === "variable" && (
+            <div className="mt-5">
+              <span className="text-2xl font-semibold text-foreground/70">
+                Enter amount
+              </span>
+              <p className="mt-1 text-sm text-foreground/50">
+                Customer chooses how much to pay
+              </p>
+            </div>
+          )}
 
           {/* ─── PHYSICAL variants ─── */}
           {isPhysical && data.variants && data.variants.length > 0 && (
