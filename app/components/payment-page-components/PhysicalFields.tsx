@@ -127,13 +127,13 @@ const PhysicalFields = ({
     return Number.isFinite(n) && n !== 0 ? n : "";
   };
 
-  // Same for stock — 0 / null / undefined / "" → empty (unlimited)
-  const stockDisplayValue = (v: Variant): string | number => {
-    const s = v?.stock;
-    if (s === 0 || s === null || s === undefined || s === "") return "";
-    const n = Number(s);
-    return Number.isFinite(n) && n > 0 ? n : "";
-  };
+const stockDisplayValue = (v: Variant): string | number => {
+  const s = v?.stock as unknown;
+  if (s === 0 || s === null || s === undefined) return "";
+  if (String(s).trim() === "") return "";
+  const n = Number(s);
+  return Number.isFinite(n) && n > 0 ? n : "";
+};
 
   return (
     <div className="space-y-6">
