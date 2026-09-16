@@ -39,13 +39,16 @@ const PhysicalFields = ({
   // Only a POSITIVE stock number is a real cap. Anything else (null,
   // undefined, "", 0, negative) is treated as unlimited.
   // ─────────────────────────────────────────────────────────────────────
-  const variantStockValues = variants
-    .map((v) => {
-      const raw = v?.stock;
-      const parsed = raw != null && raw !== "" ? Number(raw) : NaN;
-      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    })
-    .filter((n): n is number => n !== null);
+ const variantStockValues = variants
+  .map((v) => {
+    const raw = v?.stock as unknown;
+    if (raw == null) return null;
+    const trimmed = String(raw).trim();
+    if (trimmed === "") return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  })
+  .filter((n): n is number => n !== null);
 
   const variantSum = variantStockValues.reduce((s, n) => s + n, 0);
 
