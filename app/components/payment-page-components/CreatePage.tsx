@@ -659,8 +659,8 @@ export default function CreatePage() {
   const isVariantStockValid = (): boolean => {
     if (!isPhysical || variants.length === 0) return true;
 
-   const parsedPageStock =
-  stock != null && String(stock).trim() !== "" ? Number(stock) : null;
+    const parsedPageStock =
+      stock != null && String(stock).trim() !== "" ? Number(stock) : null;
     const hasRealPageStock =
       parsedPageStock !== null &&
       Number.isFinite(parsedPageStock) &&
@@ -669,15 +669,15 @@ export default function CreatePage() {
     if (!hasRealPageStock) return true;
 
     const variantStockValues = variants
-  .map((v) => {
-    const raw = v?.stock as unknown;
-    if (raw == null) return null;
-    const trimmed = String(raw).trim();
-    if (trimmed === "") return null;
-    const parsed = Number(trimmed);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  })
-  .filter((n): n is number => n !== null);
+      .map((v) => {
+        const raw = v?.stock as unknown;
+        if (raw == null) return null;
+        const trimmed = String(raw).trim();
+        if (trimmed === "") return null;
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+      })
+      .filter((n): n is number => n !== null);
 
     const allVariantsCounted = variantStockValues.length === variants.length;
     const variantSum = variantStockValues.reduce((s, n) => s + n, 0);
@@ -1409,9 +1409,11 @@ export default function CreatePage() {
 
                 const variantStockValues = variants
                   .map((v) => {
-                    const raw = v?.stock;
-                    const parsed =
-                      raw != null && raw !== "" ? Number(raw) : NaN;
+                    const raw = v?.stock as unknown;
+                    if (raw == null) return null;
+                    const trimmed = String(raw).trim();
+                    if (trimmed === "") return null;
+                    const parsed = Number(trimmed);
                     return Number.isFinite(parsed) && parsed > 0
                       ? parsed
                       : null;
@@ -1445,34 +1447,35 @@ export default function CreatePage() {
                 return null;
               })()}
 
-           <div className="flex gap-3">
-  <Button
-    type="button"
-    variant="outline"
-    size="lg"
-    onClick={() => setShowPreview(true)}
-    className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
-  >
-    <Eye className="h-5 w-5" />
-    <span className="ml-2 hidden sm:inline">Preview</span>
-  </Button>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => setShowPreview(true)}
+                className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+              >
+                <Eye className="h-5 w-5" />
+                <span className="ml-2 hidden sm:inline">Preview</span>
+              </Button>
 
-  <Button
-    variant="default"
-    size="lg"
-    className="flex-1 py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
-    onClick={handleCreate}
-    disabled={!canCreate() || isCreating}
-  >
-    {isCreating ? (
-      <>
-        <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...
-      </>
-    ) : (
-      `Create ${typeLabels[pageType]} Page`
-    )}
-  </Button>
-</div>
+              <Button
+                variant="default"
+                size="lg"
+                className="flex-1 py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
+                onClick={handleCreate}
+                disabled={!canCreate() || isCreating}
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />{" "}
+                    Creating...
+                  </>
+                ) : (
+                  `Create ${typeLabels[pageType]} Page`
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -1574,85 +1577,81 @@ export default function CreatePage() {
       </AnimatePresence>
 
       {/* ─── CUSTOMER PREVIEW MODAL ─── */}
-     <CustomerPreview
-  isOpen={showPreview}
-  onClose={() => setShowPreview(false)}
-  data={{
-    title: form.title || `Untitled ${typeLabels[pageType]}`,
-    description: form.description,
-    productImage: productPreviews[0] || null,
-    productImages: productPreviews,
-    // ── For school pages, use computed total from fee breakdown
-    price:
-      pageType === "school"
-        ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0)
-        : Number(form.price) || 0,
-    priceType: form.priceType,
-    installmentCount: Number(form.installmentCount) || 1,
-    installmentAmount:
-      pageType === "school"
-        ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0) /
-          Math.max(1, Number(form.installmentCount) || 1)
-        : installmentAmount,
-    installmentPeriod,
-    amountMode: pageType === "donation" ? "variable" : "fixed",
-    storeName: store?.name || "Your Store",
-    storeSlug: store?.slug || "",
-    config: {
-      buttonText:
-        pageType === "donation"
-          ? "Donate now"
-          : pageType === "school"
-            ? "Pay Fees"
-            : pageType === "services"
-              ? "Book Now"
-              : "Pay Now",
-      buttonColor: "#FDC020",
-    },
-    pageType: pageType,
-    // ── extras
-    suggestedAmounts:
-      pageType === "donation" ? suggestedAmounts : undefined,
-    minimumDonation:
-      pageType === "donation" ? minimumDonation : undefined,
-    variants:
-      pageType === "physical"
-        ? variants.map((v) => ({
-            name: v.name || "",
-            price: Number(v.price) || 0,
-            stock: v.stock,
-          }))
-        : undefined,
-    entities:
-      pageType === "school"
-        ? students.map((s, i) => ({
-            id: (s as any).id || `student-${i}`,
-            name: s.name,
-            metadata: { className: schoolClass },
-            remainingBalance:
-              feeBreakdown.reduce(
-                (sum, f) => sum + (f.amount || 0),
-                0,
-              ) || 0,
-          }))
-        : undefined,
-    stock: stock,
-    allowMultiple: allowMultiple,
-    requiresShipping:
-      pageType === "physical" ? requiresShipping : undefined,
-    emailDelivery:
-      pageType === "digital" ? emailDelivery : undefined,
-    bookingEnabled:
-      pageType === "services" ? bookingEnabled : undefined,
-    customerNoteEnabled:
-      pageType === "services" ? customerNoteEnabled : undefined,
-    minimumAmount:
-      isInvestment && minimumAmount ? minimumAmount : undefined,
-    expectedReturn:
-      isInvestment && expectedReturn ? expectedReturn : undefined,
-    tenure: isInvestment && tenure ? tenure : undefined,
-  }}
-/>
+      <CustomerPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        data={{
+          title: form.title || `Untitled ${typeLabels[pageType]}`,
+          description: form.description,
+          productImage: productPreviews[0] || null,
+          productImages: productPreviews,
+          // ── For school pages, use computed total from fee breakdown
+          price:
+            pageType === "school"
+              ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0)
+              : Number(form.price) || 0,
+          priceType: form.priceType,
+          installmentCount: Number(form.installmentCount) || 1,
+          installmentAmount:
+            pageType === "school"
+              ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0) /
+                Math.max(1, Number(form.installmentCount) || 1)
+              : installmentAmount,
+          installmentPeriod,
+          amountMode: pageType === "donation" ? "variable" : "fixed",
+          storeName: store?.name || "Your Store",
+          storeSlug: store?.slug || "",
+          config: {
+            buttonText:
+              pageType === "donation"
+                ? "Donate now"
+                : pageType === "school"
+                  ? "Pay Fees"
+                  : pageType === "services"
+                    ? "Book Now"
+                    : "Pay Now",
+            buttonColor: "#FDC020",
+          },
+          pageType: pageType,
+          // ── extras
+          suggestedAmounts:
+            pageType === "donation" ? suggestedAmounts : undefined,
+          minimumDonation:
+            pageType === "donation" ? minimumDonation : undefined,
+          variants:
+            pageType === "physical"
+              ? variants.map((v) => ({
+                  name: v.name || "",
+                  price: Number(v.price) || 0,
+                  stock: v.stock,
+                }))
+              : undefined,
+          entities:
+            pageType === "school"
+              ? students.map((s, i) => ({
+                  id: (s as any).id || `student-${i}`,
+                  name: s.name,
+                  metadata: { className: schoolClass },
+                  remainingBalance:
+                    feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0) ||
+                    0,
+                }))
+              : undefined,
+          stock: stock,
+          allowMultiple: allowMultiple,
+          requiresShipping:
+            pageType === "physical" ? requiresShipping : undefined,
+          emailDelivery: pageType === "digital" ? emailDelivery : undefined,
+          bookingEnabled: pageType === "services" ? bookingEnabled : undefined,
+          customerNoteEnabled:
+            pageType === "services" ? customerNoteEnabled : undefined,
+          minimumAmount:
+            isInvestment && minimumAmount ? minimumAmount : undefined,
+          expectedReturn:
+            isInvestment && expectedReturn ? expectedReturn : undefined,
+          tenure: isInvestment && tenure ? tenure : undefined,
+        }}
+      />
     </div>
   );
 }
