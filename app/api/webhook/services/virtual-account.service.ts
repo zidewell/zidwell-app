@@ -18,14 +18,13 @@ interface VirtualAccountParams {
 }
 
 function extractInvoiceReference(narration: string): string | null {
-  // Try multiple patterns to match the invoice reference
   const patterns = [
-    /INV[A-Za-z0-9]+/,        // INV... format
-    /INV_[A-Za-z0-9]+/,       // INV_... format
-    /INV-[A-Za-z0-9]+/,       // INV-... format
-    /INVOICE[A-Za-z0-9]+/,    // INVOICE... format
-    /INVOICE_[A-Za-z0-9]+/,   // INVOICE_... format
-    /INVOICE-[A-Za-z0-9]+/,   // INVOICE-... format
+    /INV[A-Za-z0-9]+/,
+    /INV_[A-Za-z0-9]+/,
+    /INV-[A-Za-z0-9]+/,
+    /INVOICE[A-Za-z0-9]+/,
+    /INVOICE_[A-Za-z0-9]+/,
+    /INVOICE-[A-Za-z0-9]+/,
   ];
 
   for (const pattern of patterns) {
@@ -46,7 +45,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     transactionAmount,
     nombaFee,
     customer,
-    tx
+    tx,
   } = params;
 
   console.log("🏦 Processing virtual account deposit...");
@@ -61,14 +60,11 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
   const narration = tx.narration || "";
   const senderName = customer.senderName || customer.name || "Bank Transfer";
   const netAmount = transactionAmount - nombaFee;
-  
-  // Check if this is an invoice payment by looking for invoice reference in narration
+
   const invoiceMatch = extractInvoiceReference(narration);
-  
-  // If it's an invoice payment, delegate to invoice service
+
   if (invoiceMatch) {
     console.log("🧾 Invoice payment detected, delegating to invoice service...");
-    // Import dynamically to avoid circular dependency
     const { processVirtualAccountInvoicePayment } = await import('./invoice-payment.service');
     return processVirtualAccountInvoicePayment(payload, {
       aliasAccountReference,
@@ -77,11 +73,10 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       nombaFee,
       customer,
       tx,
-      invoiceRef: invoiceMatch
+      invoiceRef: invoiceMatch,
     });
   }
 
-  // Regular wallet deposit (no invoice)
   console.log("💰 Regular wallet deposit via virtual account");
 
   const { data: existingTx } = await supabase
@@ -90,90 +85,144 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     .eq("merchant_tx_ref", nombaTransactionId)
     .maybeSingle();
 
-  if (!existingTx) {
-    const { error: txError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        type: "virtual_account_deposit",
-        amount: transactionAmount,
-        fee: nombaFee,
-        net_amount: netAmount,
-        status: "success",
-        reference: nombaTransactionId,
-        merchant_tx_ref: nombaTransactionId,
-        description: "Virtual account deposit",
-        narration: narration,
-        channel: "virtual_account",
-        sender: {
-          name: senderName,
-          bank: customer.bankName,
-          account_number: customer.accountNumber
-        },
-        external_response: {
-          nomba_transaction_id: nombaTransactionId,
-          nomba_fee: nombaFee,
-          gross_amount: transactionAmount,
-          net_amount: netAmount,
-        },
-      });
+  if (existingTx) {
+    console.log("⚠️ Duplicate VA deposit detected, skipping");
+    return {
+      success: true,
+      message: "Virtual account deposit already processed",
+      gross_amount: transactionAmount,
+      fee_deducted: nombaFee,
+      net_credit: netAmount,
+    };
+  }
 
-    if (txError) {
-      console.error("❌ Failed to create VA transaction:", txError);
-      return { error: "Failed to create transaction" };
-    }
+  // ✅ Build rich metadata
+  const txMetadata = {
+    deposit_source: "virtual_account",
+    nomba_transaction_id: nombaTransactionId,
+    gross_amount: transactionAmount,
+    nomba_fee: nombaFee,
+    net_amount: netAmount,
+    sender_name: senderName,
+    sender_bank: customer.bankName || null,
+    sender_bank_code: customer.bankCode || null,
+    sender_account_number: customer.accountNumber || null,
+    narration: narration || null,
+    alias_account_reference: aliasAccountReference,
+    alias_account_number: tx.aliasAccountNumber || null,
+    alias_account_name: tx.aliasAccountName || null,
+    received_at: new Date().toISOString(),
+  };
 
-    // Credit wallet
-    const { error: creditError } = await supabase.rpc("increment_wallet_balance", {
+  // ✅ Create the transaction row
+  const { data: newTx, error: txError } = await supabase
+    .from("transactions")
+    .insert({
       user_id: userId,
-      amt: netAmount,
-    });
+      type: "virtual_account_deposit",
+      amount: transactionAmount,
+      fee: nombaFee,
+      net_amount: netAmount,
+      gross_amount: transactionAmount,
+      status: "success",
+      reference: nombaTransactionId,
+      merchant_tx_ref: nombaTransactionId,
+      description: "Virtual account deposit",
+      narration: narration || "N/A",
+      channel: "virtual_account",
+      sender: {
+        name: senderName,
+        bank: customer.bankName || null,
+        account_number: customer.accountNumber || null,
+        bank_code: customer.bankCode || null,
+      },
+      receiver: {
+        user_id: userId,
+        account_number: tx.aliasAccountNumber || null,
+        account_name: tx.aliasAccountName || null,
+      },
+      metadata: txMetadata,
+      external_response: {
+        nomba_transaction_id: nombaTransactionId,
+        nomba_fee: nombaFee,
+        gross_amount: transactionAmount,
+        net_amount: netAmount,
+      },
+    })
+    .select("id")
+    .single();
 
-    if (creditError) {
-      console.error("❌ Failed to credit wallet:", creditError);
+  if (txError || !newTx) {
+    console.error("❌ Failed to create VA transaction:", txError);
+    return { error: "Failed to create transaction" };
+  }
 
-      const { data: user } = await supabase
-        .from("users")
-        .select("wallet_balance")
-        .eq("id", userId)
-        .single();
-
-      if (user) {
-        const newBalance = Number(user.wallet_balance) + netAmount;
-        await supabase
-          .from("users")
-          .update({ wallet_balance: newBalance })
-          .eq("id", userId);
-      }
-    } else {
-      console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}`);
+  // ✅ Credit wallet atomically — records balance_before / balance_after / metadata
+  const { data: newBalance, error: creditError } = await supabase.rpc(
+    "mutate_wallet_balance",
+    {
+      p_user_id: userId,
+      p_amount: netAmount,                // positive = credit
+      p_transaction_id: newTx.id,
+      p_reason: "virtual_account_deposit",
     }
+  );
 
-    // Send deposit email for regular wallet deposit
-    const { data: userExists, error: userError } = await supabase
+  if (creditError) {
+    console.error("❌ Failed to credit wallet:", creditError);
+
+    // Fallback (rare — mutate_wallet_balance is preferred)
+    const { data: user } = await supabase
       .from("users")
-      .select("id, email")
+      .select("wallet_balance")
       .eq("id", userId)
       .single();
 
-    if (userError || !userExists) {
-      console.error("❌ Cannot find user for ID:", userId, userError);
-    } else {
-      console.log("✅ Found user, sending deposit email to:", userExists.email);
-      await sendVirtualAccountDepositEmail(
-        userExists.id, 
-        transactionAmount,
-        nombaTransactionId,
-        customer.bankName || "N/A",
-        tx.aliasAccountNumber || "N/A",
-        tx.aliasAccountName || "N/A",
-        senderName,
-        narration,
-        nombaFee,
-      ).catch(console.error);
+    if (user) {
+      const fallbackBalance = Number(user.wallet_balance) + netAmount;
+      await supabase
+        .from("users")
+        .update({ wallet_balance: fallbackBalance })
+        .eq("id", userId);
+
+      await supabase
+        .from("transactions")
+        .update({
+          balance_before: Number(user.wallet_balance),
+          balance_after: fallbackBalance,
+          metadata: txMetadata,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", newTx.id);
     }
   } else {
-    console.log("⚠️ Duplicate VA deposit detected, skipping");
+    console.log(
+      `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}. New balance: ₦${newBalance}`
+    );
+  }
+
+  // ✅ Send deposit email
+  const { data: userExists, error: userError } = await supabase
+    .from("users")
+    .select("id, email")
+    .eq("id", userId)
+    .single();
+
+  if (userError || !userExists) {
+    console.error("❌ Cannot find user for ID:", userId, userError);
+  } else {
+    console.log("✅ Found user, sending deposit email to:", userExists.email);
+    await sendVirtualAccountDepositEmail(
+      userExists.id,
+      transactionAmount,
+      nombaTransactionId,
+      customer.bankName || "N/A",
+      tx.aliasAccountNumber || "N/A",
+      tx.aliasAccountName || "N/A",
+      senderName,
+      narration,
+      nombaFee,
+    ).catch(console.error);
   }
 
   return {

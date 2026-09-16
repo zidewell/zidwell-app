@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Verify user + PIN with attempt tracking
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name")
@@ -66,7 +65,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Check if PIN is locked
     if (userData.pin_locked_until && new Date(userData.pin_locked_until) > new Date()) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000);
@@ -153,7 +151,7 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // ✅ PIN is valid - reset attempts
+    // ✅ PIN valid — reset attempts
     await supabase
       .from("users")
       .update({
@@ -166,7 +164,6 @@ export async function POST(req: NextRequest) {
 
     const totalDeduction = totalDebit || amount + (fee || 0);
 
-    // ✅ Check sufficient balance
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
@@ -179,7 +176,6 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // ✅ Get Nomba token
     const token = await getNombaToken();
     if (!token) {
       const response = NextResponse.json(
@@ -195,7 +191,27 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ✅ Create PENDING transaction
+    // ✅ Build metadata for the pending transaction
+    const pendingMetadata = {
+      initiated_at: new Date().toISOString(),
+      initiated_by: userId,
+      merchant_tx_ref: merchantTxRef,
+      recipient_name: accountName,
+      recipient_account: accountNumber,
+      recipient_bank: bankName,
+      recipient_bank_code: bankCode,
+      sender_name: senderName || userData.full_name || null,
+      sender_account: senderAccountNumber || null,
+      sender_bank: senderBankName || null,
+      narration: narration || "N/A",
+      requested_amount: Number(amount),
+      requested_fee: fee || 0,
+      total_deduction: totalDeduction,
+      category: category || null,
+      category_id: categoryId || null,
+    };
+
+    // ✅ Create PENDING transaction with metadata
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -221,6 +237,7 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
         category: category || null,
         category_id: categoryId || null,
+        metadata: pendingMetadata,     // ✅ NEW
       })
       .select("*")
       .single();
@@ -266,23 +283,22 @@ export async function POST(req: NextRequest) {
       nombaId: nombaData?.data?.id,
     });
 
-    // ✅ Check if transfer was immediately successful
     const isSuccess = nombaResponse.ok && nombaData?.data?.status === "success";
     const finalStatus = isSuccess ? "success" : "processing";
-
-    // ✅ Capture Nomba's transaction ID (they return `id`, not `reference`)
     const nombaTransactionId = nombaData?.data?.id || null;
 
-    // ✅ Update transaction with initial status
-    // NOTE: `reference` is NOT set here. We only record the authoritative
-    // Nomba transaction ID once the webhook confirms the payout. Until then,
-    // `merchant_tx_ref` is our lookup key and `external_response.nomba_transaction_id`
-    // carries the provisional ID for convenience.
+    // ✅ Update transaction with Nomba response + merged metadata
     await supabase
       .from("transactions")
       .update({
         status: finalStatus,
         description: `Transfer of ₦${amount} to ${accountName}`,
+        metadata: {
+          ...pendingMetadata,
+          nomba_status: nombaData?.data?.status || null,
+          nomba_description: nombaData?.description || null,
+          nomba_requested_at: new Date().toISOString(),
+        },
         external_response: {
           nomba_request: nombaData,
           requested_at: new Date().toISOString(),
@@ -293,19 +309,17 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", pendingTx.id);
 
-    // ✅ If immediately successful, deduct balance and send receipt email
+    // ✅ If immediately successful — mutate wallet atomically
     if (isSuccess) {
       console.log(`✅ Transfer immediately successful for transaction ${pendingTx.id}`);
 
-      // Deduct wallet balance
-      const { error: deductError } = await supabase.rpc(
-        "deduct_wallet_balance",
+      const { data: newBalance, error: deductError } = await supabase.rpc(
+        "mutate_wallet_balance",
         {
-          user_id: userId,
-          amt: totalDeduction,
-          transaction_type: "withdrawal",
-          reference: merchantTxRef,
-          description: `Transfer to ${accountName}`,
+          p_user_id: userId,
+          p_amount: -totalDeduction,      // negative = debit
+          p_transaction_id: pendingTx.id,
+          p_reason: "withdrawal_immediate_success",
         }
       );
 
@@ -319,7 +333,9 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
       } else {
-        // Record Nomba transaction ID as `reference` now that it's confirmed
+        console.log(`✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`);
+
+        // Record Nomba reference now that it's confirmed
         await supabase
           .from("transactions")
           .update({
@@ -328,7 +344,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-        // Generate receipt HTML for email
+        // Generate receipt HTML
         const receiptHtml = generateTransferReceipt({
           transactionId: pendingTx.id,
           amount: Number(amount),
@@ -343,7 +359,6 @@ export async function POST(req: NextRequest) {
           type: "bank_transfer"
         });
 
-        // Send email with receipt - now uses Puppeteer for PDF generation
         if (receiptHtml && receiptHtml.length > 0) {
           console.log(`📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`);
           await sendWithdrawalEmail(
@@ -375,7 +390,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ✅ Return response
     const responseData = {
       message: isSuccess ? "Transfer completed successfully." : "Transfer initiated. Processing...",
       transactionId: pendingTx.id,
