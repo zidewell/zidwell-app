@@ -29,7 +29,11 @@ function ActivationContent() {
   const renderContent = () => {
     if (status === "success") {
       return (
-        <SuccessPanel onContinue={() => router.push("/dashboard/services/payment/dashboard")} />
+        <SuccessPanel
+          onContinue={() =>
+            router.push("/dashboard/services/payment/dashboard")
+          }
+        />
       );
     }
     if (status === "failed" || status === "error") {
@@ -44,8 +48,11 @@ function ActivationContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
           <div className="max-w-md w-full">{renderContent()}</div>
@@ -81,7 +88,9 @@ function FailedPanel({ onRetry }: { onRetry: () => void }) {
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500/15 mx-auto">
         <XCircle className="size-12 text-red-500" />
       </div>
-      <h1 className="mt-6 font-display text-3xl font-bold">Activation Failed</h1>
+      <h1 className="mt-6 font-display text-3xl font-bold">
+        Activation Failed
+      </h1>
       <p className="mt-3 text-muted-foreground">
         We couldn&apos;t confirm your payment. No charges were made. You can try
         again from your store dashboard.

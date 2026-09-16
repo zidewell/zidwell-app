@@ -166,29 +166,29 @@ export default function TransactionDetailsPage() {
     return outflowTypes.includes(transactionType?.toLowerCase());
   };
 
-const formatAmount = (transaction: any) => {
-  if (!transaction)
+  const formatAmount = (transaction: any) => {
+    if (!transaction)
+      return {
+        display: "₦0.00",
+        isOutflow: false,
+        rawAmount: 0,
+        receiptDisplay: "₦0.00",
+      };
+
+    const isOutflowTransaction = isOutflow(transaction.type);
+    const amount = Number(transaction.amount) || 0;
+
     return {
-      display: "₦0.00",
-      isOutflow: false,
-      rawAmount: 0,
-      receiptDisplay: "₦0.00",
+      display: `₦${amount.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+      })}`,
+      receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+      })}`,
+      isOutflow: isOutflowTransaction,
+      rawAmount: amount,
     };
-
-  const isOutflowTransaction = isOutflow(transaction.type);
-  const amount = Number(transaction.amount) || 0;
-
-  return {
-    display: `₦${amount.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-    })}`,
-    receiptDisplay: `₦${Math.abs(amount).toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-    })}`,
-    isOutflow: isOutflowTransaction,
-    rawAmount: amount,
   };
-};
 
   const getNarration = (transaction: any) => {
     if (!transaction) return null;
@@ -219,59 +219,92 @@ const formatAmount = (transaction: any) => {
 
   const getStatusMeta = (status: string) => {
     const s = (status || "pending").toLowerCase();
-    if (s === "success") return { title: "Transfer Successful", message: "Your transaction has been completed successfully.", statusClass: "success", color: "#E5B333" };
-    if (s === "pending") return { title: "Transfer Pending", message: "Your transaction is being processed.", statusClass: "pending", color: "#f5a524" };
-    return { title: "Transfer Failed", message: "Transaction could not be completed.", statusClass: "failed", color: "#ff3b30" };
+    if (s === "success")
+      return {
+        title: "Transfer Successful",
+        message: "Your transaction has been completed successfully.",
+        statusClass: "success",
+        color: "#E5B333",
+      };
+    if (s === "pending")
+      return {
+        title: "Transfer Pending",
+        message: "Your transaction is being processed.",
+        statusClass: "pending",
+        color: "#f5a524",
+      };
+    return {
+      title: "Transfer Failed",
+      message: "Transaction could not be completed.",
+      statusClass: "failed",
+      color: "#ff3b30",
+    };
   };
 
   // Helper functions to get sender/receiver data
   const getSenderName = (transaction: any) => {
     if (transaction.sender?.name) return transaction.sender.name;
     if (transaction.from_name) return transaction.from_name;
-    if (transaction.external_response?.data?.sender?.name) return transaction.external_response.data.sender.name;
-    if (transaction.external_response?.sender?.name) return transaction.external_response.sender.name;
+    if (transaction.external_response?.data?.sender?.name)
+      return transaction.external_response.data.sender.name;
+    if (transaction.external_response?.sender?.name)
+      return transaction.external_response.sender.name;
     return null;
   };
 
   const getSenderEmail = (transaction: any) => {
     if (transaction.sender?.email) return transaction.sender.email;
     if (transaction.from_email) return transaction.from_email;
-    if (transaction.external_response?.data?.customer?.senderEmail) return transaction.external_response.data.customer.senderEmail;
-    if (transaction.external_response?.metadata?.sender_email) return transaction.external_response.metadata.sender_email;
+    if (transaction.external_response?.data?.customer?.senderEmail)
+      return transaction.external_response.data.customer.senderEmail;
+    if (transaction.external_response?.metadata?.sender_email)
+      return transaction.external_response.metadata.sender_email;
     return null;
   };
 
   const getSenderAccount = (transaction: any) => {
-    if (transaction.sender?.accountNumber) return transaction.sender.accountNumber;
-    if (transaction.sender?.account_number) return transaction.sender.account_number;
+    if (transaction.sender?.accountNumber)
+      return transaction.sender.accountNumber;
+    if (transaction.sender?.account_number)
+      return transaction.sender.account_number;
     if (transaction.from_account) return transaction.from_account;
-    if (transaction.external_response?.withdrawal_details?.account_number) return transaction.external_response.withdrawal_details.account_number;
-    if (transaction.external_response?.data?.customer?.accountNumber) return transaction.external_response.data.customer.accountNumber;
+    if (transaction.external_response?.withdrawal_details?.account_number)
+      return transaction.external_response.withdrawal_details.account_number;
+    if (transaction.external_response?.data?.customer?.accountNumber)
+      return transaction.external_response.data.customer.accountNumber;
     return null;
   };
 
   const getReceiverName = (transaction: any) => {
     if (transaction.receiver?.name) return transaction.receiver.name;
     if (transaction.to_name) return transaction.to_name;
-    if (transaction.external_response?.data?.receiver?.name) return transaction.external_response.data.receiver.name;
-    if (transaction.external_response?.receiver?.name) return transaction.external_response.receiver.name;
+    if (transaction.external_response?.data?.receiver?.name)
+      return transaction.external_response.data.receiver.name;
+    if (transaction.external_response?.receiver?.name)
+      return transaction.external_response.receiver.name;
     return null;
   };
 
   const getReceiverEmail = (transaction: any) => {
     if (transaction.receiver?.email) return transaction.receiver.email;
     if (transaction.to_email) return transaction.to_email;
-    if (transaction.external_response?.data?.customer?.recipientEmail) return transaction.external_response.data.customer.recipientEmail;
-    if (transaction.external_response?.metadata?.recipient_email) return transaction.external_response.metadata.recipient_email;
+    if (transaction.external_response?.data?.customer?.recipientEmail)
+      return transaction.external_response.data.customer.recipientEmail;
+    if (transaction.external_response?.metadata?.recipient_email)
+      return transaction.external_response.metadata.recipient_email;
     return null;
   };
 
   const getReceiverAccount = (transaction: any) => {
-    if (transaction.receiver?.accountNumber) return transaction.receiver.accountNumber;
-    if (transaction.receiver?.account_number) return transaction.receiver.account_number;
+    if (transaction.receiver?.accountNumber)
+      return transaction.receiver.accountNumber;
+    if (transaction.receiver?.account_number)
+      return transaction.receiver.account_number;
     if (transaction.to_account) return transaction.to_account;
-    if (transaction.external_response?.receiver_details?.account_number) return transaction.external_response.receiver_details.account_number;
-    if (transaction.external_response?.data?.transaction?.aliasAccountNumber) return transaction.external_response.data.transaction.aliasAccountNumber;
+    if (transaction.external_response?.receiver_details?.account_number)
+      return transaction.external_response.receiver_details.account_number;
+    if (transaction.external_response?.data?.transaction?.aliasAccountNumber)
+      return transaction.external_response.data.transaction.aliasAccountNumber;
     return null;
   };
 
@@ -289,30 +322,31 @@ const formatAmount = (transaction: any) => {
       const amountInfo = formatAmount(transaction);
       const narration = getNarration(transaction);
       const statusMeta = getStatusMeta(transaction.status);
-      const transactionIdDisplay = transaction.reference || transaction.merchant_tx_ref || transaction.id;
-      
+      const transactionIdDisplay =
+        transaction.reference || transaction.merchant_tx_ref || transaction.id;
+
       const dateObj = new Date(transaction.created_at);
-      const formattedDate = `${dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} • ${dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-      
+      const formattedDate = `${dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })} • ${dateObj.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+
       const senderName = getSenderName(transaction);
       const senderEmail = getSenderEmail(transaction);
       const senderAccount = getSenderAccount(transaction);
-      
+
       const receiverName = getReceiverName(transaction);
       const receiverEmail = getReceiverEmail(transaction);
       const receiverAccount = getReceiverAccount(transaction);
-      
+
       const feeAmount = transaction.fee || 0;
 
       const logoSrc = logoBase64 || "/logo.png";
 
-      let statusIconSvg = '';
-      if (statusMeta.statusClass === 'success') {
+      let statusIconSvg = "";
+      if (statusMeta.statusClass === "success") {
         statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
           <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>`;
-      } else if (statusMeta.statusClass === 'pending') {
+      } else if (statusMeta.statusClass === "pending") {
         statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="10" fill="#f5a524" stroke="none"/>
           <circle cx="12" cy="12" r="3" fill="white"/>
@@ -571,7 +605,9 @@ const formatAmount = (transaction: any) => {
       <div class="right">${formattedDate}</div>
     </div>
 
-    ${senderName ? `
+    ${
+      senderName
+        ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -583,14 +619,18 @@ const formatAmount = (transaction: any) => {
         <div>
           <div class="detail-title">From</div>
           <div class="detail-value">${senderName}</div>
-          ${senderEmail ? `<div class="sub">${senderEmail}</div>` : ''}
+          ${senderEmail ? `<div class="sub">${senderEmail}</div>` : ""}
         </div>
       </div>
       ${senderAccount ? `<div class="right">${senderAccount}</div>` : '<div class="right"></div>'}
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
-    ${receiverName ? `
+    ${
+      receiverName
+        ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -602,14 +642,18 @@ const formatAmount = (transaction: any) => {
         <div>
           <div class="detail-title">To</div>
           <div class="detail-value">${receiverName}</div>
-          ${receiverEmail ? `<div class="sub">${receiverEmail}</div>` : ''}
+          ${receiverEmail ? `<div class="sub">${receiverEmail}</div>` : ""}
         </div>
       </div>
       ${receiverAccount ? `<div class="right">${receiverAccount}</div>` : '<div class="right"></div>'}
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
-    ${narration ? `
+    ${
+      narration
+        ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -623,9 +667,13 @@ const formatAmount = (transaction: any) => {
         </div>
       </div>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
-    ${feeAmount > 0 ? `
+    ${
+      feeAmount > 0
+        ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -642,7 +690,9 @@ const formatAmount = (transaction: any) => {
       </div>
       <div class="right">₦${feeAmount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
 
     <div class="detail-row detail-row-last">
       <div class="left">
@@ -704,7 +754,7 @@ const formatAmount = (transaction: any) => {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="flex justify-center items-center h-full">
@@ -723,7 +773,7 @@ const formatAmount = (transaction: any) => {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto">
@@ -760,7 +810,7 @@ const formatAmount = (transaction: any) => {
   const receiverEmail = getReceiverEmail(transaction);
   const receiverAccount = getReceiverAccount(transaction);
 
-  const isP2P = transaction.type?.toLowerCase()?.includes('p2p');
+  const isP2P = transaction.type?.toLowerCase()?.includes("p2p");
 
   return (
     <div className="min-h-screen bg-(--bg-primary) fade-in relative">
@@ -769,7 +819,7 @@ const formatAmount = (transaction: any) => {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -975,22 +1025,25 @@ const formatAmount = (transaction: any) => {
                         {transaction.type || "N/A"}
                       </span>
                     </div>
-                    {transaction.description && transaction.description !== narration && (
-                      <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                        <span className="text-(--text-secondary) text-sm sm:text-base">
-                          Description
-                        </span>
-                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                          {transaction.description}
-                        </span>
-                      </div>
-                    )}
+                    {transaction.description &&
+                      transaction.description !== narration && (
+                        <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
+                          <span className="text-(--text-secondary) text-sm sm:text-base">
+                            Description
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
+                            {transaction.description}
+                          </span>
+                        </div>
+                      )}
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-(--text-secondary) text-sm sm:text-base">
                         Reference
                       </span>
                       <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all text-(--text-primary)">
-                        {transaction.reference || transaction.merchant_tx_ref || transaction.id}
+                        {transaction.reference ||
+                          transaction.merchant_tx_ref ||
+                          transaction.id}
                       </span>
                     </div>
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">

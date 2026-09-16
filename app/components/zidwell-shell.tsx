@@ -30,12 +30,12 @@ export const STORE_LINKS = [
     href: "/dashboard/services/payment/store/products",
     icon: Package,
   },
-   {
+  {
     label: "Transactions",
     href: "/dashboard/services/payment/store/transactions",
     icon: CreditCard,
   },
-  
+
   {
     label: "Customers",
     href: "/dashboard/services/payment/store/customers",
@@ -46,18 +46,18 @@ export const STORE_LINKS = [
     href: "/dashboard/services/payment/store/wallet",
     icon: Wallet,
   },
-   {
+  {
     label: "Bookkeeping",
     href: "/dashboard/services/payment/store/bookkeeping",
     icon: BookOpen,
   },
- 
+
   {
     label: "Analytics",
     href: "/dashboard/services/payment/store/analytics",
     icon: BarChart3,
   },
- 
+
   { label: "Settings", href: "#", icon: Settings },
 ] as const;
 
@@ -95,10 +95,7 @@ export function StoreNav({ pathname }: { pathname: string }) {
       <div className="mx-auto flex h-14 max-w-7xl items-center px-5 sm:px-8">
         {/* Fixed label */}
         <div className="flex shrink-0 items-center gap-2 border-r border-border pr-4">
-          <Store
-            className="size-4 text-muted-foreground"
-            strokeWidth={2.4}
-          />
+          <Store className="size-4 text-muted-foreground" strokeWidth={2.4} />
           <span className="eyebrow whitespace-nowrap text-muted-foreground">
             Online Store
           </span>
@@ -115,8 +112,7 @@ export function StoreNav({ pathname }: { pathname: string }) {
           >
             {STORE_LINKS.map((link) => {
               const active =
-                pathname === link.href ||
-                pathname?.startsWith(link.href + "/");
+                pathname === link.href || pathname?.startsWith(link.href + "/");
               return (
                 <Link
                   key={link.href}
@@ -127,7 +123,7 @@ export function StoreNav({ pathname }: { pathname: string }) {
                   className={cn(
                     "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 font-display text-[13px] font-bold uppercase tracking-[0.1em] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                     active &&
-                      "bg-foreground text-background hover:bg-foreground hover:text-background"
+                      "bg-foreground text-background hover:bg-foreground hover:text-background",
                   )}
                 >
                   <link.icon className="size-4 shrink-0" />
@@ -187,7 +183,7 @@ export function ZidwellShell({ children }: { children: React.ReactNode }) {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <StoreNav pathname={pathname || ""} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">

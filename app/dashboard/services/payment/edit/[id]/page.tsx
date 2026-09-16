@@ -52,7 +52,7 @@ const ZIDWELL_FEE_RATE = 0.03;
 
 async function uploadImageIfNeeded(
   image: string,
-  type: string
+  type: string,
 ): Promise<string | null> {
   if (!image) return null;
 
@@ -170,9 +170,7 @@ function PricingSummaryCard({
                     </div>
                     <div>
                       <p className="text-muted-foreground mb-0.5">
-                        {isInstallment
-                          ? "Per payment (you)"
-                          : "You receive"}
+                        {isInstallment ? "Per payment (you)" : "You receive"}
                       </p>
                       <p className="font-bold text-green-600 dark:text-green-400">
                         {formatNaira(perPaymentNet)}
@@ -356,7 +354,7 @@ const EditPaymentPage = () => {
       setProductImages(pageData.productImages || []);
       setPrice(pageData.price?.toString() || "");
       setPriceType(
-        pageData.priceType === "installment" ? "installment" : "fixed"
+        pageData.priceType === "installment" ? "installment" : "fixed",
       );
       setInstallmentCount(pageData.installmentCount?.toString() || "3");
 
@@ -395,7 +393,7 @@ const EditPaymentPage = () => {
               v.stock === null || v.stock === undefined || v.stock === ""
                 ? undefined
                 : Number(v.stock),
-          }))
+          })),
         );
       }
 
@@ -454,8 +452,7 @@ const EditPaymentPage = () => {
           return;
         }
         const reader = new FileReader();
-        reader.onload = (ev) =>
-          resolve((ev.target?.result as string) || null);
+        reader.onload = (ev) => resolve((ev.target?.result as string) || null);
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(file);
       });
@@ -535,10 +532,7 @@ const EditPaymentPage = () => {
     const allPriced = variants.every((v) => Number(v?.price) > 0);
     if (!allPriced) return;
 
-    const total = variants.reduce(
-      (sum, v) => sum + (Number(v?.price) || 0),
-      0
-    );
+    const total = variants.reduce((sum, v) => sum + (Number(v?.price) || 0), 0);
 
     setPrice((prev) => {
       const current = Number(prev);
@@ -669,9 +663,7 @@ const EditPaymentPage = () => {
           const { priceOverridden, ...rest } = v as any;
           // Store stock as a number OR null. Never NaN, never "".
           const cleanedStock =
-            rest.stock === null ||
-            rest.stock === undefined ||
-            rest.stock === ""
+            rest.stock === null || rest.stock === undefined || rest.stock === ""
               ? null
               : Number(rest.stock);
           return {
@@ -803,7 +795,7 @@ const EditPaymentPage = () => {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-3xl mx-auto">
@@ -906,9 +898,7 @@ const EditPaymentPage = () => {
                       <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {IMAGE_SPECS}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{IMAGE_SPECS}</p>
                 </div>
               )}
 
@@ -1007,8 +997,8 @@ const EditPaymentPage = () => {
                     </div>
                     <p className="text-xs text-muted-foreground mb-3">
                       If you have variants (like S/M/L), each variant gets its
-                      own stock. Otherwise the product itself is the single
-                      item for sale.
+                      own stock. Otherwise the product itself is the single item
+                      for sale.
                     </p>
                   </div>
 
@@ -1019,10 +1009,10 @@ const EditPaymentPage = () => {
                         overAllocated
                           ? "border-red-500/40 bg-red-500/5"
                           : allocationBalanced
-                          ? "border-green-500/40 bg-green-500/5"
-                          : underAllocated || mixedAllocation
-                          ? "border-yellow-500/40 bg-yellow-500/5"
-                          : "border-border bg-muted/40"
+                            ? "border-green-500/40 bg-green-500/5"
+                            : underAllocated || mixedAllocation
+                              ? "border-yellow-500/40 bg-yellow-500/5"
+                              : "border-border bg-muted/40"
                       }`}
                     >
                       <div className="flex items-start gap-2 mb-3">
@@ -1053,8 +1043,8 @@ const EditPaymentPage = () => {
                                 {allVariantsCounted
                                   ? variantSum
                                   : mixedAllocation
-                                  ? `${variantSum} + unlimited`
-                                  : "Unlimited"}
+                                    ? `${variantSum} + unlimited`
+                                    : "Unlimited"}
                               </p>
                             </div>
                           </div>
@@ -1084,8 +1074,7 @@ const EditPaymentPage = () => {
                           {mixedAllocation && (
                             <p className="mt-3 text-xs font-medium text-yellow-700 dark:text-yellow-400">
                               Some variants have a fixed stock and others are
-                              unlimited. Buyers will see caps on the fixed
-                              ones.
+                              unlimited. Buyers will see caps on the fixed ones.
                             </p>
                           )}
 
@@ -1148,9 +1137,7 @@ const EditPaymentPage = () => {
                                 } else {
                                   const parsed = parseFloat(raw);
                                   updateVariant(vi, {
-                                    price: Number.isFinite(parsed)
-                                      ? parsed
-                                      : 0,
+                                    price: Number.isFinite(parsed) ? parsed : 0,
                                   });
                                 }
                               }}
@@ -1197,9 +1184,8 @@ const EditPaymentPage = () => {
                               <p className="text-xs text-yellow-700 dark:text-yellow-400">
                                 This variant is ₦
                                 {Number(v.price || 0).toLocaleString()} but the
-                                page price is ₦
-                                {Number(price).toLocaleString()}. Make sure
-                                that's what you want.
+                                page price is ₦{Number(price).toLocaleString()}.
+                                Make sure that's what you want.
                               </p>
                             </div>
                           )}
@@ -1241,9 +1227,7 @@ const EditPaymentPage = () => {
                     <input
                       type="checkbox"
                       checked={customerNoteEnabled}
-                      onChange={(e) =>
-                        setCustomerNoteEnabled(e.target.checked)
-                      }
+                      onChange={(e) => setCustomerNoteEnabled(e.target.checked)}
                       className="rounded"
                     />
                     <span className="text-sm">
@@ -1270,7 +1254,7 @@ const EditPaymentPage = () => {
                         onChange={(e) => {
                           const val = e.target.value;
                           setStock(
-                            val === "" ? null : Math.max(0, parseInt(val) || 0)
+                            val === "" ? null : Math.max(0, parseInt(val) || 0),
                           );
                         }}
                         placeholder="Leave empty for unlimited"
@@ -1341,8 +1325,8 @@ const EditPaymentPage = () => {
                         {everyVariantPriced
                           ? "Page Amount (₦) — not used"
                           : priceType === "installment"
-                          ? "Total Amount (₦)"
-                          : "Amount (₦)"}
+                            ? "Total Amount (₦)"
+                            : "Amount (₦)"}
                       </Label>
                       <Input
                         type="number"
@@ -1363,9 +1347,9 @@ const EditPaymentPage = () => {
                       )}
                       {everyVariantPriced && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          Every variant has its own price — buyers pay the
-                          price of the variant they pick. This field is not
-                          used for checkout.
+                          Every variant has its own price — buyers pay the price
+                          of the variant they pick. This field is not used for
+                          checkout.
                         </p>
                       )}
                     </div>
@@ -1429,9 +1413,9 @@ const EditPaymentPage = () => {
                             Existing payments on this plan
                           </p>
                           <p className="text-xs text-yellow-700/80 dark:text-yellow-400/70 mt-0.5">
-                            Buyers have already made payments. Changing the
-                            plan structure won't reset their balance. The
-                            account table remains the source of truth.
+                            Buyers have already made payments. Changing the plan
+                            structure won't reset their balance. The account
+                            table remains the source of truth.
                           </p>
                         </div>
                       </div>

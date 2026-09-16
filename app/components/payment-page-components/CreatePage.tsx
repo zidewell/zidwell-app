@@ -14,10 +14,8 @@ import {
   CheckCircle,
   Copy,
   AlertCircle,
-  Eye,
+  Eye, // ← still used for the trigger button
   Package,
-  ChevronLeft,
-  ChevronRight,
   Shield,
   AlertTriangle,
 } from "lucide-react";
@@ -45,6 +43,7 @@ import TrustSignals from "@/app/components/payment-page-components/TrustSignals"
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
+import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview"; // ← ADDED
 
 // ============================================================
 // CONSTANTS
@@ -208,12 +207,6 @@ function PricingSummaryCard({
     priceType === "installment" && Number(installmentCount) > 1;
   const count = Math.max(1, Number(installmentCount) || 1);
 
-  // ─────────────────────────────────────────────────────────────
-  // VARIANT-AWARE MODE
-  // Physical products with variants: show per-variant per-payment
-  // amounts. The single "per installment" number is meaningless
-  // because it depends on which variant the buyer picks.
-  // ─────────────────────────────────────────────────────────────
   if (isPhysicalWithVariants && variants && variants.length > 0) {
     const pricedVariants = variants.filter((v) => Number(v.price) > 0);
     if (pricedVariants.length === 0) return null;
@@ -268,9 +261,7 @@ function PricingSummaryCard({
                     </div>
                     <div>
                       <p className="text-(--text-secondary) mb-0.5">
-                        {isInstallment
-                          ? "Per payment (you)"
-                          : "You receive"}
+                        {isInstallment ? "Per payment (you)" : "You receive"}
                       </p>
                       <p className="font-bold text-(--color-lemon-green)">
                         {fmt(perPaymentNet)}
@@ -305,9 +296,6 @@ function PricingSummaryCard({
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // DEFAULT MODE (non-variant pages)
-  // ─────────────────────────────────────────────────────────────
   const fee = price * ZIDWELL_FEE_RATE;
   const youReceiveTotal = price - fee;
   const perInstallmentFee = isInstallment
@@ -389,228 +377,6 @@ function PricingSummaryCard({
     </div>
   );
 }
-// ============================================================
-// LIVE PREVIEW MODAL
-// ============================================================
-function LivePreviewModal({
-  isOpen,
-  onClose,
-  pageType,
-  productImages,
-  title,
-  description,
-  price,
-  installmentCount,
-  installmentPeriod,
-  priceType,
-}: any) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const images = productImages || [];
-
-  if (!isOpen) return null;
-
-  const isInstallment =
-    priceType === "installment" && Number(installmentCount) > 1;
-  const perInstallment =
-    isInstallment && Number(price) > 0
-      ? Number(price) / Number(installmentCount)
-      : 0;
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: 20 }}
-            className="bg-[#1a1a1a] rounded-2xl border border-gray-800 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-[#023528] px-6 py-4 border-b border-gray-800 flex items-center justify-between sticky top-0 z-10">
-              <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-[#e1bf46]" />
-                <span className="text-lg font-semibold text-white">
-                  Live Preview
-                </span>
-                <span className="text-xs text-gray-400 ml-2">
-                  What shoppers will see
-                </span>
-              </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {images.length > 0 ? (
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="md:w-1/2">
-                    <div className="relative aspect-[5/4] rounded-xl overflow-hidden bg-[#1a1a1a] border border-gray-700">
-                      <img
-                        src={images[currentImageIndex]}
-                        alt={title || "Product"}
-                        className="w-full h-full object-cover"
-                      />
-                      {images.length > 1 && (
-                        <>
-                          <button
-                            onClick={() =>
-                              setCurrentImageIndex((prev) =>
-                                prev === 0 ? images.length - 1 : prev - 1,
-                              )
-                            }
-                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              setCurrentImageIndex((prev) =>
-                                prev === images.length - 1 ? 0 : prev + 1,
-                              )
-                            }
-                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {images.length > 1 && (
-                      <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                        {images.map((img: string, idx: number) => (
-                          <button
-                            key={idx}
-                            onClick={() => setCurrentImageIndex(idx)}
-                            className={`w-12 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all ${
-                              idx === currentImageIndex
-                                ? "border-[#e1bf46]"
-                                : "border-gray-700 hover:border-gray-500"
-                            }`}
-                          >
-                            <img
-                              src={img}
-                              alt={`Thumbnail ${idx + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className="md:w-1/2 space-y-3">
-                    <span className="text-xs bg-[#e1bf46]/10 text-[#e1bf46] px-2 py-0.5 rounded-full">
-                      {pageType
-                        ? typeLabels[pageType as PageType] || "Product"
-                        : "Product"}
-                    </span>
-                    <h3 className="text-xl font-bold text-white leading-tight">
-                      {title || "Your Product Title"}
-                    </h3>
-                    {description && (
-                      <div
-                        className="text-sm text-gray-400 line-clamp-2"
-                        dangerouslySetInnerHTML={{ __html: description }}
-                      />
-                    )}
-
-                    {isInstallment ? (
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-[#e1bf46]">
-                          {formatNaira(perInstallment)}
-                          <span className="text-sm text-gray-400 ml-1">
-                            × {installmentCount}
-                          </span>
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {installmentPeriod} installments — total ₦
-                          {Number(price).toLocaleString()}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="text-2xl font-bold text-[#e1bf46]">
-                        {formatNaira(Number(price) || 0)}
-                      </p>
-                    )}
-
-                    <div className="bg-[#1a1a1a] rounded-lg p-2">
-                      <p className="text-xs text-gray-400">
-                        Transaction fee:{" "}
-                        <span className="text-[#e1bf46]">3%</span>
-                      </p>
-                    </div>
-                    <button className="w-full bg-[#e1bf46] text-[#023528] font-semibold py-3 rounded-xl hover:bg-[#e1bf46]/90">
-                      Pay with Card
-                    </button>
-                    <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                      <Shield className="h-3.5 w-3.5" /> Secured by Zidwell
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Package className="h-20 w-20 mx-auto text-gray-600 mb-4" />
-                  <h3 className="text-xl font-bold text-white">
-                    {title || "Your Product"}
-                  </h3>
-                  {description && (
-                    <div
-                      className="text-gray-400 text-sm mt-2"
-                      dangerouslySetInnerHTML={{ __html: description }}
-                    />
-                  )}
-
-                  {isInstallment ? (
-                    <div className="mt-4 space-y-1">
-                      <p className="text-3xl font-bold text-[#e1bf46]">
-                        {formatNaira(perInstallment)}
-                        <span className="text-sm text-gray-400 ml-1">
-                          × {installmentCount}
-                        </span>
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">
-                        {installmentPeriod} installments — total ₦
-                        {Number(price).toLocaleString()}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-3xl font-bold text-[#e1bf46] mt-4">
-                      {formatNaira(Number(price) || 0)}
-                    </p>
-                  )}
-
-                  <button className="mt-4 bg-[#e1bf46] text-[#023528] font-semibold px-8 py-3 rounded-xl hover:bg-[#e1bf46]/90">
-                    Pay with Card
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-gray-800 px-6 py-4 flex justify-end">
-              <Button
-                onClick={onClose}
-                variant="outline"
-                className="border-gray-700 text-gray-300 hover:bg-gray-800"
-              >
-                Close Preview
-              </Button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
 
 // ============================================================
 // MAIN COMPONENT
@@ -681,7 +447,6 @@ export default function CreatePage() {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [requiresShipping, setRequiresShipping] = useState(true);
 
-  // ─── STOCK / QUANTITY (shared across page types) ───
   const [stock, setStock] = useState<number | null>(null);
   const [allowMultiple, setAllowMultiple] = useState(true);
 
@@ -713,16 +478,6 @@ export default function CreatePage() {
 
   const productRef = useRef<HTMLInputElement>(null);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // ✅ PHYSICAL PRODUCT — EVERY VARIANT PRICED
-  //
-  // When a physical product has variants AND every variant has its own
-  // price > 0, the page-level "Amount (₦)" becomes dead data. We:
-  //   • Disable the input
-  //   • Change its label
-  //   • Auto-fill it with the cheapest variant price
-  //   • Show an info note explaining why
-  // ─────────────────────────────────────────────────────────────────────
   const isPhysical = pageType === "physical";
   const hasVariants = isPhysical && variants.length > 0;
 
@@ -737,7 +492,6 @@ export default function CreatePage() {
 
   const pageAmountLocked = isPhysical && everyVariantPriced;
 
-  // ─── Auto-fill page amount with TOTAL of all variant prices when locked ───
   useEffect(() => {
     if (!pageAmountLocked) return;
 
@@ -754,7 +508,7 @@ export default function CreatePage() {
       return { ...f, price: String(total) };
     });
   }, [pageAmountLocked, variants]);
-  // Installment amount recompute
+
   useEffect(() => {
     if (form.priceType === "installment") {
       const totalAmount = Number(form.price) || 0;
@@ -765,7 +519,6 @@ export default function CreatePage() {
     }
   }, [form.price, form.installmentCount, form.priceType]);
 
-  // Sync school price from fee breakdown
   useEffect(() => {
     if (pageType === "school") {
       const total = feeBreakdown.reduce(
@@ -782,7 +535,6 @@ export default function CreatePage() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
-  // Slug generation + validation
   useEffect(() => {
     if (form.title) {
       const titleSlug = slugify(form.title);
@@ -904,10 +656,6 @@ export default function CreatePage() {
   const isSlugAvailable = slugValidation.isValid && !slugValidation.isTaken;
   const isSlugInvalid = !slugValidation.isValid || slugValidation.isTaken;
 
-  // ─────────────────────────────────────────────────────────────────────
-  // ✅ VARIANT STOCK VALIDATION (physical products only)
-  // Returns true if the current variant stock allocation is valid.
-  // ─────────────────────────────────────────────────────────────────────
   const isVariantStockValid = (): boolean => {
     if (!isPhysical || variants.length === 0) return true;
 
@@ -965,7 +713,6 @@ export default function CreatePage() {
       if (!riskExplanation.trim()) return false;
     }
 
-    // ✅ Variant stock must not exceed page stock
     if (!isVariantStockValid()) return false;
 
     return true;
@@ -1031,7 +778,6 @@ export default function CreatePage() {
         metadata.requireDonorName = requireDonorName;
         metadata.minimumDonation = minimumDonation;
       } else if (pageType === "physical") {
-        // ✅ Strip the dashboard-only `priceOverridden` flag before saving
         metadata.variants = variants.map((v) => {
           const { priceOverridden, ...rest } = v as any;
           return rest;
@@ -1157,7 +903,7 @@ export default function CreatePage() {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-2xl mx-auto">
@@ -1188,7 +934,7 @@ export default function CreatePage() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
@@ -1516,7 +1262,6 @@ export default function CreatePage() {
                       </div>
                     </div>
 
-                    {/* ✅ PAGE AMOUNT — locked when all variants priced (physical only) */}
                     <div>
                       <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
                         {pageType === "school"
@@ -1625,18 +1370,18 @@ export default function CreatePage() {
                       </div>
                     )}
 
-                  <PricingSummaryCard
-  priceType={form.priceType}
-  price={numericPrice}
-  installmentCount={form.installmentCount}
-  installmentPeriod={installmentPeriod}
-  installmentAmount={installmentAmount}
-  variants={variants.map((v) => ({
-    name: v.name || "",
-    price: Number(v.price) || 0,
-  }))}
-  isPhysicalWithVariants={isPhysical && hasVariants}
-/>
+                    <PricingSummaryCard
+                      priceType={form.priceType}
+                      price={numericPrice}
+                      installmentCount={form.installmentCount}
+                      installmentPeriod={installmentPeriod}
+                      installmentAmount={installmentAmount}
+                      variants={variants.map((v) => ({
+                        name: v.name || "",
+                        price: Number(v.price) || 0,
+                      }))}
+                      isPhysicalWithVariants={isPhysical && hasVariants}
+                    />
                   </>
                 )}
               </motion.div>
@@ -1645,9 +1390,8 @@ export default function CreatePage() {
         </main>
 
         {/* Sticky CTA */}
-        <div className="fixed bottom-0 left-0 right-0 lg:left-72 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
+        <div className="fixed bottom-0 left-0 right-0  bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto">
-            {/* ✅ Variant stock over-allocation warning */}
             {isPhysical &&
               variants.length > 0 &&
               (() => {
@@ -1698,21 +1442,34 @@ export default function CreatePage() {
                 return null;
               })()}
 
-            <Button
-              variant="default"
-              size="lg"
-              className="w-full py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
-              onClick={handleCreate}
-              disabled={!canCreate() || isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...
-                </>
-              ) : (
-                `Create ${typeLabels[pageType]} Page`
-              )}
-            </Button>
+           <div className="flex gap-3">
+  <Button
+    type="button"
+    variant="outline"
+    size="lg"
+    onClick={() => setShowPreview(true)}
+    className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+  >
+    <Eye className="h-5 w-5" />
+    <span className="ml-2 hidden sm:inline">Preview</span>
+  </Button>
+
+  <Button
+    variant="default"
+    size="lg"
+    className="flex-1 py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
+    onClick={handleCreate}
+    disabled={!canCreate() || isCreating}
+  >
+    {isCreating ? (
+      <>
+        <Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating...
+      </>
+    ) : (
+      `Create ${typeLabels[pageType]} Page`
+    )}
+  </Button>
+</div>
           </div>
         </div>
       </div>
@@ -1813,19 +1570,86 @@ export default function CreatePage() {
         )}
       </AnimatePresence>
 
-      {/* Live Preview Modal */}
-      <LivePreviewModal
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        pageType={pageType}
-        productImages={productPreviews}
-        title={form.title}
-        description={form.description}
-        price={form.price}
-        installmentCount={form.installmentCount}
-        installmentPeriod={installmentPeriod}
-        priceType={form.priceType}
-      />
+      {/* ─── CUSTOMER PREVIEW MODAL ─── */}
+     <CustomerPreview
+  isOpen={showPreview}
+  onClose={() => setShowPreview(false)}
+  data={{
+    title: form.title || `Untitled ${typeLabels[pageType]}`,
+    description: form.description,
+    productImage: productPreviews[0] || null,
+    productImages: productPreviews,
+    // ── For school pages, use computed total from fee breakdown
+    price:
+      pageType === "school"
+        ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0)
+        : Number(form.price) || 0,
+    priceType: form.priceType,
+    installmentCount: Number(form.installmentCount) || 1,
+    installmentAmount:
+      pageType === "school"
+        ? feeBreakdown.reduce((sum, f) => sum + (f.amount || 0), 0) /
+          Math.max(1, Number(form.installmentCount) || 1)
+        : installmentAmount,
+    installmentPeriod,
+    amountMode: pageType === "donation" ? "variable" : "fixed",
+    storeName: store?.name || "Your Store",
+    storeSlug: store?.slug || "",
+    config: {
+      buttonText:
+        pageType === "donation"
+          ? "Donate now"
+          : pageType === "school"
+            ? "Pay Fees"
+            : pageType === "services"
+              ? "Book Now"
+              : "Pay Now",
+      buttonColor: "#FDC020",
+    },
+    pageType: pageType,
+    // ── extras
+    suggestedAmounts:
+      pageType === "donation" ? suggestedAmounts : undefined,
+    minimumDonation:
+      pageType === "donation" ? minimumDonation : undefined,
+    variants:
+      pageType === "physical"
+        ? variants.map((v) => ({
+            name: v.name || "",
+            price: Number(v.price) || 0,
+            stock: v.stock,
+          }))
+        : undefined,
+    entities:
+      pageType === "school"
+        ? students.map((s, i) => ({
+            id: (s as any).id || `student-${i}`,
+            name: s.name,
+            metadata: { className: schoolClass },
+            remainingBalance:
+              feeBreakdown.reduce(
+                (sum, f) => sum + (f.amount || 0),
+                0,
+              ) || 0,
+          }))
+        : undefined,
+    stock: stock,
+    allowMultiple: allowMultiple,
+    requiresShipping:
+      pageType === "physical" ? requiresShipping : undefined,
+    emailDelivery:
+      pageType === "digital" ? emailDelivery : undefined,
+    bookingEnabled:
+      pageType === "services" ? bookingEnabled : undefined,
+    customerNoteEnabled:
+      pageType === "services" ? customerNoteEnabled : undefined,
+    minimumAmount:
+      isInvestment && minimumAmount ? minimumAmount : undefined,
+    expectedReturn:
+      isInvestment && expectedReturn ? expectedReturn : undefined,
+    tenure: isInvestment && tenure ? tenure : undefined,
+  }}
+/>
     </div>
   );
 }

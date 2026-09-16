@@ -25,11 +25,11 @@ const parseMarkdown = (text: string) => {
       .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
       .replace(
         /^## (.*$)/gim,
-        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>'
+        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>',
       )
       .replace(
         /^### (.*$)/gim,
-        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>'
+        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>',
       )
       // Bold
       .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
@@ -40,14 +40,14 @@ const parseMarkdown = (text: string) => {
       // Links
       .replace(
         /\[([^\[]+)\]\(([^\)]+)\)/gim,
-        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
+        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>',
       )
       // Line breaks
       .replace(/\n/gim, "<br />")
       // Image placeholder
       .replace(
         /\[Image: (.*?)\]/gim,
-        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>'
+        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>',
       )
   );
 };
@@ -135,14 +135,19 @@ export default function UserNotificationsPage() {
   if (!userData) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="flex justify-center items-center h-full">
               <Card className="w-full max-w-md">
                 <CardContent className="p-6">
-                  <p className="text-center">Please sign in to view notifications.</p>
+                  <p className="text-center">
+                    Please sign in to view notifications.
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -155,8 +160,11 @@ export default function UserNotificationsPage() {
   if (notificationsLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
-        <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <DashboardSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="flex justify-center items-center h-full">
@@ -170,11 +178,14 @@ export default function UserNotificationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 fade-in relative">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        
+
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex justify-between items-center mb-6">
@@ -201,8 +212,8 @@ export default function UserNotificationsPage() {
                   {notificationsLoading ? "Refreshing..." : "Refresh"}
                 </Button>
                 {unreadCount > 0 && (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={markAllAsRead}
                     className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                   >
@@ -217,7 +228,9 @@ export default function UserNotificationsPage() {
                 <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
                     <div className="flex justify-between items-center">
-                      <CardTitle className="dark:text-gray-100">Your Notifications</CardTitle>
+                      <CardTitle className="dark:text-gray-100">
+                        Your Notifications
+                      </CardTitle>
                       <select
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
@@ -246,8 +259,8 @@ export default function UserNotificationsPage() {
                             !notification.read_at
                               ? "bg-blue-50 border-blue-200 shadow-sm dark:bg-blue-900/20 dark:border-blue-800"
                               : notification.isPlaceholder
-                              ? "bg-gray-50 border-gray-200 dark:bg-gray-700/50 dark:border-gray-600"
-                              : "bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700"
+                                ? "bg-gray-50 border-gray-200 dark:bg-gray-700/50 dark:border-gray-600"
+                                : "bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 dark:border-gray-700"
                           } ${notification.isPlaceholder ? "opacity-75" : ""}`}
                         >
                           <div className="flex justify-between items-start gap-4">
@@ -281,7 +294,7 @@ export default function UserNotificationsPage() {
                                 className="text-gray-600 dark:text-gray-300 mb-3 wrap-break-word prose prose-sm max-w-none"
                                 dangerouslySetInnerHTML={{
                                   __html: parseMarkdown(
-                                    notification.displayMessage
+                                    notification.displayMessage,
                                   ),
                                 }}
                               />
@@ -334,8 +347,8 @@ export default function UserNotificationsPage() {
                               ? "You're all caught up!"
                               : "No notifications available for this filter"}
                           </p>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             onClick={handleRefresh}
                             className="dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
                           >
@@ -351,23 +364,31 @@ export default function UserNotificationsPage() {
               <div className="space-y-6">
                 <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
-                    <CardTitle className="dark:text-gray-100">Notification Stats</CardTitle>
+                    <CardTitle className="dark:text-gray-100">
+                      Notification Stats
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Total:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Total:
+                      </span>
                       <span className="font-medium dark:text-gray-300">
                         {notifications.length}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Unread:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Unread:
+                      </span>
                       <span className="font-medium text-blue-600 dark:text-blue-400">
                         {unreadCount}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Showing:</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Showing:
+                      </span>
                       <span className="font-medium text-green-600 dark:text-green-400">
                         {displayNotifications.length}
                       </span>
@@ -377,7 +398,9 @@ export default function UserNotificationsPage() {
 
                 <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
-                    <CardTitle className="dark:text-gray-100">Debug Info</CardTitle>
+                    <CardTitle className="dark:text-gray-100">
+                      Debug Info
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-xs">
                     <div className="flex justify-between">

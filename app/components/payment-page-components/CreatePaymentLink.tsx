@@ -1,4 +1,3 @@
-// app/components/payment-page-components/CreatePaymentLink.tsx
 "use client";
 
 import { useRef, useState, useEffect, useId, useCallback } from "react";
@@ -19,6 +18,7 @@ import {
   Shield,
   Calendar,
   Info,
+  Eye, // ← ADDED
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -29,6 +29,7 @@ import { useUserContextData } from "@/app/context/userData";
 import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
+import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview"; // ← ADDED
 
 // ============================================================
 // CONSTANTS
@@ -79,7 +80,7 @@ const defaultConfig: LinkConfig = {
 };
 
 // ============================================================
-// PRICING SUMMARY CARD (for payment link)
+// PRICING SUMMARY CARD
 // ============================================================
 function LinkPricingSummaryCard({
   priceType,
@@ -101,7 +102,6 @@ function LinkPricingSummaryCard({
 
   return (
     <div className="rounded-2xl border border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 bg-(--color-accent-yellow)/10 border-b border-(--color-accent-yellow)/20">
         <Info className="h-4 w-4 text-(--color-accent-yellow)" />
         <h4 className="text-sm font-bold text-(--text-primary)">
@@ -110,7 +110,6 @@ function LinkPricingSummaryCard({
       </div>
 
       <div className="p-4 space-y-4">
-        {/* ─── What the buyer pays ─── */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-(--text-secondary) mb-2">
             What the buyer pays
@@ -139,7 +138,6 @@ function LinkPricingSummaryCard({
 
         <div className="border-t border-(--color-accent-yellow)/20" />
 
-        {/* ─── What you receive ─── */}
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-(--text-secondary) mb-2">
             What you receive
@@ -199,6 +197,9 @@ const CreatePaymentLink = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // ─── PREVIEW STATE (NEW) ───
+  const [showPreview, setShowPreview] = useState(false);
 
   // Slug validation state
   const [slugValidation, setSlugValidation] = useState<{
@@ -380,14 +381,14 @@ const CreatePaymentLink = () => {
 
   const canCreate = Boolean(
     title.trim() &&
-    !slugValidation.isChecking &&
-    isSlugAvailable &&
-    (config.amountMode === "variable" ||
-      (Number(price) > 0 &&
-        (priceType === "fixed" ||
-          (priceType === "installment" &&
-            Number(installmentCount) >= 2 &&
-            Number(installmentCount) <= 24)))),
+      !slugValidation.isChecking &&
+      isSlugAvailable &&
+      (config.amountMode === "variable" ||
+        (Number(price) > 0 &&
+          (priceType === "fixed" ||
+            (priceType === "installment" &&
+              Number(installmentCount) >= 2 &&
+              Number(installmentCount) <= 24)))),
   );
 
   const generateFinalSlug = () => slug || slugify(title);
@@ -451,7 +452,6 @@ const CreatePaymentLink = () => {
         Number(installmentCount) > 1 &&
         Number(price) > 0;
 
-      // ─── BUILD LINK CONFIG ───
       const linkConfig: any = {
         currency: config.currency,
         amountMode: config.amountMode,
@@ -466,14 +466,12 @@ const CreatePaymentLink = () => {
         createdAt: new Date().toISOString(),
       };
 
-      // ─── BUILD METADATA ───
       const metadata: any = {
         pageType: "link",
         storeSlug: store?.slug,
         linkConfig,
       };
 
-      // ─── INSTALLMENT METADATA ───
       if (isInstallment) {
         const totalAmount = Number(price) || 0;
         const count = Number(installmentCount);
@@ -482,7 +480,7 @@ const CreatePaymentLink = () => {
           count > 0 ? Math.round((totalAmount / count) * 100) / 100 : 0;
         metadata.installmentPeriod = installmentPeriod;
         metadata.totalAmount = totalAmount;
-        metadata.installmentState = {}; // Populated by webhook services
+        metadata.installmentState = {};
       }
 
       const pageData = {
@@ -561,13 +559,14 @@ const CreatePaymentLink = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6 transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </button>
+      {/* ─── HEADER WITH PREVIEW BUTTON ─── */}
+     <button
+  onClick={() => router.back()}
+  className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6 transition-colors"
+>
+  <ArrowLeft className="h-4 w-4" />
+  Back
+</button>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -645,7 +644,7 @@ const CreatePaymentLink = () => {
           />
         </div>
 
-        {/* URL Preview with slug validation */}
+        {/* URL Preview */}
         {title && (
           <div className="bg-(--bg-secondary)/50 rounded-lg p-4 border border-(--border-color)">
             <div className="flex items-center justify-between mb-2">
@@ -768,10 +767,9 @@ const CreatePaymentLink = () => {
           </div>
         </div>
 
-        {/* ─── AMOUNT + INSTALLMENTS (only for fixed mode) ─── */}
+        {/* AMOUNT + INSTALLMENTS */}
         {config.amountMode === "fixed" && (
           <>
-            {/* Payment Options Toggle */}
             <div>
               <Label className="text-sm font-semibold mb-3 block text-(--text-primary)">
                 Payment Options
@@ -794,7 +792,6 @@ const CreatePaymentLink = () => {
               </div>
             </div>
 
-            {/* Amount */}
             <div>
               <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
                 {priceType === "installment" ? "Total Amount *" : "Amount *"}
@@ -808,7 +805,6 @@ const CreatePaymentLink = () => {
               />
             </div>
 
-            {/* Installment Config */}
             {priceType === "installment" && (
               <div className="space-y-4 p-4 rounded-2xl border border-(--color-accent-yellow)/30 bg-(--color-accent-yellow)/5">
                 <div className="flex items-center gap-2">
@@ -850,7 +846,6 @@ const CreatePaymentLink = () => {
               </div>
             )}
 
-            {/* Unified Pricing Summary Card */}
             <LinkPricingSummaryCard
               priceType={priceType}
               price={Number(price) || 0}
@@ -1067,13 +1062,25 @@ const CreatePaymentLink = () => {
           </div>
         </div>
 
-        {/* Sticky CTA — anchored inside the component */}
+        {/* Sticky CTA */}
         <div className="sticky bottom-0 -mx-4 md:-mx-6 lg:-mx-8 mt-8 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto flex gap-3">
+            {/* Preview button (mobile-friendly duplicate) */}
+        <Button
+  type="button"
+  variant="outline"
+  size="lg"
+  className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+  onClick={() => setShowPreview(true)}
+>
+  <Eye className="h-5 w-5" />
+  <span className="ml-2 hidden sm:inline">Preview</span>
+</Button>
+
             <Button
               variant="default"
               size="lg"
-              className="w-full py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+              className="flex-1 py-6 text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
               onClick={handleCreate}
               disabled={!canCreate || isCreating}
             >
@@ -1088,6 +1095,27 @@ const CreatePaymentLink = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* ─── CUSTOMER PREVIEW MODAL ─── */}
+      <CustomerPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        data={{
+          title: title || "Untitled Payment Link",
+          description,
+          productImage: productPreview,
+          price: Number(price) || 0,
+          priceType,
+          installmentCount: Number(installmentCount) || 1,
+          installmentAmount,
+          installmentPeriod,
+          amountMode: config.amountMode,
+          storeName: store?.name || "Your Store",
+          storeSlug: store?.slug || "",
+          config,
+          pageType: "link",
+        }}
+      />
 
       {/* Success Modal */}
       <AnimatePresence>
