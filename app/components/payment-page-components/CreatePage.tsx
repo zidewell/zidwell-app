@@ -659,8 +659,8 @@ export default function CreatePage() {
   const isVariantStockValid = (): boolean => {
     if (!isPhysical || variants.length === 0) return true;
 
-    const parsedPageStock =
-      stock != null && String(stock).trim() !== "" ? Number(stock) : null;
+   const parsedPageStock =
+  stock != null && String(stock).trim() !== "" ? Number(stock) : null;
     const hasRealPageStock =
       parsedPageStock !== null &&
       Number.isFinite(parsedPageStock) &&
@@ -669,12 +669,15 @@ export default function CreatePage() {
     if (!hasRealPageStock) return true;
 
     const variantStockValues = variants
-      .map((v) => {
-        const raw = v?.stock;
-        const parsed = raw != null && raw !== "" ? Number(raw) : NaN;
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-      })
-      .filter((n): n is number => n !== null);
+  .map((v) => {
+    const raw = v?.stock as unknown;
+    if (raw == null) return null;
+    const trimmed = String(raw).trim();
+    if (trimmed === "") return null;
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  })
+  .filter((n): n is number => n !== null);
 
     const allVariantsCounted = variantStockValues.length === variants.length;
     const variantSum = variantStockValues.reduce((s, n) => s + n, 0);
