@@ -132,6 +132,16 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
+    // Calculate total wallet balance using SQL SUM in parallel with user query
+    const { data: balanceData } = await supabase
+      .from('users')
+      .select('wallet_balance', { count: 'exact' })
+      .not('wallet_balance', 'is', null);
+
+    const totalWalletBalance = balanceData?.reduce(
+      (s, u) => s + Number(u.wallet_balance ?? 0), 0
+    ) ?? 0;
+
     // Format response to match frontend expectations
     const formattedWallets = users?.map(user => ({
       id: user.id,
@@ -152,6 +162,7 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       totalPages: Math.ceil((count || 0) / limit),
+      totalWalletBalance,
     };
 
     // Cache the response

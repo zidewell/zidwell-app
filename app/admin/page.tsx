@@ -20,7 +20,54 @@ import {
   getSafeData,
 } from '@/lib/dashboard-utils'
 import { CHART_COLORS } from '@/constants/dashboard'
-import { RangeOption, MetricsData, SummaryData } from '@/types/admin-dashoard'
+import { RangeOption, MetricsData, SummaryData, RevenueBreakdown } from '@/types/admin-dashoard'
+
+interface DashboardData {
+  totalInflow: number
+  totalOutflow: number
+  mainWalletBalance: number
+  nombaBalance: number
+  totalTransactions: number
+  totalUsers: number
+  pendingInvoices: number
+  paidInvoices: number
+  partiallyPaidInvoices: number
+  totalInvoicesIssued: number
+  totalInvoiceRevenue: number
+  invoiceCreationRevenue: number
+  invoiceFeesFromTable: number
+  pendingContracts: number
+  signedContracts: number
+  totalContractsIssued: number
+  latestTransactions: any[]
+  monthlyTransactions: Array<{ month: string; transactions: number }>
+  monthlyInvoices: Array<{ month: string; count: number; revenue: number }>
+  monthlyContracts: Array<{ month: string; count: number }>
+  range: string
+  totalAppRevenue: number
+  transactionFees: number
+  platformFees: number
+  contractFees: number
+  totalContractAmount: number
+  contractPaymentsCount: number
+  monthlyAppRevenue: Array<{ month: string; revenue: number }>
+  transactionStatus: { success: number; failed: number; pending: number }
+  successfulTransactions: number
+  failedTransactions: number
+  pendingTransactions: number
+  prevTotalContracts: number
+  prevPendingContracts: number
+  prevSignedContracts: number
+  prevContractFees: number
+  prevTotalInvoices: number
+  prevPaidInvoices: number
+  prevUnpaidInvoices: number
+  prevTotalInflow: number
+  prevTotalOutflow: number
+  prevTotalAppRevenue: number
+  revenueBreakdown?: RevenueBreakdown
+  _cache?: { cached: boolean; timestamp: number; range: string }
+}
 
 export default function AdminDashboard() {
   const [page, setPage] = useState<number>(1)
@@ -44,24 +91,12 @@ export default function AdminDashboard() {
   }, [range, isClient])
 
   const {
-    data: summaryData,
-    error: summaryError,
-    isLoading: summaryLoading,
-  } = useSWR<SummaryData>(
-    `/api/admin-apis/dashboard/summary?range=${range}`,
-    fetcher,
-    {
-      refreshInterval: 300000,
-      revalidateOnFocus: true,
-    },
-  )
-
-  const {
-    data: metricsData,
-    error: metricsError,
-    isLoading: metricsLoading,
-  } = useSWR<MetricsData>(
-    `/api/admin-apis/dashboard/metrics?range=${range}`,
+    data: dashboardData,
+    error: dashboardError,
+    isLoading: dashboardLoading,
+    mutate: mutateDashboard,
+  } = useSWR<DashboardData>(
+    `/api/admin-apis/dashboard?range=${range}`,
     fetcher,
     {
       refreshInterval: 300000,
@@ -80,25 +115,76 @@ export default function AdminDashboard() {
     error: paginatedError,
     isLoading: transactionsLoading,
   } = useSWR<any>(
-    `/api/admin-apis/transactions?page=${page}&range=${range}`,
+    `/api/admin-apis/transactions?page=${page}&range=${range}&limit=${PAGE_LIMIT}`,
     fetcher,
   )
 
-  const totalInflow = Number(summaryData?.totalInflow ?? 0)
-  const totalOutflow = Number(summaryData?.totalOutflow ?? 0)
-  const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0)
-  const nombaBalance = Number(summaryData?.nombaBalance ?? 0)
-  const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0)
-  const contractFees = Number(summaryData?.contractFees ?? 0)
-  const totalContracts = Number(summaryData?.totalContractsIssued ?? 0)
-  const pendingContracts = Number(summaryData?.pendingContracts ?? 0)
-  const signedContracts = Number(summaryData?.signedContracts ?? 0)
-  const totalInvoices = Number(summaryData?.totalInvoicesIssued ?? 0)
-  const paidInvoices = Number(summaryData?.paidInvoices ?? 0)
-  const totalUsers = Number(summaryData?.totalUsers ?? 0)
+  const d = dashboardData
+
+  const totalInflow = Number(d?.totalInflow ?? 0)
+  const totalOutflow = Number(d?.totalOutflow ?? 0)
+  const mainWalletBalance = Number(d?.mainWalletBalance ?? 0)
+  const nombaBalance = Number(d?.nombaBalance ?? 0)
+  const totalAppRevenue = Number(d?.totalAppRevenue ?? 0)
+  const contractFees = Number(d?.contractFees ?? 0)
+  const totalContracts = Number(d?.totalContractsIssued ?? 0)
+  const pendingContracts = Number(d?.pendingContracts ?? 0)
+  const signedContracts = Number(d?.signedContracts ?? 0)
+  const totalInvoices = Number(d?.totalInvoicesIssued ?? 0)
+  const paidInvoices = Number(d?.paidInvoices ?? 0)
+  const totalUsers = Number(d?.totalUsers ?? 0)
 
   const contractSignRate = totalContracts > 0 ? ((signedContracts / totalContracts) * 100).toFixed(1) : '0'
   const invoicePaymentRate = totalInvoices > 0 ? ((paidInvoices / totalInvoices) * 100).toFixed(1) : '0'
+
+  const inflowGrowth = calculateGrowth(totalInflow, Number(d?.prevTotalInflow ?? 0))
+  const outflowGrowth = calculateGrowth(totalOutflow, Number(d?.prevTotalOutflow ?? 0))
+  const appRevenueGrowth = calculateGrowth(totalAppRevenue, Number(d?.prevTotalAppRevenue ?? 0))
+  const contractsGrowth = calculateGrowth(totalContracts, Number(d?.prevTotalContracts ?? 0))
+  const invoicesGrowth = calculateGrowth(totalInvoices, Number(d?.prevTotalInvoices ?? 0))
+
+  const calculateContractRevenueGrowth = (): number => {
+    const currentRevenue = contractFees
+    const prevRevenue = Number(d?.prevContractFees ?? 0)
+    if (prevRevenue === 0 && currentRevenue > 0) return 100
+    if (prevRevenue === 0 && currentRevenue === 0) return 0
+    return ((currentRevenue - prevRevenue) / prevRevenue) * 100
+  }
+
+  // Create metricsData compatible object from consolidated dashboard data
+  const rb = d?.revenueBreakdown
+  const metricsData: MetricsData = {
+    website: { total: 0, today: 0, week: 0, month: 0, "90days": 0, "180days": 0, year: 0, daily: [], weekly: [], monthly: [] },
+    signups: { total: totalUsers, today: 0, week: 0, month: 0, "90days": 0, "180days": 0, year: 0, daily: [], weekly: [], monthly: [] },
+    active_users: { total: 0, today: 0, week: 0, month: 0, "90days": 0, "180days": 0, year: 0, daily: [], weekly: [], monthly: [] },
+    transaction_volume: { total: 0, today: 0, week: 0, month: 0, "90days": 0, "180days": 0, year: 0, daily: [], weekly: [], monthly: [] },
+    revenue_breakdown: {
+      total: rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      today: rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      week: rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      month: rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      "90days": rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      "180days": rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      year: rb || { total: 0, app_fees: 0, nomba_fees: 0, transfers: 0, invoice: 0, contract: 0, platform: 0 },
+      daily: [],
+      weekly: [],
+      monthly: d?.monthlyAppRevenue?.map(m => ({
+        month: m.month,
+        total: m.revenue,
+        app_fees: 0,
+        nomba_fees: 0,
+        transfers: 0,
+        bill_payment: 0,
+        invoice: 0,
+        contract: 0,
+        platform: 0,
+        breakdown: {
+          app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0, total: 0 },
+          nomba_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0, total: 0 }
+        }
+      })) || [],
+    }
+  }
 
   const getMetricValue = (metric: keyof MetricsData, period: RangeOption): number => {
     if (!metricsData) return 0
@@ -108,21 +194,21 @@ export default function AdminDashboard() {
     return metricsData[metric]?.[period] || 0
   }
 
-  const inflowGrowth = calculateGrowth(totalInflow, Number(summaryData?.prevTotalInflow ?? 0))
-  const outflowGrowth = calculateGrowth(totalOutflow, Number(summaryData?.prevTotalOutflow ?? 0))
-  const appRevenueGrowth = calculateGrowth(totalAppRevenue, Number(summaryData?.prevTotalAppRevenue ?? 0))
-  const contractsGrowth = calculateGrowth(totalContracts, Number(summaryData?.prevTotalContracts ?? 0))
-  const invoicesGrowth = calculateGrowth(totalInvoices, Number(summaryData?.prevTotalInvoices ?? 0))
-
-  const calculateContractRevenueGrowth = (): number => {
-    const currentRevenue = metricsData?.revenue_breakdown?.[range]?.contract || 0
-    const prevRevenue = Number(summaryData?.prevContractFees ?? 0)
-    if (prevRevenue === 0 && currentRevenue > 0) return 100
-    if (prevRevenue === 0 && currentRevenue === 0) return 0
-    return ((currentRevenue - prevRevenue) / prevRevenue) * 100
-  }
-
-  const revenueBreakdownMonthlyData = getSafeData(metricsData, 'revenue_breakdown.monthly', [])
+  const revenueBreakdownMonthlyData = d?.monthlyAppRevenue?.map((m: any) => ({
+    month: m.month,
+    total: m.revenue,
+    app_fees: 0,
+    nomba_fees: 0,
+    transfers: 0,
+    bill_payment: 0,
+    invoice: 0,
+    contract: 0,
+    platform: 0,
+    breakdown: {
+      app_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0, total: 0 },
+      nomba_fees: { transactions: 0, invoice_creation: 0, invoices: 0, contracts: 0, total: 0 }
+    }
+  })) || []
   
   const contractsPieData = [
     { name: 'Signed', value: signedContracts, color: CHART_COLORS.pie[0] },
@@ -130,14 +216,13 @@ export default function AdminDashboard() {
   ].filter((item) => item.value > 0)
 
   const refresh = async () => {
-    await fetch(`/api/admin-apis/dashboard/summary?range=${range}&nocache=true`)
-    await fetch(`/api/admin-apis/dashboard/metrics?range=${range}`)
-    await fetch(`/api/admin-apis/transactions?page=${page}&range=${range}`)
+    await mutateDashboard()
+    await fetch(`/api/admin-apis/transactions?page=${page}&range=${range}&limit=${PAGE_LIMIT}&nocache=true`)
     await fetch(`/api/admin-apis/analytics/website?range=${range}`)
   }
 
-  const isLoading = summaryLoading || metricsLoading || transactionsLoading || websiteLoading
-  const hasData = summaryData && metricsData && paginatedData && websiteAnalytics
+  const isLoading = dashboardLoading || transactionsLoading || websiteLoading
+  const hasData = d && paginatedData && websiteAnalytics
 
   if (isLoading) {
     return <DashboardLoading />
@@ -163,7 +248,7 @@ export default function AdminDashboard() {
         <div className="space-y-6 md:space-y-8 animate-fade-in-up">
           <OverviewKPIRows
             metricsData={metricsData}
-            summaryData={summaryData}
+            summaryData={d}
             range={range}
             getMetricValue={getMetricValue}
             inflowGrowth={inflowGrowth}
@@ -185,7 +270,7 @@ export default function AdminDashboard() {
               <ContractStatusPie
                 data={contractsPieData}
                 contractFees={contractFees}
-                contractRevenueShare={((contractFees / totalAppRevenue) * 100).toFixed(1)}
+                contractRevenueShare={totalAppRevenue > 0 ? ((contractFees / totalAppRevenue) * 100).toFixed(1) : '0'}
               />
             </div>
           </div>

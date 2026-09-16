@@ -10,6 +10,59 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function applyUserFilters(query: any, q: string | null, filter_status: string, role: string, activity: string, balance: string, low_threshold: number, high_threshold: number) {
+  if (q) {
+    query = query.or(
+      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
+    );
+  }
+
+  if (filter_status === "active") {
+    query = query.eq("is_blocked", false);
+  } else if (filter_status === "blocked") {
+    query = query.eq("is_blocked", true);
+  }
+
+  if (role !== "all") {
+    if (role === "user") {
+      query = query.is("admin_role", null).or('admin_role.eq."user"');
+    } else {
+      query = query.eq("admin_role", role);
+    }
+  }
+
+  if (activity !== "all") {
+    const now = new Date();
+    if (activity === "active") {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      query = query.gte("last_login", thirtyDaysAgo.toISOString());
+    } else if (activity === "today") {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      query = query.gte("last_login", today.toISOString());
+    } else if (activity === "week") {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      query = query.gte("last_login", weekAgo.toISOString());
+    } else if (activity === "inactive") {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      query = query.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
+    }
+  }
+
+  if (balance !== "all") {
+    if (balance === "high") {
+      query = query.gte("wallet_balance", high_threshold);
+    } else if (balance === "low") {
+      query = query.lte("wallet_balance", low_threshold).gte("wallet_balance", 0);
+    } else if (balance === "negative") {
+      query = query.lt("wallet_balance", 0);
+    } else if (balance === "zero") {
+      query = query.eq("wallet_balance", 0);
+    }
+  }
+
+  return query;
+}
+
 async function fetchAdminUsers(query: AdminUsersQuery) {
   const {
     q,
@@ -29,73 +82,21 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // ✅ Build base query
+  // Build base query with shared filter function
   let baseQuery = supabaseAdmin
     .from("users")
     .select("*", { count: "exact" });
 
-  // ✅ Apply KYC status filter
+  // Apply KYC status filter
   if (status === "verified") {
     baseQuery = baseQuery.in("bvn_verification", ["verified", "approved"]);
   } else if (status === "pending") {
     baseQuery = baseQuery.in("bvn_verification", ["not_submitted", "pending", null]);
   }
 
-  // ✅ Apply search filter
-  if (q) {
-    baseQuery = baseQuery.or(
-      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
-    );
-  }
+  baseQuery = applyUserFilters(baseQuery, q, filter_status, role, activity, balance, low_threshold, high_threshold);
 
-  // ✅ Apply filter_status (blocked/active)
-  if (filter_status === "active") {
-    baseQuery = baseQuery.eq("is_blocked", false);
-  } else if (filter_status === "blocked") {
-    baseQuery = baseQuery.eq("is_blocked", true);
-  }
-
-  // ✅ Apply role filter
-  if (role !== "all") {
-    if (role === "user") {
-      baseQuery = baseQuery.is("admin_role", null).or('admin_role.eq."user"');
-    } else {
-      baseQuery = baseQuery.eq("admin_role", role);
-    }
-  }
-
-  // ✅ Apply activity filter (based on last_login)
-  if (activity !== "all") {
-    const now = new Date();
-    if (activity === "active") {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      baseQuery = baseQuery.gte("last_login", thirtyDaysAgo.toISOString());
-    } else if (activity === "today") {
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      baseQuery = baseQuery.gte("last_login", today.toISOString());
-    } else if (activity === "week") {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      baseQuery = baseQuery.gte("last_login", weekAgo.toISOString());
-    } else if (activity === "inactive") {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      baseQuery = baseQuery.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
-    }
-  }
-
-  // ✅ Apply balance filter
-  if (balance !== "all") {
-    if (balance === "high") {
-      baseQuery = baseQuery.gte("wallet_balance", high_threshold);
-    } else if (balance === "low") {
-      baseQuery = baseQuery.lte("wallet_balance", low_threshold).gte("wallet_balance", 0);
-    } else if (balance === "negative") {
-      baseQuery = baseQuery.lt("wallet_balance", 0);
-    } else if (balance === "zero") {
-      baseQuery = baseQuery.eq("wallet_balance", 0);
-    }
-  }
-
-  // ✅ Apply sorting and pagination
+  // Apply sorting and pagination
   const { data: usersData, error: usersError, count: usersCount } = await baseQuery
     .order(sortBy, { ascending: sortOrder === "asc" })
     .range(from, to);
@@ -104,97 +105,34 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
     throw new Error(`Users fetch error: ${usersError.message}`);
   }
 
-  // ✅ Get counts for stats - BOTH verified and pending with filters applied
-  let verifiedQuery = supabaseAdmin
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .in("bvn_verification", ["verified", "approved"]);
+  // Get stats counts in parallel using shared filter function
+  const verifiedQuery = applyUserFilters(
+    supabaseAdmin.from("users").select("*", { count: "exact", head: true }).in("bvn_verification", ["verified", "approved"]),
+    q, filter_status, role, activity, balance, low_threshold, high_threshold
+  );
 
-  let pendingQuery = supabaseAdmin
-    .from("users")
-    .select("*", { count: "exact", head: true })
-    .in("bvn_verification", ["not_submitted", "pending", null]);
-
-  // Apply search and other filters to stats
-  if (q) {
-    verifiedQuery = verifiedQuery.or(
-      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
-    );
-    pendingQuery = pendingQuery.or(
-      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
-    );
-  }
-
-  if (filter_status === "active") {
-    verifiedQuery = verifiedQuery.eq("is_blocked", false);
-    pendingQuery = pendingQuery.eq("is_blocked", false);
-  } else if (filter_status === "blocked") {
-    verifiedQuery = verifiedQuery.eq("is_blocked", true);
-    pendingQuery = pendingQuery.eq("is_blocked", true);
-  }
-
-  if (role !== "all") {
-    if (role === "user") {
-      verifiedQuery = verifiedQuery.is("admin_role", null).or('admin_role.eq."user"');
-      pendingQuery = pendingQuery.is("admin_role", null).or('admin_role.eq."user"');
-    } else {
-      verifiedQuery = verifiedQuery.eq("admin_role", role);
-      pendingQuery = pendingQuery.eq("admin_role", role);
-    }
-  }
-
-  if (activity !== "all") {
-    const now = new Date();
-    if (activity === "active") {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      verifiedQuery = verifiedQuery.gte("last_login", thirtyDaysAgo.toISOString());
-      pendingQuery = pendingQuery.gte("last_login", thirtyDaysAgo.toISOString());
-    } else if (activity === "today") {
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      verifiedQuery = verifiedQuery.gte("last_login", today.toISOString());
-      pendingQuery = pendingQuery.gte("last_login", today.toISOString());
-    } else if (activity === "week") {
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      verifiedQuery = verifiedQuery.gte("last_login", weekAgo.toISOString());
-      pendingQuery = pendingQuery.gte("last_login", weekAgo.toISOString());
-    } else if (activity === "inactive") {
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      verifiedQuery = verifiedQuery.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
-      pendingQuery = pendingQuery.lt("last_login", thirtyDaysAgo.toISOString()).or(`last_login.is.null`);
-    }
-  }
-
-  if (balance !== "all") {
-    if (balance === "high") {
-      verifiedQuery = verifiedQuery.gte("wallet_balance", high_threshold);
-      pendingQuery = pendingQuery.gte("wallet_balance", high_threshold);
-    } else if (balance === "low") {
-      verifiedQuery = verifiedQuery.lte("wallet_balance", low_threshold).gte("wallet_balance", 0);
-      pendingQuery = pendingQuery.lte("wallet_balance", low_threshold).gte("wallet_balance", 0);
-    } else if (balance === "negative") {
-      verifiedQuery = verifiedQuery.lt("wallet_balance", 0);
-      pendingQuery = pendingQuery.lt("wallet_balance", 0);
-    } else if (balance === "zero") {
-      verifiedQuery = verifiedQuery.eq("wallet_balance", 0);
-      pendingQuery = pendingQuery.eq("wallet_balance", 0);
-    }
-  }
+  const pendingQuery = applyUserFilters(
+    supabaseAdmin.from("users").select("*", { count: "exact", head: true }).in("bvn_verification", ["not_submitted", "pending", null]),
+    q, filter_status, role, activity, balance, low_threshold, high_threshold
+  );
 
   const [verifiedResult, pendingResult] = await Promise.all([
     verifiedQuery,
     pendingQuery
   ]);
 
+  const stats = {
+    verified: verifiedResult.count || 0,
+    pending_kyc: pendingResult.count || 0,
+    total: (verifiedResult.count || 0) + (pendingResult.count || 0),
+  };
+
   return {
     users: usersData || [],
     total: usersCount || 0,
     page,
     perPage: limit,
-    stats: {
-      verified: verifiedResult.count || 0,
-      pending_kyc: pendingResult.count || 0,
-      total: (verifiedResult.count || 0) + (pendingResult.count || 0),
-    },
+    stats,
     search: q || null,
     sort: {
       by: sortBy,
@@ -239,11 +177,8 @@ export async function GET(req: NextRequest) {
 
     const nocache = url.searchParams.get("nocache") === "true";
 
-    console.log("🔍 API Request with filters:", query);
-
     if (nocache) {
-      clearAdminUsersCache(query);
-      console.log(`🔄 Force refreshing admin users data`);
+      clearAdminUsersCache();
     }
 
     let result = await getCachedAdminUsers(query);

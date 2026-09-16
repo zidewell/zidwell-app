@@ -9,7 +9,7 @@ import Swal from "sweetalert2";
 const SESSION_TIMEOUT =
   process.env.NEXT_PUBLIC_NODE_ENV === "production"
     ? 15 * 60 * 1000
-    : -1;
+    : 15 * 60 * 1000;
 
 const IDLE_WARNING_TIME = 60 * 1000;
 
@@ -23,6 +23,8 @@ const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/privacy(\/.*)?$/,
   /^\/terms(\/.*)?$/,
   /^\/blog(\/.*)?$/,
+  /^\/blog\/admin(\/.*)?$/,
+  /^\/blog\/admin\/login(\/.*)?$/,
   // Public storefronts
   /^\/store\/[^\/]+$/,
   /^\/store\/[^\/]+\/[^\/]+$/,
@@ -48,7 +50,6 @@ export default function SessionWatcher({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutInProgress = useRef(false);
-  const isDev = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
   const networkErrorCount = useRef(0);
   const maxNetworkErrors = 3;
 
@@ -189,7 +190,7 @@ export default function SessionWatcher({
   // Depends on: handleLogout, resetTimer
   // ─────────────────────────────────────────────────────────────────────
   const showIdleWarning = useCallback(() => {
-    if (idleWarningShown || isDev || isPublicRoute()) return;
+    if (idleWarningShown || isPublicRoute()) return;
 
     setIdleWarningShown(true);
 
@@ -233,7 +234,7 @@ export default function SessionWatcher({
         // Swal may fail under Turbopack — don't crash the watcher
         setIdleWarningShown(false);
       });
-  }, [idleWarningShown, handleLogout, isDev, isPublicRoute, resetTimer]);
+  }, [idleWarningShown, handleLogout, isPublicRoute, resetTimer]);
 
   // ─────────────────────────────────────────────────────────────────────
   // 7. CHECK SESSION
