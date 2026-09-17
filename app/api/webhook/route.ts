@@ -6,6 +6,8 @@ import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
 import { processPayout } from "./services/payout.service";
+import { processPayoutRefund } from "./services/payout-refund.service";       // ✅ NEW
+import { processPaymentReversal } from "./services/payment-reversal.service"; // ✅ NEW
 import {
   processSubscriptionPayment,
   processSubscriptionBankTransfer,
@@ -198,7 +200,6 @@ export async function POST(req: NextRequest) {
     ) {
       console.log("Processing store activation payment...");
 
-      // Find the payment record
       const { data: payment, error: paymentError } = await supabase
         .from("store_activation_payments")
         .select("*")
@@ -233,11 +234,6 @@ export async function POST(req: NextRequest) {
 
       console.log("Found store activation payment:", payment.id);
 
-      // ============================================================
-      // ✅ STEP 1: Mark payment as completed FIRST
-      // If this fails, we abort so the store never activates without
-      // a matching completed payment record.
-      // ============================================================
       const { error: paymentUpdateError } = await supabase
         .from("store_activation_payments")
         .update({
@@ -261,9 +257,6 @@ export async function POST(req: NextRequest) {
 
       console.log("✅ Payment marked completed:", payment.id);
 
-      // ============================================================
-      // ✅ STEP 2: Activate the store
-      // ============================================================
       const { error: storeUpdateError } = await supabase
         .from("online_stores")
         .update({
@@ -276,7 +269,6 @@ export async function POST(req: NextRequest) {
 
       if (storeUpdateError) {
         console.error("❌ Failed to activate store:", storeUpdateError);
-        // Roll back payment status so it can be retried
         await supabase
           .from("store_activation_payments")
           .update({
@@ -295,9 +287,6 @@ export async function POST(req: NextRequest) {
 
       console.log("✅ Store activated:", payment.store_id);
 
-      // ============================================================
-      // ✅ STEP 3: Clear create draft (best-effort)
-      // ============================================================
       try {
         const { error: draftDeleteError } = await supabase
           .from("store_create_drafts")
@@ -316,9 +305,6 @@ export async function POST(req: NextRequest) {
         console.error("Unexpected error clearing create draft:", draftErr);
       }
 
-      // ============================================================
-      // ✅ STEP 4: Ensure store owner wallet exists
-      // ============================================================
       const { data: existingWallet } = await supabase
         .from("store_owner_wallets")
         .select("id")
@@ -524,6 +510,51 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
+    // ✅ PRIORITY 7: PAYOUT REFUNDS (NEW)
+    // Nomba returned money to your corporate wallet.
+    // Credit the user back if they were originally deducted.
+    // ============================================================
+    if (eventType === "payout_refund") {
+      console.log("Processing payout refund...");
+
+      const walletBalanceBefore = safeNum(
+        payload.data?.merchant?.walletBalanceBefore ?? 0
+      );
+      const walletBalanceAfter = safeNum(
+        payload.data?.merchant?.walletBalance ?? 0
+      );
+      const refundAmount = safeNum(tx.transactionAmount ?? 0);
+
+      const result = await processPayoutRefund(payload, {
+        nombaTransactionId,
+        eventType,
+        tx,
+        walletBalanceBefore,
+        walletBalanceAfter,
+        refundAmount,
+      });
+
+      return handleErrorResponse(result);
+    }
+
+    // ============================================================
+    // ✅ PRIORITY 8: PAYMENT REVERSALS (NEW)
+    // A customer credit was reversed by the bank.
+    // Debit the user's wallet to claw back the money.
+    // ============================================================
+    if (eventType === "payment_reversal") {
+      console.log("Processing payment reversal...");
+
+      const result = await processPaymentReversal(payload, {
+        nombaTransactionId,
+        transactionAmount,
+        tx,
+      });
+
+      return handleErrorResponse(result);
+    }
+
+    // ============================================================
     // WITHDRAWALS/TRANSFERS (PAYOUTS)
     // ============================================================
     const transactionType = (tx.type || "").toLowerCase();
@@ -553,22 +584,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-// export async function POST(req: Request) {
-//   const timestamp = req.headers.get("nomba-timestamp");
-//   const signature = req.headers.get("nomba-sig-value");
-
-//   // ✅ TEMP: Allow missing headers only for initial verification
-//   if (!timestamp || !signature) {
-//     console.log("Nomba initial webhook verification ping — allowing");
-//     return new Response(JSON.stringify({ verified: true }), { status: 200 });
-//   }
-
-//   // 🔐 Normal processing for real events
-//   const body = await req.json();
-//   console.log("Nomba Webhook Triggered", body);
-
-//   return new Response(JSON.stringify({ received: true }), { status: 200 });
-// }

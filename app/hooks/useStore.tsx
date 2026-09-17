@@ -50,7 +50,7 @@ export interface Variant {
   name: string;
   price: number;
   sku?: string;
-  stock?: number;
+  stock?: number | "" | null;
   paidAmount?: number;
   payments?: any[];
   lastPaidAt?: string | null;

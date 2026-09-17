@@ -33,8 +33,6 @@ function calculateFees(amount: number) {
   };
 }
 
-
-
 // ============================================================
 // RECORD INSTALLMENT ACCOUNT
 // ============================================================
@@ -364,8 +362,6 @@ export async function processCardPaymentWebhook(
       return { error: "Failed to update payment", status: 500 };
     }
 
-
-
     // ─── 3. Record the installment account ───
     const isInstallment = payment.payment_type === "installment";
 
@@ -418,7 +414,7 @@ export async function processCardPaymentWebhook(
       );
     }
 
-    // ─── 5. Credit wallet ───
+    // ─── 5. Credit store owner wallet ───
     const { error: walletError } = await supabase.rpc(
       "credit_store_owner_wallet",
       {
@@ -440,7 +436,32 @@ export async function processCardPaymentWebhook(
       p_amount: feeBreakdown.netAmount,
     });
 
-    // ─── 7. Transaction record ───
+    // ─── 7. Transaction record with metadata ───
+    const txReference = `CARD-${payment.payment_page_id}-${nombaTransactionId}`;
+
+    const txMetadata = {
+      payment_page_id: payment.payment_page_id,
+      payment_page_title: payment.payment_pages?.title || null,
+      payment_page_type: pageType || null,
+      customer_name: payment.customer_name,
+      customer_email: payment.customer_email || null,
+      customer_phone: payment.customer_phone || null,
+      gross_amount: feeBreakdown.gross,
+      nomba_fee: feeBreakdown.nombaFee,
+      zidwell_fee: feeBreakdown.zidwellFee,
+      total_fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
+      fee_percentage: 3.4,
+      payment_method: "card",
+      nomba_transaction_id: nombaTransactionId,
+      order_reference: orderReference || null,
+      is_installment: isInstallment,
+      installment_account_id: accountResult?.account_id || null,
+      plan_completed: planCompleted,
+      entity_ids: payment.metadata?.entityIds || ["default"],
+      received_at: new Date().toISOString(),
+    };
+
     await supabase.from("transactions").insert({
       user_id: payment.user_id,
       type: "credit",
@@ -448,7 +469,7 @@ export async function processCardPaymentWebhook(
       fee: feeBreakdown.totalFee,
       net_amount: feeBreakdown.netAmount,
       status: "success",
-      reference: `CARD-${payment.payment_page_id}-${nombaTransactionId}`,
+      reference: txReference,
       description: `Payment from ${payment.customer_name}`,
       channel: "payment_page_card",
       sender: {
@@ -460,6 +481,7 @@ export async function processCardPaymentWebhook(
         user_id: payment.user_id,
         payment_page_id: payment.payment_page_id,
       },
+      metadata: txMetadata,
       external_response: {
         transaction_id: nombaTransactionId,
         gross_amount: feeBreakdown.gross,

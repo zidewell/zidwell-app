@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api"; 
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
-import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers"; 
+import { sendWithdrawalEmail, generateTransferReceipt } from "../webhook/helpers/email-helpers";
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -55,7 +55,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ✅ Verify user + PIN with attempt tracking
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name")
@@ -66,20 +65,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Check if PIN is locked
     if (userData.pin_locked_until && new Date(userData.pin_locked_until) > new Date()) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil((lockedUntil.getTime() - Date.now()) / 60000);
-      
+
       const response = NextResponse.json(
-        { 
+        {
           message: `PIN is locked due to multiple failed attempts. Please try again in ${minutesLeft} minutes or reset your PIN via email.`,
           locked: true,
           lockedUntil: userData.pin_locked_until
         },
         { status: 401 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -88,12 +86,12 @@ export async function POST(req: NextRequest) {
 
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
-    
+
     if (!isValid) {
       const newAttempts = (userData.pin_attempts || 0) + 1;
       let updateData: any = { pin_attempts: newAttempts };
       let shouldSendEmail = false;
-      
+
       if (newAttempts >= 3) {
         const lockDuration = 30 * 60 * 1000;
         updateData.pin_locked_until = new Date(Date.now() + lockDuration);
@@ -103,26 +101,26 @@ export async function POST(req: NextRequest) {
         updateData.pin_reset_token_expires = tokenExpiry;
         shouldSendEmail = true;
       }
-      
+
       await supabase
         .from("users")
         .update(updateData)
         .eq("id", userId);
-      
+
       if (shouldSendEmail && userData.email) {
-        const userName = userData.first_name && userData.last_name 
+        const userName = userData.first_name && userData.last_name
           ? `${userData.first_name} ${userData.last_name}`
           : undefined;
-        
+
         await sendPinResetEmail(
           userData.email,
           updateData.pin_reset_token,
           userId,
           userName
         );
-        
+
         const response = NextResponse.json(
-          { 
+          {
             message: `PIN locked due to ${newAttempts} failed attempts. A reset link has been sent to your email.`,
             locked: true,
             remainingAttempts: 0,
@@ -130,30 +128,30 @@ export async function POST(req: NextRequest) {
           },
           { status: 401 }
         );
-        
+
         if (newTokens) {
           return createAuthResponse(await response.json(), newTokens);
         }
         return response;
       }
-      
+
       const remainingAttempts = 3 - newAttempts;
       const response = NextResponse.json(
-        { 
+        {
           message: `Invalid transaction PIN. ${remainingAttempts} attempt${remainingAttempts !== 1 ? 's' : ''} remaining before PIN is locked.`,
           remainingAttempts,
           attempts: newAttempts
         },
         { status: 401 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
       return response;
     }
-    
-    // ✅ PIN is valid - reset attempts
+
+    // ✅ PIN valid — reset attempts
     await supabase
       .from("users")
       .update({
@@ -165,28 +163,26 @@ export async function POST(req: NextRequest) {
       .eq("id", userId);
 
     const totalDeduction = totalDebit || amount + (fee || 0);
-    
-    // ✅ Check sufficient balance
+
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
         { status: 400 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
       return response;
     }
 
-    // ✅ Get Nomba token
     const token = await getNombaToken();
     if (!token) {
       const response = NextResponse.json(
         { message: "Unable to process transfer at this time" },
         { status: 503 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -195,7 +191,27 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ✅ Create PENDING transaction
+    // ✅ Build metadata for the pending transaction
+    const pendingMetadata = {
+      initiated_at: new Date().toISOString(),
+      initiated_by: userId,
+      merchant_tx_ref: merchantTxRef,
+      recipient_name: accountName,
+      recipient_account: accountNumber,
+      recipient_bank: bankName,
+      recipient_bank_code: bankCode,
+      sender_name: senderName || userData.full_name || null,
+      sender_account: senderAccountNumber || null,
+      sender_bank: senderBankName || null,
+      narration: narration || "N/A",
+      requested_amount: Number(amount),
+      requested_fee: fee || 0,
+      total_deduction: totalDeduction,
+      category: category || null,
+      category_id: categoryId || null,
+    };
+
+    // ✅ Create PENDING transaction with metadata
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -221,6 +237,7 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString(),
         category: category || null,
         category_id: categoryId || null,
+        metadata: pendingMetadata,     // ✅ NEW
       })
       .select("*")
       .single();
@@ -231,7 +248,7 @@ export async function POST(req: NextRequest) {
         { error: "Could not create transaction record" },
         { status: 500 }
       );
-      
+
       if (newTokens) {
         return createAuthResponse(await response.json(), newTokens);
       }
@@ -263,42 +280,46 @@ export async function POST(req: NextRequest) {
     console.log("📤 Nomba response:", {
       status: nombaResponse.status,
       merchantTxRef,
-      nombaReference: nombaData?.data?.reference,
+      nombaId: nombaData?.data?.id,
     });
 
-    // ✅ Check if transfer was immediately successful
     const isSuccess = nombaResponse.ok && nombaData?.data?.status === "success";
     const finalStatus = isSuccess ? "success" : "processing";
+    const nombaTransactionId = nombaData?.data?.id || null;
 
-    // ✅ Update transaction with initial status
+    // ✅ Update transaction with Nomba response + merged metadata
     await supabase
       .from("transactions")
       .update({
         status: finalStatus,
         description: `Transfer of ₦${amount} to ${accountName}`,
-        reference: nombaData?.data?.reference || null,
+        metadata: {
+          ...pendingMetadata,
+          nomba_status: nombaData?.data?.status || null,
+          nomba_description: nombaData?.description || null,
+          nomba_requested_at: new Date().toISOString(),
+        },
         external_response: {
           nomba_request: nombaData,
           requested_at: new Date().toISOString(),
           merchant_tx_ref: merchantTxRef,
+          nomba_transaction_id: nombaTransactionId,
         },
         updated_at: new Date().toISOString(),
       })
       .eq("id", pendingTx.id);
 
-    // ✅ If immediately successful, deduct balance and send receipt email
+    // ✅ If immediately successful — mutate wallet atomically
     if (isSuccess) {
       console.log(`✅ Transfer immediately successful for transaction ${pendingTx.id}`);
-      
-      // Deduct wallet balance
-      const { error: deductError } = await supabase.rpc(
-        "deduct_wallet_balance",
+
+      const { data: newBalance, error: deductError } = await supabase.rpc(
+        "mutate_wallet_balance",
         {
-          user_id: userId,
-          amt: totalDeduction,
-          transaction_type: "withdrawal",
-          reference: merchantTxRef,
-          description: `Transfer to ${accountName}`,
+          p_user_id: userId,
+          p_amount: -totalDeduction,      // negative = debit
+          p_transaction_id: pendingTx.id,
+          p_reason: "withdrawal_immediate_success",
         }
       );
 
@@ -312,7 +333,18 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
       } else {
-        // Generate receipt HTML for email
+        console.log(`✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`);
+
+        // Record Nomba reference now that it's confirmed
+        await supabase
+          .from("transactions")
+          .update({
+            reference: nombaTransactionId,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", pendingTx.id);
+
+        // Generate receipt HTML
         const receiptHtml = generateTransferReceipt({
           transactionId: pendingTx.id,
           amount: Number(amount),
@@ -327,7 +359,6 @@ export async function POST(req: NextRequest) {
           type: "bank_transfer"
         });
 
-        // Send email with receipt - now uses Puppeteer for PDF generation
         if (receiptHtml && receiptHtml.length > 0) {
           console.log(`📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`);
           await sendWithdrawalEmail(
@@ -359,7 +390,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ✅ Return response
     const responseData = {
       message: isSuccess ? "Transfer completed successfully." : "Transfer initiated. Processing...",
       transactionId: pendingTx.id,
@@ -367,7 +397,7 @@ export async function POST(req: NextRequest) {
       status: finalStatus,
       requiresPolling: !isSuccess,
       category: category || null,
-      ...(isSuccess && { reference: nombaData?.data?.reference }),
+      ...(isSuccess && nombaTransactionId && { reference: nombaTransactionId }),
     };
 
     if (newTokens) {
@@ -378,16 +408,16 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("Withdraw API error:", error);
-    
+
     const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }
     );
-    
+
     if ((error as any).newTokens) {
       return createAuthResponse(await response.json(), (error as any).newTokens);
     }
-    
+
     return response;
   }
 }
