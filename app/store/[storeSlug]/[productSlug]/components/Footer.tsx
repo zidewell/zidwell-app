@@ -1,6 +1,5 @@
-// components/Footer.tsx
+"use client";
 
-"use client"
 import {
   Mail,
   Phone,
@@ -73,10 +72,10 @@ const Footer = () => {
               provide banking services or hold depositor funds. All financial
               transactions facilitated by Zidwell are conducted in partnership
               with licensed financial institutions. Zidwell does not engage in
-              traditional banking activities. By accessing or using Zidwell&apos;s
-              website and services, you acknowledge and agree that Zidwell is
-              not a bank, and all financial services are provided through
-              third-party partners.
+              traditional banking activities. By accessing or using
+              Zidwell&apos;s website and services, you acknowledge and agree
+              that Zidwell is not a bank, and all financial services are
+              provided through third-party partners.
             </p>
 
             <div className="flex flex-wrap gap-2 sm:gap-3">

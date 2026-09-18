@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import Loader from "@/app/components/Loader";
 import { AISection } from "./components/home-component/AISection";
 import { BonusTools } from "./components/home-component/BonusTools";
 import { BuiltForReal } from "./components/home-component/BuiltForReal";
@@ -156,9 +157,7 @@ export default function Landing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
-        </div>
+        <Loader/>
       }
     >
       <LandingContent />

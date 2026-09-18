@@ -14,10 +14,12 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import StoreProductClient from "./client";
 import {
+
   generateProductMetadata,
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
+
 
 export const revalidate = 60;
 
@@ -272,6 +274,20 @@ export default async function StoreProductPage({
     updatedAt: page.updated_at || null,
   };
 
+  // ─── Fetch more products from the same store (excluding current) ───
+  const { data: moreProducts } = await supabase
+    .from("payment_pages")
+    .select(
+      "id, title, slug, description, price, price_type, product_images, cover_image, page_type, metadata"
+    )
+    .eq("is_published", true)
+    .neq("id", page.id)
+    .or(
+      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
+    )
+    .order("created_at", { ascending: false })
+    .limit(8);
+
   // ─── SEO: Determine stock status ───
   const stockValue = parsedMetadata?.stock;
   const inStock = stockValue == null ? true : Number(stockValue) > 0;
@@ -320,8 +336,11 @@ export default async function StoreProductPage({
           page={cleanPage}
           store={storeData}
           initialPaidStudents={initialPaidStudents}
+          moreProducts={moreProducts || []}
         />
       </Suspense>
+
+
     </>
   );
 }
