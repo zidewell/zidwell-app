@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import Image from "next/image";
+const DEFAULT_IMAGE =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
 import CommentSection from "@/app/components/blog-components/blog/CommentSection";
 import BlogSidebar from "@/app/components/blog-components/blog/BlogSideBar";
 
@@ -325,6 +327,10 @@ export default function BlogPostClient({
                     className="w-full h-auto object-cover"
                     priority
                     unoptimized={post.featured_image.startsWith("http")}
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.src = DEFAULT_IMAGE;
+                    }}
                   />
                 </div>
               )}

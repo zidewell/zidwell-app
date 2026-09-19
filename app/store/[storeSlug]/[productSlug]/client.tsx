@@ -3,7 +3,7 @@
 
 import { Shield } from "lucide-react";
 import { useProductCheckout } from "./hooks/useProductCheckout";
-import { StoreProductClientProps } from "./utils/types";
+import type { StoreProductClientProps } from "./utils/types";
 import { TYPE_LABELS } from "./utils/helpers";
 import { ProductHeader } from "./components/ProductHeader";
 import { ProductImageGallery } from "./components/ProductImageGallery";
@@ -19,10 +19,12 @@ import { DonationFields } from "./components/DonationFields";
 import { CheckoutButton } from "./components/CheckoutButton";
 import { InfoModal } from "./components/InfoModal";
 import { ContinueModal } from "./components/ContinueModal";
+import { MoreFromStore } from "./components/MoreFromStore";
+
 
 export default function StoreProductClient(props: StoreProductClientProps) {
   const c = useProductCheckout(props);
-  const { page, store } = props;
+  const { page, store, moreProducts = [] } = props;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -214,7 +216,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-        
           {/* Physical variants */}
           {c.isPhysical && !c.isPlanComplete && (
             <PhysicalFields
@@ -324,6 +325,14 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         </div>
       </section>
 
+      {/* ─── More from this store ─── */}
+      <MoreFromStore
+        products={moreProducts}
+        storeSlug={store.slug}
+        storeName={store.name}
+        currentProductId={page.id}
+      />
+
       {/* Modals */}
       {c.showInfoModal && (
         <InfoModal
@@ -387,9 +396,8 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         />
       )}
 
-      <div className="fixed bottom-4 left-4 rounded-full border border-border bg-background px-4 py-2 text-xs text-foreground/50">
-        Powered by <span className="font-medium text-foreground">Zidwell</span>
-      </div>
+      {/* ─── Footer ─── */}
+  
     </div>
   );
 }

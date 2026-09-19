@@ -3,6 +3,8 @@
 
 import { CircleCheck } from "lucide-react";
 
+
+
 interface Props {
   existingAccount: any;
   isSchoolPage: boolean;

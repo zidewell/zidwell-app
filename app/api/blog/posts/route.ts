@@ -393,6 +393,7 @@ export async function PUT(request: NextRequest) {
     const featuredImageFile = formData.get("featuredImage") as File | null;
     const featuredImageUrl = formData.get("featuredImageUrl") as string;
     const audioFile = formData.get("audioFile") as File | null;
+    const audioFileUrl = formData.get("audioFileUrl") as string;
 
     const { data: existingPost, error: fetchError } = await supabaseBlog
       .from("blog_posts")
@@ -473,9 +474,11 @@ export async function PUT(request: NextRequest) {
     } else if (featuredImageUrl && featuredImageUrl.startsWith("http")) {
       console.log("📸 Using provided URL:", featuredImageUrl);
 
+      // Only delete the old image if the URL is actually different
       if (
         existingPost?.featured_image &&
-        existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!)
+        existingPost.featured_image.includes(process.env.BLOG_SUPABASE_URL!) &&
+        existingPost.featured_image !== featuredImageUrl
       ) {
         const oldPath = extractPathFromUrl(existingPost.featured_image);
         if (oldPath) {
@@ -520,7 +523,21 @@ export async function PUT(request: NextRequest) {
       } else {
         console.error("Audio upload failed:", result.error);
       }
-    } else if (!audioFile) {
+    } else if (audioFileUrl && audioFileUrl.startsWith("http")) {
+      // URL was provided — only delete old audio if URL changed
+      if (
+        existingPost?.audio_file &&
+        existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!) &&
+        existingPost.audio_file !== audioFileUrl
+      ) {
+        const oldPath = extractPathFromUrl(existingPost.audio_file);
+        if (oldPath) {
+          await supabaseBlog.storage.from("blog-images").remove([oldPath]);
+        }
+      }
+      updateData.audio_file = audioFileUrl;
+    } else if (!audioFile && !audioFileUrl) {
+      // No audio file and no URL — remove entirely
       if (
         existingPost?.audio_file &&
         existingPost.audio_file.includes(process.env.BLOG_SUPABASE_URL!)

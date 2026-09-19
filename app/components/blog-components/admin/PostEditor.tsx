@@ -883,6 +883,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
       if (audioFileObj) {
         formData.append("audioFile", audioFileObj);
+      } else if (
+        audioFile &&
+        audioFile.startsWith("http") &&
+        !audioFile.startsWith("blob:")
+      ) {
+        formData.append("audioFileUrl", audioFile);
       }
 
       try {
@@ -1035,6 +1041,12 @@ const PostEditor = ({ postId, isDraft = false }: PostEditorProps) => {
 
     if (audioFileObj) {
       formData.append("audioFile", audioFileObj);
+    } else if (
+      audioFile &&
+      audioFile.startsWith("http") &&
+      !audioFile.startsWith("blob:")
+    ) {
+      formData.append("audioFileUrl", audioFile);
     }
 
     try {

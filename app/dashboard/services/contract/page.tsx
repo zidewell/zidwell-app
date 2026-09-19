@@ -19,13 +19,8 @@ const Page = () => {
   const [contracts, setContracts] = useState<any[]>([]);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const { userData } = useUserContextData();
-  const { 
-    userTier, 
-    isSME, 
-    isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
-  } = useSubscription();
+  const { userTier, isSME, isEnterprise, isCorporation, isSolopreneur } =
+    useSubscription();
   const fetchStartedRef = useRef(false);
 
   const fetchContracts = useCallback(
@@ -84,7 +79,8 @@ const Page = () => {
   const isEnterpriseUser = userTier === "enterprise";
   const isCorporationUser = userTier === "corporation";
 
-  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
+  const hasUnlimitedContracts =
+    isEnterpriseUser || isCorporationUser || isSMEUser;
 
   const contractLimit = useMemo(() => {
     if (hasUnlimitedContracts) return "unlimited";
@@ -140,7 +136,7 @@ const Page = () => {
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-6xl mx-auto flex justify-center items-center h-64">
@@ -165,7 +161,7 @@ const Page = () => {
           onClose={() => setSidebarOpen(false)}
         />
 
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
           <main className="flex-1 p-4 md:p-6 lg:p-8">

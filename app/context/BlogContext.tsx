@@ -10,6 +10,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import { usePathname } from "next/navigation";
 
 export interface BlogPost {
   id: string;
@@ -74,6 +75,30 @@ const COOLDOWN_MS = 5 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 15 * 1000;
 const SAFETY_LOADING_TIMEOUT_MS = 20 * 1000;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Path gate — blog API is only called on these routes:
+//   • "/"                          → homepage
+//   • "/dashboard/*"               → dashboard
+//   • any path containing "blog"   → /blog, /blog/[slug], /dashboard/blog, etc.
+// Everywhere else (store, product, checkout, etc.) → no fetch, empty state.
+// ─────────────────────────────────────────────────────────────────────────────
+function shouldLoadBlog(pathname: string | null): boolean {
+  if (!pathname) return false;
+
+  // Homepage
+  if (pathname === "/") return true;
+
+  // Dashboard (exact + nested)
+  if (pathname === "/dashboard") return true;
+  if (pathname.startsWith("/dashboard/")) return true;
+
+  // Any path segment containing "blog" (case-insensitive)
+  const lower = pathname.toLowerCase();
+  if (lower.includes("blog")) return true;
+
+  return false;
+}
+
 // Module-level caches — persist across remounts within the same JS session
 let globalData: {
   allPosts: BlogPost[];
@@ -85,6 +110,8 @@ let globalData: {
 let globalFetchPromise: Promise<void> | null = null;
 
 export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
+  const pathname = usePathname();
+
   const [posts, setPosts] = useState<BlogPost[]>(globalData?.allPosts || []);
   const [recentPosts, setRecentPosts] = useState<BlogPost[]>(
     globalData?.recentPosts || [],
@@ -95,12 +122,13 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   const [categories, setCategories] = useState<BlogCategory[]>(
     globalData?.categories || [],
   );
-  const [isLoading, setIsLoading] = useState(!globalData);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(!!globalData);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   const isMountedRef = useRef(true);
+  const hasRunForPathRef = useRef<string | null>(null);
 
   // ─────────────────────────────────────────
   // Cache helpers
@@ -225,7 +253,24 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   // ─────────────────────────────────────────
   // Core fetch
   // ─────────────────────────────────────────
+  // ─────────────────────────────────────────
+  // Core fetch — gated by pathname at the source
+  // ─────────────────────────────────────────
   const runFetch = useCallback(async (): Promise<void> => {
+    // ✅ HARD GATE: refuse to run unless the current path allows it.
+    //    This catches any caller — refreshPosts, forceRefresh, or a stray
+    //    effect from a different provider — before a network request fires.
+    if (!shouldLoadBlog(pathname)) {
+      console.log(
+        `🚫 runFetch blocked — pathname "${pathname}" not allowed`
+      );
+      if (isMountedRef.current) {
+        setIsInitialized(true);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     console.log("🔄 runFetch starting…");
 
     if (isMountedRef.current) {
@@ -253,12 +298,6 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
           { signal: controller.signal },
         ),
       ]);
-
-      console.log("📥 responses:", {
-        all: allRes.status,
-        recent: recentRes.status,
-        popular: popularRes.status,
-      });
 
       if (!allRes.ok || !recentRes.ok || !popularRes.ok) {
         throw new Error(
@@ -293,7 +332,6 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
           setError(err instanceof Error ? err.message : "Failed to fetch");
         }
       }
-      // ✅ Always end in a resolved state
       if (isMountedRef.current) {
         setIsInitialized(true);
         setIsLoading(false);
@@ -303,16 +341,19 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       if (isMountedRef.current) {
         setIsLoading(false);
       }
-      console.log("🏁 runFetch finished");
     }
-  }, [transformPosts, extractCategories, writeCache, applyData]);
-
+  }, [
+    pathname,
+    transformPosts,
+    extractCategories,
+    writeCache,
+    applyData,
+  ]);
   // ─────────────────────────────────────────
   // Public fetch (dedupes via globalFetchPromise)
   // ─────────────────────────────────────────
   const fetchAllPosts = useCallback(async (): Promise<void> => {
     if (globalFetchPromise) {
-      console.log("⏳ Awaiting in-flight global fetch…");
       try {
         await globalFetchPromise;
       } catch {
@@ -336,20 +377,23 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   // Public refresh
   // ─────────────────────────────────────────
   const refreshPosts = useCallback(async () => {
+    // Respect the path gate for manual refreshes too
+    if (!shouldLoadBlog(pathname)) {
+      return;
+    }
     const remaining = getRemainingCooldown();
     if (remaining > 0) {
-      console.log(
-        `⏳ Cooldown active (${Math.ceil(remaining / 1000)}s) — using cache`,
-      );
       const cached = readCache();
       if (cached) applyData(cached);
       return;
     }
     await fetchAllPosts();
-  }, [getRemainingCooldown, readCache, applyData, fetchAllPosts]);
+  }, [pathname, getRemainingCooldown, readCache, applyData, fetchAllPosts]);
 
   const forceRefresh = useCallback(async () => {
-    console.log("🔄 Force refresh");
+    if (!shouldLoadBlog(pathname)) {
+      return;
+    }
     if (typeof window !== "undefined") {
       localStorage.removeItem(CACHE_KEY);
     }
@@ -363,28 +407,55 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       setCategories([]);
     }
     await fetchAllPosts();
-  }, [fetchAllPosts]);
+  }, [pathname, fetchAllPosts]);
 
   // ─────────────────────────────────────────
   // Cooldown ticker
   // ─────────────────────────────────────────
   useEffect(() => {
+    if (!shouldLoadBlog(pathname)) return;
     setCooldownRemaining(getRemainingCooldown());
     const id = setInterval(() => {
       setCooldownRemaining(getRemainingCooldown());
     }, 1000);
     return () => clearInterval(id);
-  }, [getRemainingCooldown]);
+  }, [pathname, getRemainingCooldown]);
 
   // ─────────────────────────────────────────
-  // MOUNT — the critical effect
+  // PATH-DRIVEN LOAD
+  //
+  // Runs whenever the pathname changes. Decides whether to fetch based on
+  // the gate. Uses `hasRunForPathRef` to avoid re-fetching on every re-render
+  // for the same path.
   // ─────────────────────────────────────────
   useEffect(() => {
     isMountedRef.current = true;
 
+    const allowed = shouldLoadBlog(pathname);
+
+    // ─── PATH NOT ALLOWED ───
+    // Don't fetch. But if we already have data in memory (from a previous
+    // allowed route), keep it — do NOT clear it, otherwise navigating from
+    // /blog → /store would wipe the cache and cause a re-fetch on return.
+    if (!allowed) {
+      // Only force the initialised state if we have nothing loaded yet.
+      // This prevents the store pages from hanging on a spinner forever.
+      if (!globalData && !isInitialized) {
+        setIsInitialized(true);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // ─── PATH ALLOWED ───
+    // Avoid re-running for the same path (Strict Mode double-mount protection)
+    if (hasRunForPathRef.current === pathname) {
+      return;
+    }
+    hasRunForPathRef.current = pathname;
+
     // 1. Module-level data already loaded in this JS session → use it instantly
     if (globalData) {
-      console.log("📦 globalData in memory — hydrating");
       applyData(globalData);
       return;
     }
@@ -392,14 +463,12 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     // 2. localStorage cache → use it instantly (no network needed)
     const cached = readCache();
     if (cached) {
-      console.log("📦 Cache hit — hydrating from localStorage");
       applyData(cached);
       return;
     }
 
     // 3. A fetch is already running somewhere → wait for it
     if (globalFetchPromise) {
-      console.log("⏳ Global fetch in flight — waiting…");
       setIsLoading(true);
       globalFetchPromise
         .catch(() => {})
@@ -414,9 +483,15 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
     }
 
     // 4. Cold start → fetch now
-    console.log("📡 Cold start — fetching now");
+    console.log(`📡 Cold start on ${pathname} — fetching now`);
     fetchAllPosts();
-  }, [applyData, readCache, fetchAllPosts]);
+  }, [
+    pathname,
+    applyData,
+    readCache,
+    fetchAllPosts,
+    isInitialized,
+  ]);
 
   // ─────────────────────────────────────────
   // Track unmount
@@ -432,6 +507,8 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
   // ─────────────────────────────────────────
   useEffect(() => {
     if (!isLoading) return;
+    if (!shouldLoadBlog(pathname)) return;
+
     const t = setTimeout(() => {
       console.warn("⚠️ Safety: isLoading stuck — forcing resolved state");
       setIsLoading(false);
@@ -439,7 +516,7 @@ export const BlogProvider: React.FC<BlogProviderProps> = ({ children }) => {
       if (globalData) applyData(globalData);
     }, SAFETY_LOADING_TIMEOUT_MS);
     return () => clearTimeout(t);
-  }, [isLoading, applyData]);
+  }, [isLoading, pathname, applyData]);
 
   const value: BlogContextType = {
     posts,

@@ -110,11 +110,18 @@ export async function processPayout(payload: any, params: PayoutParams) {
     console.log(`✅ Deducted ₦${totalDeduction} from user ${pendingTx.user_id}. New balance: ₦${deductResult}`);
 
     // Update transaction to SUCCESS
-    await supabase
+  await supabase
       .from("transactions")
       .update({
         status: "success",
-        reference: nombaTransactionId,          // ✅ record Nomba tx ID
+        reference: nombaTransactionId,
+        metadata: {
+          ...(pendingTx.metadata || {}),
+          webhook_confirmed_at: new Date().toISOString(),
+          nomba_transaction_id: nombaTransactionId,
+          deducted_amount: totalDeduction,
+          new_balance: deductResult,
+        },
         external_response: {
           ...pendingTx.external_response,
           webhook_data: payload,

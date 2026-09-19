@@ -6,6 +6,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+const DEFAULT_IMAGE =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
+
 const CACHE_DURATION = 10 * 60 * 1000;
 const CACHE_KEY = "recent_articles_cache";
 
@@ -21,7 +24,7 @@ const transformPostForDisplay = (post: any) => {
     slug: post.slug,
     excerpt: post.excerpt || post.content?.substring(0, 120) + "...",
     date: post.published_at || post.created_at,
-    image: post.featured_image || post.featuredImage,
+    image: post.featured_image || post.featuredImage || DEFAULT_IMAGE,
     author: post.author?.name || post.author_name || "Author",
   };
 };
@@ -250,6 +253,10 @@ const RecentArticles = () => {
                 height={300}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 priority={false}
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  target.src = DEFAULT_IMAGE;
+                }}
               />
             </div>
             <div className="p-6">
