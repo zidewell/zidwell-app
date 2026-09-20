@@ -117,7 +117,7 @@ export function BlogSection() {
   // Show loading state
   if ((isLoading || !isInitialized) && recentPosts.length === 0) {
     return (
-      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
+      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-(--border-color)">
         <div className="text-center mb-8 md:mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--color-accent-yellow)]/10 rounded-full mb-4">
             <Newspaper className="w-4 h-4 text-[var(--color-accent-yellow)]" />
@@ -125,10 +125,10 @@ export function BlogSection() {
               Latest Updates
             </span>
           </div>
-          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
             Loading <span className="text-[var(--color-accent-yellow)]">Insights</span>...
           </h3>
-          <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
+          <p className="text-(--text-secondary) text-sm md:text-base mt-2 max-w-2xl mx-auto">
             Please wait while we load the latest articles
           </p>
         </div>
@@ -142,17 +142,17 @@ export function BlogSection() {
   // Show error state
   if (error && recentPosts.length === 0) {
     return (
-      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
+      <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-(--border-color)">
         <div className="text-center mb-8 md:mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-100 rounded-full mb-4">
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
               Error
             </span>
           </div>
-          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+          <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
             Failed to Load <span className="text-red-500">Posts</span>
           </h3>
-          <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
+          <p className="text-(--text-secondary) text-sm md:text-base mt-2 max-w-2xl mx-auto">
             {error}
           </p>
           <Button
@@ -178,7 +178,7 @@ export function BlogSection() {
   }
 
   return (
-    <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-[var(--border-color)]">
+    <div className="mt-20 md:mt-32 pt-12 md:pt-20 border-t border-(--border-color)">
       <div className="text-center mb-8 md:mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[var(--color-accent-yellow)]/10 rounded-full mb-4">
           <Newspaper className="w-4 h-4 text-[var(--color-accent-yellow)]" />
@@ -186,11 +186,11 @@ export function BlogSection() {
             Latest Updates
           </span>
         </div>
-        <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[var(--text-primary)]">
+        <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
           Explore <span className="text-[var(--color-accent-yellow)]">Insights</span> &{" "}
           <span className="text-[var(--color-accent-yellow)]">News</span>
         </h3>
-        <p className="text-[var(--text-secondary)] text-sm md:text-base mt-2 max-w-2xl mx-auto">
+        <p className="text-(--text-secondary) text-sm md:text-base mt-2 max-w-2xl mx-auto">
           Discover expert insights, financial tips, and the latest updates from Zidwell
         </p>
         {/* Refresh Button */}
@@ -199,7 +199,7 @@ export function BlogSection() {
           disabled={isRefreshing}
           variant="ghost"
           size="sm"
-          className="mt-4 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]"
+          className="mt-4 text-(--text-secondary) hover:text-[var(--color-accent-yellow)]"
         >
           {isRefreshing ? (
             <>
@@ -231,7 +231,7 @@ export function BlogSection() {
                 <Link
                   key={post.id}
                   href={`/blog/post-blog/${post.slug}`}
-                  className="group block bg-[var(--bg-primary)] rounded-lg overflow-hidden border border-[var(--border-color)] hover:border-[var(--color-accent-yellow)] transition-all duration-300 hover:shadow-lg"
+                  className="group block bg-(--bg-primary) rounded-lg overflow-hidden border border-(--border-color) hover:border-[var(--color-accent-yellow)] transition-all duration-300 hover:shadow-lg"
                 >
                   <div className="aspect-16/10 overflow-hidden bg-[var(--bg-secondary)] relative">
                     <Image
@@ -248,14 +248,14 @@ export function BlogSection() {
                     <span className="text-xs font-medium text-[var(--color-accent-yellow)] uppercase tracking-wider">
                       {categoryName}
                     </span>
-                    <h4 className="font-semibold text-base md:text-lg text-[var(--text-primary)] mt-1 mb-2 line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
+                    <h4 className="font-semibold text-base md:text-lg text-(--text-primary) mt-1 mb-2 line-clamp-2 group-hover:text-[var(--color-accent-yellow)] transition-colors">
                       {post.title}
                     </h4>
-                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
+                    <p className="text-sm text-(--text-secondary) line-clamp-2 mb-3">
                       {post.excerpt || "Read more about this topic..."}
                     </p>
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                      <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center border border-[var(--border-color)] shrink-0">
+                    <div className="flex items-center gap-2 text-xs text-(--text-secondary)">
+                      <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center border border-(--border-color) shrink-0">
                         {post.author?.avatar ? (
                           <Image
                             src={getImageUrl(post.author.avatar)}
@@ -322,11 +322,11 @@ export function BlogSection() {
           </div>
         </>
       ) : (
-        <div className="text-center py-12 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-color)]">
+        <div className="text-center py-12 bg-(--bg-primary) rounded-lg border border-(--border-color)">
           <div className="max-w-md mx-auto">
-            <Newspaper className="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-4 opacity-50" />
-            <p className="text-[var(--text-secondary)] text-lg font-medium">No blog posts available yet</p>
-            <p className="text-sm text-[var(--text-secondary)] mt-1">Check back soon for updates!</p>
+            <Newspaper className="w-12 h-12 text-(--text-secondary) mx-auto mb-4 opacity-50" />
+            <p className="text-(--text-secondary) text-lg font-medium">No blog posts available yet</p>
+            <p className="text-sm text-(--text-secondary) mt-1">Check back soon for updates!</p>
             <Button
               onClick={handleRefresh}
               disabled={isRefreshing}

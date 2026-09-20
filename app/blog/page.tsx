@@ -240,7 +240,7 @@ export default function BlogPage() {
           <div className="flex justify-center items-center min-h-[60vh]">
             <div className="text-center">
               <Loader2 className="w-16 h-16 text-[var(--color-accent-yellow)] animate-spin mx-auto mb-4" />
-              <p className="text-[var(--text-secondary)]">Loading articles…</p>
+              <p className="text-(--text-secondary)">Loading articles…</p>
             </div>
           </div>
         </main>

@@ -125,14 +125,14 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
   if (isConfirmed) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[var(--bg-primary)] rounded-2xl shadow-pop p-8 text-center border border-[var(--border-color)] squircle-lg">
+        <div className="max-w-md w-full bg-(--bg-primary) rounded-2xl shadow-pop p-8 text-center border border-(--border-color) squircle-lg">
           <div className="w-20 h-20 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-10 w-10 text-[var(--color-lemon-green)]" />
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
+          <h1 className="text-2xl font-bold text-(--text-primary) mb-3">
             Receipt Confirmed!
           </h1>
-          <p className="text-[var(--text-secondary)] mb-8">
+          <p className="text-(--text-secondary) mb-8">
             Thank you for acknowledging the receipt. A copy has been sent to
             your email.
           </p>
@@ -174,7 +174,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
       )}
 
       {/* Receipt Card */}
-      <div className="bg-[var(--bg-primary)] rounded-2xl shadow-pop border border-[var(--border-color)] overflow-hidden mb-8 squircle-lg">
+      <div className="bg-(--bg-primary) rounded-2xl shadow-pop border border-(--border-color) overflow-hidden mb-8 squircle-lg">
         {/* Header */}
         <div className="bg-gradient-to-r from-[var(--color-accent-yellow)] to-[#e0a800] p-8 text-[var(--color-ink)]">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -217,14 +217,14 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                   <Building className="h-5 w-5 text-[var(--color-accent-yellow)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[var(--text-primary)]">
+                  <h3 className="font-semibold text-(--text-primary)">
                     From
                   </h3>
-                  <p className="text-[var(--text-secondary)]">
+                  <p className="text-(--text-secondary)">
                     {receipt.business_name || receipt.initiator_name}
                   </p>
                   {receipt.initiator_email && (
-                    <p className="text-sm text-[var(--text-secondary)] mt-1 flex items-center gap-2">
+                    <p className="text-sm text-(--text-secondary) mt-1 flex items-center gap-2">
                       <Mail className="h-3 w-3" />
                       {receipt.initiator_email}
                     </p>
@@ -239,21 +239,21 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                   <User className="h-5 w-5 text-[var(--color-accent-yellow)]" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-[var(--text-primary)]">
+                  <h3 className="font-semibold text-(--text-primary)">
                     To
                   </h3>
-                  <p className="text-[var(--text-secondary)]">
+                  <p className="text-(--text-secondary)">
                     {receipt.client_name}
                   </p>
                   <div className="space-y-1 mt-1">
                     {receipt.client_email && (
-                      <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
+                      <p className="text-sm text-(--text-secondary) flex items-center gap-2">
                         <Mail className="h-3 w-3" />
                         {receipt.client_email}
                       </p>
                     )}
                     {receipt.client_phone && (
-                      <p className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
+                      <p className="text-sm text-(--text-secondary) flex items-center gap-2">
                         <Phone className="h-3 w-3" />
                         {receipt.client_phone}
                       </p>
@@ -268,27 +268,27 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           {receipt.bill_to && (
             <div className="bg-[var(--bg-secondary)] rounded-xl p-6 squircle-md">
               <div className="flex items-center gap-3 mb-4">
-                <MapPin className="h-5 w-5 text-[var(--text-secondary)]" />
-                <h3 className="font-semibold text-[var(--text-primary)]">
+                <MapPin className="h-5 w-5 text-(--text-secondary)" />
+                <h3 className="font-semibold text-(--text-primary)">
                   Billing Address
                 </h3>
               </div>
-              <p className="text-[var(--text-secondary)] whitespace-pre-line">
+              <p className="text-(--text-secondary) whitespace-pre-line">
                 {receipt.bill_to}
               </p>
             </div>
           )}
 
           {/* Items Table */}
-          <div className="border border-[var(--border-color)] rounded-xl overflow-hidden">
-            <div className="bg-[var(--bg-secondary)] px-6 py-4 border-b border-[var(--border-color)]">
-              <h3 className="font-semibold text-[var(--text-primary)]">
+          <div className="border border-(--border-color) rounded-xl overflow-hidden">
+            <div className="bg-[var(--bg-secondary)] px-6 py-4 border-b border-(--border-color)">
+              <h3 className="font-semibold text-(--text-primary)">
                 Items Details
               </h3>
             </div>
             <div className="divide-y divide-[var(--border-color)]">
               {/* Header */}
-              <div className="grid grid-cols-12 px-6 py-4 bg-[var(--bg-secondary)]/50 text-sm font-medium text-[var(--text-secondary)] border-b border-[var(--border-color)]">
+              <div className="grid grid-cols-12 px-6 py-4 bg-[var(--bg-secondary)]/50 text-sm font-medium text-(--text-secondary) border-b border-(--border-color)">
                 <div className="col-span-6">Description</div>
                 <div className="col-span-2 text-center">Quantity</div>
                 <div className="col-span-2 text-right">Unit Price</div>
@@ -302,23 +302,23 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                   className="grid grid-cols-12 px-6 py-4 hover:bg-[var(--bg-secondary)]/30 transition-colors"
                 >
                   <div className="col-span-6">
-                    <p className="font-medium text-[var(--text-primary)]">
+                    <p className="font-medium text-(--text-primary)">
                       {item.description}
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">
+                    <p className="text-sm text-(--text-secondary) mt-1">
                       Item #{index + 1}
                     </p>
                   </div>
                   <div className="col-span-2 text-center">
-                    <p className="text-[var(--text-primary)]">{item.quantity}</p>
+                    <p className="text-(--text-primary)">{item.quantity}</p>
                   </div>
                   <div className="col-span-2 text-right">
-                    <p className="text-[var(--text-primary)]">
+                    <p className="text-(--text-primary)">
                       {formatCurrency(item.unit_price)}
                     </p>
                   </div>
                   <div className="col-span-2 text-right">
-                    <p className="font-semibold text-[var(--text-primary)]">
+                    <p className="font-semibold text-(--text-primary)">
                       {formatCurrency(item.amount)}
                     </p>
                   </div>
@@ -329,7 +329,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
               <div className="bg-[var(--bg-secondary)] px-6 py-4">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Subtotal
                     </p>
                     <p className="text-2xl font-bold text-[var(--color-accent-yellow)]">
@@ -337,7 +337,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Total Amount
                     </p>
                     <p className="text-2xl font-bold text-[var(--color-accent-yellow)]">
@@ -353,35 +353,35 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-[var(--bg-secondary)] rounded-xl p-6 squircle-md">
               <div className="flex items-center gap-3 mb-4">
-                <CreditCard className="h-5 w-5 text-[var(--text-secondary)]" />
-                <h3 className="font-semibold text-[var(--text-primary)]">
+                <CreditCard className="h-5 w-5 text-(--text-secondary)" />
+                <h3 className="font-semibold text-(--text-primary)">
                   Payment Details
                 </h3>
               </div>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-[var(--text-secondary)]">
+                  <span className="text-(--text-secondary)">
                     Payment Method:
                   </span>
-                  <span className="font-medium capitalize text-[var(--text-primary)]">
+                  <span className="font-medium capitalize text-(--text-primary)">
                     {receipt.payment_method === "transfer"
                       ? "Bank Transfer"
                       : receipt.payment_method}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[var(--text-secondary)]">
+                  <span className="text-(--text-secondary)">
                     Payment For:
                   </span>
-                  <span className="font-medium capitalize text-[var(--text-primary)]">
+                  <span className="font-medium capitalize text-(--text-primary)">
                     {receipt.payment_for}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[var(--text-secondary)]">
+                  <span className="text-(--text-secondary)">
                     Issue Date:
                   </span>
-                  <span className="font-medium text-[var(--text-primary)]">
+                  <span className="font-medium text-(--text-primary)">
                     {formatDate(receipt.issue_date)}
                   </span>
                 </div>
@@ -390,34 +390,34 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
 
             <div className="bg-[var(--bg-secondary)] rounded-xl p-6 squircle-md">
               <div className="flex items-center gap-3 mb-4">
-                <FileText className="h-5 w-5 text-[var(--text-secondary)]" />
-                <h3 className="font-semibold text-[var(--text-primary)]">
+                <FileText className="h-5 w-5 text-(--text-secondary)" />
+                <h3 className="font-semibold text-(--text-primary)">
                   Notes
                 </h3>
               </div>
-              <p className="text-[var(--text-secondary)]">
+              <p className="text-(--text-secondary)">
                 {receipt.customer_note || "No additional notes provided."}
               </p>
             </div>
           </div>
 
           {/* Signatures */}
-          <div className="border-t border-[var(--border-color)] pt-8">
-            <h3 className="font-semibold text-[var(--text-primary)] mb-6 text-center">
+          <div className="border-t border-(--border-color) pt-8">
+            <h3 className="font-semibold text-(--text-primary) mb-6 text-center">
               Signatures
             </h3>
             <div className="grid md:grid-cols-2 gap-8">
               {/* Seller Signature */}
               <div className="space-y-4">
                 <div className="text-center">
-                  <p className="font-medium text-[var(--text-primary)] mb-2">
+                  <p className="font-medium text-(--text-primary) mb-2">
                     Seller's Signature
                   </p>
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="text-sm text-(--text-secondary)">
                     {receipt.business_name}
                   </p>
                 </div>
-                <div className="h-32 border-2 border-dashed border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)] flex items-center justify-center">
+                <div className="h-32 border-2 border-dashed border-(--border-color) rounded-lg bg-(--bg-primary) flex items-center justify-center">
                   {receipt.seller_signature ? (
                     <img
                       src={receipt.seller_signature}
@@ -425,7 +425,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                       className="max-h-20"
                     />
                   ) : (
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       No signature provided
                     </span>
                   )}
@@ -435,14 +435,14 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
               {/* Client Signature */}
               <div className="space-y-4">
                 <div className="text-center">
-                  <p className="font-medium text-[var(--text-primary)] mb-2">
+                  <p className="font-medium text-(--text-primary) mb-2">
                     Client's Signature
                   </p>
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="text-sm text-(--text-secondary)">
                     {receipt.client_name}
                   </p>
                 </div>
-                <div className="h-32 border-2 border-dashed border-[var(--border-color)] rounded-lg bg-[var(--bg-primary)] flex items-center justify-center">
+                <div className="h-32 border-2 border-dashed border-(--border-color) rounded-lg bg-(--bg-primary) flex items-center justify-center">
                   {isAlreadySigned && receipt.client_signature ? (
                     <img
                       src={receipt.client_signature}
@@ -450,7 +450,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                       className="max-h-20"
                     />
                   ) : (
-                    <span className="text-[var(--text-secondary)]">
+                    <span className="text-(--text-secondary)">
                       {isAlreadySigned ? "Signed" : "Awaiting signature"}
                     </span>
                   )}
@@ -463,16 +463,16 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
 
       {/* Signing Form - Only show if not already signed */}
       {!isAlreadySigned && (
-        <div className="bg-[var(--bg-primary)] rounded-2xl p-8 shadow-pop border border-[var(--border-color)] space-y-8 squircle-lg">
+        <div className="bg-(--bg-primary) rounded-2xl p-8 shadow-pop border border-(--border-color) space-y-8 squircle-lg">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-[var(--color-accent-yellow)]/10 rounded-xl flex items-center justify-center">
               <Shield className="h-6 w-6 text-[var(--color-accent-yellow)]" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+              <h2 className="text-xl font-semibold text-(--text-primary)">
                 Acknowledge Receipt
               </h2>
-              <p className="text-[var(--text-secondary)]">
+              <p className="text-(--text-secondary)">
                 Verify your identity and acknowledge receipt of items/services
               </p>
             </div>
@@ -481,7 +481,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           {/* Name Verification */}
           <div className="space-y-4">
             <label className="block">
-              <span className="text-sm font-medium text-[var(--text-primary)]">
+              <span className="text-sm font-medium text-(--text-primary)">
                 Your Full Name *
               </span>
               <input
@@ -491,10 +491,10 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                   setName(e.target.value);
                   setNameError("");
                 }}
-                className={`mt-2 w-full px-4 py-3 rounded-xl border bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] transition-all ${
+                className={`mt-2 w-full px-4 py-3 rounded-xl border bg-(--bg-primary) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) transition-all ${
                   nameError
                     ? "border-red-500 focus:ring-red-500"
-                    : "border-[var(--border-color)]"
+                    : "border-(--border-color)"
                 }`}
                 placeholder="Enter your full name as provided"
               />
@@ -505,9 +505,9 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
                 </p>
               )}
               {receipt.signee_name && (
-                <p className="text-sm text-[var(--text-secondary)] mt-2">
+                <p className="text-sm text-(--text-secondary) mt-2">
                   Expected signee:{" "}
-                  <span className="font-medium text-[var(--text-primary)]">
+                  <span className="font-medium text-(--text-primary)">
                     {receipt.signee_name}
                   </span>
                 </p>
@@ -516,7 +516,7 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
           </div>
 
           {/* Acknowledgement */}
-          <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-[var(--border-color)] squircle-md">
+          <div className="bg-[var(--bg-secondary)] rounded-xl p-6 border border-(--border-color) squircle-md">
             <div className="flex items-start gap-4">
               <div className="relative shrink-0 mt-1">
                 <input
@@ -544,11 +544,11 @@ export default function SignReceiptForm({ receipt }: SignReceiptFormProps) {
               <div className="flex-1">
                 <label
                   htmlFor="acknowledge"
-                  className="text-lg font-medium text-[var(--text-primary)] cursor-pointer select-none block"
+                  className="text-lg font-medium text-(--text-primary) cursor-pointer select-none block"
                 >
                   I acknowledge receipt of items/services
                 </label>
-                <p className="text-[var(--text-secondary)] mt-2">
+                <p className="text-(--text-secondary) mt-2">
                   By toggling this switch, I confirm that I have received the
                   items/services described in this receipt and acknowledge that
                   the information is accurate and complete.

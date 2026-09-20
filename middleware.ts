@@ -69,6 +69,7 @@ const storeProtectedRoutes = [
   "/dashboard/services/payment/edit",
   "/dashboard/services/payment/page",
   "/dashboard/services/payment/store",
+  "/dashboard/services/payment/dashboard",
   // Specific sub-paths for clarity
   "/dashboard/services/payment/store/products",
   "/dashboard/services/payment/store/wallet",

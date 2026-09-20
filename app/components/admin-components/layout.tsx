@@ -18,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-      <div className="min-h-screen bg-[var(--bg-primary)] transition-colors duration-300">
+      <div className="min-h-screen bg-(--bg-primary) transition-colors duration-300">
         <AdminSidebar />
         <div className="lg:ml-64">
           <main className="p-4 md:p-6 min-h-[calc(100vh-4rem)]">

@@ -7,7 +7,7 @@ export function HealthScore() {
   const dash = (score / 100) * C;
 
   return (
-    <div className="squircle-lg bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-float p-5 sm:p-8">
+    <div className="squircle-lg bg-(--bg-primary) border border-(--border-color) shadow-float p-5 sm:p-8">
       <div className="grid md:grid-cols-2 gap-8 items-center">
         <div className="flex flex-col items-center">
           <svg viewBox="0 0 140 140" className="h-48 w-48">
@@ -16,33 +16,33 @@ export function HealthScore() {
             <text x="70" y="70" textAnchor="middle" className="fill-[var(--text-primary)] text-3xl font-semibold">{score}</text>
             <text x="70" y="90" textAnchor="middle" className="fill-[var(--text-secondary)] text-[10px]">/ 100</text>
           </svg>
-          <p className="mt-3 font-display text-lg font-semibold text-[var(--text-primary)]">Financially healthy</p>
-          <p className="text-xs text-[var(--text-secondary)]">Cashflow stable · Income diversified</p>
+          <p className="mt-3 font-display text-lg font-semibold text-(--text-primary)">Financially healthy</p>
+          <p className="text-xs text-(--text-secondary)">Cashflow stable · Income diversified</p>
         </div>
         <div className="space-y-3">
-          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4">
+          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-(--border-color) p-4">
             <span className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)]">
               <TrendingUp className="h-4 w-4" />
             </span>
-            <p className="text-sm leading-relaxed text-[var(--text-primary)]">Your cashflow increased <b>18%</b> from last month.</p>
+            <p className="text-sm leading-relaxed text-(--text-primary)">Your cashflow increased <b>18%</b> from last month.</p>
           </div>
-          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4">
+          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-(--border-color) p-4">
             <span className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--color-accent-yellow)]/15 text-[var(--color-accent-yellow)]">
               <Coins className="h-4 w-4" />
             </span>
-            <p className="text-sm leading-relaxed text-[var(--text-primary)]">You spent <b>₦ 43,000</b> on transport this month.</p>
+            <p className="text-sm leading-relaxed text-(--text-primary)">You spent <b>₦ 43,000</b> on transport this month.</p>
           </div>
-          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4">
-            <span className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-(--border-color) p-4">
+            <span className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--bg-secondary)] text-(--text-primary)">
               <TrendingDown className="h-4 w-4" />
             </span>
-            <p className="text-sm leading-relaxed text-[var(--text-primary)]">Your biggest expense category is <b>inventory</b>.</p>
+            <p className="text-sm leading-relaxed text-(--text-primary)">Your biggest expense category is <b>inventory</b>.</p>
           </div>
-          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] p-4">
+          <div className="flex items-start gap-3 squircle-sm bg-[var(--bg-secondary)] border border-(--border-color) p-4">
             <span className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--color-lemon-green)]/10 text-[var(--color-lemon-green)]">
               <Sparkles className="h-4 w-4" />
             </span>
-            <p className="text-sm leading-relaxed text-[var(--text-primary)]">Most of your income came from <b>transfers</b>.</p>
+            <p className="text-sm leading-relaxed text-(--text-primary)">Most of your income came from <b>transfers</b>.</p>
           </div>
         </div>
       </div>

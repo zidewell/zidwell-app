@@ -77,7 +77,7 @@ export default function AdminSidebar() {
             </div>
           </div>
           <div>
-            <h1 className="font-[var(--font-space-grotesk)] text-xl font-bold tracking-tight bg-gradient-to-r from-[var(--color-amber)] to-[var(--color-amber-dark)] bg-clip-text text-transparent">
+            <h1 className="font-(--font-space-grotesk) text-xl font-bold tracking-tight bg-gradient-to-r from-[var(--color-amber)] to-[var(--color-amber-dark)] bg-clip-text text-transparent">
               Zidwell
             </h1>
             <p className="text-xs text-[var(--text-muted)] font-medium tracking-wider uppercase">Admin Panel</p>
@@ -100,7 +100,7 @@ export default function AdminSidebar() {
                   transition-all duration-300 ease-out
                   ${isActive
                     ? 'bg-gradient-to-r from-[var(--color-amber)]/20 to-[var(--color-amber)]/5 text-[var(--color-amber)] font-semibold shadow-inner'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] hover:translate-x-1'
+                    : 'text-(--text-secondary) hover:bg-[var(--bg-secondary)] hover:text-(--text-primary) hover:translate-x-1'
                   }
                 `}
               >
@@ -119,7 +119,7 @@ export default function AdminSidebar() {
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-all duration-300 group"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-(--text-secondary) hover:bg-[var(--bg-secondary)] transition-all duration-300 group"
           >
             <div className="relative w-5 h-5">
               <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-500 ${theme === 'dark' ? 'opacity-0 rotate-90 scale-50' : 'opacity-100 rotate-0 scale-100'}`} />
@@ -132,7 +132,7 @@ export default function AdminSidebar() {
 
           {/* Logout */}
           <button
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 transition-all duration-300 group"
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-(--text-secondary) hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 transition-all duration-300 group"
           >
             <LogOut className="w-5 h-5 transition-transform group-hover:rotate-12" />
             <span className="text-sm font-medium group-hover:translate-x-0.5 transition-transform">Sign Out</span>

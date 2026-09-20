@@ -124,19 +124,19 @@ const PageTypeSelector = ({ onSelect }: Props) => {
     <div className="space-y-8">
       <div className="text-center">
         <h2
-          className="text-2xl font-bold text-[var(--text-primary)]"
+          className="text-2xl font-bold text-(--text-primary)"
           style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
           What are you selling?
         </h2>
-        <p className="text-[var(--text-secondary)] mt-1">
+        <p className="text-(--text-secondary) mt-1">
           Choose the type that best fits your use case
         </p>
         <div className="mt-3 p-4 rounded-xl bg-[var(--color-accent-yellow)]/5 border border-[var(--color-accent-yellow)]/20 text-left">
           <p className="text-xs font-bold text-[var(--color-accent-yellow)] mb-2">
             Please Note:
           </p>
-          <ul className="text-xs text-[var(--text-secondary)] space-y-1 list-disc pl-4">
+          <ul className="text-xs text-(--text-secondary) space-y-1 list-disc pl-4">
             <li>Every payment page carries its own account number</li>
             <li>The page title = account name of the attached account</li>
             <li>Don't randomly create payment pages</li>
@@ -169,25 +169,25 @@ const PageTypeSelector = ({ onSelect }: Props) => {
             onClick={() => handleTypeClick(t)}
             className={`p-5 rounded-2xl border-2 text-left transition-all group squircle-lg ${
               t.disabled
-                ? "border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
-                : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
+                ? "border-(--border-color) bg-(--bg-primary) opacity-50 cursor-not-allowed"
+                : "border-(--border-color) bg-(--bg-primary) hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
             }`}
           >
             <t.icon
               className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${
                 t.disabled
-                  ? "text-[var(--text-secondary)]"
+                  ? "text-(--text-secondary)"
                   : "text-[var(--color-accent-yellow)]"
               }`}
             />
-            <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
+            <h3 className="font-bold text-base mb-1 text-(--text-primary)">
               {t.label}
             </h3>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            <p className="text-sm text-(--text-secondary) leading-relaxed">
               {t.description}
             </p>
             {t.disabled && (
-              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
+              <span className="inline-block mt-2 text-[10px] font-bold text-(--text-secondary) bg-[var(--border-color)] px-2 py-0.5 rounded-full">
                 Coming Soon
               </span>
             )}
@@ -199,7 +199,7 @@ const PageTypeSelector = ({ onSelect }: Props) => {
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="h-px flex-1 bg-[var(--border-color)]" />
-          <span className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+          <span className="text-sm font-bold text-(--text-secondary) uppercase tracking-wider">
             Investment & Savings
           </span>
           <div className="h-px flex-1 bg-[var(--border-color)]" />
@@ -214,16 +214,16 @@ const PageTypeSelector = ({ onSelect }: Props) => {
               transition={{ delay: (types.length + i) * 0.05 }}
               disabled
               aria-disabled="true"
-              className="p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
+              className="p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg border-(--border-color) bg-(--bg-primary) opacity-50 cursor-not-allowed"
             >
-              <t.icon className="h-7 w-7 mb-3 text-[var(--text-secondary)]" />
-              <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
+              <t.icon className="h-7 w-7 mb-3 text-(--text-secondary)" />
+              <h3 className="font-bold text-base mb-1 text-(--text-primary)">
                 {t.label}
               </h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-sm text-(--text-secondary) leading-relaxed">
                 {t.description}
               </p>
-              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
+              <span className="inline-block mt-2 text-[10px] font-bold text-(--text-secondary) bg-[var(--border-color)] px-2 py-0.5 rounded-full">
                 Coming Soon
               </span>
             </motion.button>

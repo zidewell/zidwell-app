@@ -187,7 +187,30 @@ export function useProductCheckout({
     : "A receipt has been sent to your email.";
 
   // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #1: installmentPlan is variant-aware
+  // ✅ FIX #3 (part 1): Fee payer from page metadata
+  // Buyer-facing amount now grosses up by the correct multiplier so the
+  // store owner's transaction-fee choice is respected on the product page.
+  // ─────────────────────────────────────────────────────────────────────
+  const ZIDWELL_FEE_RATE = 0.035;
+
+  const feePayer = useMemo<
+    "customers" | "merchant(me)" | "split between both parties"
+  >(() => {
+    const raw = page?.metadata?.feePayer;
+    if (raw === "customers" || raw === "split between both parties")
+      return raw;
+    return "merchant(me)";
+  }, [page?.metadata?.feePayer]);
+
+  const buyerFeeMultiplier = useMemo(() => {
+    if (feePayer === "customers") return 1 + ZIDWELL_FEE_RATE;
+    if (feePayer === "split between both parties")
+      return 1 + ZIDWELL_FEE_RATE / 2;
+    return 1;
+  }, [feePayer]);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // installmentPlan is variant-aware
   // ─────────────────────────────────────────────────────────────────────
   const installmentPlan = useMemo(() => {
     if (
@@ -267,7 +290,7 @@ export function useProductCheckout({
   ]);
 
   // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #2: Variant stock map
+  // Variant stock map
   // Priority: live server value → metadata `v.stock` → Infinity (unlimited)
   // Server sends -1 to mean "unlimited" (JSON can't hold Infinity).
   // ─────────────────────────────────────────────────────────────────────
@@ -366,7 +389,7 @@ export function useProductCheckout({
   }, [isPhysical, variants, selectedVariantSku]);
 
   // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #3: Live variant stock fetch on mount
+  // Live variant stock fetch on mount
   // ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isPhysical || variants.length === 0) return;
@@ -506,6 +529,15 @@ export function useProductCheckout({
     canDoInstallments,
   ]);
 
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ FIX #3 (part 2): Buyer-facing amounts with fee applied
+  // ─────────────────────────────────────────────────────────────────────
+  const buyerPayableAmount = useMemo(() => {
+    if (isDonation) return currentTotalAmount;
+    if (currentTotalAmount <= 0) return currentTotalAmount;
+    return Math.round(currentTotalAmount * buyerFeeMultiplier * 100) / 100;
+  }, [currentTotalAmount, buyerFeeMultiplier, isDonation]);
+
   const displayPrice = useMemo(() => {
     if (isDonation) return 0;
 
@@ -547,15 +579,19 @@ export function useProductCheckout({
     canDoInstallments,
   ]);
 
+  const buyerDisplayPrice = useMemo(() => {
+    if (isDonation) return 0;
+    if (displayPrice <= 0) return displayPrice;
+    return Math.round(displayPrice * buyerFeeMultiplier * 100) / 100;
+  }, [displayPrice, buyerFeeMultiplier, isDonation]);
+
   const paidCount = entities.filter((e) => e.isFullyPaid).length;
   const partialCount = entities.filter((e) => e.isPartiallyPaid).length;
   const unpaidCount = entities.filter(
     (e) => !e.isFullyPaid && !e.isPartiallyPaid
   ).length;
 
-  // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #4: isOutOfStock also considers the selected variant
-  // ─────────────────────────────────────────────────────────────────────
+  // isOutOfStock also considers the selected variant
   const isOutOfStock =
     (productStock !== null && productStock <= 0) ||
     (isPhysical && variants.length > 0 && isSelectedVariantOOS);
@@ -758,7 +794,7 @@ export function useProductCheckout({
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────
-  // ✅ Refresh variant stock from the server (after 409 or on success)
+  // Refresh variant stock from the server (after 409 or on success)
   // ─────────────────────────────────────────────────────────────────────
   const refreshVariantStock = useCallback(async () => {
     if (!isPhysical || variants.length === 0) return;
@@ -780,7 +816,7 @@ export function useProductCheckout({
   }, [isPhysical, variants.length, page.slug]);
 
   // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #5: Handle 409 VARIANT_OUT_OF_STOCK / INSUFFICIENT_STOCK
+  // Handle 409 VARIANT_OUT_OF_STOCK / INSUFFICIENT_STOCK
   // ─────────────────────────────────────────────────────────────────────
   const handleCardPayment = useCallback(async () => {
     if (submissionLock) return;
@@ -797,7 +833,8 @@ export function useProductCheckout({
       return;
     }
 
-    const totalAmount = currentTotalAmount;
+    // ✅ FIX #3 (part 3): charge the fee-grossed amount
+    const totalAmount = buyerPayableAmount;
     if (totalAmount <= 0) {
       alert("Please select items to continue");
       return;
@@ -845,6 +882,13 @@ export function useProductCheckout({
       totalAmount,
       storeSlug: store?.slug,
       redirectUrl,
+
+      // ✅ FIX #3 (part 4): record base + fee separately so the server
+      // can reconcile against the store owner's chosen feePayer.
+      baseAmount: currentTotalAmount,
+      buyerFeeAmount:
+        Math.round((buyerPayableAmount - currentTotalAmount) * 100) / 100,
+      feePayer,
     };
 
     if (isDonation) {
@@ -932,7 +976,7 @@ export function useProductCheckout({
 
       const data = await response.json();
 
-      // ✅ Server-side stock guard rejected the payment
+      // Server-side stock guard rejected the payment
       if (!response.ok) {
         if (
           data?.code === "VARIANT_OUT_OF_STOCK" ||
@@ -1286,6 +1330,9 @@ export function useProductCheckout({
     page?.pageType,
     isSelectedVariantOOS,
     refreshVariantStock,
+    // ✅ FIX #3: new deps
+    buyerPayableAmount,
+    feePayer,
   ]);
 
   const validateAndProceed = useCallback(() => {
@@ -1748,6 +1795,12 @@ export function useProductCheckout({
     storeNameUpper,
     variantStockMap,
     isSelectedVariantOOS,
+
+    // ✅ FIX #3: fee-aware values exposed to the UI
+    feePayer,
+    buyerFeeMultiplier,
+    buyerPayableAmount,
+    buyerDisplayPrice,
 
     // Handlers
     handleEntityClick,

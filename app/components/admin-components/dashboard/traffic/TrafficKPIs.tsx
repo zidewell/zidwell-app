@@ -66,7 +66,7 @@ export const TrafficKPIs = ({ summary }: TrafficKPIsProps) => {
                 </div>
                 <span className="text-xs font-medium text-[var(--text-muted)]">{item.subtitle}</span>
               </div>
-              <div className="text-2xl font-bold font-[var(--font-space-grotesk)] tracking-tight">
+              <div className="text-2xl font-bold font-(--font-space-grotesk) tracking-tight">
                 {item.value}
               </div>
             </div>
@@ -110,7 +110,7 @@ export const TrafficKPIs = ({ summary }: TrafficKPIsProps) => {
             <div className="relative flex items-center justify-between">
               <div>
                 <p className="text-sm text-[var(--text-muted)] font-medium">{item.title}</p>
-                <p className="text-xl font-bold font-[var(--font-space-grotesk)] tracking-tight mt-1">{item.value}</p>
+                <p className="text-xl font-bold font-(--font-space-grotesk) tracking-tight mt-1">{item.value}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">{item.status}</p>
               </div>
               <div className={`p-2.5 rounded-xl bg-gradient-to-br ${item.bgColor} border border-[var(--border)]/50`}>

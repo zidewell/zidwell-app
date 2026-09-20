@@ -20,7 +20,6 @@ interface Props {
   quantity: number;
   currentTotalAmount: number;
   disabledReason: string;
-  /** ✅ Optional: called when the buyer wants to abort a stuck checkout */
   onCancel?: () => void;
 }
 
@@ -38,11 +37,11 @@ export function CheckoutButton({
   onCancel,
 }: Props) {
   return (
-    <div className="mt-6 border-t border-border pt-6">
+    <>
       <Button
         onClick={onClick}
         disabled={disabled}
-        className={`w-full rounded-full py-6 text-base font-semibold transition ${
+        className={`h-11 w-full rounded-2xl px-5 text-sm font-semibold transition ${
           disabled
             ? "bg-muted text-foreground/40 cursor-not-allowed"
             : `${PRIMARY_BG} ${PRIMARY_TEXT} ${PRIMARY_BG_HOVER}`
@@ -50,15 +49,15 @@ export function CheckoutButton({
       >
         {processing ? (
           <>
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Processing
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing
           </>
         ) : isOutOfStock ? (
           <>
-            <AlertTriangle className="mr-2 h-5 w-5" /> Out of stock
+            <AlertTriangle className="mr-2 h-4 w-4" /> Out of stock
           </>
         ) : (
           <>
-            <CreditCard className="mr-2 h-5 w-5" />
+            <CreditCard className="mr-2 h-4 w-4" />
             {isDonation
               ? `Donate ₦${(Number(donorAmount) || 0).toLocaleString()}`
               : showQuantity && quantity > 1
@@ -68,12 +67,11 @@ export function CheckoutButton({
         )}
       </Button>
 
-      {/* ✅ Cancel button — only shows while a checkout is in progress */}
       {processing && onCancel && (
         <button
           type="button"
           onClick={onCancel}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-foreground/60 hover:text-foreground transition-colors"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-foreground/60 transition-colors hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
           Cancel checkout
@@ -85,6 +83,6 @@ export function CheckoutButton({
           {disabledReason}
         </p>
       )}
-    </div>
+    </>
   );
 }

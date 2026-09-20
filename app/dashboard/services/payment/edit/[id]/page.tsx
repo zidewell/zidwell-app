@@ -48,7 +48,7 @@ const typeLabels: Record<string, string> = {
 
 const IMAGE_SPECS = "1350 x 1080 (5:4) — max 10MB";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ZIDWELL_FEE_RATE = 0.03;
+const ZIDWELL_FEE_RATE = 0.035;
 
 async function uploadImageIfNeeded(
   image: string,
@@ -101,6 +101,7 @@ function PricingSummaryCard({
   installmentAmount,
   variants,
   isPhysicalWithVariants,
+  feePayer,
 }: {
   priceType: "fixed" | "installment";
   price: number;
@@ -109,12 +110,23 @@ function PricingSummaryCard({
   installmentAmount: number;
   variants?: { name: string; price: number }[];
   isPhysicalWithVariants?: boolean;
+  feePayer?: string;
 }) {
   if (price <= 0 && !isPhysicalWithVariants) return null;
 
+  // ─────────────────────────────────────────────────────────────
+  // ✅ FIX #1: Declare fee-math constants ONCE at function scope.
+  // Previously `halfFeeRate` / `isSplitEdit` / `editFeeRateApplied`
+  // were re-declared inside both the variant block AND the default
+  // block, which caused the Webpack "Identifier 'halfFeeRate' has
+  // already been declared" build error.
+  // ─────────────────────────────────────────────────────────────
   const isInstallment =
     priceType === "installment" && Number(installmentCount) > 1;
   const count = Math.max(1, Number(installmentCount) || 1);
+  const halfFeeRate = ZIDWELL_FEE_RATE / 2;
+  const isSplitEdit = feePayer === "split between both parties";
+  const editFeeRateApplied = isSplitEdit ? halfFeeRate : ZIDWELL_FEE_RATE;
 
   // ─────────────────────────────────────────────────────────────
   // VARIANT-AWARE MODE
@@ -139,14 +151,19 @@ function PricingSummaryCard({
           <div className="space-y-3">
             {pricedVariants.map((v, i) => {
               const variantTotal = Number(v.price) || 0;
-              const variantFee = variantTotal * ZIDWELL_FEE_RATE;
+              const variantFee = variantTotal * editFeeRateApplied;
               const variantNet = variantTotal - variantFee;
 
+              const buyerVariantTotal = isSplitEdit
+                ? variantTotal + variantTotal * halfFeeRate
+                : feePayer === "customers"
+                  ? variantTotal + variantTotal * ZIDWELL_FEE_RATE
+                  : variantTotal;
               const perPaymentBuyer = isInstallment
-                ? variantTotal / count
-                : variantTotal;
+                ? buyerVariantTotal / count
+                : buyerVariantTotal;
               const perPaymentFee = isInstallment
-                ? perPaymentBuyer * ZIDWELL_FEE_RATE
+                ? perPaymentBuyer * editFeeRateApplied
                 : variantFee;
               const perPaymentNet = perPaymentBuyer - perPaymentFee;
 
@@ -197,7 +214,7 @@ function PricingSummaryCard({
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#FDC020]/20">
-            ✓ Buyers pay the price of the variant they pick. The 3% fee is
+            ✓ Buyers pay the price of the variant they pick. The 3.5% fee is
             deducted from your payout — you never charge the buyer extra.
           </p>
         </div>
@@ -207,11 +224,23 @@ function PricingSummaryCard({
 
   // ─────────────────────────────────────────────────────────────
   // DEFAULT MODE (non-variant pages)
+  // ✅ FIX #1 continued: the three duplicate const declarations
+  // have been removed from this block — they now live at the top
+  // of the function scope.
   // ─────────────────────────────────────────────────────────────
-  const fee = price * ZIDWELL_FEE_RATE;
-  const youReceiveTotal = price - fee;
+  const fee = price * editFeeRateApplied;
+  const buyerTotalEdit = isSplitEdit
+    ? price + price * halfFeeRate
+    : feePayer === "customers"
+      ? price + price * ZIDWELL_FEE_RATE
+      : price;
+  const youReceiveTotal = isSplitEdit
+    ? price - price * halfFeeRate
+    : feePayer === "merchant(me)"
+      ? price - price * editFeeRateApplied
+      : price;
   const perInstallmentFee = isInstallment
-    ? installmentAmount * ZIDWELL_FEE_RATE
+    ? installmentAmount * editFeeRateApplied
     : 0;
   const youReceivePerInstallment = isInstallment
     ? installmentAmount - perInstallmentFee
@@ -238,7 +267,14 @@ function PricingSummaryCard({
                   Per installment ({installmentCount}× {installmentPeriod})
                 </span>
                 <span className="font-bold text-foreground">
-                  {formatNaira(installmentAmount)}
+                  {formatNaira(
+                    isSplitEdit
+                      ? installmentAmount + installmentAmount * halfFeeRate
+                      : feePayer === "customers"
+                        ? installmentAmount +
+                          installmentAmount * ZIDWELL_FEE_RATE
+                        : installmentAmount,
+                  )}
                 </span>
               </div>
             )}
@@ -247,7 +283,7 @@ function PricingSummaryCard({
                 {isInstallment ? "Total across all installments" : "Amount"}
               </span>
               <span className="font-bold text-foreground">
-                {formatNaira(price)}
+                {formatNaira(buyerTotalEdit)}
               </span>
             </div>
           </div>
@@ -282,8 +318,12 @@ function PricingSummaryCard({
         </div>
 
         <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#FDC020]/20">
-          ✓ The buyer pays exactly the amount shown. The 3% fee is deducted from
-          your payout — you never charge the buyer extra.
+          ✓ Transaction fee: 3.5%.{" "}
+          {feePayer === "customers"
+            ? "Buyer pays fee (added to total)."
+            : feePayer === "split between both parties"
+              ? "Fee split 50/50 between buyer and seller."
+              : "Merchant pays fee (deducted from payout)."}
         </p>
       </div>
     </div>
@@ -335,6 +375,15 @@ const EditPaymentPage = () => {
   // ─── Stock ───
   const [stock, setStock] = useState<number | null>(null);
   const [allowMultiple, setAllowMultiple] = useState(true);
+
+  // ─── WhatsApp Contact ───
+  const [whatsappContactEnabled, setWhatsappContactEnabled] = useState(false);
+  const [whatsappContactNumber, setWhatsappContactNumber] = useState("");
+
+  // ─── Transaction Fee Payer ───
+  const [feePayer, setFeePayer] = useState<
+    "customers" | "merchant(me)" | "split between both parties"
+  >("merchant(me)");
 
   const productRef = useRef<HTMLInputElement>(null);
 
@@ -411,6 +460,19 @@ const EditPaymentPage = () => {
       }
       if (meta.allowMultiple !== undefined) {
         setAllowMultiple(meta.allowMultiple !== false);
+      }
+
+      // WhatsApp Contact
+      if (meta.whatsappContactEnabled !== undefined) {
+        setWhatsappContactEnabled(meta.whatsappContactEnabled === true);
+      }
+      if (meta.whatsappContactNumber !== undefined) {
+        setWhatsappContactNumber(meta.whatsappContactNumber || "");
+      }
+
+      // Transaction Fee Payer
+      if (meta.feePayer !== undefined) {
+        setFeePayer(meta.feePayer || "merchant(me)");
       }
     } catch (error: any) {
       console.error("Error loading page:", error);
@@ -696,6 +758,15 @@ const EditPaymentPage = () => {
         metadata.stock = stock;
         metadata.allowMultiple = allowMultiple;
       }
+
+      // WhatsApp Contact
+      if (whatsappContactEnabled && whatsappContactNumber.trim()) {
+        metadata.whatsappContactEnabled = true;
+        metadata.whatsappContactNumber = whatsappContactNumber.trim();
+      }
+
+      // Transaction Fee Payer
+      metadata.feePayer = feePayer || "merchant(me)";
 
       // Installment
       if (priceType === "installment") {
@@ -1286,7 +1357,80 @@ const EditPaymentPage = () => {
                 </div>
               )}
 
-              {/* ─── Pricing ─── */}
+              {/* ─── WhatsApp Contact ─── */}
+              <div className="space-y-4 p-5 rounded-2xl border border-border bg-card">
+                <h3 className="text-sm font-bold">WhatsApp Contact</h3>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={whatsappContactEnabled}
+                    onChange={(e) =>
+                      setWhatsappContactEnabled(e.target.checked)
+                    }
+                    className="rounded"
+                  />
+                  <span className="text-sm">Enable WhatsApp Contact Me</span>
+                </label>
+                {whatsappContactEnabled && (
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">
+                      WhatsApp Number
+                    </Label>
+                    <Input
+                      value={whatsappContactNumber}
+                      onChange={(e) => setWhatsappContactNumber(e.target.value)}
+                      placeholder="e.g. 2348012345678"
+                      className="h-11"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enter your WhatsApp number with country code
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* --- Transaction Fee Option --- */}
+              <div className="space-y-4 p-5 rounded-2xl border border-border bg-card">
+                <h3 className="text-sm font-bold">Transaction Fee (3.5%)</h3>
+                <div className="space-y-2">
+                  {[
+                    { value: "customers", label: "Customers pay fee" },
+                    { value: "merchant(me)", label: "Merchant (me) pays fee" },
+                    {
+                      value: "split between both parties",
+                      label: "Split between both parties",
+                    },
+                  ].map((opt) => (
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/20 cursor-pointer hover:border-[#FDC020]/50 transition-colors"
+                    >
+                      <input
+                        type="radio"
+                        name="feePayer"
+                        value={opt.value}
+                        checked={feePayer === opt.value}
+                        onChange={(e) =>
+                          // ✅ FIX #2: cast to the union type so TS narrowing
+                          // is correct and the summary re-renders reliably.
+                          setFeePayer(
+                            e.target.value as
+                              | "customers"
+                              | "merchant(me)"
+                              | "split between both parties",
+                          )
+                        }
+                        className="h-4 w-4 text-[#FDC020] border-border focus:ring-[#FDC020]"
+                      />
+                      <span className="text-sm text-foreground">
+                        {opt.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* --- Pricing --- */}
               {!isDonation && (
                 <>
                   <div>
@@ -1391,6 +1535,9 @@ const EditPaymentPage = () => {
                   </div>
 
                   <PricingSummaryCard
+                    // ✅ FIX #2: force remount when feePayer changes so the
+                    // summary ALWAYS reflects the newly-selected radio.
+                    key={feePayer}
                     priceType={priceType}
                     price={Number(price) || 0}
                     installmentCount={installmentCount}
@@ -1401,6 +1548,7 @@ const EditPaymentPage = () => {
                       price: Number(v.price) || 0,
                     }))}
                     isPhysicalWithVariants={isPhysical && hasVariants}
+                    feePayer={feePayer}
                   />
 
                   {priceType === "installment" &&

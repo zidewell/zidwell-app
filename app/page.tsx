@@ -122,7 +122,7 @@ function LandingContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-(--bg-primary) text-(--text-primary)">
       {componentSettings.map((component) => (
         <div
           key={component.id}

@@ -14,6 +14,7 @@ import {
   Clock,
   TrendingUp,
   MessageSquare,
+  MessageCircle,
   Sun,
   Moon,
   Calendar,
@@ -77,6 +78,8 @@ export interface PreviewData {
   minimumAmount?: string;
   expectedReturn?: string;
   tenure?: string;
+  whatsappContactEnabled?: boolean;
+  whatsappContactNumber?: string;
 }
 
 interface CustomerPreviewProps {
@@ -391,9 +394,7 @@ function StorePreviewContent({
                       <div className="text-right shrink-0">
                         <p className="text-sm font-semibold">
                           {formatNaira(
-                            entity.remainingBalance ??
-                              entity.totalAmount ??
-                              0,
+                            entity.remainingBalance ?? entity.totalAmount ?? 0,
                           )}
                         </p>
                       </div>
@@ -459,9 +460,7 @@ function StorePreviewContent({
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-foreground/60">
-                    Number of payments
-                  </span>
+                  <span className="text-foreground/60">Number of payments</span>
                   <span className="font-medium">{instCount}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-2 mt-2">
@@ -607,23 +606,37 @@ function StorePreviewContent({
           )}
 
           {/* ─── CTA ─── */}
-          <button
-            type="button"
-            disabled={isOutOfStock}
-            className="mt-8 w-full rounded-lg py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-            style={{
-              backgroundColor: data.config?.buttonColor || "#FDC020",
-              color: "#191919",
-            }}
-          >
-            {isOutOfStock
-              ? "Out of stock"
-              : isDonation
-                ? "Donate now"
-                : isInstallment
-                  ? `Pay ${formatNaira(perInstallment)} now`
-                  : data.config?.buttonText || "Pay Now"}
-          </button>
+          <div className="mt-8 flex gap-3">
+            <button
+              type="button"
+              disabled={isOutOfStock}
+              className="flex-1 rounded-lg py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                backgroundColor: data.config?.buttonColor || "#FDC020",
+                color: "#191919",
+              }}
+            >
+              {isOutOfStock
+                ? "Out of stock"
+                : isDonation
+                  ? "Donate now"
+                  : isInstallment
+                    ? `Pay ${formatNaira(perInstallment)} now`
+                    : data.config?.buttonText || "Pay Now"}
+            </button>
+            {data.whatsappContactEnabled && data.whatsappContactNumber && (
+              <a
+                href={`https://wa.me/${data.whatsappContactNumber}?text=${encodeURIComponent(`Hi, I'm interested in ${data.title}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg bg-green-500 px-6 py-4 text-sm font-semibold text-white hover:bg-green-600 transition-colors shrink-0"
+                title="Contact via WhatsApp"
+              >
+                <MessageCircle className="h-5 w-5" />
+                WhatsApp
+              </a>
+            )}
+          </div>
 
           {/* Secured badge */}
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-foreground/40">

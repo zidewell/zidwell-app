@@ -11,11 +11,11 @@ export function BuiltForReal() {
         <div className="grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-5">
             <p className="text-sm font-medium text-[var(--color-lemon-green)]">Built for real businesses</p>
-            <h2 className="mt-3 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">A shop in Lagos. An agency in London. A studio in Nairobi.</h2>
-            <p className="mt-4 text-[var(--text-secondary)]">Wherever you do business, Zidwell organizes your financial records — manual, upload or full bank sync.</p>
+            <h2 className="mt-3 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-(--text-primary)">A shop in Lagos. An agency in London. A studio in Nairobi.</h2>
+            <p className="mt-4 text-(--text-secondary)">Wherever you do business, Zidwell organizes your financial records — manual, upload or full bank sync.</p>
             <div className="mt-6 flex flex-wrap gap-2">
               {cities.map((c) => (
-                <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)]">
+                <span key={c} className="inline-flex items-center gap-1.5 rounded-full bg-(--bg-primary) border border-(--border-color) px-3 py-1.5 text-xs font-medium text-(--text-primary)">
                   <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-lemon-green)]" />
                   {c}
                 </span>
@@ -23,7 +23,7 @@ export function BuiltForReal() {
             </div>
           </div>
           <div className="lg:col-span-7">
-            <div className="squircle-lg overflow-hidden border border-[var(--border-color)] shadow-float">
+            <div className="squircle-lg overflow-hidden border border-(--border-color) shadow-float">
               <img
                 src={worldMap}
                 alt="Zidwell businesses across the world"
@@ -33,7 +33,7 @@ export function BuiltForReal() {
                 className="w-full h-auto object-cover"
               />
             </div>
-            <div className="mt-4 squircle-sm overflow-hidden border border-[var(--border-color)]">
+            <div className="mt-4 squircle-sm overflow-hidden border border-(--border-color)">
               <img
                 src={globalEntrepreneurs}
                 alt="Diverse global entrepreneurs using Zidwell"

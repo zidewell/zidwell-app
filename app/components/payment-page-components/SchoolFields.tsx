@@ -336,14 +336,14 @@ const SchoolFields = ({
     <div className="space-y-6">
       {/* Class Name - with validation */}
       <div>
-        <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">
+        <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
           Class / Group Name
         </Label>
         <Input
           placeholder="e.g. JSS One, Grade five, Primary four"
           value={className}
           onChange={(e) => handleClassNameChange(e.target.value)}
-          className={`h-12 text-base border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] ${
+          className={`h-12 text-base border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) ${
             classNameError.show ? "border-red-500" : ""
           }`}
           style={{ outline: "none", boxShadow: "none" }}
@@ -366,7 +366,7 @@ const SchoolFields = ({
         )}
         
         {!className && (
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="text-xs text-(--text-secondary) mt-1">
             Example: JSS One, Grade five, Primary four (letters and spaces only)
           </p>
         )}
@@ -375,15 +375,15 @@ const SchoolFields = ({
       {/* Fee Breakdown */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <Label className="text-sm font-semibold text-[var(--text-primary)]">Fee Breakdown</Label>
+          <Label className="text-sm font-semibold text-(--text-primary)">Fee Breakdown</Label>
           <div className="group relative">
-            <HelpCircle className="h-4 w-4 text-[var(--text-secondary)] cursor-help" />
+            <HelpCircle className="h-4 w-4 text-(--text-secondary) cursor-help" />
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-[var(--color-ink)] text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 squircle-sm">
               For instance: Tuition, uniform, textbooks, sports, exam fee etc.
             </div>
           </div>
         </div>
-        <p className="text-xs text-[var(--text-secondary)] mb-3">
+        <p className="text-xs text-(--text-secondary) mb-3">
           Add all fee items that make up the total amount
         </p>
         
@@ -394,7 +394,7 @@ const SchoolFields = ({
                 placeholder="e.g. Tuition, Uniform, Textbooks"
                 value={item.label}
                 onChange={(e) => updateFeeItem(i, "label", e.target.value)}
-                className="flex-1 h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+                className="flex-1 h-10 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-md"
                 style={{ outline: "none", boxShadow: "none" }}
               />
               <Input
@@ -402,13 +402,13 @@ const SchoolFields = ({
                 placeholder="Amount (₦)"
                 value={item.amount || ""}
                 onChange={(e) => updateFeeItem(i, "amount", e.target.value)}
-                className="w-32 md:w-34 h-10 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+                className="w-32 md:w-34 h-10 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-md"
                 style={{ outline: "none", boxShadow: "none" }}
               />
               <button
                 type="button"
                 onClick={() => removeFeeItem(i)}
-                className="h-8 w-8 rounded-lg bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] hover:bg-[var(--destructive)]/20 transition-colors shrink-0"
+                className="h-8 w-8 rounded-lg bg-[var(--destructive)]/10 flex items-center justify-center text-destructive hover:bg-[var(--destructive)]/20 transition-colors shrink-0"
                 title="Remove fee item"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -422,7 +422,7 @@ const SchoolFields = ({
           variant="outline"
           size="sm"
           onClick={addFeeItem}
-          className="mt-3 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+          className="mt-3 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Fee Item
         </Button>
@@ -431,7 +431,7 @@ const SchoolFields = ({
         {totalAmount > 0 && (
           <div className="mt-4 p-4 bg-[var(--color-accent-yellow)]/10 rounded-xl border border-[var(--color-accent-yellow)]/20">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">
+              <span className="text-sm font-semibold text-(--text-primary)">
                 Total Amount:
               </span>
               <span className="text-xl font-bold text-[var(--color-accent-yellow)]">
@@ -445,7 +445,7 @@ const SchoolFields = ({
       {/* Student List */}
       <div>
         <div className="flex justify-between items-center mb-2">
-          <Label className="text-sm font-semibold text-[var(--text-primary)]">
+          <Label className="text-sm font-semibold text-(--text-primary)">
             Student List
           </Label>
           <Button
@@ -453,12 +453,12 @@ const SchoolFields = ({
             variant="ghost"
             size="sm"
             onClick={downloadTemplate}
-            className="text-xs text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] squircle-sm"
+            className="text-xs text-(--text-secondary) hover:text-[var(--color-accent-yellow)] squircle-sm"
           >
             Download Template
           </Button>
         </div>
-        <p className="text-xs text-[var(--text-secondary)] mb-3">
+        <p className="text-xs text-(--text-secondary) mb-3">
           Upload CSV or Excel file with student list
         </p>
 
@@ -474,14 +474,14 @@ const SchoolFields = ({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="w-full p-4 rounded-xl border-2 border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-col items-center gap-2 hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 transition-all mb-3 disabled:opacity-50 disabled:cursor-not-allowed squircle-lg"
+          className="w-full p-4 rounded-xl border-2 border-dashed border-(--border-color) bg-[var(--bg-secondary)] flex flex-col items-center gap-2 hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5 transition-all mb-3 disabled:opacity-50 disabled:cursor-not-allowed squircle-lg"
         >
           {uploading ? (
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--color-accent-yellow)]"></div>
           ) : (
-            <Upload className="h-5 w-5 text-[var(--text-secondary)]" />
+            <Upload className="h-5 w-5 text-(--text-secondary)" />
           )}
-          <span className="text-sm text-[var(--text-secondary)]">
+          <span className="text-sm text-(--text-secondary)">
             {uploading ? "Processing..." : "Upload CSV or Excel file"}
           </span>
         </button>
@@ -497,25 +497,25 @@ const SchoolFields = ({
         )}
 
         {students.length > 0 && (
-          <div className="space-y-2 mb-3 max-h-64 overflow-y-auto border border-[var(--border-color)] rounded-lg p-2">
+          <div className="space-y-2 mb-3 max-h-64 overflow-y-auto border border-(--border-color) rounded-lg p-2">
             {students.map((s, i) => (
-              <div key={i} className="flex gap-2 items-center bg-[var(--bg-primary)] p-2 rounded-lg">
+              <div key={i} className="flex gap-2 items-center bg-(--bg-primary) p-2 rounded-lg">
                 <Input
                   placeholder="Student name"
                   value={s.name}
                   onChange={(e) => updateStudent(i, "name", e.target.value)}
-                  className="flex-1 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
+                  className="flex-1 h-9 text-sm border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-sm"
                 />
                 <Input
                   placeholder="Reg #"
                   value={s.regNumber || ""}
                   onChange={(e) => updateStudent(i, "regNumber", e.target.value)}
-                  className="w-24 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
+                  className="w-24 h-9 text-sm border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-sm"
                 />
                 <button
                   type="button"
                   onClick={() => removeStudent(i)}
-                  className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20"
+                  className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-destructive shrink-0 hover:bg-[var(--destructive)]/20"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -529,13 +529,13 @@ const SchoolFields = ({
           variant="outline" 
           size="sm" 
           onClick={addStudent}
-          className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+          className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Student Manually
         </Button>
 
         {students.length > 0 && (
-          <p className="text-xs text-[var(--text-secondary)] mt-2">
+          <p className="text-xs text-(--text-secondary) mt-2">
             Total students: {students.length}
           </p>
         )}
@@ -543,10 +543,10 @@ const SchoolFields = ({
 
       {/* Additional Questions */}
       <div>
-        <Label className="text-sm font-semibold mb-2 block text-[var(--text-primary)]">
+        <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
           Additional Info (Optional)
         </Label>
-        <p className="text-xs text-[var(--text-secondary)] mb-3">
+        <p className="text-xs text-(--text-secondary) mb-3">
           Ask parents for extra information
         </p>
       
@@ -557,12 +557,12 @@ const SchoolFields = ({
                 placeholder="e.g. House, Sport choice, Medical condition"
                 value={f}
                 onChange={(e) => updateField(i, e.target.value)}
-                className="flex-1 h-9 text-sm border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-sm"
+                className="flex-1 h-9 text-sm border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-sm"
               />
               <button
                 type="button"
                 onClick={() => removeField(i)}
-                className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-[var(--destructive)] shrink-0 hover:bg-[var(--destructive)]/20"
+                className="h-7 w-7 rounded-md bg-[var(--destructive)]/10 flex items-center justify-center text-destructive shrink-0 hover:bg-[var(--destructive)]/20"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -573,7 +573,7 @@ const SchoolFields = ({
             variant="outline" 
             size="sm" 
             onClick={addField}
-            className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+            className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"
           >
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Question
           </Button>
