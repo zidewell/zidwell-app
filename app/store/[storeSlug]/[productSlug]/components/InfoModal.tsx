@@ -284,7 +284,7 @@ export function InfoModal({
                   <CalendarIcon className="h-4 w-4 text-[#191919] dark:text-[#FDC020]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Book your session</p>
+                  <p className="text-sm font-semibold">Is This An Appointment</p>
                   <p className="text-xs text-foreground/50">
                     Pick a date and time that works for you
                   </p>

@@ -146,7 +146,7 @@ const PageTypeSelector = ({ onSelect }: Props) => {
               pages
             </li> */}
             <li>
-              We charge a 3% fee on every payment — set your prices accordingly
+              We charge a 3.5% fee on every payment — set your prices accordingly
             </li>
             <li>
               All page types support installments (weekly, bi-weekly or monthly)

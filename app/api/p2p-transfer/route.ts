@@ -195,7 +195,8 @@ export async function POST(req: NextRequest) {
   );
 
   try {
-    const { userId, receiverAccountId, amount, narration, pin } =
+    // ✅ FIX: Destructure category and categoryId from request body
+    const { userId, receiverAccountId, amount, narration, pin, category, categoryId } =
       await req.json();
 
     if (!userId || !pin || !amount || amount < 100 || !receiverAccountId) {
@@ -415,6 +416,7 @@ export async function POST(req: NextRequest) {
 
       await updateInvoiceTotals(invoiceDetails, amount, supabase);
 
+      // ✅ FIX: Added balance_before and balance_after for receiver's invoice payment
       await supabase.from("transactions").insert([
         {
           user_id: receiver.id,
@@ -425,6 +427,10 @@ export async function POST(req: NextRequest) {
           description: `P2P payment of ₦${amount} for invoice ${invoicePaymentData.invoice_reference}`,
           fee: platformFee,
           channel: "p2p_transfer",
+          category: category || narration,
+          category_id: categoryId || null,
+          balance_before: receiverBalanceBefore,                                                    // ✅ ADDED
+          balance_after: receiverBalanceAfter - platformFee,                                        // ✅ ADDED
           external_response: {
             invoice_payment: true,
             invoice_reference: invoicePaymentData.invoice_reference,
@@ -461,6 +467,7 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
+    // ✅ FIX: Update sender's transaction WITH balance_before and balance_after
     await supabase
       .from("transactions")
       .update({
@@ -478,11 +485,18 @@ export async function POST(req: NextRequest) {
         fee: 0,
         total_deduction: amount,
         narration,
+        category: category || narration,
+        category_id: categoryId || null,
+        balance_before: senderBalanceBefore,                                                    // ✅ ADDED
+        balance_after: senderBalanceAfter,                                                      // ✅ ADDED
+        deducted_at: new Date().toISOString(),                                                  // ✅ ADDED
         description: senderDescription,
         external_response: {
           status: "success",
           type: "internal_p2p",
           linked_transaction_id: linkedTransactionId,
+          category: category || narration,
+          category_id: categoryId || null,
           balances: {
             sender: {
               before: senderBalanceBefore,
@@ -501,6 +515,7 @@ export async function POST(req: NextRequest) {
       .eq("reference", senderTxRef)
       .eq("user_id", userId);
 
+    // ✅ FIX: Insert receiver's transaction WITH balance_before and balance_after
     await supabase.from("transactions").insert({
       user_id: receiver.id,
       type: invoicePaymentData?.isInvoicePayment
@@ -510,12 +525,20 @@ export async function POST(req: NextRequest) {
       status: "success",
       reference: receiverTxRef,
       narration,
+      category: category || narration,
+      category_id: categoryId || null,
+      balance_before: receiverBalanceBefore,                                                      // ✅ ADDED
+      balance_after: invoicePaymentData?.isInvoicePayment
+        ? receiverBalanceAfter - platformFee
+        : receiverBalanceAfter,                                                                   // ✅ ADDED
       description: receiverDescription,
       fee: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
       external_response: {
         status: "success",
         type: "internal_p2p",
         linked_transaction_id: linkedTransactionId,
+        category: category || narration,
+        category_id: categoryId || null,
         balances: {
           sender: {
             before: senderBalanceBefore,
@@ -582,14 +605,14 @@ export async function POST(req: NextRequest) {
       ).catch((err) => logger.error("Receiver email failed", err)),
     ]);
 
- 
-
     const responseData = {
       message: "P2P transfer completed successfully.",
       transactionRef: linkedTransactionId,
       transactionId: transactionIdForReceipt,
       amount,
       receiverName: receiverName,
+      category: category || narration,
+      categoryId: categoryId || null,
       balances: {
         sender: {
           before: senderBalanceBefore,

@@ -149,6 +149,39 @@ async function sendBookingConfirmationEmail(
 }
 
 // ============================================================
+// WHATSAPP BUTTON BUILDER
+// ============================================================
+function buildWhatsAppButton(
+  rawNumber: string | null | undefined,
+  pageTitle: string
+): string {
+  if (!rawNumber) return "";
+
+  const digits = String(rawNumber).replace(/\D/g, "");
+  if (!digits) return "";
+
+  // If it starts with 0, swap to +234 (Nigeria). Otherwise trust the digits.
+  const normalized = digits.startsWith("0")
+    ? `234${digits.slice(1)}`
+    : digits;
+
+  const waUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(
+    `Hi, I just completed my payment for "${pageTitle}" on Zidwell.`
+  )}`;
+
+  return `
+    <div style="margin: 24px 0; padding: 16px; border: 1px solid #d1fae5; border-radius: 8px; background: #ecfdf5; text-align: center;">
+      <p style="margin: 0 0 12px; font-weight: 600; color: #065f46;">Need to reach the merchant?</p>
+      <a href="${waUrl}"
+         style="display: inline-block; background: #25D366; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">
+        Chat on WhatsApp
+      </a>
+      <p style="margin: 12px 0 0; color: #065f46; font-size: 13px;">Tap to message them directly.</p>
+    </div>
+  `;
+}
+
+// ============================================================
 // COMPLETION EMAIL
 // ============================================================
 async function sendCompletionEmail({
@@ -166,6 +199,7 @@ async function sendCompletionEmail({
   downloadUrl,
   accessLink,
   studentNames,
+  whatsappContactNumber,
 }: {
   customerEmail: string;
   customerName: string;
@@ -181,6 +215,7 @@ async function sendCompletionEmail({
   downloadUrl?: string | null;
   accessLink?: string | null;
   studentNames?: string[] | null;
+  whatsappContactNumber?: string | null;
 }): Promise<void> {
   if (!customerEmail || !customerEmail.includes("@")) return;
 
@@ -266,6 +301,8 @@ async function sendCompletionEmail({
       `
       : "";
 
+  const whatsappBlock = buildWhatsAppButton(whatsappContactNumber, pageTitle);
+
   const summaryBlock = isInstallment
     ? `
       <h3>Summary</h3>
@@ -295,6 +332,8 @@ async function sendCompletionEmail({
           ${studentBlock}
 
           ${deliveryBlock}
+
+          ${whatsappBlock}
 
           <h3>What happens next</h3>
           <p>${nextStep}</p>
@@ -565,6 +604,14 @@ export async function processCardPaymentWebhook(
               : []
             : [];
 
+        // ✅ WhatsApp contact — pulled from page metadata, only if enabled
+        const pageMeta = payment.payment_pages?.metadata || {};
+        const whatsappContactNumber =
+          pageMeta.whatsappContactEnabled === true &&
+          pageMeta.whatsappContactNumber
+            ? String(pageMeta.whatsappContactNumber)
+            : null;
+
         await sendCompletionEmail({
           customerEmail: payment.customer_email,
           customerName: payment.customer_name || "Customer",
@@ -593,6 +640,7 @@ export async function processCardPaymentWebhook(
             ? payment.metadata?.accessLink || null
             : null,
           studentNames: paidStudentNames,
+          whatsappContactNumber,
         }).catch((err) => console.error("Completion email failed:", err));
       }
     }

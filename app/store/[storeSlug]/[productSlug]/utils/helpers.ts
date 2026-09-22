@@ -3,7 +3,6 @@
 export const QUANTITY_PAGE_TYPES = [
   "physical",
   "digital",
-  "services",
   "real_estate",
   "stock",
   "savings",
