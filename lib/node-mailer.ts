@@ -1,14 +1,14 @@
 import nodemailer from "nodemailer";
 
 export const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "smtp.ensend.co",
     port: 587,
     secure: false,
     requireTLS: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+    auth: {
+      user: process.env.ENSEND_USERNAME,
+      pass: process.env.ENSEND_PASSWORD,
+    },
   
 });
 
