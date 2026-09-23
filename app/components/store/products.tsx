@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Pencil, ExternalLink, QrCode, Link2, Trash2, EyeOff, Package } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, ExternalLink, QrCode, Link2, Trash2, EyeOff, Package, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { useStore } from "@/app/context/StoreContext";
@@ -229,37 +229,78 @@ export function ProductGrid() {
     hasStore,
     hasPendingActivation,
     isStoreCheckComplete,
+    fetchStore,
     fetchPages,
     refreshPages,
   } = useStore();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // ─── Explicit load sequence (mirrors PaymentDashboardPage) ───
+  const [isCheckingStore, setIsCheckingStore] = useState(true);
+  const [isLoadingPages, setIsLoadingPages] = useState(true);
   const [dataReady, setDataReady] = useState(false);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const isRefreshingRef = useRef(false);
   const lastRefreshTime = useRef(0);
   const MIN_REFRESH_INTERVAL = 2000;
 
+  // STEP 1: Ensure store is checked
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
-      if (!isStoreCheckComplete) return;
-      if (hasStore) {
-        try {
-          if (!pages.length) await fetchPages();
-        } catch (e) {
-          console.error(e);
-        }
+    const checkStore = async () => {
+      try {
+        // fetchStore() is idempotent — returns early if storeRef is set
+        await fetchStore();
+      } catch (err) {
+        console.error("ProductGrid: fetchStore failed", err);
+      } finally {
+        if (mounted) setIsCheckingStore(false);
       }
-      if (mounted) setDataReady(true);
     };
-    load();
+    checkStore();
     return () => {
       mounted = false;
     };
-  }, [isStoreCheckComplete, hasStore, fetchPages, pages.length]);
+  }, [fetchStore]);
+
+  // STEP 2: Fetch pages once store check is complete
+  useEffect(() => {
+    if (isCheckingStore) return;
+    if (!isStoreCheckComplete) return;
+    if (!hasStore) {
+      setIsLoadingPages(false);
+      setDataReady(true);
+      return;
+    }
+
+    let mounted = true;
+    const loadPages = async () => {
+      setIsLoadingPages(true);
+      try {
+        // Force a fresh fetch so users always see their full catalog.
+        // Without `true`, the cooldown in fetchPages() may skip the call
+        // and leave stale/empty data on screen.
+        await fetchPages(true);
+      } catch (err) {
+        console.error("ProductGrid: fetchPages failed", err);
+      } finally {
+        if (mounted) {
+          setIsLoadingPages(false);
+          setDataReady(true);
+        }
+      }
+    };
+    loadPages();
+    return () => {
+      mounted = false;
+    };
+  }, [isCheckingStore, isStoreCheckComplete, hasStore, fetchPages]);
 
   const products = useMemo(
-    () => pages.filter((p) => p.pageType !== "link" && p.pageType !== "donation"),
+    () =>
+      pages.filter(
+        (p) => p.pageType !== "link" && p.pageType !== "donation"
+      ),
     [pages]
   );
 
@@ -282,42 +323,71 @@ export function ProductGrid() {
   }, [refreshPages]);
 
   const storeSlug = store?.slug || "";
+  const activeCount = products.filter((p) => p.isPublished).length;
 
-  // ─── Gates (render nothing that duplicates the shell) ───
-  if (loading || !isStoreCheckComplete || !dataReady) return <Loader />;
+  // ─── Gates ───
+  if (isCheckingStore || loading || !isStoreCheckComplete || !dataReady) {
+    return <Loader />;
+  }
   if (!hasStore || hasPendingActivation) return <CreateStoreForm />;
 
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <p className="text-base font-medium text-muted-foreground">
-          {products.filter((p) => p.isPublished).length} active
+          {isLoadingPages
+            ? "Loading products…"
+            : `${activeCount} active · ${products.length} total`}
         </p>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
+          aria-label="Refresh products"
+        >
+          <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <button
-          onClick={() => router.push("/dashboard/services/payment/create")}
-          className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
-        >
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Plus className="size-6" strokeWidth={2.6} />
-          </span>
-          <span className="font-display text-base font-bold">Add product</span>
-          <span className="max-w-[180px] text-center text-sm">
-            List a new item on your storefront
-          </span>
-        </button>
-        {products.map((p, i) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            index={i}
-            storeSlug={storeSlug}
-            onRefresh={handleRefresh}
-          />
-        ))}
-      </div>
+      {isLoadingPages && products.length === 0 ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="rounded-3xl border border-border bg-card p-4 animate-pulse"
+            >
+              <div className="h-40 rounded-[1.5rem] bg-muted/50" />
+              <div className="mt-4 h-4 w-24 bg-muted/50 rounded" />
+              <div className="mt-2 h-6 w-32 bg-muted/50 rounded" />
+              <div className="mt-2 h-6 w-20 bg-muted/50 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            onClick={() => router.push("/dashboard/services/payment/create")}
+            className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
+          >
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <Plus className="size-6" strokeWidth={2.6} />
+            </span>
+            <span className="font-display text-base font-bold">Add product</span>
+            <span className="max-w-[180px] text-center text-sm">
+              List a new item on your storefront
+            </span>
+          </button>
+          {products.map((p, i) => (
+            <ProductCard
+              key={p.id}
+              product={p}
+              index={i}
+              storeSlug={storeSlug}
+              onRefresh={handleRefresh}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }
