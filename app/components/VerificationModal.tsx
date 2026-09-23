@@ -1,13 +1,7 @@
-// app/components/VerificationModal.tsx
 "use client";
 
 import { useState } from "react";
-import { X, Mail, Clock, RefreshCw, AlertCircle } from "lucide-react";
-import { Button } from "./ui/button";
-import Image from "next/image";
-import logo from "@/public/logo.png";
-
-
+import { Mail, RefreshCw, X } from "lucide-react";
 
 interface VerificationModalProps {
   isOpen: boolean;
@@ -16,7 +10,6 @@ interface VerificationModalProps {
   onResend: () => Promise<void>;
   isResending?: boolean;
 }
-
 
 const VerificationModal = ({
   isOpen,
@@ -36,15 +29,17 @@ const VerificationModal = ({
   };
 
   return (
-    <div style={{
-      position: "fixed",
-      inset: 0,
-      zIndex: 9999,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "1rem",
-    }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+      }}
+    >
       {/* Backdrop */}
       <div
         style={{
@@ -57,329 +52,341 @@ const VerificationModal = ({
         onClick={onClose}
       />
 
-      {/* Modal - Compact version */}
-      <div style={{
-        position: "relative",
-        background: "var(--bg-primary)",
-        borderRadius: "1rem",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-        maxWidth: "24rem",
-        width: "100%",
-        maxHeight: "90vh",
-        overflow: "auto",
-        animation: "zoomIn 0.3s ease-out",
-      }}>
-        {/* Close button */}
+      {/* Modal */}
+      <div
+        className="squircle-lg"
+        style={{
+          position: "relative",
+          background: "var(--bg-primary)",
+          boxShadow: "var(--shadow-pop)",
+          maxWidth: "28rem",
+          width: "100%",
+          animation: "zoomIn 0.3s ease-out",
+          overflow: "hidden",
+          border: "1px solid var(--border-color)",
+        }}
+      >
         <button
           onClick={onClose}
+          className="hover:opacity-70 transition-opacity"
           style={{
             position: "absolute",
-            top: "0.75rem",
-            right: "0.75rem",
+            top: "1rem",
+            right: "1rem",
             color: "var(--text-secondary)",
             background: "transparent",
             border: "none",
             cursor: "pointer",
             padding: "0.25rem",
             zIndex: 10,
-            transition: "color 0.2s",
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
-          onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+          aria-label="Close"
         >
-          <X size={18} />
+          <X size={20} />
         </button>
 
-        {/* Header - Compact */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--color-accent-yellow), #f59e0b)",
-          padding: "1.5rem 1rem 1rem",
-          textAlign: "center",
-        }}>
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: "0.5rem",
-          }}>
-            <div style={{
-              background: "rgba(255, 255, 255, 0.2)",
-              borderRadius: "9999px",
-              padding: "0.5rem",
-            }}>
-              <Mail size={24} style={{ color: "var(--color-ink)" }} />
+        {/* Header */}
+        <div
+          style={{
+            background: "var(--color-accent-yellow)",
+            padding: "2rem 1.5rem",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: "0.75rem",
+            }}
+          >
+            <div
+              style={{
+                background: "rgba(25, 25, 25, 0.1)",
+                borderRadius: "9999px",
+                padding: "0.75rem",
+              }}
+            >
+              <Mail size={32} style={{ color: "var(--color-ink)" }} />
             </div>
           </div>
-          <h2 style={{
-            fontSize: "1.25rem",
-            fontWeight: "bold",
-            color: "var(--color-ink)",
-            margin: 0,
-          }}>
+          <h2
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: 700,
+              color: "var(--color-ink)",
+              margin: 0,
+              fontFamily: "var(--font-space-grotesk)",
+            }}
+          >
             Check Your Email
           </h2>
-          <p style={{
-            color: "rgba(25, 25, 25, 0.8)",
-            fontSize: "0.75rem",
-            marginTop: "0.25rem",
-          }}>
-            We sent a verification link to:
+          <p
+            style={{
+              color: "rgba(25, 25, 25, 0.8)",
+              fontSize: "0.875rem",
+              marginTop: "0.25rem",
+              fontFamily: "var(--font-be-vietnam)",
+            }}
+          >
+            We&apos;ve sent a verification link to:
           </p>
-          <p style={{
-            color: "var(--color-ink)",
-            fontWeight: "600",
-            fontSize: "0.75rem",
-            marginTop: "0.25rem",
-            background: "rgba(255, 255, 255, 0.2)",
-            padding: "0.125rem 0.75rem",
-            borderRadius: "9999px",
-            display: "inline-block",
-            maxWidth: "90%",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
+          <p
+            style={{
+              color: "var(--color-ink)",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+              marginTop: "0.25rem",
+              background: "rgba(25, 25, 25, 0.1)",
+              padding: "0.25rem 1rem",
+              borderRadius: "9999px",
+              display: "inline-block",
+            }}
+          >
             {email}
           </p>
         </div>
 
-        {/* Content - Compact */}
-        <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-          {/* Steps - Compact */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.5rem 0.75rem",
-              background: "var(--bg-secondary)",
-              borderRadius: "0.375rem",
-            }}>
-              <div style={{
-                width: "1.25rem",
-                height: "1.25rem",
-                borderRadius: "9999px",
-                background: "rgba(253, 192, 32, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  fontSize: "0.625rem",
-                  fontWeight: "bold",
-                  color: "var(--color-accent-yellow)",
-                }}>1</span>
-              </div>
-              <p style={{
-                fontSize: "0.75rem",
-                color: "var(--text-primary)",
-                margin: 0,
-              }}>
-                Open your inbox and click the verification link
-              </p>
-            </div>
-
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              padding: "0.5rem 0.75rem",
-              background: "var(--bg-secondary)",
-              borderRadius: "0.375rem",
-            }}>
-              <div style={{
-                width: "1.25rem",
-                height: "1.25rem",
-                borderRadius: "9999px",
-                background: "rgba(253, 192, 32, 0.2)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  fontSize: "0.625rem",
-                  fontWeight: "bold",
-                  color: "var(--color-accent-yellow)",
-                }}>2</span>
-              </div>
-              <p style={{
-                fontSize: "0.75rem",
-                color: "var(--text-primary)",
-                margin: 0,
-              }}>
-                Your account will be activated instantly
-              </p>
-            </div>
-          </div>
-
-          {/* Timer notice - Compact */}
-          <div style={{
+        {/* Body */}
+        <div
+          style={{
+            padding: "1.5rem",
             display: "flex",
-            alignItems: "center",
-            gap: "0.375rem",
-            padding: "0.5rem 0.75rem",
-            background: "rgba(251, 191, 36, 0.1)",
-            borderRadius: "0.375rem",
-            border: "1px solid rgba(251, 191, 36, 0.2)",
-          }}>
-            <Clock size={14} style={{ color: "#d97706", flexShrink: 0 }} />
-            <p style={{
-              fontSize: "0.7rem",
-              color: "#d97706",
-              margin: 0,
-            }}>
-              Link expires in <strong>24 hours</strong>
-            </p>
+            flexDirection: "column",
+            gap: "1.25rem",
+          }}
+        >
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+          >
+            {[
+              {
+                n: 1,
+                title: "Open your inbox",
+                desc: (
+                  <>
+                    Check the email we just sent to <strong>{email}</strong>
+                  </>
+                ),
+              },
+              {
+                n: 2,
+                title: "Click the verification link",
+                desc: "It will verify your email and activate your account",
+              },
+              {
+                n: 3,
+                title: "Start using Zidwell",
+                desc: "Once verified, you'll have access to all features",
+              },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="squircle-md"
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "0.75rem",
+                  padding: "0.75rem",
+                  background: "var(--bg-secondary)",
+                }}
+              >
+                <div style={{ marginTop: "0.125rem" }}>
+                  <div
+                    style={{
+                      width: "1.5rem",
+                      height: "1.5rem",
+                      borderRadius: "9999px",
+                      background: "rgba(253, 192, 32, 0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                        color: "var(--color-accent-yellow)",
+                      }}
+                    >
+                      {s.n}
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      fontWeight: 500,
+                      color: "var(--text-primary)",
+                      margin: 0,
+                    }}
+                  >
+                    {s.title}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-secondary)",
+                      margin: "0.125rem 0 0",
+                    }}
+                  >
+                    {s.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Resend section - Compact */}
-          <div style={{
-            borderTop: "1px solid var(--border-color)",
-            paddingTop: "0.75rem",
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}>
-              <p style={{
-                fontSize: "0.75rem",
-                color: "var(--text-secondary)",
-                margin: 0,
-              }}>
-                Didn't receive the email?
-              </p>
+          {/* Resend */}
+          <div
+            style={{
+              borderTop: "1px solid var(--border-color)",
+              paddingTop: "1rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.75rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "var(--text-secondary)",
+                    margin: 0,
+                  }}
+                >
+                  Didn&apos;t receive the email?
+                </p>
+                <p
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--text-secondary)",
+                    margin: "0.125rem 0 0",
+                  }}
+                >
+                  Check your spam folder or resend
+                </p>
+              </div>
               <button
                 onClick={handleResend}
                 disabled={isResending || resendSuccess}
+                className="squircle-md transition-all"
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "0.25rem",
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "0.375rem",
+                  padding: "0.5rem 1rem",
                   border: "1px solid var(--color-accent-yellow)",
                   background: "transparent",
                   color: "var(--color-accent-yellow)",
-                  fontSize: "0.75rem",
-                  fontWeight: "500",
-                  cursor: isResending || resendSuccess ? "not-allowed" : "pointer",
+                  fontSize: "0.875rem",
+                  fontWeight: 500,
+                  cursor:
+                    isResending || resendSuccess ? "not-allowed" : "pointer",
                   opacity: isResending || resendSuccess ? 0.6 : 1,
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isResending && !resendSuccess) {
-                    e.currentTarget.style.background = "rgba(253, 192, 32, 0.1)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
                 }}
               >
                 {isResending ? (
-                  <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+                  <RefreshCw
+                    size={16}
+                    style={{ animation: "spin 1s linear infinite" }}
+                  />
                 ) : resendSuccess ? (
-                  "Sent ✓"
+                  "Sent! ✓"
                 ) : (
                   <>
-                    <RefreshCw size={14} />
+                    <RefreshCw size={16} />
                     Resend
                   </>
                 )}
               </button>
             </div>
             {resendSuccess && (
-              <p style={{
-                fontSize: "0.625rem",
-                color: "#16a34a",
-                marginTop: "0.25rem",
-                animation: "slideDown 0.3s ease-out",
-              }}>
-                ✓ Verification email resent!
+              <p
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--color-lemon-green)",
+                  marginTop: "0.5rem",
+                }}
+              >
+                ✓ Verification email resent successfully!
               </p>
             )}
           </div>
 
-          {/* Action buttons - Compact */}
-          <div style={{
-            display: "flex",
-            gap: "0.5rem",
-          }}>
+          {/* Actions */}
+          <div
+            style={{ display: "flex", gap: "0.75rem", paddingTop: "0.5rem" }}
+          >
             <button
               onClick={onClose}
+              className="squircle-md flex-1 transition-colors"
               style={{
-                flex: 1,
-                padding: "0.5rem",
-                borderRadius: "0.375rem",
+                padding: "0.5rem 1rem",
                 border: "1px solid var(--border-color)",
                 background: "transparent",
                 color: "var(--text-primary)",
-                fontSize: "0.75rem",
-                fontWeight: "500",
+                fontSize: "0.875rem",
+                fontWeight: 500,
                 cursor: "pointer",
-                transition: "background 0.2s",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-secondary)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
               Close
             </button>
             <button
-              onClick={() => {
-                window.open("https://mail.google.com", "_blank");
-              }}
+              onClick={() => window.open("https://mail.google.com", "_blank")}
+              className="squircle-md flex-1 transition-opacity hover:opacity-90"
               style={{
-                flex: 1,
-                padding: "0.5rem",
-                borderRadius: "0.375rem",
+                padding: "0.5rem 1rem",
                 border: "none",
                 background: "var(--color-accent-yellow)",
                 color: "var(--color-ink)",
-                fontSize: "0.75rem",
-                fontWeight: "600",
+                fontSize: "0.875rem",
+                fontWeight: 600,
                 cursor: "pointer",
-                transition: "opacity 0.2s",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = "0.9"}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
             >
               Open Gmail
             </button>
           </div>
-        </div>
 
-        <style jsx>{`
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          @keyframes zoomIn {
-            from {
-              opacity: 0;
-              transform: scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: scale(1);
-            }
-          }
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          @keyframes slideDown {
-            from {
-              opacity: 0;
-              transform: translateY(-0.5rem);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
-          }
-        `}</style>
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: "0.625rem",
+              color: "var(--text-secondary)",
+              margin: "0.5rem 0 0",
+            }}
+          >
+            If you didn&apos;t create this account, please ignore this email.
+          </p>
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes zoomIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
+
+export default VerificationModal;

@@ -36,7 +36,7 @@ const Carousel: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const [imagesLoaded, setImagesLoaded] = useState<Record<number, boolean>>({});
   const [preloadedImages, setPreloadedImages] = useState<Set<number>>(
-    new Set(),
+    new Set()
   );
   const [isTransitioning, setIsTransitioning] = useState(false);
   const autoSlide = true;
@@ -63,12 +63,11 @@ const Carousel: React.FC = () => {
         }
       });
     },
-    [preloadedImages],
+    [preloadedImages]
   );
 
-  // Preload all images on mount (optional - uncomment if needed)
+  // Preload all images on mount
   useEffect(() => {
-    // Preload first 3 images immediately
     const initialImages = slides.slice(0, 3);
     initialImages.forEach(async (src, idx) => {
       try {
@@ -79,7 +78,6 @@ const Carousel: React.FC = () => {
       }
     });
 
-    // Preload remaining images lazily
     const preloadRemaining = async () => {
       for (let i = 3; i < slides.length; i++) {
         try {
@@ -94,7 +92,6 @@ const Carousel: React.FC = () => {
     preloadRemaining();
   }, []);
 
-  // Preload adjacent images when current slide changes
   useEffect(() => {
     preloadAdjacentImages(current);
   }, [current, preloadAdjacentImages]);
@@ -113,19 +110,16 @@ const Carousel: React.FC = () => {
     setTimeout(() => setIsTransitioning(false), 500);
   }, [isTransitioning]);
 
-  // Auto-slide effect
   useEffect(() => {
     if (!autoSlide) return;
     const interval = setInterval(nextSlide, autoSlideInterval);
     return () => clearInterval(interval);
   }, [autoSlide, nextSlide, autoSlideInterval]);
 
-  // Handle image load
   const handleImageLoad = useCallback((index: number) => {
     setImagesLoaded((prev) => ({ ...prev, [index]: true }));
   }, []);
 
-  // Touch handlers for mobile (if needed)
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
@@ -146,15 +140,16 @@ const Carousel: React.FC = () => {
   };
 
   return (
+    // ✅ Root now fills its parent — no self-imposed width/height/visibility
     <div
-      className="relative hidden lg:block w-[50%] h-screen overflow-hidden bg-gray-100"
+      className="relative w-full h-full overflow-hidden bg-gray-100"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Navigation Buttons */}
       <button
         onClick={prevSlide}
-        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all backdrop-blur-sm"
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all backdrop-blur-sm cursor-pointer"
         aria-label="Previous slide"
         disabled={isTransitioning}
       >
@@ -162,7 +157,7 @@ const Carousel: React.FC = () => {
       </button>
       <button
         onClick={nextSlide}
-        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all backdrop-blur-sm"
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-black/30 hover:bg-black/50 text-white p-2 rounded-full transition-all backdrop-blur-sm cursor-pointer"
         aria-label="Next slide"
         disabled={isTransitioning}
       >
@@ -176,14 +171,12 @@ const Carousel: React.FC = () => {
       >
         {slides.map((slide, index) => (
           <div key={index} className="relative w-full h-full shrink-0">
-            {/* Skeleton Loader */}
             {!imagesLoaded[index] && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
                 <div className="w-12 h-12 border-4 border-(--color-accent-yellow) border-t-transparent rounded-full animate-spin"></div>
               </div>
             )}
 
-            {/* Image with Next.js optimization */}
             <Image
               src={slide}
               alt={`Slide ${index + 1}`}
@@ -191,7 +184,7 @@ const Carousel: React.FC = () => {
               className={`object-cover transition-opacity duration-500 ${
                 imagesLoaded[index] ? "opacity-100" : "opacity-0"
               }`}
-              sizes="(max-width: 768px) 100vw, 50vw"
+              sizes="(max-width: 1024px) 100vw, 50vw"
               quality={85}
               priority={index === 0 || index === 1 || index === 2}
               loading={index < 3 ? "eager" : "lazy"}
@@ -201,7 +194,6 @@ const Carousel: React.FC = () => {
               blurDataURL={`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f0f0f0' width='100' height='100'/%3E%3C/svg%3E`}
             />
 
-            {/* Gradient Overlay - Made lighter for better text visibility */}
             <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent" />
           </div>
         ))}
@@ -213,7 +205,7 @@ const Carousel: React.FC = () => {
           <button
             key={index}
             onClick={() => !isTransitioning && setCurrent(index)}
-            className={`h-2 rounded-full transition-all duration-300 ${
+            className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
               index === current
                 ? "w-8 bg-white"
                 : "w-2 bg-white/50 hover:bg-white/75"
