@@ -24,8 +24,6 @@ interface WithdrawalModalProps {
   onVerify?: () => void;
 }
 
-const MIN_WITHDRAWAL = 1000;
-
 export function WithdrawalModal({
   isOpen,
   onClose,
@@ -67,10 +65,6 @@ export function WithdrawalModal({
       setError("Please enter a valid amount");
       return false;
     }
-    if (num < MIN_WITHDRAWAL) {
-      setError(`Minimum withdrawal is ₦${MIN_WITHDRAWAL.toLocaleString()}`);
-      return false;
-    }
     if (num > maxAmount) {
       setError(`You can withdraw at most ₦${maxAmount.toLocaleString()}`);
       return false;
@@ -90,19 +84,19 @@ export function WithdrawalModal({
   };
 
   const handleConfirm = async () => {
-  const num = Number(amount);
-  setIsSubmitting(true);
-  setError("");
+    const num = Number(amount);
+    setIsSubmitting(true);
+    setError("");
 
-  try {
-    await onConfirm(num);
-    // No state updates on success — parent closes the modal
-  } catch (err: any) {
-    setError(err?.message || "Withdrawal failed. Please try again.");
-    setStep("input");
-    setIsSubmitting(false);
-  }
-};
+    try {
+      await onConfirm(num);
+      // No state updates on success — parent closes the modal
+    } catch (err: any) {
+      setError(err?.message || "Withdrawal failed. Please try again.");
+      setStep("input");
+      setIsSubmitting(false);
+    }
+  };
 
   const handleBack = () => {
     setStep("input");
@@ -110,6 +104,10 @@ export function WithdrawalModal({
   };
 
   const numAmount = Number(amount) || 0;
+
+  // Continue button enabled whenever there's a valid positive amount ≤ max
+  const canContinue =
+    !!amount && numAmount > 0 && numAmount <= maxAmount && !isSubmitting;
 
   if (!isOpen) return null;
 
@@ -249,18 +247,10 @@ export function WithdrawalModal({
                 {/* Continue */}
                 <button
                   onClick={handleNext}
-                  disabled={
-                    isSubmitting ||
-                    !amount ||
-                    Number(amount) < MIN_WITHDRAWAL ||
-                    Number(amount) > maxAmount
-                  }
+                  disabled={!canContinue}
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold transition-colors",
-                    isSubmitting ||
-                      !amount ||
-                      Number(amount) < MIN_WITHDRAWAL ||
-                      Number(amount) > maxAmount
+                    !canContinue
                       ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
                       : "bg-yellow-500 text-black hover:bg-yellow-600"
                   )}
@@ -270,8 +260,7 @@ export function WithdrawalModal({
                 </button>
 
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                  Minimum withdrawal: ₦{MIN_WITHDRAWAL.toLocaleString()} • Fee:
-                  FREE
+                  No minimum • Fee: FREE
                 </p>
               </div>
             ) : (

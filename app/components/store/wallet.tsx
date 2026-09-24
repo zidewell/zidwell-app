@@ -227,12 +227,16 @@ const handleWithdrawConfirm = async (amount: number) => {
             {canWithdraw && (
               <button
                 onClick={handleOpenWithdraw}
-                className="rounded-2xl bg-gold px-6 py-3 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 rounded-2xl bg-yellow-500 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 active:scale-[0.98] transition-all"
               >
+                <ArrowUpRight className="size-4" />
                 Withdraw Funds
               </button>
             )}
-            <button onClick={() => router.push("/store/transactions")} className="rounded-2xl border border-background/20 px-6 py-3 text-sm font-bold hover:bg-background/10 transition-colors">
+            <button
+              onClick={() => router.push("/dashboard/services/payment/store/transactions")}
+              className="rounded-2xl border border-white/30 bg-white/5 px-6 py-3 text-sm font-bold text-white hover:bg-white/15 transition-colors"
+            >
               Transaction History
             </button>
           </div>

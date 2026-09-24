@@ -93,7 +93,7 @@ const durationOptions = [
 ];
 
 // Number of transactions to load per "Load More"
-const TRANSACTIONS_PER_PAGE = 10;
+const TRANSACTIONS_PER_PAGE = 5;
 
 // Status Badge Component
 const StatusBadge = ({ status }: { status: string }) => {
