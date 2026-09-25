@@ -1,10 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database.types";
 
-let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let supabaseAdminInstance: SupabaseClient<Database> | null = null;
 
-export function getSupabaseAdmin() {
+export function getSupabaseAdmin(): SupabaseClient<Database> {
   if (!supabaseAdminInstance) {
-    supabaseAdminInstance = createClient(
+    supabaseAdminInstance = createClient<Database>(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
@@ -15,19 +16,27 @@ export function getSupabaseAdmin() {
       }
     );
   }
+
   return supabaseAdminInstance;
 }
 
-// Cache for user data to prevent duplicate queries
+// ─────────────────────────────────────────────────────────────────────────────
+// User cache
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface CacheEntry {
-  data: any;
+  data: UserDetails;
   timestamp: number;
 }
 
 const userCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5000; // 5 seconds
 
-// ─── UPDATED: Add concurrent session fields ───
+const CACHE_TTL = 5000;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User type
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface UserDetails {
   id: string;
   full_name: string;
@@ -51,22 +60,30 @@ export interface UserDetails {
   block_reason: string | null;
   transaction_pin: string | null;
   pin_set: boolean;
-  // NEW: Concurrent login fields
+
+  // Concurrent login fields
   current_session_id: string | null;
   current_session_ip: string | null;
   current_session_device: string | null;
   current_session_expires_at: string | null;
 }
 
-export async function getUserWithDetails(userId: string): Promise<UserDetails | null> {
-  // Check cache first
+// ─────────────────────────────────────────────────────────────────────────────
+// Get user with full details
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getUserWithDetails(
+  userId: string
+): Promise<UserDetails | null> {
+  // Check cache
   const cached = userCache.get(userId);
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
 
   const supabase = getSupabaseAdmin();
-  
+
   const { data: user, error } = await supabase
     .from("users")
     .select(`
@@ -100,37 +117,112 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
     .eq("id", userId)
     .single();
 
-  if (error || !user) return null;
+  if (error) {
+    console.error("❌ getUserWithDetails error:", error);
+    return null;
+  }
 
-  userCache.set(userId, { data: user, timestamp: Date.now() });
-  
+  if (!user) {
+    return null;
+  }
+
+  // Because the Supabase client is typed with Database,
+  // this should now be correctly inferred as the users row.
+  const userDetails: UserDetails = {
+    id: user.id,
+    full_name: user.full_name,
+    email: user.email,
+    phone: user.phone,
+    wallet_balance: user.wallet_balance ?? 0,
+    zidcoin_balance: user.zidcoin_balance ?? 0,
+    referral_code: user.referral_code,
+    bvn_verification: user.bvn_verification,
+    admin_role: user.admin_role,
+    city: user.city,
+    state: user.state,
+    address: user.address,
+    date_of_birth: user.date_of_birth,
+    profile_picture: user.profile_picture,
+    current_login_session: user.current_login_session,
+    subscription_tier: user.subscription_tier ?? "free",
+    subscription_expires_at: user.subscription_expires_at,
+    is_blocked: user.is_blocked ?? false,
+    blocked_at: user.blocked_at,
+    block_reason: user.block_reason,
+    transaction_pin: user.transaction_pin,
+    pin_set: user.pin_set ?? false,
+
+    current_session_id: user.current_session_id,
+    current_session_ip: user.current_session_ip,
+    current_session_device: user.current_session_device,
+    current_session_expires_at: user.current_session_expires_at,
+  };
+
+  // Cache user
+  userCache.set(userId, {
+    data: userDetails,
+    timestamp: Date.now(),
+  });
+
   setTimeout(() => {
     userCache.delete(userId);
   }, CACHE_TTL);
-  
-  return user as UserDetails;
+
+  return userDetails;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Subscription helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function isSubscriptionActive(user: UserDetails): boolean {
-  if (user.subscription_tier === "free") return true;
-  if (!user.subscription_expires_at) return false;
+  if (user.subscription_tier === "free") {
+    return true;
+  }
+
+  if (!user.subscription_expires_at) {
+    return false;
+  }
+
   return new Date(user.subscription_expires_at) > new Date();
 }
 
 export function hasSufficientTier(
-  user: UserDetails, 
+  user: UserDetails,
   requiredTier: string
 ): boolean {
-  const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
-  const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || "free");
+  const tierHierarchy = [
+    "free",
+    "zidlite",
+    "growth",
+    "premium",
+    "elite",
+  ];
+
+  const userTierIndex = tierHierarchy.indexOf(
+    user.subscription_tier || "free"
+  );
+
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
-  
-  return userTierIndex >= requiredTierIndex && isSubscriptionActive(user);
+
+  // Unknown tier should not accidentally pass the check
+  if (userTierIndex === -1 || requiredTierIndex === -1) {
+    return false;
+  }
+
+  return (
+    userTierIndex >= requiredTierIndex &&
+    isSubscriptionActive(user)
+  );
 }
 
-// Clear cache periodically
+// ─────────────────────────────────────────────────────────────────────────────
+// Clear expired cache entries
+// ─────────────────────────────────────────────────────────────────────────────
+
 setInterval(() => {
   const now = Date.now();
+
   for (const [key, entry] of userCache.entries()) {
     if (now - entry.timestamp > CACHE_TTL) {
       userCache.delete(key);

@@ -58,9 +58,14 @@ export function useProductCheckout({
   const [donorAmount, setDonorAmount] = useState("");
   const [donorMessage, setDonorMessage] = useState("");
 
-  const [selectedVariantSku, setSelectedVariantSku] = useState<string | null>(
-    null
+  // ✅ Multi-variant selection
+  const [selectedVariantSkus, setSelectedVariantSkus] = useState<Set<string>>(
+    new Set()
   );
+  const [variantQuantities, setVariantQuantities] = useState<
+    Record<string, number>
+  >({});
+
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
     city: "",
@@ -105,12 +110,10 @@ export function useProductCheckout({
   const [lookupError, setLookupError] = useState("");
   const [lockedFields, setLockedFields] = useState(false);
 
-  // ✅ Live variant stock — fetched from server; falls back to metadata.
   const [liveVariantStock, setLiveVariantStock] = useState<
     Record<string, number> | null
   >(null);
 
-  // ✅ Refs for cancel-checkout support
   const checkoutWindowRef = useRef<Window | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,11 +189,7 @@ export function useProductCheckout({
     ? linkConfig.thankYouMessage || "A receipt has been sent to your email."
     : "A receipt has been sent to your email.";
 
-  // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #3 (part 1): Fee payer from page metadata
-  // Buyer-facing amount now grosses up by the correct multiplier so the
-  // store owner's transaction-fee choice is respected on the product page.
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── FEE PAYER ───
   const ZIDWELL_FEE_RATE = 0.035;
 
   const feePayer = useMemo<
@@ -209,9 +208,7 @@ export function useProductCheckout({
     return 1;
   }, [feePayer]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // installmentPlan is variant-aware
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── INSTALLMENT PLAN (multi-variant aware) ───
   const installmentPlan = useMemo(() => {
     if (
       page?.priceType !== "installment" ||
@@ -223,14 +220,14 @@ export function useProductCheckout({
 
     let totalAmount = Number(page?.price) || 0;
 
-    if (isPhysical && selectedVariantSku) {
-      const v = variants.find(
-        (x: any) => (x.sku || x.name) === selectedVariantSku
-      );
-      const variantPrice = Number(v?.price);
-      if (Number.isFinite(variantPrice) && variantPrice > 0) {
-        totalAmount = variantPrice;
+    if (isPhysical && selectedVariantSkus.size > 0) {
+      let maxPrice = 0;
+      for (const sku of selectedVariantSkus) {
+        const v = variants.find((x: any) => (x.sku || x.name) === sku);
+        const p = Number(v?.price);
+        if (Number.isFinite(p) && p > maxPrice) maxPrice = p;
       }
+      if (maxPrice > 0) totalAmount = maxPrice;
     }
 
     return {
@@ -245,7 +242,7 @@ export function useProductCheckout({
     page?.price,
     page?.metadata,
     isPhysical,
-    selectedVariantSku,
+    selectedVariantSkus,
     variants,
   ]);
 
@@ -267,33 +264,34 @@ export function useProductCheckout({
   const showActivePlanCard =
     existingAccount != null && !isAccountFullyPaid;
 
+  // ─── BASE PRICE (sum of selected unit prices) ───
   const basePrice = useMemo(() => {
-    if (isPhysical && selectedVariantSku) {
-      const v = variants.find(
-        (x: any) => (x.sku || x.name) === selectedVariantSku
-      );
-      const variantPrice = Number(v?.price);
-      if (Number.isFinite(variantPrice) && variantPrice > 0) {
-        return variantPrice;
+    if (isPhysical && selectedVariantSkus.size > 0) {
+      let sum = 0;
+      let any = false;
+      for (const sku of selectedVariantSkus) {
+        const v = variants.find((x: any) => (x.sku || x.name) === sku);
+        const p = Number(v?.price);
+        if (Number.isFinite(p) && p > 0) {
+          sum += p;
+          any = true;
+        }
       }
+      if (any) return sum;
       return Number(page?.price) || 0;
     }
     if (isDonation) return Number(donorAmount) || 0;
     return Number(page?.price) || 0;
   }, [
     isPhysical,
-    selectedVariantSku,
+    selectedVariantSkus,
     variants,
     page?.price,
     isDonation,
     donorAmount,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // Variant stock map
-  // Priority: live server value → metadata `v.stock` → Infinity (unlimited)
-  // Server sends -1 to mean "unlimited" (JSON can't hold Infinity).
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── VARIANT STOCK MAP ───
   const variantStockMap = useMemo<Record<string, number> | null>(() => {
     if (!isPhysical || variants.length === 0) return null;
 
@@ -305,7 +303,6 @@ export function useProductCheckout({
 
       if (liveVariantStock && sku in liveVariantStock) {
         const n = Number(liveVariantStock[sku]);
-        // -1 = unlimited sentinel from the API
         map[sku] = n === -1 ? Infinity : Number.isFinite(n) ? n : 0;
         continue;
       }
@@ -318,29 +315,86 @@ export function useProductCheckout({
     return map;
   }, [isPhysical, variants, liveVariantStock]);
 
+  // ─── SELECTED VARIANT LINES ───
+  const selectedVariantLines = useMemo(() => {
+    if (!isPhysical || variants.length === 0) return [];
+
+    const lines: {
+      sku: string;
+      name: string;
+      unitPrice: number;
+      quantity: number;
+      remaining: number | null;
+    }[] = [];
+
+    for (const sku of selectedVariantSkus) {
+      const v = variants.find((x: any) => (x.sku || x.name) === sku);
+      if (!v) continue;
+
+      const unitPrice = Number(v.price) || Number(page?.price) || 0;
+      const qty = Math.max(1, variantQuantities[sku] || 1);
+
+      let remaining: number | null = null;
+      if (variantStockMap && sku in variantStockMap) {
+        const n = Number(variantStockMap[sku]);
+        remaining = n === Infinity ? null : Number.isFinite(n) ? n : 0;
+      }
+
+      lines.push({
+        sku,
+        name: v.name || sku,
+        unitPrice,
+        quantity: qty,
+        remaining,
+      });
+    }
+
+    return lines;
+  }, [
+    isPhysical,
+    variants,
+    selectedVariantSkus,
+    variantQuantities,
+    variantStockMap,
+    page?.price,
+  ]);
+
+  // ─── OOS CHECK ───
   const isSelectedVariantOOS = useMemo(() => {
     if (!isPhysical || variants.length === 0) return false;
 
     const remainingFor = (sku: string): number | null => {
       if (variantStockMap && sku in variantStockMap) {
         const n = Number(variantStockMap[sku]);
-        return Number.isFinite(n) ? n : null;
+        if (n === Infinity) return null;
+        return Number.isFinite(n) ? n : 0;
       }
       return null;
     };
 
-    if (selectedVariantSku) {
-      const r = remainingFor(selectedVariantSku);
-      return r !== null && r <= 0;
+    if (selectedVariantSkus.size === 0) {
+      return variants.every((v: any, i: number) => {
+        const sku = v.sku || v.name || `variant-${i}`;
+        const r = remainingFor(sku);
+        return r !== null && r <= 0;
+      });
     }
 
-    const allOOS = variants.every((v: any, i: number) => {
-      const sku = v.sku || v.name || `variant-${i}`;
+    for (const sku of selectedVariantSkus) {
       const r = remainingFor(sku);
-      return r !== null && r <= 0;
-    });
-    return allOOS;
-  }, [isPhysical, variants, selectedVariantSku, variantStockMap]);
+      if (r === null) continue;
+      if (r <= 0) return true;
+      const want = Math.max(1, variantQuantities[sku] || 1);
+      if (want > r) return true;
+    }
+    return false;
+  }, [
+    isPhysical,
+    variants,
+    selectedVariantSkus,
+    variantQuantities,
+    variantStockMap,
+  ]);
 
   const entities: PaymentEntity[] = useMemo(() => {
     return extractEntitiesForPage(
@@ -378,19 +432,22 @@ export function useProductCheckout({
     }
   }, [entities.length, entities[0]?.id]);
 
+  // Auto-select single variant
   useEffect(() => {
     if (!isPhysical) return;
     if (variants.length !== 1) return;
-    if (selectedVariantSku) return;
+    if (selectedVariantSkus.size > 0) return;
 
     const v = variants[0];
     const sku = v?.sku || v?.name;
-    if (sku) setSelectedVariantSku(sku);
-  }, [isPhysical, variants, selectedVariantSku]);
+    if (sku) {
+      setSelectedVariantSkus(new Set([sku]));
+      setVariantQuantities({ [sku]: 1 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPhysical, variants.length]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // Live variant stock fetch on mount
-  // ─────────────────────────────────────────────────────────────────────
+  // Live variant stock fetch
   useEffect(() => {
     if (!isPhysical || variants.length === 0) return;
 
@@ -411,7 +468,6 @@ export function useProductCheckout({
           setLiveVariantStock(data.variantStock);
         }
       } catch (err) {
-        // Non-fatal — fall back to metadata stock
         console.error("Variant stock fetch failed:", err);
       }
     })();
@@ -421,6 +477,7 @@ export function useProductCheckout({
     };
   }, [isPhysical, variants.length, page.slug]);
 
+  // ─── TOTAL AMOUNT ───
   const { total: currentTotalAmount } = useMemo(() => {
     if (isDonation) {
       const amt = Number(donorAmount) || 0;
@@ -444,12 +501,18 @@ export function useProductCheckout({
       );
     }
 
-    if (isPhysical && variants.length > 0 && selectedVariantSku) {
-      const perUnit =
-        selectedPaymentOption === "full"
-          ? basePrice
-          : basePrice / (page.installmentCount || 1);
-      const total = perUnit * quantity;
+    // ✅ Physical multi-variant
+    if (isPhysical && variants.length > 0 && selectedVariantSkus.size > 0) {
+      let total = 0;
+
+      for (const line of selectedVariantLines) {
+        const perUnit =
+          selectedPaymentOption === "full"
+            ? line.unitPrice
+            : line.unitPrice / (page.installmentCount || 1);
+        total += perUnit * line.quantity;
+      }
+
       return { total: Math.round(total * 100) / 100, breakdown: [] as any[] };
     }
 
@@ -520,7 +583,8 @@ export function useProductCheckout({
     selectedPaymentOption,
     isPhysical,
     variants.length,
-    selectedVariantSku,
+    selectedVariantSkus,
+    selectedVariantLines,
     basePrice,
     page.installmentCount,
     showQuantity,
@@ -529,15 +593,14 @@ export function useProductCheckout({
     canDoInstallments,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // ✅ FIX #3 (part 2): Buyer-facing amounts with fee applied
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── BUYER PAYABLE ───
   const buyerPayableAmount = useMemo(() => {
     if (isDonation) return currentTotalAmount;
     if (currentTotalAmount <= 0) return currentTotalAmount;
     return Math.round(currentTotalAmount * buyerFeeMultiplier * 100) / 100;
   }, [currentTotalAmount, buyerFeeMultiplier, isDonation]);
 
+  // ─── DISPLAY PRICE ───
   const displayPrice = useMemo(() => {
     if (isDonation) return 0;
 
@@ -557,13 +620,14 @@ export function useProductCheckout({
     }
 
     if (isPhysical && variants.length > 0) {
-      if (selectedVariantSku) {
-        const v = variants.find(
-          (x: any) => (x.sku || x.name) === selectedVariantSku
-        );
-        return Number(v?.price) || Number(page?.price) || 0;
+      if (selectedVariantSkus.size === 0) return 0;
+      let min = Infinity;
+      for (const sku of selectedVariantSkus) {
+        const v = variants.find((x: any) => (x.sku || x.name) === sku);
+        const p = Number(v?.price) || Number(page?.price) || 0;
+        if (p < min) min = p;
       }
-      return 0;
+      return Number.isFinite(min) ? min : 0;
     }
 
     return Number(page?.price) || 0;
@@ -573,7 +637,7 @@ export function useProductCheckout({
     installmentPlan,
     isPhysical,
     variants,
-    selectedVariantSku,
+    selectedVariantSkus,
     page?.price,
     existingAccount,
     canDoInstallments,
@@ -591,7 +655,6 @@ export function useProductCheckout({
     (e) => !e.isFullyPaid && !e.isPartiallyPaid
   ).length;
 
-  // isOutOfStock also considers the selected variant
   const isOutOfStock =
     (productStock !== null && productStock <= 0) ||
     (isPhysical && variants.length > 0 && isSelectedVariantOOS);
@@ -601,8 +664,10 @@ export function useProductCheckout({
     if (isOutOfStock) return true;
     if (isPlanComplete) return true;
     if (currentTotalAmount <= 0 && !isDonation) return true;
-    if (isPhysical && variants.length > 0 && !selectedVariantSku) return true;
-    if (isPhysical && selectedVariantSku && isSelectedVariantOOS) return true;
+    if (isPhysical && variants.length > 0 && selectedVariantSkus.size === 0)
+      return true;
+    if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS)
+      return true;
     if (isDonation && Number(donorAmount) < minimumDonation) return true;
     return false;
   }, [
@@ -614,7 +679,7 @@ export function useProductCheckout({
     isDonation,
     isPhysical,
     variants.length,
-    selectedVariantSku,
+    selectedVariantSkus,
     isSelectedVariantOOS,
     donorAmount,
     minimumDonation,
@@ -624,8 +689,8 @@ export function useProductCheckout({
     if (processingCardPayment || submissionLock)
       return "Processing payment...";
     if (isOutOfStock) {
-      if (isPhysical && selectedVariantSku && isSelectedVariantOOS) {
-        return "This variant just sold out — pick another";
+      if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS) {
+        return "One or more selected variants are out of stock";
       }
       return "Out of stock";
     }
@@ -643,7 +708,8 @@ export function useProductCheckout({
           ? "All students are fully paid"
           : "Select at least one student";
       }
-      if (isPhysical && variants.length > 0) return "Select a variant";
+      if (isPhysical && variants.length > 0)
+        return "Select at least one variant";
       return "Select items to continue";
     }
     return "";
@@ -652,7 +718,7 @@ export function useProductCheckout({
     submissionLock,
     isOutOfStock,
     isPhysical,
-    selectedVariantSku,
+    selectedVariantSkus,
     isSelectedVariantOOS,
     isPlanComplete,
     isDonation,
@@ -687,17 +753,47 @@ export function useProductCheckout({
     [lockedFields]
   );
 
+  // ─── VARIANT HANDLERS ───
+  const handleToggleVariant = useCallback(
+    (sku: string) => {
+      if (lockedFields) return;
+      setSelectedVariantSkus((prev) => {
+        const next = new Set(prev);
+        if (next.has(sku)) {
+          next.delete(sku);
+        } else {
+          next.add(sku);
+        }
+        return next;
+      });
+      setVariantQuantities((prev) => {
+        if (prev[sku]) return prev;
+        return { ...prev, [sku]: 1 };
+      });
+    },
+    [lockedFields]
+  );
+
+  const handleSetVariantQuantity = useCallback(
+    (sku: string, qty: number) => {
+      if (lockedFields) return;
+      const safe = Math.max(1, Math.floor(qty));
+      setVariantQuantities((prev) => ({ ...prev, [sku]: safe }));
+    },
+    [lockedFields]
+  );
+
   const openInfoModal = useCallback(() => {
     if (currentTotalAmount <= 0) {
       alert("Please select items to continue");
       return;
     }
-    if (isPhysical && variants.length > 0 && !selectedVariantSku) {
-      alert("Please select a variant");
+    if (isPhysical && variants.length > 0 && selectedVariantSkus.size === 0) {
+      alert("Please select at least one variant");
       return;
     }
-    if (isPhysical && selectedVariantSku && isSelectedVariantOOS) {
-      alert("This variant just sold out — please pick another");
+    if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS) {
+      alert("One or more selected variants are out of stock. Please adjust.");
       return;
     }
     setErrors({});
@@ -706,7 +802,7 @@ export function useProductCheckout({
     currentTotalAmount,
     isPhysical,
     variants.length,
-    selectedVariantSku,
+    selectedVariantSkus,
     isSelectedVariantOOS,
   ]);
 
@@ -776,7 +872,7 @@ export function useProductCheckout({
         checkoutWindowRef.current.close();
       }
     } catch {
-      /* cross-origin close may be blocked — fine, we still unlock */
+      /* noop */
     }
     checkoutWindowRef.current = null;
 
@@ -793,9 +889,6 @@ export function useProductCheckout({
     setProcessingCardPayment(false);
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // Refresh variant stock from the server (after 409 or on success)
-  // ─────────────────────────────────────────────────────────────────────
   const refreshVariantStock = useCallback(async () => {
     if (!isPhysical || variants.length === 0) return;
     try {
@@ -815,25 +908,21 @@ export function useProductCheckout({
     }
   }, [isPhysical, variants.length, page.slug]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // Handle 409 VARIANT_OUT_OF_STOCK / INSUFFICIENT_STOCK
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── CHECKOUT ───
   const handleCardPayment = useCallback(async () => {
     if (submissionLock) return;
 
-    // Local pre-check before hitting the server
-    if (isPhysical && selectedVariantSku && isSelectedVariantOOS) {
+    if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS) {
       await Swal.fire({
         icon: "warning",
-        title: "Sold out",
-        text: "This variant just sold out. Please pick another variant.",
+        title: "Stock changed",
+        text: "One or more selected variants just sold out or don't have enough stock. Please adjust your selection.",
         confirmButtonColor: "#FDC020",
       });
       await refreshVariantStock();
       return;
     }
 
-    // ✅ FIX #3 (part 3): charge the fee-grossed amount
     const totalAmount = buyerPayableAmount;
     if (totalAmount <= 0) {
       alert("Please select items to continue");
@@ -883,8 +972,6 @@ export function useProductCheckout({
       storeSlug: store?.slug,
       redirectUrl,
 
-      // ✅ FIX #3 (part 4): record base + fee separately so the server
-      // can reconcile against the store owner's chosen feePayer.
       baseAmount: currentTotalAmount,
       buyerFeeAmount:
         Math.round((buyerPayableAmount - currentTotalAmount) * 100) / 100,
@@ -896,9 +983,28 @@ export function useProductCheckout({
       metadata.isDonation = true;
     }
     if (isPhysical) {
-      if (selectedVariantSku) metadata.selectedVariantSku = selectedVariantSku;
+      // ✅ Multi-variant cart
+      metadata.variantLines = selectedVariantLines.map((line) => ({
+        sku: line.sku,
+        name: line.name,
+        unitPrice: line.unitPrice,
+        quantity: line.quantity,
+      }));
+
+      // Legacy single-variant field for back-compat
+      if (selectedVariantLines.length === 1) {
+        metadata.selectedVariantSku = selectedVariantLines[0].sku;
+      } else {
+        metadata.selectedVariantSku = null;
+      }
+
+      // Total physical units across all variants
+      metadata.quantity = selectedVariantLines.reduce(
+        (sum, l) => sum + l.quantity,
+        0
+      );
+
       if (requiresShipping) metadata.shippingAddress = shippingAddress;
-      metadata.quantity = Math.max(1, Number(quantity) || 1);
     }
     if (isDigital) {
       metadata.emailDelivery = emailDelivery;
@@ -976,7 +1082,6 @@ export function useProductCheckout({
 
       const data = await response.json();
 
-      // Server-side stock guard rejected the payment
       if (!response.ok) {
         if (
           data?.code === "VARIANT_OUT_OF_STOCK" ||
@@ -1023,7 +1128,6 @@ export function useProductCheckout({
           );
           const statusData = await statusResponse.json();
 
-          // ─── SUCCESS ───
           if (statusData.payment?.status === "completed") {
             clearInterval(checkInterval);
             if (pollIntervalRef.current) pollIntervalRef.current = null;
@@ -1037,7 +1141,6 @@ export function useProductCheckout({
               checkoutWindow.close();
             }
 
-            // Refresh variant stock so the page reflects the new quantity
             refreshVariantStock();
 
             const identity = loadBuyerIdentity(page.slug);
@@ -1196,7 +1299,6 @@ export function useProductCheckout({
             return;
           }
 
-          // ─── EXPLICIT FAILURE ───
           if (statusData.payment?.status === "failed") {
             clearInterval(checkInterval);
             if (pollIntervalRef.current) pollIntervalRef.current = null;
@@ -1217,7 +1319,6 @@ export function useProductCheckout({
             return;
           }
 
-          // ─── BUYER CLOSED THE WINDOW (CANCELLED) ───
           if (windowClosed) {
             clearInterval(checkInterval);
             if (pollIntervalRef.current) pollIntervalRef.current = null;
@@ -1305,7 +1406,8 @@ export function useProductCheckout({
     allowDonorMessage,
     donorMessage,
     isPhysical,
-    selectedVariantSku,
+    selectedVariantSkus,
+    selectedVariantLines,
     requiresShipping,
     shippingAddress,
     isDigital,
@@ -1330,7 +1432,6 @@ export function useProductCheckout({
     page?.pageType,
     isSelectedVariantOOS,
     refreshVariantStock,
-    // ✅ FIX #3: new deps
     buyerPayableAmount,
     feePayer,
   ]);
@@ -1344,7 +1445,7 @@ export function useProductCheckout({
     handleCardPayment();
   }, [validateCustomerInfo, handleCardPayment]);
 
-  // ─── CLEANUP ON UNMOUNT ───
+  // ─── CLEANUP ───
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
@@ -1401,7 +1502,25 @@ export function useProductCheckout({
         setSelectedEntityIds(new Set(sel.selectedStudents));
       }
 
-      if (sel.selectedVariantSku) setSelectedVariantSku(sel.selectedVariantSku);
+      // ✅ Multi-variant rehydration with back-compat
+      if (Array.isArray(sel.variantLines) && sel.variantLines.length > 0) {
+        const skus = new Set<string>();
+        const qtys: Record<string, number> = {};
+        for (const line of sel.variantLines) {
+          if (line?.sku) {
+            skus.add(line.sku);
+            qtys[line.sku] = Math.max(1, Number(line.quantity) || 1);
+          }
+        }
+        setSelectedVariantSkus(skus);
+        setVariantQuantities(qtys);
+      } else if (sel.selectedVariantSku) {
+        setSelectedVariantSkus(new Set([sel.selectedVariantSku]));
+        setVariantQuantities({
+          [sel.selectedVariantSku]: Math.max(1, Number(sel.quantity) || 1),
+        });
+      }
+
       if (sel.quantity && Number(sel.quantity) > 0) {
         setQuantity(Number(sel.quantity));
       }
@@ -1513,7 +1632,8 @@ export function useProductCheckout({
     setCustomerEmail("");
     setCustomerPhone("");
     setSelectedEntityIds(new Set());
-    setSelectedVariantSku(null);
+    setSelectedVariantSkus(new Set());
+    setVariantQuantities({});
     setQuantity(1);
     setShippingAddress({
       street: "",
@@ -1540,7 +1660,8 @@ export function useProductCheckout({
     setCustomerEmail("");
     setCustomerPhone("");
     setSelectedEntityIds(new Set());
-    setSelectedVariantSku(null);
+    setSelectedVariantSkus(new Set());
+    setVariantQuantities({});
     setQuantity(1);
     setShippingAddress({
       street: "",
@@ -1716,8 +1837,15 @@ export function useProductCheckout({
     donorMessage,
     setDonorMessage,
 
-    selectedVariantSku,
-    setSelectedVariantSku,
+    // ✅ Multi-variant
+    selectedVariantSkus,
+    setSelectedVariantSkus,
+    variantQuantities,
+    setVariantQuantities,
+    selectedVariantLines,
+    handleToggleVariant,
+    handleSetVariantQuantity,
+
     shippingAddress,
     setShippingAddress,
 
@@ -1796,7 +1924,6 @@ export function useProductCheckout({
     variantStockMap,
     isSelectedVariantOOS,
 
-    // ✅ FIX #3: fee-aware values exposed to the UI
     feePayer,
     buyerFeeMultiplier,
     buyerPayableAmount,
