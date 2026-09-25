@@ -119,29 +119,29 @@ export function WithdrawalModal({
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+          className="relative w-full max-w-md bg-(--bg-primary) text-(--text-primary) rounded-2xl shadow-2xl border border-(--border-color) overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close button */}
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 disabled:opacity-50"
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-(--bg-secondary) transition-colors text-(--text-secondary) disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
 
           {/* Header */}
-          <div className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-800">
+          <div className="px-6 pt-6 pb-4 border-b border-(--border-color)">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10">
                 <Wallet className="h-5 w-5 text-yellow-500" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-xl font-bold text-(--text-primary)">
                   Withdraw Funds
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-(--text-secondary)">
                   Withdraw to your main wallet
                 </p>
               </div>
@@ -158,10 +158,10 @@ export function WithdrawalModal({
                     <Shield className="h-8 w-8 text-red-500" />
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-lg font-semibold text-(--text-primary) mb-2">
                   BVN Verification Required
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                <p className="text-sm text-(--text-secondary) mb-6">
                   You need to verify your BVN before you can withdraw funds.
                 </p>
                 <button
@@ -176,12 +176,12 @@ export function WithdrawalModal({
               /* ─── INPUT STEP ─── */
               <div className="space-y-4">
                 {/* Balance */}
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                <div className="bg-(--bg-secondary) rounded-xl p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                    <span className="text-sm text-(--text-secondary)">
                       Available Balance
                     </span>
-                    <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    <span className="text-lg font-bold text-(--text-primary)">
                       ₦{maxAmount.toLocaleString()}
                     </span>
                   </div>
@@ -189,11 +189,11 @@ export function WithdrawalModal({
 
                 {/* Amount input */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-(--text-primary) mb-2">
                     Enter Amount
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-gray-500">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-(--text-secondary)">
                       ₦
                     </span>
                     <input
@@ -204,10 +204,10 @@ export function WithdrawalModal({
                       placeholder="0"
                       disabled={isSubmitting}
                       className={cn(
-                        "w-full pl-10 pr-4 py-4 text-xl font-semibold bg-gray-50 dark:bg-gray-800 border rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all disabled:opacity-50",
+                        "w-full pl-10 pr-4 py-4 text-xl font-semibold bg-(--bg-secondary) text-(--text-primary) border rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all disabled:opacity-50",
                         error
                           ? "border-red-500"
-                          : "border-gray-200 dark:border-gray-700"
+                          : "border-(--border-color)"
                       )}
                       autoFocus
                     />
@@ -232,9 +232,9 @@ export function WithdrawalModal({
 
                 {/* Summary */}
                 {numAmount > 0 && (
-                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+                  <div className="bg-(--bg-secondary) rounded-xl p-4">
                     <div className="flex justify-between text-sm font-semibold">
-                      <span className="text-gray-900 dark:text-white">
+                      <span className="text-(--text-primary)">
                         You'll Receive
                       </span>
                       <span className="text-green-600 dark:text-green-400">
@@ -251,7 +251,7 @@ export function WithdrawalModal({
                   className={cn(
                     "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold transition-colors",
                     !canContinue
-                      ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                      ? "bg-(--bg-secondary) text-(--text-secondary) cursor-not-allowed"
                       : "bg-yellow-500 text-black hover:bg-yellow-600"
                   )}
                 >
@@ -259,7 +259,7 @@ export function WithdrawalModal({
                   <ArrowRight className="h-4 w-4" />
                 </button>
 
-                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-center text-(--text-secondary)">
                   No minimum • Fee: FREE
                 </p>
               </div>
@@ -272,25 +272,25 @@ export function WithdrawalModal({
                       <Banknote className="h-8 w-8 text-yellow-500" />
                     </div>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-semibold text-(--text-primary)">
                     Confirm Withdrawal
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-(--text-secondary)">
                     This will transfer funds to your main wallet
                   </p>
                 </div>
 
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 space-y-2">
+                <div className="bg-(--bg-secondary) rounded-xl p-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="text-(--text-secondary)">
                       Amount
                     </span>
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-(--text-primary)">
                       ₦{numAmount.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm font-semibold pt-2 border-t border-gray-200 dark:border-gray-700">
-                    <span className="text-gray-900 dark:text-white">
+                  <div className="flex justify-between text-sm font-semibold pt-2 border-t border-(--border-color)">
+                    <span className="text-(--text-primary)">
                       Net Amount
                     </span>
                     <span className="text-green-600 dark:text-green-400">
@@ -313,7 +313,7 @@ export function WithdrawalModal({
                   <button
                     onClick={handleBack}
                     disabled={isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-(--text-primary) hover:bg-(--bg-secondary) transition-colors border border-(--border-color) disabled:opacity-50"
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Back

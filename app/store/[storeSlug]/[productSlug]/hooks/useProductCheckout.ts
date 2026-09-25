@@ -208,7 +208,7 @@ export function useProductCheckout({
     return 1;
   }, [feePayer]);
 
-  // ─── INSTALLMENT PLAN (multi-variant aware) ───
+  // ─── INSTALLMENT PLAN (multi-variant + qty aware) ───
   const installmentPlan = useMemo(() => {
     if (
       page?.priceType !== "installment" ||
@@ -221,13 +221,18 @@ export function useProductCheckout({
     let totalAmount = Number(page?.price) || 0;
 
     if (isPhysical && selectedVariantSkus.size > 0) {
-      let maxPrice = 0;
+      let sum = 0;
+      let any = false;
       for (const sku of selectedVariantSkus) {
         const v = variants.find((x: any) => (x.sku || x.name) === sku);
         const p = Number(v?.price);
-        if (Number.isFinite(p) && p > maxPrice) maxPrice = p;
+        const q = Math.max(1, variantQuantities[sku] || 1);
+        if (Number.isFinite(p) && p > 0) {
+          sum += p * q;
+          any = true;
+        }
       }
-      if (maxPrice > 0) totalAmount = maxPrice;
+      if (any) totalAmount = sum;
     }
 
     return {
@@ -243,6 +248,7 @@ export function useProductCheckout({
     page?.metadata,
     isPhysical,
     selectedVariantSkus,
+    variantQuantities,
     variants,
   ]);
 
@@ -264,7 +270,7 @@ export function useProductCheckout({
   const showActivePlanCard =
     existingAccount != null && !isAccountFullyPaid;
 
-  // ─── BASE PRICE (sum of selected unit prices) ───
+  // ─── BASE PRICE (sum of unit prices, unchanged) ───
   const basePrice = useMemo(() => {
     if (isPhysical && selectedVariantSkus.size > 0) {
       let sum = 0;
@@ -501,7 +507,7 @@ export function useProductCheckout({
       );
     }
 
-    // ✅ Physical multi-variant
+    // ✅ Physical multi-variant — sum of (unitPrice × qty) per line
     if (isPhysical && variants.length > 0 && selectedVariantSkus.size > 0) {
       let total = 0;
 
@@ -600,7 +606,7 @@ export function useProductCheckout({
     return Math.round(currentTotalAmount * buyerFeeMultiplier * 100) / 100;
   }, [currentTotalAmount, buyerFeeMultiplier, isDonation]);
 
-  // ─── DISPLAY PRICE ───
+  // ─── DISPLAY PRICE (sum of line totals for physical) ───
   const displayPrice = useMemo(() => {
     if (isDonation) return 0;
 
@@ -621,13 +627,19 @@ export function useProductCheckout({
 
     if (isPhysical && variants.length > 0) {
       if (selectedVariantSkus.size === 0) return 0;
-      let min = Infinity;
+      // Sum the per-line totals so the big price matches the checkout total
+      let sum = 0;
+      let any = false;
       for (const sku of selectedVariantSkus) {
         const v = variants.find((x: any) => (x.sku || x.name) === sku);
         const p = Number(v?.price) || Number(page?.price) || 0;
-        if (p < min) min = p;
+        const q = Math.max(1, variantQuantities[sku] || 1);
+        if (p > 0) {
+          sum += p * q;
+          any = true;
+        }
       }
-      return Number.isFinite(min) ? min : 0;
+      return any ? sum : 0;
     }
 
     return Number(page?.price) || 0;
@@ -638,6 +650,7 @@ export function useProductCheckout({
     isPhysical,
     variants,
     selectedVariantSkus,
+    variantQuantities,
     page?.price,
     existingAccount,
     canDoInstallments,
@@ -757,23 +770,30 @@ export function useProductCheckout({
   const handleToggleVariant = useCallback(
     (sku: string) => {
       if (lockedFields) return;
+  
       setSelectedVariantSkus((prev) => {
         const next = new Set(prev);
         if (next.has(sku)) {
           next.delete(sku);
+          // Clean up the qty entry in the same tick
+          setVariantQuantities((q) => {
+            if (!(sku in q)) return q;
+            const copy = { ...q };
+            delete copy[sku];
+            return copy;
+          });
         } else {
           next.add(sku);
+          setVariantQuantities((q) => {
+            if (q[sku]) return q;
+            return { ...q, [sku]: 1 };
+          });
         }
         return next;
-      });
-      setVariantQuantities((prev) => {
-        if (prev[sku]) return prev;
-        return { ...prev, [sku]: 1 };
       });
     },
     [lockedFields]
   );
-
   const handleSetVariantQuantity = useCallback(
     (sku: string, qty: number) => {
       if (lockedFields) return;
@@ -983,7 +1003,6 @@ export function useProductCheckout({
       metadata.isDonation = true;
     }
     if (isPhysical) {
-      // ✅ Multi-variant cart
       metadata.variantLines = selectedVariantLines.map((line) => ({
         sku: line.sku,
         name: line.name,
@@ -991,14 +1010,12 @@ export function useProductCheckout({
         quantity: line.quantity,
       }));
 
-      // Legacy single-variant field for back-compat
       if (selectedVariantLines.length === 1) {
         metadata.selectedVariantSku = selectedVariantLines[0].sku;
       } else {
         metadata.selectedVariantSku = null;
       }
 
-      // Total physical units across all variants
       metadata.quantity = selectedVariantLines.reduce(
         (sum, l) => sum + l.quantity,
         0
@@ -1033,7 +1050,7 @@ export function useProductCheckout({
       const planTotal =
         accountTotal > 0
           ? accountTotal
-          : installmentPlan.totalAmount * quantity;
+          : installmentPlan.totalAmount * (isPhysical ? 1 : quantity);
 
       const accountInstallmentCount =
         Number(existingAccount?.installment_count) ||

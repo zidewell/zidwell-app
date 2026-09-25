@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
-
 let supabaseAdminInstance: SupabaseClient<Database> | null = null;
 
 export function getSupabaseAdmin(): SupabaseClient<Database> {
@@ -17,9 +16,9 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
       }
     );
   }
-
   return supabaseAdminInstance;
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // User cache
