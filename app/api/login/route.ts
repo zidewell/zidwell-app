@@ -516,7 +516,6 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // ─── RESPONSE ───
     const profile = {
       id: userProfile.id,
       fullName: displayName,
@@ -537,6 +536,25 @@ export async function POST(request: NextRequest) {
       subscriptionExpiresAt: userProfile.subscription_expires_at,
       isBlocked: userProfile.is_blocked,
       pinSet: userProfile.pin_set,
+
+      // ─── Verification ───
+      identityVerified: userProfile.identity_verified ?? false,
+      verificationCompleted: userProfile.verification_completed ?? false,
+      bank78Verified: userProfile.bank78_verified ?? false,
+      is_business_registered: userProfile.is_business_registered ?? false,
+      purpose: userProfile.purpose,
+
+      // ─── Bank ───
+      bankName: userProfile.bank_name,
+      bankAccountName: userProfile.bank_account_name,
+      bankAccountNumber: userProfile.bank_account_number,
+
+      // ─── Activation ───
+      activationPaid: userProfile.activation_paid ?? false,
+      activatedAt: userProfile.activated_at,
+      activationReference: userProfile.activation_reference,
+
+      // ─── Store ───
       store: storeData,
       hasStore: storeData !== null,
       storeIsActive:
@@ -545,7 +563,6 @@ export async function POST(request: NextRequest) {
         storeData !== null &&
         (storeData.is_active === false || storeData.activation_paid === false),
     };
-
     const responseTime = Date.now() - startTime;
     console.log(
       `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`

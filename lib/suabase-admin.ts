@@ -1,10 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
+// lib/suabase-admin.ts
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/supabase";
 
-let supabaseAdminInstance: ReturnType<typeof createClient> | null = null;
+let supabaseAdminInstance: SupabaseClient<Database> | null = null;
 
-export function getSupabaseAdmin() {
+export function getSupabaseAdmin(): SupabaseClient<Database> {
   if (!supabaseAdminInstance) {
-    supabaseAdminInstance = createClient(
+    supabaseAdminInstance = createClient<Database>(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
@@ -18,16 +20,16 @@ export function getSupabaseAdmin() {
   return supabaseAdminInstance;
 }
 
-// Cache for user data to prevent duplicate queries
+// ─── Cache ───
 interface CacheEntry {
-  data: any;
+  data: UserDetails;
   timestamp: number;
 }
 
 const userCache = new Map<string, CacheEntry>();
-const CACHE_TTL = 5000; // 5 seconds
+const CACHE_TTL = 5000;
 
-// ─── UPDATED: Add concurrent session fields ───
+// ─── User details row ───
 export interface UserDetails {
   id: string;
   full_name: string;
@@ -51,25 +53,44 @@ export interface UserDetails {
   block_reason: string | null;
   transaction_pin: string | null;
   pin_set: boolean;
-  // NEW: Concurrent login fields
   current_session_id: string | null;
   current_session_ip: string | null;
   current_session_device: string | null;
   current_session_expires_at: string | null;
+
+  // ─── Verification ───
+  identity_verified: boolean | null;
+  verification_completed: boolean | null;
+  bank78_verified: boolean | null;
+  is_business_registered: boolean | null;
+  purpose: string | null;
+
+  // ─── Bank ───
+  bank_name: string | null;
+  bank_account_name: string | null;
+  bank_account_number: string | null;
+  wallet_id: string | null;
+
+  // ─── Activation ───
+  activation_paid: boolean | null;
+  activated_at: string | null;
+  activation_reference: string | null;
 }
 
-export async function getUserWithDetails(userId: string): Promise<UserDetails | null> {
-  // Check cache first
+export async function getUserWithDetails(
+  userId: string
+): Promise<UserDetails | null> {
   const cached = userCache.get(userId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
 
   const supabase = getSupabaseAdmin();
-  
+
   const { data: user, error } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       id,
       full_name,
       email,
@@ -95,20 +116,35 @@ export async function getUserWithDetails(userId: string): Promise<UserDetails | 
       current_session_id,
       current_session_ip,
       current_session_device,
-      current_session_expires_at
-    `)
+      current_session_expires_at,
+      identity_verified,
+      verification_completed,
+      bank78_verified,
+      is_business_registered,
+      purpose,
+      bank_name,
+      bank_account_name,
+      bank_account_number,
+      wallet_id,
+      activation_paid,
+      activated_at,
+      activation_reference
+    `
+    )
     .eq("id", userId)
     .single();
 
   if (error || !user) return null;
 
-  userCache.set(userId, { data: user, timestamp: Date.now() });
-  
+  const details = user as unknown as UserDetails;
+
+  userCache.set(userId, { data: details, timestamp: Date.now() });
+
   setTimeout(() => {
     userCache.delete(userId);
   }, CACHE_TTL);
-  
-  return user as UserDetails;
+
+  return details;
 }
 
 export function isSubscriptionActive(user: UserDetails): boolean {
@@ -118,22 +154,29 @@ export function isSubscriptionActive(user: UserDetails): boolean {
 }
 
 export function hasSufficientTier(
-  user: UserDetails, 
+  user: UserDetails,
   requiredTier: string
 ): boolean {
   const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
   const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || "free");
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
-  
+
   return userTierIndex >= requiredTierIndex && isSubscriptionActive(user);
 }
 
-// Clear cache periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of userCache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL) {
-      userCache.delete(key);
+// ─── Cache sweep (hot-reload safe) ───
+declare global {
+  // eslint-disable-next-line no-var
+  var __userCacheSweep: ReturnType<typeof setInterval> | undefined;
+}
+
+if (!globalThis.__userCacheSweep) {
+  globalThis.__userCacheSweep = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of userCache.entries()) {
+      if (now - entry.timestamp > CACHE_TTL) {
+        userCache.delete(key);
+      }
     }
-  }
-}, CACHE_TTL);
+  }, CACHE_TTL);
+}

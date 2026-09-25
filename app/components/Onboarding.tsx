@@ -18,10 +18,10 @@ import {
   Building2,
   User,
   Sparkles,
-  Copy,
   Eye,
   EyeOff,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -29,13 +29,6 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import Swal from "sweetalert2";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "./ui/dialog";
 import VerificationModal from "./VerificationModal";
 
 type Region = "nigeria" | "outside" | "";
@@ -120,7 +113,7 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1
+  // ─── Step 1 ───
   const [fullName, setFullName] = useState("");
   const [countryCode, setCountryCode] = useState("+234");
   const [phone, setPhone] = useState("");
@@ -130,33 +123,28 @@ const Onboarding = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Step 2
+  // ─── Step 2 ───
   const [region, setRegion] = useState<Region>("");
 
-  // Step 3
+  // ─── Step 3 ───
   const [purpose, setPurpose] = useState<Purpose>("");
 
-  // Step 4
+  // ─── Step 4 ───
   const [heardFrom, setHeardFrom] = useState<string>("");
 
-  // Step 5
+  // ─── Step 5 ───
   const [attractions, setAttractions] = useState<string[]>([]);
 
-  // Step 6 (business only)
+  // ─── Step 6 (business only) ───
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState<string>("");
   const [teamSize, setTeamSize] = useState<string>("");
 
-  // Terms
+  // ─── Terms ───
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Activation modal
-  const [showActivationModal, setShowActivationModal] = useState(false);
-  const [accountName, setAccountName] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  // Email verification modal
+  // ─── Email verification modal ───
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
@@ -191,7 +179,11 @@ const Onboarding = () => {
         return attractions.length > 0;
       case 6:
         if (isBusinessProfileStep) {
-          return businessType !== "" && teamSize !== "";
+          return (
+            isRegistered !== null &&
+            businessType !== "" &&
+            teamSize !== ""
+          );
         }
         return termsAccepted;
       case 7:
@@ -212,6 +204,7 @@ const Onboarding = () => {
     purpose,
     heardFrom,
     attractions,
+    isRegistered,
     businessType,
     teamSize,
     termsAccepted,
@@ -222,30 +215,12 @@ const Onboarding = () => {
     else setStep(step - 1);
   };
 
-  const generateAccountNumber = () =>
-    Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join("");
-
   const firstName = fullName.trim().split(/\s+/)[0] || "there";
 
   const toggleAttraction = (item: string) => {
     setAttractions((prev) =>
       prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
     );
-  };
-
-  const handleCopyAccountNumber = async () => {
-    try {
-      await navigator.clipboard.writeText(accountNumber);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      safeSwalFire({
-        icon: "error",
-        title: "Copy failed",
-        text: "Please copy the account number manually.",
-        confirmButtonColor: "#FDC020",
-      });
-    }
   };
 
   const handleResendVerification = async (): Promise<void> => {
@@ -306,7 +281,7 @@ const Onboarding = () => {
       return;
     }
 
-    // ─── FINAL STEP ───
+    // ─── FINAL STEP: SUBMIT ───
     setIsSubmitting(true);
 
     try {
@@ -333,6 +308,8 @@ const Onboarding = () => {
         businessType:
           purpose === "business" ? businessType || undefined : undefined,
         teamSize: purpose === "business" ? teamSize || undefined : undefined,
+        isBusinessRegistered:
+          purpose === "business" ? isRegistered === true : undefined,
       };
 
       const res = await fetch("/api/register", {
@@ -363,13 +340,8 @@ const Onboarding = () => {
         return;
       }
 
-      const name =
-        purpose === "business" && businessName.trim()
-          ? businessName.trim()
-          : fullName.trim() || "Zidwell User";
-      setAccountName(name);
-      setAccountNumber(generateAccountNumber());
-      setShowActivationModal(true);
+      // Nigeria → straight to email verification
+      setShowVerificationModal(true);
     } catch (err: any) {
       Swal.close();
       safeSwalFire({
@@ -381,11 +353,6 @@ const Onboarding = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleActivationModalClose = () => {
-    setShowActivationModal(false);
-    setShowVerificationModal(true);
   };
 
   const handleVerificationModalClose = () => {
@@ -686,6 +653,43 @@ const Onboarding = () => {
               subtitle="This helps us tailor the right tools and templates for you."
             >
               <div className="space-y-10">
+                {/* ─── Registered? ─── */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-bold text-xl text-(--text-primary)">
+                      Is your business CAC-registered?
+                    </h3>
+                    <p className="text-sm text-(--text-secondary) mt-1">
+                      We use this to determine your account type.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <PillChoice
+                      selected={isRegistered === true}
+                      onClick={() => setIsRegistered(true)}
+                      label="Yes, I have a CAC number"
+                    />
+                    <PillChoice
+                      selected={isRegistered === false}
+                      onClick={() => setIsRegistered(false)}
+                      label="No, not registered yet"
+                    />
+                  </div>
+
+                  {isRegistered === false && (
+                    <div className="flex items-start gap-3 p-4 rounded-2xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30">
+                      <Info className="h-5 w-5 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-(--text-primary) leading-relaxed">
+                        No problem. You&apos;ll get a standard business account
+                        with additional review on large transactions. You can
+                        upgrade to a full business account later by adding your
+                        CAC number.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ─── Business Name ─── */}
                 <Field
                   id="businessName"
                   label="Business Name"
@@ -701,6 +705,7 @@ const Onboarding = () => {
                   />
                 </Field>
 
+                {/* ─── Business Type ─── */}
                 <div className="space-y-4">
                   <h3 className="font-bold text-xl text-(--text-primary)">
                     What best describes your business?
@@ -717,6 +722,7 @@ const Onboarding = () => {
                   </div>
                 </div>
 
+                {/* ─── Team Size ─── */}
                 <div className="space-y-4">
                   <h3 className="font-bold text-xl text-(--text-primary)">
                     Team size
@@ -843,7 +849,7 @@ const Onboarding = () => {
         </div>
       </main>
 
-      {/* ─── STICKY CTA (inside left column) ─── */}
+      {/* ─── STICKY CTA ─── */}
       <div className="sticky bottom-0 z-30 bg-(--bg-primary)/95 backdrop-blur-md border-t border-(--border-color) mt-auto">
         <div className="mx-auto max-w-2xl px-5 py-4 sm:py-5 space-y-3">
           <Button
@@ -877,96 +883,7 @@ const Onboarding = () => {
         </div>
       </div>
 
-      {/* Activation modal */}
-      <Dialog
-        open={showActivationModal}
-        onOpenChange={(open) => {
-          if (!open) handleActivationModalClose();
-        }}
-      >
-        <DialogContent className="max-w-md squircle-lg border border-(--border-color) bg-(--bg-primary) p-0 overflow-hidden gap-0">
-          <div className="bg-(--color-accent-yellow) p-8 text-center space-y-3">
-            <div className="mx-auto h-16 w-16 squircle-md bg-black/10 flex items-center justify-center">
-              <Sparkles className="h-8 w-8 text-(--color-ink)" />
-            </div>
-            <DialogHeader>
-              <DialogTitle className="text-2xl sm:text-3xl font-bold text-(--color-ink)">
-                Account Created!
-              </DialogTitle>
-              <DialogDescription className="text-(--color-ink)/80 text-base">
-                Fund your account with ₦2,000 or more to activate it.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <div className="p-6 sm:p-8 space-y-6">
-            <div className="squircle-md bg-(--bg-secondary) border border-(--border-color) p-5 space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-(--text-secondary)">
-                  Bank Name
-                </p>
-                <p className="text-lg font-semibold text-(--text-primary) break-words">
-                  Wema Bank
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-(--text-secondary)">
-                  Account Name
-                </p>
-                <p className="text-lg font-semibold text-(--text-primary) break-words">
-                  {accountName}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-(--text-secondary)">
-                  Account Number
-                </p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <p className="text-2xl font-bold text-(--text-primary) tracking-widest">
-                    {accountNumber}
-                  </p>
-                  <button
-                    onClick={handleCopyAccountNumber}
-                    className={cn(
-                      "h-10 px-4 squircle-md text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer",
-                      copied
-                        ? "bg-(--color-lemon-green) text-white"
-                        : "bg-(--bg-primary) text-(--text-primary) hover:bg-(--bg-secondary) border border-(--border-color)"
-                    )}
-                    aria-label={copied ? "Copied" : "Copy account number"}
-                  >
-                    {copied ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                    {copied ? "Copied" : "Copy"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="squircle-md gradient-subtle border border-(--color-accent-yellow)/30 p-4 flex gap-3">
-              <Sparkles className="h-5 w-5 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-(--text-primary) leading-relaxed">
-                <strong>
-                  Fund Your Account with ₦2,000 or More to Activate It.
-                </strong>{" "}
-                Account activation happens instantly once the account is funded.
-              </p>
-            </div>
-
-            <Button
-              onClick={handleActivationModalClose}
-              className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
-            >
-              Got it
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Verification modal */}
+      {/* Email verification modal */}
       <VerificationModal
         isOpen={showVerificationModal}
         onClose={handleVerificationModalClose}

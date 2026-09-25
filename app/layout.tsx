@@ -8,7 +8,6 @@ import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
 import { InstallPrompt } from "./components/PushNotificationManager";
-import GlobalVerificationModal from "./components/GlobalVerificationModal";
 import { VerificationModalProvider } from "./context/verificationModalContext";
 import { StoreProvider } from "./hooks/useStore";
 import { ThemeProvider } from "./components/ThemeProvider";
@@ -20,6 +19,7 @@ import {
   generateLocalBusinessSchema,
 } from "@/lib/seo";
 import { BlogProvider } from "./context/BlogContext";
+import IdentityVerificationModal from "./components/IdentityVerificationModal";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -194,7 +194,7 @@ export default function RootLayout({
                     <VerificationModalProvider>
                       <StoreProvider>
                         {children}
-                        <GlobalVerificationModal />
+                        <IdentityVerificationModal />
                         {/* <div className="fixed bottom-4 right-4 z-50">
                           <InstallPrompt />
                         </div> */}

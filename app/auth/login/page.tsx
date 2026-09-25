@@ -97,12 +97,6 @@ const fixDoubleEncodedUrl = (url: string): string => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// ✅ SAFE SWAL WRAPPER
-// Under Turbopack + certain sweetalert2 builds, Swal.fire() can resolve
-// to a non-promise value, which breaks `.then()` / `.catch()` chaining.
-// This wrapper guarantees a real Promise is always returned.
-// ─────────────────────────────────────────────────────────────────────
 function safeSwalFire(options: any): Promise<any> {
   try {
     const result = (Swal as any).fire(options);
@@ -124,7 +118,6 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const { setUserData } = useUserContextData();
   const router = useRouter();
-  const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
@@ -134,14 +127,6 @@ const LoginForm = () => {
   const fromLogin = searchParams.get("fromLogin");
   const scrollToPricing = searchParams.get("scrollToPricing");
 
-  useEffect(() => {
-    const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
-    checkScreenSize();
-    window.addEventListener("resize", checkScreenSize);
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
-
-  // ✅ Helper to save user data with store to localStorage
   const saveUserDataToLocalStorage = (profile: any) => {
     try {
       const userDataToSave = {
@@ -221,7 +206,6 @@ const LoginForm = () => {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      // ✅ Use safeSwalFire — do NOT chain .catch() directly on Swal.fire
       safeSwalFire({
         title: "Signing in...",
         text: "Please wait while we verify your credentials",
@@ -244,7 +228,6 @@ const LoginForm = () => {
       const result = await res.json();
 
       if (!res.ok) {
-        // ✅ Handle 404 / user not found
         if (
           res.status === 404 ||
           result.error?.toLowerCase().includes("not found") ||
@@ -361,7 +344,6 @@ const LoginForm = () => {
 
       Swal.close();
 
-      // ─── SUSPICIOUS LOGIN WARNING ───
       if (result.security?.isSuspicious) {
         await safeSwalFire({
           icon: "warning",
@@ -388,8 +370,6 @@ const LoginForm = () => {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
 
-      // ─── BACKGROUND TASKS (fire and forget, never reject) ───
-      // ✅ Wrapped in try/catch instead of .catch() chains.
       void (async () => {
         try {
           await fetch("/api/activity/last-login", {
@@ -414,16 +394,12 @@ const LoginForm = () => {
         }
       })();
 
-      // ─── NAVIGATE ───
       if (process.env.NODE_ENV === "production") {
         window.location.replace(targetUrl);
       } else {
         router.replace(targetUrl);
       }
 
-      // ─── WELCOME BACK TOAST ───
-      // ✅ No .catch() here — see comment in safeSwalFire.
-      // Errors are already caught by the outer try/catch.
       setTimeout(() => {
         safeSwalFire({
           icon: "success",
@@ -463,195 +439,209 @@ const LoginForm = () => {
   };
 
   return (
-    <div className="lg:flex lg:justify-between bg-(--bg-primary) min-h-screen fade-in">
-      <div
-        className="lg:w-[50%] min-h-screen md:h-full flex justify-center md:items-start items-center px-6 md:py-8 fade-in bg-cover bg-center relative"
-        style={
-          isMobile
-            ? {
-                backgroundImage: `url("/zidwell-bg-mobile.jpg")`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : {}
-        }
-      >
-        <Button
-          onClick={() => router.push("/")}
-          variant="outline"
-          className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-(--bg-secondary) transition-colors z-10 cursor-pointer squircle-md border-(--border-color) text-(--text-primary)"
-          aria-label="Go back"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+    // ✅ Same 50/50 wrapper as signup — page locked, only left scrolls
+    <div className="min-h-screen bg-(--bg-primary) lg:h-screen lg:overflow-hidden lg:flex lg:flex-row fade-in">
+      {/* ─── LEFT COLUMN — 50% on desktop, scrollable ─── */}
+      <div className="w-full lg:w-1/2 lg:flex-shrink-0 lg:h-screen lg:overflow-y-auto flex flex-col">
+        {/* Mobile background */}
+        <div
+          className="lg:hidden absolute inset-0 bg-cover bg-center pointer-events-none"
+          style={{
+            backgroundImage: `url("/zidwell-bg-mobile.jpg")`,
+          }}
+        />
 
-        <Card className="w-full max-w-md h-full shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary)">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Image
-                src={logo}
-                alt="Zidwell Logo"
-                width={40}
-                height={40}
-                className="w-20 object-contain"
-                priority
-              />
-            </div>
-            <CardTitle className="text-2xl font-bold text-(--text-primary)">
-              Welcome Back
-            </CardTitle>
-            <CardDescription className="text-(--text-secondary)">
-              Sign in to your Zidwell Wallet
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="text-sm font-medium text-(--text-primary)"
-                >
-                  Email Address
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (errors.email) setErrors({ ...errors, email: "" });
-                  }}
-                  required
-                  disabled={loading}
-                  className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) squircle-md"
-                  style={{ outline: "none", boxShadow: "none" }}
-                  autoComplete="email"
-                />
-                {errors.email && (
-                  <p className="text-sm text-destructive animate-pulse">
-                    {errors.email}
-                  </p>
-                )}
-              </div>
+        <div className="relative flex-1 flex flex-col">
+          {/* Back button */}
+          <Button
+            onClick={() => router.push("/")}
+            variant="outline"
+            className="absolute top-4 left-4 md:top-8 md:left-8 hover:bg-(--bg-secondary) transition-colors z-10 cursor-pointer squircle-md border-(--border-color) text-(--text-primary)"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="text-sm font-medium text-(--text-primary)"
-                >
-                  Password
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (errors.password)
-                        setErrors({ ...errors, password: "" });
-                    }}
-                    required
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) rounded-md focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pr-10 squircle-md"
-                    style={{ outline: "none", boxShadow: "none" }}
-                    autoComplete="current-password"
+          {/* Centered card */}
+          <div className="flex-1 flex items-center justify-center px-6 py-16 md:py-8">
+            <Card className="w-full max-w-md shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary)">
+              <CardHeader className="text-center">
+                <div className="flex items-center justify-center mb-4">
+                  <Image
+                    src={logo}
+                    alt="Zidwell Logo"
+                    width={40}
+                    height={40}
+                    className="w-20 object-contain"
+                    priority
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
-                    disabled={loading}
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-destructive animate-pulse">
-                    {errors.password}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="remember"
-                    className="h-4 w-4 accent-(--color-accent-yellow) border-(--border-color) rounded focus:ring-(--color-accent-yellow) focus:ring-offset-0"
-                    disabled={loading}
-                  />
-                  <Label
-                    htmlFor="remember"
-                    className="text-sm cursor-pointer text-(--text-primary)"
-                  >
-                    Remember me
-                  </Label>
-                </div>
-                <Link
-                  href="/auth/password-reset"
-                  className="text-sm text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 transition-colors squircle-md py-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="animate-spin h-5 w-5 text-(--color-ink)"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
+                <CardTitle className="text-2xl font-bold text-(--text-primary)">
+                  Welcome Back
+                </CardTitle>
+                <CardDescription className="text-(--text-secondary)">
+                  Sign in to your Zidwell Wallet
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="email"
+                      className="text-sm font-medium text-(--text-primary)"
                     >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Signing In...
-                  </span>
-                ) : (
-                  "Sign In"
-                )}
-              </Button>
-            </form>
+                      Email Address
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email)
+                          setErrors({ ...errors, email: "" });
+                      }}
+                      required
+                      disabled={loading}
+                      className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) squircle-md"
+                      style={{ outline: "none", boxShadow: "none" }}
+                      autoComplete="email"
+                    />
+                    {errors.email && (
+                      <p className="text-sm text-destructive animate-pulse">
+                        {errors.email}
+                      </p>
+                    )}
+                  </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-(--text-secondary)">
-                Don&apos;t have an account?{" "}
-                <Link
-                  href="/auth/signup"
-                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors inline-flex items-center gap-1"
-                >
-                  <UserPlus className="h-3 w-3" />
-                  Sign up
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="password"
+                      className="text-sm font-medium text-(--text-primary)"
+                    >
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errors.password)
+                            setErrors({ ...errors, password: "" });
+                        }}
+                        required
+                        disabled={loading}
+                        className="w-full px-3 py-2 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow) pr-10 squircle-md"
+                        style={{ outline: "none", boxShadow: "none" }}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
+                        disabled={loading}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? (
+                          <EyeOff size={20} />
+                        ) : (
+                          <Eye size={20} />
+                        )}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="text-sm text-destructive animate-pulse">
+                        {errors.password}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="remember"
+                        className="h-4 w-4 accent-(--color-accent-yellow) border-(--border-color) rounded focus:ring-(--color-accent-yellow) focus:ring-offset-0"
+                        disabled={loading}
+                      />
+                      <Label
+                        htmlFor="remember"
+                        className="text-sm cursor-pointer text-(--text-primary)"
+                      >
+                        Remember me
+                      </Label>
+                    </div>
+                    <Link
+                      href="/auth/password-reset"
+                      className="text-sm text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 transition-colors underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 transition-colors squircle-md py-2"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-(--color-ink)"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Signing In...
+                      </span>
+                    ) : (
+                      "Sign In"
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-(--text-secondary)">
+                    Don&apos;t have an account?{" "}
+                    <Link
+                      href="/auth/signup"
+                      className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors inline-flex items-center gap-1"
+                    >
+                      <UserPlus className="h-3 w-3" />
+                      Sign up
+                    </Link>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-      <Carousel />
+
+      {/* ─── RIGHT COLUMN — 50% carousel, desktop only ─── */}
+      <div className="hidden lg:block lg:w-1/2 lg:flex-shrink-0 lg:h-screen lg:overflow-hidden">
+        <Carousel />
+      </div>
     </div>
   );
 };

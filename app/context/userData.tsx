@@ -20,25 +20,40 @@ export type SubscriptionTier =
   | "enterprise"
   | "corporation";
 
-export interface SupabaseUser {
-  id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  currentLoginSession: string | null;
-  zidcoinBalance: number;
-  bvnVerification: string;
-  role: string;
-  referralCode: string;
-  state: string | null;
-  city: string | null;
-  address: string | null;
-  dateOfBirth: string;
-  profilePicture: string | null;
-  subscription_tier?: SubscriptionTier | null;
-  subscription_expires_at?: string | null;
-}
-
+  export interface SupabaseUser {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    currentLoginSession: string | null;
+    zidcoinBalance: number;
+    bvnVerification: string;
+    role: string;
+    referralCode: string;
+    state: string | null;
+    city: string | null;
+    address: string | null;
+    dateOfBirth: string;
+    profilePicture: string | null;
+    subscription_tier?: SubscriptionTier | null;
+    subscription_expires_at?: string | null;
+    // ─── Verification state ───
+    identityVerified?: boolean;
+    verificationCompleted?: boolean;
+    bank78Verified?: boolean;
+    is_business_registered?: boolean;
+    purpose?: string;
+    // ─── Bank account ───
+    bankName?: string;
+    bankAccountName?: string;
+    bankAccountNumber?: string;
+    // ─── Store ───
+    hasStore?: boolean;
+    storeIsActive?: boolean;
+    storePendingActivation?: boolean;
+    store?: any;
+    pinSet?: boolean;
+  }
 export interface SubscriptionInfo {
   tier: SubscriptionTier;
   status: "active" | "expired" | "cancelled" | "pending";

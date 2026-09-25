@@ -40,7 +40,7 @@ import { useUserContextData } from "@/app/context/userData";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
-import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
+import BVNVerificationBadge from "@/app/components/VerificationBadge";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 

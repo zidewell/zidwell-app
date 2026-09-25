@@ -31,7 +31,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
+import BVNVerificationBadge from "@/app/components/VerificationBadge";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 
 const ACTIVATION_FEE_NAIRA = 200;

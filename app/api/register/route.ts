@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
       businessName,
       businessType,
       teamSize,
+       isBusinessRegistered,
     } = body;
 
     if (!fullName || !email || !phone || !password) {
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
       verification_completed: false,
       verification_step: 0,
       identity_verified: false,
-      is_business_registered: false,
+      is_business_registered: isBusinessRegistered === true,
 
       bank_name: null,
       bank_account_name: null,
@@ -210,7 +211,7 @@ export async function POST(req: NextRequest) {
           business_name: businessName?.trim() || fullName.trim(),
           business_type: businessType || null,
           team_size: teamSize || null,
-          is_registered: false,
+          is_registered: isBusinessRegistered === true,
           cac_number: null,
           business_address: null,
           map_url: null,

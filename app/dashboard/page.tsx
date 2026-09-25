@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import DashboardSidebar from "../components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "../components/dashboard-component/DashboardHeader";
 import AnnouncementSlider from "../components/dashboard-component/AnnouncementSlider";
@@ -10,15 +10,16 @@ import DataOverviewCards from "../components/dashboard-component/DataOverviewCar
 import DashboardCharts from "../components/dashboard-component/DashboardCharts";
 import RecentArticles from "../components/dashboard-component/RecentArticles";
 import MobileBottomNav from "../components/dashboard-component/MobileBottomNav";
-import BVNVerificationBadge from "../components/BVNVerificationBadge";
+import BVNVerificationBadge from "../components/VerificationBadge";
 import BalanceCard from "../components/Balance-card";
 import TransactionHistory from "../components/transaction-history";
 import { useSubscription } from "../hooks/useSubscripion";
 import { UpgradeBanner } from "../components/subscription-components/UpgradeBanner";
 import { SubscriptionModal } from "../components/dashboard-component/SubscriptionModal";
-import { CheckCircle, Loader2, X } from "lucide-react";
+import { useUserContextData } from "../context/userData";
+import { CheckCircle, Loader2, X, Sparkles } from "lucide-react";
 
-// Define the Usage interface
+// ─── Usage type ───
 interface UsageData {
   invoices_used: number;
   invoices_limit: number;
@@ -26,10 +27,12 @@ interface UsageData {
   receipts_limit: number;
   contracts_used: number;
   contracts_limit: number;
-  // Add other usage fields as needed
 }
 
 function DashboardPage() {
+  const router = useRouter();
+  const { userData } = useUserContextData();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successPlan, setSuccessPlan] = useState("");
@@ -39,9 +42,13 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // ─── Activation toast states ───
+  const [showVerifiedToast, setShowVerifiedToast] = useState(false);
+  const [activationChecking, setActivationChecking] = useState(false);
+
   const searchParams = useSearchParams();
 
-  // Check for subscription success on mount
+  // ─── Subscription success toast (existing) ───
   useEffect(() => {
     const subscriptionSuccess = searchParams?.get("subscription");
     const plan = searchParams?.get("plan");
@@ -50,12 +57,10 @@ function DashboardPage() {
       setSuccessPlan(plan || userTier || "");
       setShowSuccess(true);
 
-      // Auto-hide after 5 seconds
       const timer = setTimeout(() => {
         setShowSuccess(false);
       }, 5000);
 
-      // Clean up URL without refreshing
       const url = new URL(window.location.href);
       url.searchParams.delete("subscription");
       url.searchParams.delete("plan");
@@ -65,17 +70,41 @@ function DashboardPage() {
     }
   }, [searchParams, userTier]);
 
-  // Check if we should show subscription modal (when user hits limits)
+  // ─── Already-verified cookie toast ───
+  // proxy.ts sets `already_verified=1` when it redirects a fully
+  // verified user away from /verification. Read it here, clear it,
+  // and show a one-shot toast.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const cookies = document.cookie.split("; ");
+    const hasFlag = cookies.some((c) =>
+      c.trim().startsWith("already_verified=")
+    );
+
+    if (hasFlag) {
+      document.cookie =
+        "already_verified=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      document.cookie =
+        "already_verified=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      setShowVerifiedToast(true);
+      const timer = setTimeout(() => setShowVerifiedToast(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // ─── Auto-open subscription modal near limits ───
   useEffect(() => {
     if (userTier === "free" && usage) {
-      const invoiceUsage = (usage.invoices_used / 5) * 100; // 5 is free tier limit
+      const invoiceUsage = (usage.invoices_used / 5) * 100;
       if (invoiceUsage >= 80) {
         setShowSubscriptionModal(true);
       }
     }
   }, [userTier, usage]);
 
-  // Fetch usage data
+  // ─── Fetch usage ───
   const fetchUsage = async () => {
     try {
       const res = await fetch("/api/user/usage");
@@ -90,19 +119,16 @@ function DashboardPage() {
     }
   };
 
-  // Refresh usage after actions
   const refreshUsage = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
-  // Fetch usage on mount and when refreshKey changes
   useEffect(() => {
     if (userTier === "free") {
       fetchUsage();
     }
   }, [userTier, refreshKey]);
 
-  // Listen for focus events to refresh data when returning to dashboard
   useEffect(() => {
     const handleFocus = () => {
       if (userTier === "free") {
@@ -114,30 +140,25 @@ function DashboardPage() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [userTier]);
 
-  // Format plan name for display
- const formatPlanName = (plan: string) => {
-  if (!plan) return "";
-  const planMap: Record<string, string> = {
-    free: "Free",
-    solopreneur: "Solopreneur",
-    sme: "SME",
-    enterprise: "Enterprise",
-    corporation: "Corporation",
-  };
-  return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
-};
-
-
-  // Get free tier limits
-  const getFreeTierLimits = () => {
-    return {
-      invoices: 5,
-      receipts: 5,
-      contracts: 1,
+  // ─── Plan formatting ───
+  const formatPlanName = (plan: string) => {
+    if (!plan) return "";
+    const planMap: Record<string, string> = {
+      free: "Free",
+      solopreneur: "Solopreneur",
+      sme: "SME",
+      enterprise: "Enterprise",
+      corporation: "Corporation",
     };
+    return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
 
-  // Check if user is near limits
+  const getFreeTierLimits = () => ({
+    invoices: 5,
+    receipts: 5,
+    contracts: 1,
+  });
+
   const isNearLimit = () => {
     if (!usage || userTier !== "free") return false;
     const limits = getFreeTierLimits();
@@ -148,6 +169,35 @@ function DashboardPage() {
     );
   };
 
+  // ─── Manual activation check ───
+  const handleCheckActivation = async () => {
+    if (activationChecking) return;
+    setActivationChecking(true);
+
+    try {
+      const res = await fetch("/api/activate", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      if (data?.activation?.activated) {
+        // Reload so userData (context) refetches and the banner disappears
+        window.location.reload();
+      } else {
+        alert(
+          data?.activation?.reason ||
+            "Not enough funds yet. Fund ₦2,000 or more to activate your account."
+        );
+      }
+    } catch (err) {
+      console.error("Activation check failed:", err);
+      alert("Could not check activation status. Please try again.");
+    } finally {
+      setActivationChecking(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full bg-[#f7f7f7] dark:bg-[#0e0e0e]">
       {/* Subscription Modal */}
@@ -156,7 +206,7 @@ function DashboardPage() {
         onClose={() => setShowSubscriptionModal(false)}
       />
 
-      {/* Success Toast/Notification */}
+      {/* ─── Subscription success toast ─── */}
       {showSuccess && (
         <div className="fixed top-20 right-4 z-50 animate-slideIn">
           <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg border-l-4 border-green-700 max-w-md">
@@ -206,27 +256,111 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Sidebar with mobile support */}
+      {/* ─── Already-verified toast ─── */}
+      {showVerifiedToast && (
+        <div className="fixed top-20 right-4 z-50 animate-slideIn">
+          <div className="bg-(--color-accent-yellow) text-(--color-ink) px-6 py-4 rounded-lg shadow-lg border-l-4 border-yellow-600 max-w-md">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-lg">Welcome back!</p>
+                  <button
+                    onClick={() => setShowVerifiedToast(false)}
+                    className="text-(--color-ink)/80 hover:text-(--color-ink)"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-(--color-ink)/80 mt-1">
+                  You&apos;re already verified — nothing more to do. Enjoy
+                  Zidwell!
+                </p>
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowVerifiedToast(false)}
+                    className="text-xs bg-(--color-ink)/10 hover:bg-(--color-ink)/20 text-(--color-ink) px-3 py-1 rounded-full transition-colors"
+                  >
+                    Got it
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar */}
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Main Content — padding follows the collapsible sidebar width */}
+      {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0 lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
-        {/* Header with menu button */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Upgrade Banner - Shows only for free users */}
         <UpgradeBanner />
 
-        {/* Main Content Area */}
         <main className="flex-1 px-4 md:px-6 py-6 md:py-8 pb-28 lg:pb-10 overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-            {/* BVN Verification Badge */}
             <BVNVerificationBadge />
 
-            {/* Hero Section */}
+            {/* ─── Activation banner ─── */}
+            {userData?.bank78Verified && !userData?.activationPaid && (
+              <div className="rounded-2xl bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30 p-5 space-y-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="h-5 w-5 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-(--text-primary) text-lg">
+                      Activate your account
+                    </h3>
+                    <p className="text-sm text-(--text-secondary) mt-1 leading-relaxed">
+                      Fund your wallet with <strong>₦2,000 or more</strong>.
+                      We&apos;ll debit <strong>₦1,000</strong> for activation
+                      and leave <strong>₦1,000</strong> in your wallet to get
+                      you started.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-(--bg-secondary) border border-(--border-color) p-4 flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-xs text-(--text-secondary) font-medium">
+                      Your account number
+                    </p>
+                    <p className="font-semibold tracking-widest text-(--text-primary) text-lg">
+                      {userData?.bankAccountNumber || "—"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push("/dashboard/fund-account")}
+                    className="h-11 px-5 rounded-2xl text-sm font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
+                  >
+                    Fund Wallet
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleCheckActivation}
+                  disabled={activationChecking}
+                  className="text-xs underline text-(--text-secondary) hover:text-(--text-primary) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  {activationChecking ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Checking...
+                    </>
+                  ) : (
+                    "Already funded? Check activation status"
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Hero */}
             <div className="text-left">
               <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#141414] dark:text-[#f5f5f5] tracking-tight uppercase">
                 OneApp to Rule Your Money
@@ -236,12 +370,12 @@ function DashboardPage() {
               </p>
             </div>
 
-            {/* Announcement Slider */}
+            {/* Announcement */}
             <section>
               <AnnouncementSlider />
             </section>
 
-            {/* Quick Actions / Service Cards */}
+            {/* Quick Actions */}
             <section className="mt-16">
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
                 Quick Actions
@@ -257,10 +391,10 @@ function DashboardPage() {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile bottom nav (disabled) */}
       {/* <MobileBottomNav /> */}
 
-      {/* Manual trigger button for testing - remove in production */}
+      {/* Dev-only subscription modal trigger */}
       {process.env.NODE_ENV === "development" && (
         <button
           onClick={() => setShowSubscriptionModal(true)}
