@@ -1,6 +1,6 @@
-// app/hooks/useSubscripion.ts
+// app/hooks/useSubscription.ts
 import { useUserContextData } from "../context/userData";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import useSWR from 'swr';
 
@@ -31,7 +31,8 @@ export const useSubscription = () => {
     userData,
   } = useUserContextData();
 
-  const supabase = createClientComponentClient();
+  // Memoize the Supabase client so it's stable across renders
+  const supabase = useMemo(() => createClientComponentClient(), []);
 
   // Cache key for subscription data
   const subscriptionCacheKey = userData?.id ? `/api/subscription?userId=${userData.id}` : null;
@@ -55,8 +56,18 @@ export const useSubscription = () => {
   useEffect(() => {
     if (!userData?.id) return;
 
+    const channelName = `subscription-changes-${userData.id}`;
+
+    // Remove any existing channel with this name first (guards against StrictMode / re-renders)
+    const existingChannel = supabase
+      .getChannels()
+      .find((ch) => ch.topic === `realtime:${channelName}`);
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel);
+    }
+
     const channel = supabase
-      .channel('subscription-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -92,7 +103,7 @@ export const useSubscription = () => {
 
   const getPlanLimits = useCallback(() => {
     const tier = cachedSubscription?.tier || subscription?.tier || 'free';
-    
+
     const limits = {
       free: {
         invoices: 5,
@@ -168,7 +179,7 @@ export const useSubscription = () => {
   // Get upgrade benefits when moving to a new tier
   const enhancedGetUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
     const currentTier = (cachedSubscription?.tier || subscription?.tier || 'free') as SubscriptionTier;
-    
+
     const benefitsMap: Record<string, string[]> = {
       free_to_solopreneur: [
         "Up to 10 invoices (up from 5)",
@@ -375,25 +386,25 @@ export const useSubscription = () => {
     subscription: cachedSubscription || subscription,
     loading: subscriptionLoading,
     refreshSubscription: refreshAll,
-    
+
     // Tier info
     userTier: currentTier,
     currentTier,
     currentStatus,
-    
+
     // Tier boolean flags
     isFree,
     isSolopreneur,
     isSME,
     isEnterprise,
     isCorporation,
-    
+
     // Legacy aliases for backward compatibility
     isZidLite: isSolopreneur,
     isGrowth: isSME,
     isPremium: isEnterprise,
     isElite: isCorporation,
-    
+
     // Feature access helpers
     hasUnlimitedInvoices,
     hasUnlimitedReceipts,
@@ -402,7 +413,7 @@ export const useSubscription = () => {
     canAccessTaxSupport,
     canAccessFullTaxFiling,
     canAddLawyerSignature,
-    
+
     // Helper functions
     hasRequiredTier,
     checkFeatureAccess,
@@ -411,15 +422,15 @@ export const useSubscription = () => {
     getUpgradeBenefits: enhancedGetUpgradeBenefits,
     canAccessFeature: enhancedCanAccessFeature,
     getPlanLimits,
-    
+
     // Status flags
     isActive: currentStatus === 'active',
     isExpired: currentStatus === 'expired',
     isCancelled: currentStatus === 'cancelled',
-    
+
     // User info
     userId: userData?.id,
-    
+
     // Expiry info
     expiresAt: cachedSubscription?.expiresAt || subscription?.expiresAt,
     daysRemaining: (cachedSubscription?.expiresAt || subscription?.expiresAt)
