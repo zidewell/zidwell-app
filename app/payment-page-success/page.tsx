@@ -60,6 +60,7 @@ function PaymentSuccessContent() {
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reference]);
 
   const fetchPaymentDetails = async () => {
@@ -269,7 +270,9 @@ function PaymentSuccessContent() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-[var(--text-secondary)]" />
-                  <span className="text-xs text-[var(--text-secondary)]">Reference</span>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    Reference
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <code className="text-xs font-mono text-[var(--color-accent-yellow)]">
@@ -332,7 +335,9 @@ function PaymentSuccessContent() {
                           key={key}
                           className="flex justify-between py-1 border-b border-[var(--border-color)]/50 last:border-0"
                         >
-                          <span className="text-xs text-[var(--text-secondary)]">{key}:</span>
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            {key}:
+                          </span>
                           <span className="text-xs text-[var(--text-primary)]">
                             {String(value) || "N/A"}
                           </span>
@@ -340,7 +345,7 @@ function PaymentSuccessContent() {
                       ))}
                   </div>
                 </div>
-              )}}
+              )}
 
             {/* Students (for school payments) */}
             {payment.students && payment.students.length > 0 && (
@@ -362,14 +367,16 @@ function PaymentSuccessContent() {
                   </div>
                 </div>
               </div>
-            )}}
+            )}
 
             {/* Timestamps */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
-                  <p className="text-xs text-[var(--text-secondary)]">Created</p>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Created
+                  </p>
                 </div>
                 <p className="text-xs text-[var(--text-primary)] mt-1">
                   {formatDate(payment.created_at)}
@@ -378,7 +385,9 @@ function PaymentSuccessContent() {
               <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                  <p className="text-xs text-[var(--text-secondary)]">Confirmed</p>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Confirmed
+                  </p>
                 </div>
                 <p className="text-xs text-[var(--text-primary)] mt-1">
                   {formatDate(payment.confirmed_at || payment.created_at)}
