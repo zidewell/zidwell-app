@@ -773,7 +773,7 @@ async function generatePdfBuffer(
     );
 
     await page.setContent(htmlContent, {
-      waitUntil: "networkidle0",
+      waitUntil: "load",
       timeout: 30000,
     });
 
