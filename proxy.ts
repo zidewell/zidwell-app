@@ -24,11 +24,13 @@ const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/tax-calculator", requiredTier: "sme" },
   { path: "/dashboard/financial-statements", requiredTier: "sme" },
   { path: "/dashboard/connected-accounts", requiredTier: "sme" },
+
   { path: "/dashboard/team", requiredTier: "enterprise" },
   { path: "/dashboard/roles", requiredTier: "enterprise" },
   { path: "/dashboard/approvals", requiredTier: "enterprise" },
   { path: "/dashboard/reports", requiredTier: "enterprise" },
   { path: "/dashboard/contracts", requiredTier: "enterprise" },
+
   { path: "/dashboard/departments", requiredTier: "corporation" },
   { path: "/dashboard/payroll", requiredTier: "corporation" },
   { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
@@ -36,7 +38,10 @@ const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/account-manager", requiredTier: "corporation" },
 ];
 
-const legacyPremiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
+const legacyPremiumRoutes: {
+  path: string;
+  requiredTier: SubscriptionTier;
+}[] = [
   { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
   { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
@@ -122,10 +127,13 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
       return requiredTier;
     }
   }
+
   return null;
 }
 
-function requiresPaymentEmailRestriction(pathname: string): boolean {
+function requiresPaymentEmailRestriction(
+  pathname: string
+): boolean {
   return (
     pathname === "/dashboard/services/payment" ||
     pathname === "/dashboard/services/payment/create" ||
@@ -139,6 +147,7 @@ function requiresStoreOwnership(pathname: string): boolean {
       return true;
     }
   }
+
   return false;
 }
 
@@ -210,7 +219,9 @@ function shouldBypassAuth(pathname: string): boolean {
   }
   if (
     publicPaths.some(
-      (path) => pathname === path || pathname.startsWith(path + "/")
+      (path) =>
+        pathname === path ||
+        pathname.startsWith(path + "/")
     )
   ) {
     return true;
@@ -225,9 +236,13 @@ type TokenValidationResult = User | { error: "expired" } | null;
 async function validateTokenAndGetUser(
   token: string
 ): Promise<TokenValidationResult> {
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
+
   try {
     const supabase = getSupabaseAdmin();
+
     const {
       data: { user },
       error,
@@ -240,6 +255,7 @@ async function validateTokenAndGetUser(
       console.error("Token validation error:", error.message);
       return null;
     }
+
     return user;
   } catch (error) {
     console.error("Token validation error:", error);
@@ -247,13 +263,21 @@ async function validateTokenAndGetUser(
   }
 }
 
-async function refreshAccessToken(refreshToken: string) {
+async function refreshAccessToken(
+  refreshToken: string
+) {
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase.auth.refreshSession({
-      refresh_token: refreshToken,
-    });
-    if (error || !data.session) return null;
+
+    const { data, error } =
+      await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      });
+
+    if (error || !data.session) {
+      return null;
+    }
+
     return data.session;
   } catch (error) {
     console.error("Token refresh error:", error);
@@ -272,8 +296,14 @@ function isTokenError(
   );
 }
 
-function isUser(result: TokenValidationResult): result is User {
-  return result !== null && !("error" in result) && "id" in result;
+function isUser(
+  result: TokenValidationResult
+): result is User {
+  return (
+    result !== null &&
+    !("error" in result) &&
+    "id" in result
+  );
 }
 
 function clearAuthCookies(response: NextResponse) {
@@ -288,7 +318,10 @@ function clearAuthCookies(response: NextResponse) {
     "sb-session-id",
     "sb-session-risk",
   ];
-  cookiesToDelete.forEach((name) => response.cookies.delete(name));
+
+  cookiesToDelete.forEach((name) =>
+    response.cookies.delete(name)
+  );
 }
 
 function redirectToLogin(req: NextRequest, clearCookies = true) {
@@ -304,16 +337,28 @@ function redirectToLogin(req: NextRequest, clearCookies = true) {
   return response;
 }
 
-function redirectFromPaymentPage(req: NextRequest) {
+function redirectFromPaymentPage(
+  req: NextRequest
+) {
   console.log(
     `🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`
   );
-  const response = NextResponse.redirect(new URL("/dashboard", req.url));
+
+  const response = NextResponse.redirect(
+    new URL("/dashboard", req.url)
+  );
+
   response.cookies.set(
     "payment_access_denied",
     "You don't have permission to access the payment page",
-    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+    {
+      httpOnly: true,
+      maxAge: 5,
+      path: "/",
+      sameSite: "lax",
+    }
   );
+
   return response;
 }
 
@@ -324,11 +369,25 @@ function redirectNoStore(req: NextRequest) {
   const response = NextResponse.redirect(
     new URL("/dashboard/services/payment", req.url)
   );
+
+  const response = NextResponse.redirect(
+    new URL(
+      "/dashboard/services/payment",
+      req.url
+    )
+  );
+
   response.cookies.set(
     "store_required",
     "You need to create a store to access this page",
-    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+    {
+      httpOnly: true,
+      maxAge: 5,
+      path: "/",
+      sameSite: "lax",
+    }
   );
+
   return response;
 }
 
@@ -340,6 +399,7 @@ function redirectInsufficientTier(
   console.log(
     `⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`
   );
+
   const response = NextResponse.redirect(
     new URL(
       `/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(
@@ -348,11 +408,18 @@ function redirectInsufficientTier(
       req.url
     )
   );
+
   response.cookies.set(
     "subscription_message",
     `This feature requires the ${requiredTier} plan`,
-    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+    {
+      httpOnly: true,
+      maxAge: 5,
+      path: "/",
+      sameSite: "lax",
+    }
   );
+
   return response;
 }
 
@@ -364,15 +431,28 @@ export async function proxy(req: NextRequest) {
   // Public storefront
   if (isPublicStoreFront(currentPath)) {
     if (!areStoreFrontSlugsValid(currentPath)) {
-      return NextResponse.redirect(new URL("/", req.url));
+      return NextResponse.redirect(
+        new URL("/", req.url)
+      );
     }
-    console.log(`🌐 Public storefront bypass: ${currentPath}`);
+
+    console.log(
+      `🌐 Public storefront bypass: ${currentPath}`
+    );
+
     return NextResponse.next();
   }
 
+<<<<<<< HEAD
   // Public routes
+=======
+  // ─── PUBLIC PATHS ───
+>>>>>>> c681d7cd52f3330d8ace63aa936d0cbbdb3dc2cf
   if (shouldBypassAuth(currentPath)) {
-    console.log(`✅ Public path bypass: ${currentPath}`);
+    console.log(
+      `✅ Public path bypass: ${currentPath}`
+    );
+
     return NextResponse.next();
   }
 
@@ -384,12 +464,19 @@ export async function proxy(req: NextRequest) {
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 
     if (!accessToken && refreshToken) {
-      const session = await refreshAccessToken(refreshToken);
-      if (session) accessToken = session.access_token;
+      const session =
+        await refreshAccessToken(refreshToken);
+
+      if (session) {
+        accessToken = session.access_token;
+      }
     }
 
     if (!accessToken) {
-      console.log("❌ No valid token for payment page access");
+      console.log(
+        "❌ No valid token for payment page access"
+      );
+
       return redirectToLogin(req);
     }
 
@@ -406,6 +493,7 @@ export async function proxy(req: NextRequest) {
       console.log(
         `🚫 Unauthorized email: ${userEmail} attempted to access payment page`
       );
+
       return redirectFromPaymentPage(req);
     }
 
@@ -417,18 +505,27 @@ export async function proxy(req: NextRequest) {
     currentPath.startsWith("/dashboard") &&
     req.cookies.get("payment_processed")
   ) {
-    console.log("🟡 Post-payment access granted");
+    console.log(
+      "🟡 Post-payment access granted"
+    );
+
     const response = NextResponse.next();
+
     response.cookies.delete("payment_processed");
+
     return response;
   }
 
   // /app redirect
   if (currentPath === "/app") {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(
+      new URL("/", req.url)
+    );
   }
 
-  console.log(`🔒 Checking auth for: ${currentPath}`);
+  console.log(
+    `🔒 Checking auth for: ${currentPath}`
+  );
 
   // Extract tokens
   let accessToken = req.cookies.get("sb-access-token")?.value;
@@ -448,13 +545,20 @@ export async function proxy(req: NextRequest) {
       );
       return NextResponse.next();
     }
-    console.log("❌ Invalid session state - redirecting to login");
+
+    console.log(
+      "❌ Invalid session state - redirecting to login"
+    );
+
     return redirectToLogin(req);
   }
 
   // No tokens
   if (!accessToken && !refreshToken) {
-    console.log("❌ No tokens found, redirecting to login");
+    console.log(
+      "❌ No tokens found, redirecting to login"
+    );
+
     return redirectToLogin(req);
   }
 
@@ -466,7 +570,10 @@ export async function proxy(req: NextRequest) {
     const session = await refreshAccessToken(refreshToken);
 
     if (!session) {
-      console.log("❌ Token refresh failed");
+      console.log(
+        "❌ Token refresh failed"
+      );
+
       return redirectToLogin(req);
     }
 
@@ -518,17 +625,25 @@ export async function proxy(req: NextRequest) {
   ]);
 
   if (!tokenResult) {
-    console.log("⏱️ Token validation timed out - allowing access");
-    return refreshedResponse || NextResponse.next();
+    console.log(
+      "⏱️ Token validation timed out - allowing access"
+    );
+
+    return (
+      refreshedResponse ||
+      NextResponse.next()
+    );
   }
 
   if (isTokenError(tokenResult)) {
     console.log("⚠️ Token expired");
+
     return redirectToLogin(req);
   }
 
   if (!isUser(tokenResult)) {
     console.log("❌ Invalid user object");
+
     return redirectToLogin(req);
   }
 
@@ -544,15 +659,26 @@ export async function proxy(req: NextRequest) {
   ]);
 
   if (!userDetails) {
-    console.log("⏱️ User details fetch timed out - allowing access");
-    return refreshedResponse || NextResponse.next();
+    console.log(
+      "⏱️ User details fetch timed out - allowing access"
+    );
+
+    return (
+      refreshedResponse ||
+      NextResponse.next()
+    );
   }
 
   // ─── BLOCKED USER ───
   if (userDetails.is_blocked) {
     console.log("🚫 User is blocked");
-    const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
+
+    const response = NextResponse.redirect(
+      new URL("/auth/blocked", req.url)
+    );
+
     clearAuthCookies(response);
+
     return response;
   }
 
@@ -587,7 +713,9 @@ export async function proxy(req: NextRequest) {
   // ─── SESSION ID MATCH ───
   const sessionPromise = getSupabaseAdmin()
     .from("users")
-    .select("current_session_id, current_session_expires_at")
+    .select(
+      "current_session_id, current_session_expires_at"
+    )
     .eq("id", tokenResult.id)
     .single();
 
@@ -611,8 +739,6 @@ export async function proxy(req: NextRequest) {
     const dbSessionId = sessionData.current_session_id;
     const dbSessionExpires = sessionData.current_session_expires_at;
 
-    if (dbSessionId && !sessionIdCookie) {
-      console.log("❌ Session ID cookie missing");
       return redirectToLogin(req, true);
     }
 
@@ -621,14 +747,22 @@ export async function proxy(req: NextRequest) {
         `🚫 Session mismatch. DB: ${dbSessionId.slice(
           0,
           8
-        )}... Cookie: ${sessionIdCookie.slice(0, 8)}...`
+        )}... Cookie: ${sessionIdCookie.slice(
+          0,
+          8
+        )}...`
       );
 
       const response = redirectToLogin(req, true);
       response.cookies.set(
         "login_error",
         "Your session was invalidated because you logged in on another device",
-        { httpOnly: false, maxAge: 30, path: "/", sameSite: "lax" }
+        {
+          httpOnly: false,
+          maxAge: 30,
+          path: "/",
+          sameSite: "lax",
+        }
       );
       return response;
     }
@@ -651,11 +785,18 @@ export async function proxy(req: NextRequest) {
     console.log(`🏪 Checking store ownership for: ${currentPath}`);
 
     try {
-      const supabase = getSupabaseAdmin();
+      const supabase =
+        getSupabaseAdmin();
+
       const storePromise = supabase
         .from("online_stores")
-        .select("id, is_active, activation_paid")
-        .eq("owner_id", tokenResult.id)
+        .select(
+          "id, is_active, activation_paid"
+        )
+        .eq(
+          "owner_id",
+          tokenResult.id
+        )
         .maybeSingle();
 
       const storeTimeoutPromise = new Promise<{
@@ -671,12 +812,19 @@ export async function proxy(req: NextRequest) {
       ])) as any;
 
       if (storeError) {
-        console.error("❌ Error checking store:", storeError);
+        console.error(
+          "❌ Error checking store:",
+          storeError
+        );
+
         return redirectNoStore(req);
       }
 
       if (!store) {
-        console.log(`🚫 No store found for user ${tokenResult.id}`);
+        console.log(
+          `🚫 No store found for user ${tokenResult.id}`
+        );
+
         return redirectNoStore(req);
       }
 
@@ -684,19 +832,29 @@ export async function proxy(req: NextRequest) {
         store.is_active === true && store.activation_paid === true;
 
       if (!hasActiveStore) {
-        console.log(`🚫 No active store found for user ${tokenResult.id}`);
-        const response = redirectNoStore(req);
+        console.log(
+          `🚫 No active store found for user ${tokenResult.id}`
+        );
+
+        const response =
+          redirectNoStore(req);
+
         response.cookies.set(
           "store_required_message",
           "Please activate your store",
           { httpOnly: false, maxAge: 5, path: "/", sameSite: "lax" }
         );
+
         return response;
       }
 
       console.log(`✅ Store ownership verified for ${currentPath}`);
     } catch (error) {
-      console.error("❌ Store check error:", error);
+      console.error(
+        "❌ Store check error:",
+        error
+      );
+
       return redirectNoStore(req);
     }
   }
@@ -704,7 +862,8 @@ export async function proxy(req: NextRequest) {
   // BVN check
   if (
     bvnRequiredSet.has(currentPath) &&
-    userDetails.bvn_verification !== "verified"
+    userDetails.bvn_verification !==
+      "verified"
   ) {
     console.log(`⚠️ BVN verification required for ${currentPath}`);
 
@@ -718,7 +877,12 @@ export async function proxy(req: NextRequest) {
     response.cookies.set(
       "verification_message",
       "Please verify your BVN to access this feature",
-      { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" }
+      {
+        httpOnly: true,
+        maxAge: 5,
+        path: "/",
+        sameSite: "lax",
+      }
     );
 
     return response;
@@ -727,10 +891,20 @@ export async function proxy(req: NextRequest) {
   // Subscription tier
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier) {
-    const hasAccess = hasSufficientTier(userDetails, requiredTier);
+    const hasAccess =
+      hasSufficientTier(
+        userDetails,
+        requiredTier
+      );
+
     if (!hasAccess) {
-      return redirectInsufficientTier(req, requiredTier, currentPath);
+      return redirectInsufficientTier(
+        req,
+        requiredTier,
+        currentPath
+      );
     }
+
     console.log(
       `✅ Tier check passed for ${currentPath} (requires ${requiredTier})`
     );
@@ -743,10 +917,20 @@ export async function proxy(req: NextRequest) {
   ) {
     if (
       !userDetails.admin_role ||
-      !allowedAdminRoles.includes(userDetails.admin_role)
+      !allowedAdminRoles.includes(
+        userDetails.admin_role
+      )
     ) {
-      console.log(`⚠️ Admin access denied for ${currentPath}`);
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      console.log(
+        `⚠️ Admin access denied for ${currentPath}`
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          "/dashboard",
+          req.url
+        )
+      );
     }
     console.log(
       `✅ Admin access granted for role: ${userDetails.admin_role}`
@@ -765,7 +949,10 @@ export async function proxy(req: NextRequest) {
     );
   }
 
-  return refreshedResponse || NextResponse.next();
+  return (
+    refreshedResponse ||
+    NextResponse.next()
+  );
 }
 
 // ─── MATCHER ───

@@ -2,7 +2,22 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Pencil, ExternalLink, QrCode, Link2, Trash2, EyeOff, Package } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  ExternalLink,
+  QrCode,
+  Link2,
+  Trash2,
+  EyeOff,
+  Package,
+  RefreshCw,
+  CreditCard,
+  Wallet,
+  Eye,
+} from "lucide-react";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { useStore } from "@/app/context/StoreContext";
@@ -26,21 +41,21 @@ function compactNumber(n: number): string {
   return `${(v / 1_000_000_000_000).toFixed(1)}T`;
 }
 
-function formatPrice(n: number): string {
+function formatCurrencyCompact(n: number): string {
   const v = Number(n) || 0;
   const full = v.toLocaleString();
-  if (full.length <= 12) return full;
-  return compactNumber(v);
+  if (full.length <= 12) return `₦${full}`;
+  return `₦${compactNumber(v)}`;
 }
 
-// ─── Product Card ───
-function ProductCard({
-  product,
+// ─── Payment / Product Card ───
+function PaymentPageCard({
+  page,
   index,
   storeSlug,
   onRefresh,
 }: {
-  product: any;
+  page: any;
   index: number;
   storeSlug?: string;
   onRefresh: () => void;
@@ -48,27 +63,40 @@ function ProductCard({
   const router = useRouter();
   const { updatePage } = useStore();
 
-  const getFullUrl = () => {
+  const getPageUrl = () =>
+    `/store/${storeSlug || ""}/${page.slug || page.id}`;
+
+  const getFullPageUrl = () => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origin}/store/${storeSlug || ""}/${product.slug || product.id}`;
+    return `${origin}${getPageUrl()}`;
   };
 
-  const isActive = product.isPublished === true;
+  const isActive = page.isPublished === true;
+
+  const stripHtml = (html: string) => {
+    if (!html) return "No description";
+    if (typeof window !== "undefined") {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "No description";
+    }
+    return html.replace(/<[^>]*>/g, "").trim() || "No description";
+  };
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/dashboard/services/payment/edit/${product.id}`);
+    router.push(`/dashboard/services/payment/edit/${page.id}`);
   };
 
   const handleViewPublic = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.open(getFullUrl(), "_blank");
+    window.open(getFullPageUrl(), "_blank");
   };
 
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard?.writeText(getFullUrl());
-    toast.success("Product URL copied");
+    navigator.clipboard?.writeText(getFullPageUrl());
+    toast.success("Page URL copied");
   };
 
   const handleDownloadQR = (e: React.MouseEvent) => {
@@ -80,8 +108,8 @@ function ProductCard({
     e.stopPropagation();
     const result = await Swal.fire({
       icon: "question",
-      title: isActive ? "Deactivate product?" : "Activate product?",
-      text: `"${product.title}" will ${isActive ? "no longer" : "now"} be visible to customers.`,
+      title: isActive ? "Deactivate page?" : "Activate page?",
+      text: `"${page.title}" will ${isActive ? "no longer" : "now"} be visible to customers.`,
       showCancelButton: true,
       confirmButtonColor: isActive ? "#ef4444" : "#22c55e",
       cancelButtonColor: "#6b7280",
@@ -89,11 +117,11 @@ function ProductCard({
     });
     if (!result.isConfirmed) return;
     try {
-      await updatePage(product.id, { isPublished: !isActive });
-      toast.success(`Product ${!isActive ? "activated" : "deactivated"}`);
+      await updatePage(page.id, { isPublished: !isActive });
+      toast.success(`Page ${!isActive ? "activated" : "deactivated"}`);
       onRefresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed to update product");
+      toast.error(err.message || "Failed to update page");
     }
   };
 
@@ -101,8 +129,8 @@ function ProductCard({
     e.stopPropagation();
     const result = await Swal.fire({
       icon: "warning",
-      title: "Delete product?",
-      html: `<p>Are you sure you want to delete <b>${product.title}</b>?</p><p class="text-sm text-gray-600 mt-2">This action cannot be undone.</p>`,
+      title: "Delete page?",
+      html: `<p>Are you sure you want to delete <b>${page.title}</b>?</p><p class="text-sm text-gray-600 mt-2">This action cannot be undone.</p>`,
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
@@ -110,7 +138,7 @@ function ProductCard({
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`/api/payment-page/delete/${product.id}`, {
+      const res = await fetch(`/api/payment-page/delete/${page.id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -118,33 +146,50 @@ function ProductCard({
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Failed to delete");
       }
-      toast.success(`"${product.title}" deleted`);
+      toast.success(`"${page.title}" deleted`);
       onRefresh();
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete product");
+      toast.error(err.message || "Failed to delete page");
     }
   };
 
+  // Use whichever image is available first
+  const imageSrc =
+    page.coverImage ||
+    (page.productImages && page.productImages.length > 0
+      ? page.productImages[0]
+      : null);
+
   return (
-    <article
-      onClick={() => router.push(`/dashboard/services/payment/page/${product.id}`)}
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={() =>
+        router.push(`/dashboard/services/payment/page/${page.id}`)
+      }
       className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
     >
       <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-[1.5rem] bg-muted/30">
-        {product.coverImage || product.logo || product.productImages?.[0] ? (
+        {imageSrc ? (
           <img
-            src={product.coverImage || product.logo || product.productImages[0]}
-            alt={product.title}
+            src={imageSrc}
+            alt={page.title}
             className="h-full w-full object-cover rounded-[1.5rem] transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <Package className="size-14 text-muted-foreground/40" strokeWidth={1.5} />
+          <CreditCard
+            className="size-14 text-muted-foreground/40"
+            strokeWidth={1.5}
+          />
         )}
         <span
           className={cn(
             "absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest",
-            isActive ? "bg-background text-foreground" : "bg-foreground text-background"
+            isActive
+              ? "bg-background text-foreground"
+              : "bg-foreground text-background"
           )}
         >
           {isActive ? "Active" : "Inactive"}
@@ -153,31 +198,50 @@ function ProductCard({
           <DropdownMenuTrigger asChild>
             <button
               onClick={(e) => e.stopPropagation()}
-              aria-label={`Actions for ${product.title}`}
+              aria-label={`Actions for ${page.title}`}
               className="absolute right-3 top-3 rounded-full bg-background p-2 text-foreground shadow-sm hover:bg-muted transition-colors"
             >
               <MoreHorizontal className="size-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 rounded-2xl bg-card border-border shadow-xl">
-            <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
-              <Pencil className="size-4 mr-2" /> Edit product
+          <DropdownMenuContent
+            align="end"
+            className="w-52 rounded-2xl bg-card border-border shadow-xl"
+          >
+            <DropdownMenuItem
+              onClick={handleEdit}
+              className="cursor-pointer"
+            >
+              <Pencil className="size-4 mr-2" /> Edit page
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleViewPublic} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleViewPublic}
+              className="cursor-pointer"
+            >
               <ExternalLink className="size-4 mr-2" /> View public link
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDownloadQR} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleDownloadQR}
+              className="cursor-pointer"
+            >
               <QrCode className="size-4 mr-2" /> Download QR code
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleCopyUrl} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleCopyUrl}
+              className="cursor-pointer"
+            >
               <Link2 className="size-4 mr-2" /> Copy URL
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleToggleActive}
-              className={cn("cursor-pointer", isActive ? "text-yellow-600" : "text-green-600")}
+              className={cn(
+                "cursor-pointer",
+                isActive ? "text-yellow-600" : "text-green-600"
+              )}
             >
-              <EyeOff className="size-4 mr-2" /> {isActive ? "Make inactive" : "Make active"}
+              <EyeOff className="size-4 mr-2" />{" "}
+              {isActive ? "Make inactive" : "Make active"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={handleDelete}
@@ -191,31 +255,49 @@ function ProductCard({
 
       <div className="mt-4 flex-1 min-w-0 px-1">
         <p className="eyebrow truncate text-muted-foreground">
-          {product.pageType || "Product"}
+          {page.pageType || "Payment"}
         </p>
         <h3
-          className="mt-1 font-display text-lg font-bold leading-tight line-clamp-2 break-words"
-          title={product.title}
+          className="mt-1 font-display text-lg font-bold leading-tight text-foreground line-clamp-2 break-words"
+          title={page.title}
         >
-          {product.title}
+          {page.title}
         </h3>
-        <p
-          className="mt-2 font-display text-xl font-bold tabular-nums break-all"
-          title={`₦${(product.price || 0).toLocaleString()}`}
-        >
-          ₦{formatPrice(product.price || 0)}
+        <p className="mt-1 text-sm text-muted-foreground line-clamp-1 break-words">
+          {stripHtml(page.description)}
         </p>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-2 border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
-        <span className="truncate tabular-nums" title={`${product.totalPayments || 0} sales`}>
-          {compactNumber(product.totalPayments || 0)} sales
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`₦${(page.pageBalance || 0).toLocaleString()} balance`}
+        >
+          <Wallet className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {formatCurrencyCompact(page.pageBalance || 0)}
+          </span>
         </span>
-        <span className="truncate tabular-nums" title={`${product.pageViews || 0} views`}>
-          {compactNumber(product.pageViews || 0)} views
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.pageViews || 0} views`}
+        >
+          <Eye className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.pageViews || 0)} views
+          </span>
+        </span>
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.totalPayments || 0} payments`}
+        >
+          <CreditCard className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.totalPayments || 0)} payments
+          </span>
         </span>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -229,37 +311,73 @@ export function ProductGrid() {
     hasStore,
     hasPendingActivation,
     isStoreCheckComplete,
+    fetchStore,
     fetchPages,
     refreshPages,
   } = useStore();
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCheckingStore, setIsCheckingStore] = useState(true);
+  const [isLoadingPages, setIsLoadingPages] = useState(true);
   const [dataReady, setDataReady] = useState(false);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const isRefreshingRef = useRef(false);
   const lastRefreshTime = useRef(0);
   const MIN_REFRESH_INTERVAL = 2000;
 
+  // STEP 1: Ensure store is checked
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
-      if (!isStoreCheckComplete) return;
-      if (hasStore) {
-        try {
-          if (!pages.length) await fetchPages();
-        } catch (e) {
-          console.error(e);
-        }
+    const checkStore = async () => {
+      try {
+        await fetchStore();
+      } catch (err) {
+        console.error("ProductGrid: fetchStore failed", err);
+      } finally {
+        if (mounted) setIsCheckingStore(false);
       }
-      if (mounted) setDataReady(true);
     };
-    load();
+    checkStore();
     return () => {
       mounted = false;
     };
-  }, [isStoreCheckComplete, hasStore, fetchPages, pages.length]);
+  }, [fetchStore]);
+
+  // STEP 2: Fetch pages once store check is complete
+  useEffect(() => {
+    if (isCheckingStore) return;
+    if (!isStoreCheckComplete) return;
+    if (!hasStore) {
+      setIsLoadingPages(false);
+      setDataReady(true);
+      return;
+    }
+
+    let mounted = true;
+    const loadPages = async () => {
+      setIsLoadingPages(true);
+      try {
+        await fetchPages(true);
+      } catch (err) {
+        console.error("ProductGrid: fetchPages failed", err);
+      } finally {
+        if (mounted) {
+          setIsLoadingPages(false);
+          setDataReady(true);
+        }
+      }
+    };
+    loadPages();
+    return () => {
+      mounted = false;
+    };
+  }, [isCheckingStore, isStoreCheckComplete, hasStore, fetchPages]);
 
   const products = useMemo(
-    () => pages.filter((p) => p.pageType !== "link" && p.pageType !== "donation"),
+    () =>
+      pages.filter(
+        (p) => p.pageType !== "link" && p.pageType !== "donation"
+      ),
     [pages]
   );
 
@@ -282,42 +400,73 @@ export function ProductGrid() {
   }, [refreshPages]);
 
   const storeSlug = store?.slug || "";
+  const activeCount = products.filter((p) => p.isPublished).length;
 
-  // ─── Gates (render nothing that duplicates the shell) ───
-  if (loading || !isStoreCheckComplete || !dataReady) return <Loader />;
+  // ─── Gates ───
+  if (isCheckingStore || loading || !isStoreCheckComplete || !dataReady) {
+    return <Loader />;
+  }
   if (!hasStore || hasPendingActivation) return <CreateStoreForm />;
 
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <p className="text-base font-medium text-muted-foreground">
-          {products.filter((p) => p.isPublished).length} active
+          {isLoadingPages
+            ? "Loading pages…"
+            : `${activeCount} active · ${products.length} total`}
         </p>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
+          aria-label="Refresh pages"
+        >
+          <RefreshCw className={cn("size-4", isRefreshing && "animate-spin")} />
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        <button
-          onClick={() => router.push("/dashboard/services/payment/create")}
-          className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
-        >
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <Plus className="size-6" strokeWidth={2.6} />
-          </span>
-          <span className="font-display text-base font-bold">Add product</span>
-          <span className="max-w-[180px] text-center text-sm">
-            List a new item on your storefront
-          </span>
-        </button>
-        {products.map((p, i) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            index={i}
-            storeSlug={storeSlug}
-            onRefresh={handleRefresh}
-          />
-        ))}
-      </div>
+      {isLoadingPages && products.length === 0 ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="rounded-3xl border border-border bg-card p-4 animate-pulse"
+            >
+              <div className="h-40 rounded-[1.5rem] bg-muted/50" />
+              <div className="mt-4 h-4 w-24 bg-muted/50 rounded" />
+              <div className="mt-2 h-6 w-32 bg-muted/50 rounded" />
+              <div className="mt-2 h-6 w-20 bg-muted/50 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            onClick={() =>
+              router.push("/dashboard/services/payment/create")
+            }
+            className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
+          >
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <Plus className="size-6" strokeWidth={2.6} />
+            </span>
+            <span className="font-display text-base font-bold">Add page</span>
+            <span className="max-w-[180px] text-center text-sm">
+              Create a new payment page
+            </span>
+          </button>
+          {products.map((p, i) => (
+            <PaymentPageCard
+              key={p.id}
+              page={p}
+              index={i}
+              storeSlug={storeSlug}
+              onRefresh={handleRefresh}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }
