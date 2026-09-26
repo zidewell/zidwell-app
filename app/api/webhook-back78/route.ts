@@ -1,68 +1,129 @@
 // app/api/webhooks/bank78/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { processActivation } from "@/lib/activation";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+import { processBank78WalletCredit } from "@/lib/bank78-webhook/wallet-credit";
+import { processBank78Payout } from "@/lib/bank78-webhook/payout";
+import { processBank78PayoutRefund } from "@/lib/bank78-webhook/payout-refund";
 
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// ─────────────────────────────────────────────────────────────
+// Verify Bank78 webhook signature (HMAC-SHA256 hex)
+// ─────────────────────────────────────────────────────────────
+function verifySignature(raw: string, signature: string): boolean {
+  if (!signature) return false;
+  const expected = crypto
+    .createHmac("sha256", process.env.BANK78_WEBHOOK_SECRET!)
+    .update(raw)
+    .digest("hex");
+
+  const a = Buffer.from(signature, "hex");
+  const b = Buffer.from(expected, "hex");
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Idempotency — remember which webhook events we've processed
+// ─────────────────────────────────────────────────────────────
+async function alreadyProcessed(eventId: string): Promise<boolean> {
+  if (!eventId) return false;
+  const { data } = await supabase
+    .from("bank78_webhook_events")
+    .select("id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  return !!data;
+}
+
+async function markProcessed(eventId: string, eventType: string, payload: any) {
+  if (!eventId) return;
+  await supabase.from("bank78_webhook_events").insert({
+    event_id: eventId,
+    event_type: eventType,
+    payload,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN HANDLER
+// ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  const raw = await req.text();
+
+  const signature =
+    req.headers.get("x-bank78-signature") ||
+    req.headers.get("x-signature") ||
+    "";
+
+  if (!verifySignature(raw, signature)) {
+    console.error("[bank78 webhook] Invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  let payload: any;
   try {
-    const raw = await req.text();
+    payload = JSON.parse(raw);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-    // ─── Verify Bank78 signature ───
-    const signature =
-      req.headers.get("x-bank78-signature") ||
-      req.headers.get("x-signature") ||
-      "";
+  // Accept a few common event-name shapes
+  const eventType =
+    payload.event || payload.event_type || payload.eventType || "";
+  const eventId =
+    payload.eventId ||
+    payload.event_id ||
+    payload.data?.transactionId ||
+    payload.data?.transactionReference;
 
-    const expected = crypto
-      .createHmac("sha256", process.env.BANK78_WEBHOOK_SECRET!)
-      .update(raw)
-      .digest("hex");
+  console.log("[bank78 webhook]", { eventType, eventId });
 
-    if (!signature || signature !== expected) {
-      console.error("[/api/webhooks/bank78] Invalid signature");
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
+  if (eventId && (await alreadyProcessed(eventId))) {
+    return NextResponse.json({ ok: true, message: "Already processed" });
+  }
+
+  try {
+    switch (eventType) {
+      // ── Money arrived in a user's virtual NUBAN ──
+      case "wallet.credit":
+      case "virtual_account.credit":
+      case "payment.success": {
+        const result = await processBank78WalletCredit(payload);
+        await markProcessed(eventId, eventType, payload);
+        return NextResponse.json(result);
+      }
+
+      // ── Outgoing bank transfer result ──
+      case "payout.success":
+      case "payout.failed":
+      case "transfer.success":
+      case "transfer.failed": {
+        const result = await processBank78Payout(payload);
+        await markProcessed(eventId, eventType, payload);
+        return NextResponse.json(result);
+      }
+
+      // ── Bank returned money for a failed transfer ──
+      case "payout.refund":
+      case "payout.reversal": {
+        const result = await processBank78PayoutRefund(payload);
+        await markProcessed(eventId, eventType, payload);
+        return NextResponse.json(result);
+      }
+
+      default:
+        console.log("[bank78 webhook] Unhandled event:", eventType);
+        return NextResponse.json({ ok: true, message: "Ignored" });
     }
-
-    const payload = JSON.parse(raw);
-
-    console.log("[/api/webhooks/bank78] Received:", {
-      event: payload.event,
-      userId: payload?.data?.userId,
-      amount: payload?.data?.amount,
-    });
-
-    if (payload.event !== "wallet.credit") {
-      return NextResponse.json({ received: true });
-    }
-
-    const data = payload.data || {};
-    const userId = data.userId;
-    const amount = Number(data.amount);
-
-    if (!userId || !amount || amount <= 0) {
-      return NextResponse.json(
-        { error: "Invalid payload" },
-        { status: 400 }
-      );
-    }
-
-    const result = await processActivation({
-      userId,
-      inflowAmount: amount,
-      inflowReference: data.reference,
-      inflowProviderTxId: data.transactionId,
-      inflowChannel: data.channel || "bank_transfer",
-      inflowSender: data.sender,
-    });
-
-    return NextResponse.json({ ok: true, activation: result });
   } catch (err: any) {
-    console.error("[/api/webhooks/bank78] Error:", err.message);
+    console.error("[bank78 webhook] handler error:", err);
     return NextResponse.json(
-      { error: "Webhook processing failed" },
+      { error: err.message || "Webhook failed" },
       { status: 500 }
     );
   }
