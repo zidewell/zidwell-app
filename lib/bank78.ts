@@ -46,14 +46,21 @@ export interface CreateBank78AccountParams {
   phone: string;
   bvn?: string;
   nin?: string;
+  /** Optional: override the account name (used for business accounts) */
+  accountName?: string;
+  /** Optional: static (1) or dynamic (2). Defaults to 1 (static). */
+  accountType?: 1 | 2;
 }
 
 export interface Bank78Account {
   accountNumber: string;
+  accountName: string;
   bankName: string;
+  bankCode?: string | null;
   userId: string;
   accountType?: number;
-  bankCode?: string | null;
+  accountReference?: string;
+  reservationReference?: string;
 }
 
 export async function createBank78Account(
@@ -61,14 +68,27 @@ export async function createBank78Account(
 ): Promise<{ ok: boolean; account?: Bank78Account; error?: string; raw?: any }> {
   const token = await getBank78Token();
 
-  const url = `${process.env.BANK78_BASE_URL}/sub-account/api/v1/accounts`;
+  const url = `${process.env.BANK78_BASE_URL}/virtual-nuban/api/virtual-nubans/initialize`;
+
+  // Build a stable, unique accountReference — this is how you map the
+  // virtual NUBAN back to your internal user. Keep it deterministic.
+  const accountReference = `ZIDWELL-${params.userId}`;
+
+  const accountName =
+    params.accountName?.trim() ||
+    `${params.firstName} ${params.lastName}`.trim();
+
   const body: Record<string, any> = {
-    userId: params.userId,
-    firstName: params.firstName,
-    lastName: params.lastName,
+    accountReference,
+    accountName,
     emailAddress: params.email,
     phoneNumber: params.phone,
+    // Static virtual NUBAN by default (permanent wallet account).
+    accountType: params.accountType ?? 1,
+    // Keep expiresInMinutes at 0 for static accounts.
+    expiresInMinutes: 0,
   };
+
   if (params.bvn) body.bvn = params.bvn;
   if (params.nin) body.nin = params.nin;
 
@@ -85,10 +105,21 @@ export async function createBank78Account(
 
     const raw = await res.json();
 
-    if (!res.ok || !raw?.result?.accountNumber) {
+    // Bank78 wraps the payload. From the docs, the response contains
+    // accountNumber / accountName / bankCode / bankName / accountReference.
+    const payload = raw?.result ?? raw?.data ?? raw;
+
+    const accountNumber: string | undefined = payload?.accountNumber;
+    const bankName: string | undefined = payload?.bankName;
+
+    if (!res.ok || !accountNumber) {
       return {
         ok: false,
-        error: raw?.message || "Bank78 account creation failed",
+        error:
+          raw?.message ||
+          raw?.error_description ||
+          raw?.error ||
+          "Bank78 virtual NUBAN creation failed",
         raw,
       };
     }
@@ -96,16 +127,19 @@ export async function createBank78Account(
     return {
       ok: true,
       account: {
-        accountNumber: raw.result.accountNumber,
-        bankName: raw.result.bankName || "Bank78",
-        userId: raw.result.userId,
-        accountType: raw.result.accountType,
-        bankCode: raw.result.bankCode,
+        accountNumber,
+        accountName: payload?.accountName || accountName,
+        bankName: bankName || "Bank78",
+        bankCode: payload?.bankCode ?? null,
+        userId: params.userId,
+        accountType: payload?.accountType ?? body.accountType,
+        accountReference: payload?.accountReference || accountReference,
+        reservationReference: payload?.reservationReference,
       },
       raw,
     };
   } catch (err: any) {
-    console.error("[BANK78] Create account exception:", err.message);
+    console.error("[BANK78] Create virtual NUBAN exception:", err.message);
     return { ok: false, error: err.message };
   }
 }

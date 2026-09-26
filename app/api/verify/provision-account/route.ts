@@ -39,9 +39,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // DIAGNOSTIC: log what's on the profile right now
-    // ═══════════════════════════════════════════════════════════
     console.log("\n╔══════════════════════════════════════════════════════════╗");
     console.log("║  [provision] profile.bvn_data as stored in DB            ║");
     console.log("╚══════════════════════════════════════════════════════════╝");
@@ -65,9 +62,6 @@ export async function POST(req: NextRequest) {
     const extractedBvn: string | undefined = bvnData.bvn;
     const extractedNin: string | undefined = bvnData.nin;
 
-    // ═══════════════════════════════════════════════════════════
-    // DIAGNOSTIC: log the extracted values
-    // ═══════════════════════════════════════════════════════════
     console.log("╔══════════════════════════════════════════════════════════╗");
     console.log("║  [provision] Extracted identity                          ║");
     console.log("╚══════════════════════════════════════════════════════════╝");
@@ -86,30 +80,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let businessName: string | undefined;
+    // Resolve the account name. For business accounts we prefer the
+    // registered company name; for personal accounts we use the user's
+    // full name.
+    let accountName = profile.full_name || "Zidwell User";
+
     if (isRegisteredBusiness) {
       const { data: biz } = await supabase
         .from("businesses")
         .select("business_name, company_name")
         .eq("user_id", userId)
         .maybeSingle();
-      businessName = biz?.company_name || biz?.business_name || undefined;
+      accountName =
+        biz?.company_name || biz?.business_name || profile.full_name;
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // DIAGNOSTIC: log what we send to Bank78
-    // ═══════════════════════════════════════════════════════════
     console.log("╔══════════════════════════════════════════════════════════╗");
-    console.log("║  [provision] Bank78 request                              ║");
+    console.log("║  [provision] Bank78 Virtual NUBAN request                ║");
     console.log("╚══════════════════════════════════════════════════════════╝");
     console.log(
       JSON.stringify(
         {
-          userId: profile.id,
+          accountReference: `ZIDWELL-${profile.id}`,
+          accountName,
           firstName: first,
           lastName: last,
           email: profile.email,
           phone: profile.phone,
+          accountType: 1, // static
           bvn: extractedBvn || "(missing)",
           nin: extractedNin || "(missing)",
         },
@@ -127,6 +125,8 @@ export async function POST(req: NextRequest) {
       phone: profile.phone,
       bvn: extractedBvn,
       nin: extractedNin,
+      accountName,
+      accountType: 1, // static virtual NUBAN = permanent wallet account
     });
 
     if (!result.ok || !result.account) {
@@ -153,14 +153,16 @@ export async function POST(req: NextRequest) {
     };
 
     if (isRegisteredBusiness) {
-      update.bank78_business_account_id = acc.userId;
+      // NOTE: Bank78's Virtual NUBAN API does not return a userId, so we
+      // store our own internal id / accountReference instead.
+      update.bank78_business_account_id = acc.accountReference ?? profile.id;
       update.bank78_business_account_number = acc.accountNumber;
-      update.bank78_business_account_name = businessName || profile.full_name;
+      update.bank78_business_account_name = acc.accountName;
       update.bank78_business_bank_name = acc.bankName;
     } else {
-      update.bank78_personal_account_id = acc.userId;
+      update.bank78_personal_account_id = acc.accountReference ?? profile.id;
       update.bank78_personal_account_number = acc.accountNumber;
-      update.bank78_personal_account_name = profile.full_name;
+      update.bank78_personal_account_name = acc.accountName;
       update.bank78_personal_bank_name = acc.bankName;
     }
 
@@ -168,9 +170,9 @@ export async function POST(req: NextRequest) {
 
     if (isRegisteredBusiness) {
       const bizUpdate: BusinessUpdate = {
-        bank78_account_id: acc.userId,
+        bank78_account_id: acc.accountReference ?? profile.id,
         bank78_account_number: acc.accountNumber,
-        bank78_account_name: businessName || profile.full_name,
+        bank78_account_name: acc.accountName,
         bank78_bank_name: acc.bankName,
       };
 
@@ -186,8 +188,9 @@ export async function POST(req: NextRequest) {
       accountType: isRegisteredBusiness ? "business" : "personal",
       account: {
         accountNumber: acc.accountNumber,
-        accountName: businessName || profile.full_name,
+        accountName: acc.accountName,
         bankName: acc.bankName,
+        bankCode: acc.bankCode,
       },
       updates: {
         verificationCompleted: true,
@@ -195,7 +198,7 @@ export async function POST(req: NextRequest) {
         bvnVerification: "verified",
         bank78Verified: true,
         bankName: acc.bankName,
-        bankAccountName: businessName || profile.full_name,
+        bankAccountName: acc.accountName,
         bankAccountNumber: acc.accountNumber,
       },
     };
