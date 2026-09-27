@@ -1,7 +1,7 @@
 // app/store/[storeSlug]/[productSlug]/client.tsx
 "use client";
 
-import { Shield, MessageCircle } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useProductCheckout } from "./hooks/useProductCheckout";
 import type { StoreProductClientProps } from "./utils/types";
 import { TYPE_LABELS } from "./utils/helpers";
@@ -25,6 +25,16 @@ export default function StoreProductClient(props: StoreProductClientProps) {
   const c = useProductCheckout(props);
   const { page, store, moreProducts = [] } = props;
 
+  // ─── Derived values (defensive) ───
+  const selectedVariantSkus = c.selectedVariantSkus ?? new Set<string>();
+  const variantQuantities = c.variantQuantities ?? {};
+  const selectedVariantLines = c.selectedVariantLines ?? [];
+
+  const totalPhysicalUnits = selectedVariantLines.reduce(
+    (sum, l) => sum + (l.quantity || 0),
+    0
+  );
+
   function WhatsAppIcon({ className }: { className?: string }) {
     return (
       <svg
@@ -38,13 +48,18 @@ export default function StoreProductClient(props: StoreProductClientProps) {
       </svg>
     );
   }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <ProductHeader
         store={store}
         storeNameUpper={c.storeNameUpper}
         cartBadgeCount={
-          c.canPickQuantity ? c.quantity : c.selectedEntityIds.size
+          c.isPhysical && selectedVariantLines.length > 0
+            ? totalPhysicalUnits
+            : c.canPickQuantity
+            ? c.quantity
+            : c.selectedEntityIds.size
         }
       />
 
@@ -143,18 +158,21 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Quantity */}
-          {c.canPickQuantity && !c.isOutOfStock && !c.isPlanComplete && (
-            <QuantityPicker
-              quantity={c.quantity}
-              setQuantity={c.setQuantity}
-              productStock={c.productStock}
-              lockedFields={c.lockedFields}
-            />
-          )}
+          {/* Quantity — hidden for physical products (variants have their own qty) */}
+          {c.canPickQuantity &&
+            !c.isPhysical &&
+            !c.isOutOfStock &&
+            !c.isPlanComplete && (
+              <QuantityPicker
+                quantity={c.quantity}
+                setQuantity={c.setQuantity}
+                productStock={c.productStock}
+                lockedFields={c.lockedFields}
+              />
+            )}
 
           {/* Out of stock notice */}
-          {c.showQuantity && c.isOutOfStock && (
+          {c.showQuantity && c.isOutOfStock && !c.isPhysical && (
             <div className="mt-6 flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
               <p className="text-sm font-medium">
                 This item is currently out of stock
@@ -167,13 +185,12 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             <div className="mt-5">
               {c.isPhysical &&
               c.variants.length > 0 &&
-              !c.selectedVariantSku ? (
+              selectedVariantSkus.size === 0 ? (
                 <span className="text-2xl font-semibold tracking-tight text-foreground/50">
                   Select a variant
                 </span>
               ) : (
                 <div className="flex flex-wrap items-baseline gap-2">
-                  {/* ✅ FIX #3: show fee-grossed display price */}
                   <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#FDC020]">
                     ₦{c.buyerDisplayPrice.toLocaleString()}
                   </span>
@@ -184,6 +201,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                       {c.existingAccount?.installment_count
                         ? ` · ${c.existingAccount.installment_count} payments`
                         : ` · ${c.installmentPlan.installmentCount} payments`}
+                    </span>
+                  ) : c.isPhysical && selectedVariantLines.length > 0 ? (
+                    <span className="text-sm text-foreground/50">
+                      × {totalPhysicalUnits}{" "}
+                      {totalPhysicalUnits === 1 ? "unit" : "units"}
                     </span>
                   ) : c.showQuantity && c.quantity > 1 ? (
                     <span className="text-sm text-foreground/50">
@@ -211,9 +233,10 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               <p className="mt-3 text-xs text-foreground/50">
                 {c.selectedPaymentOption === "installment"
                   ? `${c.installmentPlan.installmentCount} payments of ₦${(
-                      // ✅ FIX #3: apply buyer fee multiplier to per-payment
                       (c.installmentPlan.totalAmount *
-                        c.quantity *
+                        (c.isPhysical
+                          ? Math.max(1, totalPhysicalUnits)
+                          : c.quantity) *
                         c.buyerFeeMultiplier) /
                       c.installmentPlan.installmentCount
                     ).toLocaleString()} (${c.installmentPlan.period})`
@@ -232,12 +255,14 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Physical variants */}
+          {/* Physical variants — multi-select */}
           {c.isPhysical && !c.isPlanComplete && (
             <PhysicalFields
               variants={c.variants}
-              selectedVariantSku={c.selectedVariantSku}
-              setSelectedVariantSku={c.setSelectedVariantSku}
+              selectedVariantSkus={selectedVariantSkus}
+              variantQuantities={variantQuantities}
+              onToggleVariant={c.handleToggleVariant}
+              onSetQuantity={c.handleSetVariantQuantity}
               lockedFields={c.lockedFields}
               pagePrice={Number(page.price)}
               selectedPaymentOption={c.selectedPaymentOption}
@@ -327,13 +352,12 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                     donorAmount={c.donorAmount}
                     showQuantity={c.showQuantity}
                     quantity={c.quantity}
-                    // ✅ FIX #3: pass fee-grossed amount to the button
                     currentTotalAmount={c.buyerPayableAmount}
                     disabledReason={c.getDisabledReason()}
                     onCancel={c.handleCancelCheckout}
                   />
                 </div>
-          
+
                 {page.metadata?.whatsappContactEnabled &&
                   page.metadata?.whatsappContactNumber && (
                     <a
@@ -352,6 +376,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </div>
             </div>
           )}
+
           {/* Description */}
           {page.description && <DescriptionBlock html={page.description} />}
 
@@ -408,8 +433,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
           schoolFields={c.schoolFields}
           setSchoolFields={c.setSchoolFields}
           showQuantity={c.showQuantity}
-          quantity={c.quantity}
-          // ✅ FIX #3: pass fee-grossed amount to the modal
+          quantity={
+            c.isPhysical && totalPhysicalUnits > 0
+              ? totalPhysicalUnits
+              : c.quantity
+          }
           currentTotalAmount={c.buyerPayableAmount}
           processingCardPayment={c.processingCardPayment}
           submissionLock={c.submissionLock}

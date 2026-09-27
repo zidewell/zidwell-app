@@ -1,30 +1,60 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Search, Download, ChevronDown, CreditCard, Eye, Wallet, X } from "lucide-react";
-import Loader from "@/app/components/Loader";
+import {
+  Search,
+  Download,
+  CreditCard,
+  X,
+  Layers,
+  CheckCircle2,
+  Clock,
+  Ban,
+  XCircle,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type DisplayStatus =
+  | "completed"
+  | "ongoing"
+  | "pending"
+  | "cancelled"
+  | "failed"
+  | "refunded";
 
 type Transaction = {
   id: string;
   amount: number;
   fee: number;
   netAmount: number;
+
   status: string;
+  displayStatus: DisplayStatus;
+  displayLabel: string;
+
   customerName: string;
   customerEmail: string | null;
   customerPhone: string | null;
+
   paymentMethod: string | null;
-  paymentType: string | null;
+  paymentType: string;
+  isInstallment: boolean;
   orderReference: string | null;
   nombaTransactionId: string | null;
+
   paidAt: string | null;
   confirmedAt: string | null;
   createdAt: string;
+
   installmentNumber: number | null;
   totalInstallments: number | null;
+  installmentStatus: string | null;
+  nextInstallmentDue: string | null;
+  planTotalAmount: number | null;
+  planProgress: { current: number; total: number; percent: number } | null;
+
   studentName: string | null;
   selectedStudents: string[];
   pageTitle: string;
@@ -37,9 +67,12 @@ type Transaction = {
 function compactNumber(n: number): string {
   const v = Number(n) || 0;
   if (Math.abs(v) < 1000) return v.toString();
-  if (Math.abs(v) < 1_000_000) return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
-  if (Math.abs(v) < 1_000_000_000) return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
-  if (Math.abs(v) < 1_000_000_000_000) return `${(v / 1_000_000_000).toFixed(v % 1_000_000_000 === 0 ? 0 : 1)}B`;
+  if (Math.abs(v) < 1_000_000)
+    return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
+  if (Math.abs(v) < 1_000_000_000)
+    return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (Math.abs(v) < 1_000_000_000_000)
+    return `${(v / 1_000_000_000).toFixed(v % 1_000_000_000 === 0 ? 0 : 1)}B`;
   return `${(v / 1_000_000_000_000).toFixed(1)}T`;
 }
 
@@ -52,8 +85,7 @@ function formatNaira(n: number): string {
 
 function relativeDate(iso: string): string {
   const d = new Date(iso);
-  const now = Date.now();
-  const diff = now - d.getTime();
+  const diff = Date.now() - d.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
@@ -64,21 +96,70 @@ function relativeDate(iso: string): string {
   return d.toLocaleDateString();
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  completed: "bg-lemon-green/10 text-lemon-green",
-  pending: "bg-yellow-500/10 text-yellow-600",
-  failed: "bg-red-500/10 text-red-500",
-  refunded: "bg-blue-500/10 text-blue-500",
+const STATUS_STYLES: Record<
+  DisplayStatus,
+  { chip: string; icon: React.ElementType }
+> = {
+  completed: {
+    chip: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    icon: CheckCircle2,
+  },
+  ongoing: {
+    chip: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    icon: Clock,
+  },
+  pending: {
+    chip: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500",
+    icon: Clock,
+  },
+  cancelled: {
+    chip: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    icon: Ban,
+  },
+  failed: {
+    chip: "bg-red-500/10 text-red-600 dark:text-red-400",
+    icon: XCircle,
+  },
+  refunded: {
+    chip: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    icon: RotateCcw,
+  },
 };
 
-export function TransactionsList() {
-  const router = useRouter();
+function StatusChip({
+  status,
+  label,
+}: {
+  status: DisplayStatus;
+  label: string;
+}) {
+  const s = STATUS_STYLES[status] || STATUS_STYLES.pending;
+  const Icon = s.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold whitespace-nowrap",
+        s.chip
+      )}
+    >
+      <Icon className="size-3" />
+      {label}
+    </span>
+  );
+}
 
+export function TransactionsList() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [metrics, setMetrics] = useState({
     totalTransactions: 0,
     completedTransactions: 0,
+    fullCompleted: 0,
+    installmentCompleted: 0,
+    ongoingInstallments: 0,
+    cancelledTransactions: 0,
     totalRevenue: 0,
+    fullRevenue: 0,
+    installmentRevenue: 0,
     averageTransaction: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -87,11 +168,13 @@ export function TransactionsList() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<
+    "all" | "full" | "installment"
+  >("all");
   const [sortBy, setSortBy] = useState<"date" | "amount">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
 
-  // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(t);
@@ -103,12 +186,14 @@ export function TransactionsList() {
     try {
       const params = new URLSearchParams();
       if (filter !== "all") params.set("status", filter);
+      if (typeFilter !== "all") params.set("type", typeFilter);
       if (debouncedSearch) params.set("search", debouncedSearch);
       params.set("limit", "200");
 
-      const res = await fetch(`/api/store/transactions?${params.toString()}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/store/transactions?${params.toString()}`,
+        { cache: "no-store" }
+      );
       const data = await res.json();
 
       if (!res.ok) {
@@ -116,19 +201,27 @@ export function TransactionsList() {
       }
 
       setTransactions(data.transactions || []);
-      setMetrics(data.metrics || {
-        totalTransactions: 0,
-        completedTransactions: 0,
-        totalRevenue: 0,
-        averageTransaction: 0,
-      });
+      setMetrics(
+        data.metrics || {
+          totalTransactions: 0,
+          completedTransactions: 0,
+          fullCompleted: 0,
+          installmentCompleted: 0,
+          ongoingInstallments: 0,
+          cancelledTransactions: 0,
+          totalRevenue: 0,
+          fullRevenue: 0,
+          installmentRevenue: 0,
+          averageTransaction: 0,
+        }
+      );
     } catch (err: any) {
       setError(err.message || "Failed to load transactions");
       toast.error(err.message || "Failed to load transactions");
     } finally {
       setLoading(false);
     }
-  }, [filter, debouncedSearch]);
+  }, [filter, typeFilter, debouncedSearch]);
 
   useEffect(() => {
     loadTransactions();
@@ -142,7 +235,9 @@ export function TransactionsList() {
         const bt = new Date(b.paidAt || b.createdAt).getTime();
         return sortOrder === "desc" ? bt - at : at - bt;
       }
-      return sortOrder === "desc" ? b.amount - a.amount : a.amount - b.amount;
+      return sortOrder === "desc"
+        ? b.amount - a.amount
+        : a.amount - b.amount;
     });
     return copy;
   }, [transactions, sortBy, sortOrder]);
@@ -160,7 +255,10 @@ export function TransactionsList() {
       "Amount",
       "Fee",
       "Net",
+      "Type",
       "Status",
+      "Installment",
+      "Plan total",
       "Method",
       "Reference",
     ];
@@ -172,18 +270,27 @@ export function TransactionsList() {
       t.amount.toFixed(2),
       t.fee.toFixed(2),
       t.netAmount.toFixed(2),
-      t.status,
+      t.paymentType,
+      t.displayLabel,
+      t.isInstallment && t.installmentNumber
+        ? `${t.installmentNumber}/${t.totalInstallments}`
+        : "",
+      t.planTotalAmount != null ? t.planTotalAmount.toFixed(2) : "",
       t.paymentMethod || "",
       t.orderReference || "",
     ]);
     const csv = [headers, ...rows]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .map((r) =>
+        r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+      )
       .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `transactions-${
+      new Date().toISOString().split("T")[0]
+    }.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Exported!");
@@ -192,15 +299,21 @@ export function TransactionsList() {
   if (loading && transactions.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-muted/50 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-24 bg-muted/50 rounded-2xl animate-pulse"
+            />
           ))}
         </div>
         <div className="h-12 bg-muted/50 rounded-2xl animate-pulse" />
         <div className="space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-20 bg-muted/50 rounded-xl animate-pulse" />
+            <div
+              key={i}
+              className="h-20 bg-muted/50 rounded-xl animate-pulse"
+            />
           ))}
         </div>
       </div>
@@ -210,31 +323,30 @@ export function TransactionsList() {
   return (
     <div>
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-2xl bg-card border border-border p-4 min-w-0">
-          <p className="text-sm text-muted-foreground">Total Transactions</p>
-          <p className="text-2xl font-bold tabular-nums break-all">
-            {compactNumber(metrics.totalTransactions)}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-card border border-border p-4 min-w-0">
-          <p className="text-sm text-muted-foreground">Total Revenue</p>
-          <p
-            className="text-2xl font-bold tabular-nums break-all"
-            title={`₦${metrics.totalRevenue.toLocaleString()}`}
-          >
-            {formatNaira(metrics.totalRevenue)}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-card border border-border p-4 min-w-0">
-          <p className="text-sm text-muted-foreground">Average Transaction</p>
-          <p
-            className="text-2xl font-bold tabular-nums break-all"
-            title={`₦${metrics.averageTransaction.toLocaleString()}`}
-          >
-            {formatNaira(metrics.averageTransaction)}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Metric
+          label="Total Transactions"
+          value={compactNumber(metrics.totalTransactions)}
+        />
+        <Metric
+          label="Total Revenue"
+          value={formatNaira(metrics.totalRevenue)}
+          title={`₦${metrics.totalRevenue.toLocaleString()}`}
+        />
+        <Metric
+          label="Full payments"
+          value={`${compactNumber(metrics.fullCompleted)} · ${formatNaira(
+            metrics.fullRevenue
+          )}`}
+          title={`${metrics.fullCompleted} completed · ₦${metrics.fullRevenue.toLocaleString()}`}
+        />
+        <Metric
+          label="Installments"
+          value={`${compactNumber(
+            metrics.installmentCompleted
+          )} · ${formatNaira(metrics.installmentRevenue)}`}
+          title={`${metrics.installmentCompleted} installments · ₦${metrics.installmentRevenue.toLocaleString()}`}
+        />
       </div>
 
       {/* Filters */}
@@ -249,6 +361,7 @@ export function TransactionsList() {
             className="w-full rounded-2xl border border-border bg-background pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold"
           />
         </div>
+
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -256,20 +369,41 @@ export function TransactionsList() {
         >
           <option value="all">All Status</option>
           <option value="completed">Completed</option>
+          <option value="ongoing">Ongoing (installment)</option>
           <option value="pending">Pending</option>
+          <option value="cancelled">Cancelled</option>
           <option value="failed">Failed</option>
           <option value="refunded">Refunded</option>
         </select>
+
+        <select
+          value={typeFilter}
+          onChange={(e) =>
+            setTypeFilter(
+              e.target.value as "all" | "full" | "installment"
+            )
+          }
+          className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold"
+        >
+          <option value="all">All Types</option>
+          <option value="full">One-time</option>
+          <option value="installment">Installment</option>
+        </select>
+
         <select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "date" | "amount")}
+          onChange={(e) =>
+            setSortBy(e.target.value as "date" | "amount")
+          }
           className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold"
         >
           <option value="date">Sort by Date</option>
           <option value="amount">Sort by Amount</option>
         </select>
         <button
-          onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+          onClick={() =>
+            setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+          }
           className="rounded-2xl border border-border bg-background px-4 py-2.5 text-sm hover:bg-muted transition-colors"
         >
           {sortOrder === "desc" ? "↓" : "↑"}
@@ -297,10 +431,13 @@ export function TransactionsList() {
           </div>
         ) : sorted.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <CreditCard className="size-12 mx-auto mb-3 opacity-40" strokeWidth={1.5} />
-            <p className="font-semibold">No transactions yet</p>
+            <CreditCard
+              className="size-12 mx-auto mb-3 opacity-40"
+              strokeWidth={1.5}
+            />
+            <p className="font-semibold">No transactions found</p>
             <p className="text-sm mt-1">
-              {search || filter !== "all"
+              {search || filter !== "all" || typeFilter !== "all"
                 ? "Try changing your filters"
                 : "Payments will appear here once customers buy from your store"}
             </p>
@@ -310,41 +447,50 @@ export function TransactionsList() {
             <button
               key={tx.id}
               onClick={() => setSelectedTx(tx)}
-              className="w-full flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4 hover:bg-muted/30 transition-colors text-left min-w-0"
+              className="w-full flex items-start sm:items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4 hover:bg-muted/30 transition-colors text-left min-w-0"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate" title={tx.pageTitle}>
-                  {tx.pageTitle}
-                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p
+                    className="font-semibold truncate"
+                    title={tx.pageTitle}
+                  >
+                    {tx.pageTitle}
+                  </p>
+                  {tx.isInstallment && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[11px] font-semibold">
+                      <Layers className="size-3" />
+                      Installment
+                      {tx.planProgress
+                        ? ` ${tx.planProgress.current}/${tx.planProgress.total}`
+                        : ""}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-muted-foreground truncate">
                   {tx.customerName}
                   {tx.customerEmail ? ` · ${tx.customerEmail}` : ""}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground truncate">
                   {relativeDate(tx.paidAt || tx.createdAt)}
                   {tx.orderReference ? ` · ${tx.orderReference}` : ""}
-                  {tx.paymentType === "installment" && tx.installmentNumber
-                    ? ` · Installment ${tx.installmentNumber}/${tx.totalInstallments}`
-                    : ""}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold tabular-nums">{formatNaira(tx.amount)}</p>
-                <span
-                  className={cn(
-                    "inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                    STATUS_STYLES[tx.status] || "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {tx.status}
-                </span>
+                <p className="font-bold tabular-nums">
+                  {formatNaira(tx.amount)}
+                </p>
+                <StatusChip
+                  status={tx.displayStatus}
+                  label={tx.displayLabel}
+                />
               </div>
             </button>
           ))
         )}
       </div>
 
-      {/* Detail drawer */}
+      {/* Drawer */}
       {selectedTx && (
         <div
           className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -356,7 +502,11 @@ export function TransactionsList() {
           >
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="eyebrow text-muted-foreground">Transaction</p>
+                <p className="eyebrow text-muted-foreground">
+                  {selectedTx.isInstallment
+                    ? "Installment payment"
+                    : "One-time payment"}
+                </p>
                 <h3 className="font-display text-xl font-bold mt-1">
                   {selectedTx.pageTitle}
                 </h3>
@@ -371,18 +521,40 @@ export function TransactionsList() {
 
             <div className="space-y-3 text-sm">
               <Row label="Status">
-                <span
-                  className={cn(
-                    "inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                    STATUS_STYLES[selectedTx.status] || "bg-muted"
-                  )}
-                >
-                  {selectedTx.status}
-                </span>
+                <StatusChip
+                  status={selectedTx.displayStatus}
+                  label={selectedTx.displayLabel}
+                />
               </Row>
-              <Row label="Amount">{formatNaira(selectedTx.amount)}</Row>
+              <Row label="Amount">
+                {formatNaira(selectedTx.amount)}
+              </Row>
               <Row label="Fee">{formatNaira(selectedTx.fee)}</Row>
               <Row label="Net">{formatNaira(selectedTx.netAmount)}</Row>
+
+              {selectedTx.isInstallment && (
+                <>
+                  <Row label="Plan total">
+                    {formatNaira(selectedTx.planTotalAmount || 0)}
+                  </Row>
+                  {selectedTx.planProgress && (
+                    <Row label="Progress">
+                      Installment {selectedTx.planProgress.current} of{" "}
+                      {selectedTx.planProgress.total} (
+                      {selectedTx.planProgress.percent}%)
+                    </Row>
+                  )}
+                  {selectedTx.nextInstallmentDue &&
+                    selectedTx.displayStatus === "ongoing" && (
+                      <Row label="Next due">
+                        {new Date(
+                          selectedTx.nextInstallmentDue
+                        ).toLocaleDateString()}
+                      </Row>
+                    )}
+                </>
+              )}
+
               <Row label="Customer">{selectedTx.customerName}</Row>
               {selectedTx.customerEmail && (
                 <Row label="Email">{selectedTx.customerEmail}</Row>
@@ -404,14 +576,9 @@ export function TransactionsList() {
                   </span>
                 </Row>
               )}
-              {selectedTx.paymentType === "installment" &&
-                selectedTx.installmentNumber && (
-                  <Row label="Installment">
-                    {selectedTx.installmentNumber} of{" "}
-                    {selectedTx.totalInstallments}
-                  </Row>
-                )}
-              <Row label="Method">{selectedTx.paymentMethod || "—"}</Row>
+              <Row label="Method">
+                {selectedTx.paymentMethod || "—"}
+              </Row>
               {selectedTx.paidAt && (
                 <Row label="Paid at">
                   {new Date(selectedTx.paidAt).toLocaleString()}
@@ -450,7 +617,35 @@ export function TransactionsList() {
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Metric({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-card border border-border p-4 min-w-0">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p
+        className="text-xl font-bold tabular-nums break-all"
+        title={title}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex items-start justify-between gap-4">
       <span className="text-muted-foreground shrink-0">{label}</span>

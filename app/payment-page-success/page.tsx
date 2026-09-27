@@ -60,37 +60,42 @@ function PaymentSuccessContent() {
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reference]);
 
   const fetchPaymentDetails = async () => {
     try {
-      const response = await fetch(`/api/payment-page/status?reference=${reference}`);
+      const response = await fetch(
+        `/api/payment-page/status?reference=${reference}`,
+      );
       const data = await response.json();
 
       console.log("📊 Payment status response:", data);
 
       if (data.success && data.payment) {
         const paymentData = data.payment;
-        
+
         let parsedMetadata: PaymentMetadata = {};
         let customFields: Record<string, any> = {};
         let students: string[] = [];
-        
+
         if (paymentData.metadata) {
-          if (typeof paymentData.metadata === 'string') {
+          if (typeof paymentData.metadata === "string") {
             try {
-              parsedMetadata = JSON.parse(paymentData.metadata) as PaymentMetadata;
+              parsedMetadata = JSON.parse(
+                paymentData.metadata,
+              ) as PaymentMetadata;
             } catch (e) {
               parsedMetadata = {};
             }
           } else {
             parsedMetadata = paymentData.metadata as PaymentMetadata;
           }
-          
+
           // ✅ Safely access properties with optional chaining
           customFields = parsedMetadata.customFields || {};
           students = parsedMetadata.selectedStudents || [];
-          
+
           // Also check for direct student_name
           if (students.length === 0 && paymentData.student_name) {
             students = [paymentData.student_name];
@@ -158,10 +163,12 @@ function PaymentSuccessContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e1bf46] mx-auto"></div>
-          <p className="text-gray-400 mt-4">Loading payment details...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)] mx-auto"></div>
+          <p className="text-[var(--text-secondary)] mt-4">
+            Loading payment details...
+          </p>
         </div>
       </div>
     );
@@ -169,24 +176,24 @@ function PaymentSuccessContent() {
 
   if (error || !payment || status === "failed") {
     return (
-      <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#1a1a1a] rounded-2xl p-8 max-w-md w-full text-center border border-gray-800"
+          className="bg-[var(--bg-secondary)] rounded-2xl p-8 max-w-md w-full text-center border border-[var(--border-color)]"
         >
           <div className="text-6xl mb-4">😕</div>
-          <h1 className="text-2xl font-bold text-white mb-2">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
             {status === "failed" ? "Payment Failed" : "Payment Not Found"}
           </h1>
-          <p className="text-gray-400 mb-6">
+          <p className="text-[var(--text-secondary)] mb-6">
             {status === "failed"
               ? "Your payment could not be processed. Please try again."
               : "We couldn't find your payment. Please check your reference number."}
           </p>
           <div className="flex flex-col gap-3">
             <Link href="/">
-              <Button className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold">
+              <Button className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 font-semibold">
                 <Home className="h-4 w-4 mr-2" />
                 Return Home
               </Button>
@@ -194,7 +201,7 @@ function PaymentSuccessContent() {
             {reference && (
               <button
                 onClick={() => copyToClipboard(reference)}
-                className="text-sm text-gray-500 hover:text-[#e1bf46] transition-colors"
+                className="text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors"
               >
                 Reference: {reference}
               </button>
@@ -208,18 +215,18 @@ function PaymentSuccessContent() {
   const isSuccess = status === "success" || payment.status === "completed";
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] relative">
+    <div className="min-h-screen bg-[var(--bg-primary)] relative">
       {/* Background Decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#e1bf46]/5 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#e1bf46]/5 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[var(--color-accent-yellow)]/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[var(--color-accent-yellow)]/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative max-w-lg mx-auto py-12 px-4">
         {/* Back Button */}
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-[#e1bf46] transition-colors mb-6"
+          className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)] transition-colors mb-6"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
@@ -228,10 +235,10 @@ function PaymentSuccessContent() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-[#1a1a1a] rounded-2xl border border-gray-800 overflow-hidden shadow-xl"
+          className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-xl"
         >
           {/* Success Header */}
-          <div className="bg-gradient-to-r from-[#023528] to-[#034835] p-6 text-center">
+          <div className="bg-gradient-to-r from-[var(--color-ink)] to-[#034835] p-6 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -240,10 +247,10 @@ function PaymentSuccessContent() {
             >
               <CheckCircle className="h-10 w-10 text-green-400" />
             </motion.div>
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               Payment Successful! 🎉
             </h1>
-            <p className="text-white/70 text-sm mt-1">
+            <p className="text-[var(--text-primary)]/70 text-sm mt-1">
               {message || "Your payment has been confirmed successfully."}
             </p>
           </div>
@@ -251,32 +258,34 @@ function PaymentSuccessContent() {
           {/* Payment Details */}
           <div className="p-6 space-y-6">
             {/* Amount Card */}
-            <div className="bg-[#0e0e0e] rounded-xl p-4 text-center border border-gray-800">
-              <p className="text-xs text-gray-500">Amount Paid</p>
-              <p className="text-3xl font-bold text-[#e1bf46]">
+            <div className="bg-[var(--bg-primary)] rounded-xl p-4 text-center border border-[var(--border-color)]">
+              <p className="text-xs text-[var(--text-secondary)]">Amount Paid</p>
+              <p className="text-3xl font-bold text-[var(--color-accent-yellow)]">
                 {formatCurrency(payment.amount)}
               </p>
             </div>
 
             {/* Reference */}
-            <div className="bg-[#0e0e0e] rounded-xl p-4 border border-gray-800">
+            <div className="bg-[var(--bg-primary)] rounded-xl p-4 border border-[var(--border-color)]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  <span className="text-xs text-gray-500">Reference</span>
+                  <FileText className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    Reference
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <code className="text-xs font-mono text-[#e1bf46]">
+                  <code className="text-xs font-mono text-[var(--color-accent-yellow)]">
                     {reference || payment.id}
                   </code>
                   <button
                     onClick={() => copyToClipboard(reference || payment.id)}
-                    className="p-1 rounded hover:bg-[#e1bf46]/10 transition-colors"
+                    className="p-1 rounded hover:bg-[var(--color-accent-yellow)]/10 transition-colors"
                   >
                     {copied ? (
                       <Check className="h-3.5 w-3.5 text-green-500" />
                     ) : (
-                      <Copy className="h-3.5 w-3.5 text-gray-400 hover:text-[#e1bf46]" />
+                      <Copy className="h-3.5 w-3.5 text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]" />
                     )}
                   </button>
                 </div>
@@ -285,20 +294,20 @@ function PaymentSuccessContent() {
 
             {/* Customer Info */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <User className="h-4 w-4 text-[#e1bf46]" />
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                <User className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                 Customer Details
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
-                  <p className="text-xs text-gray-500">Name</p>
-                  <p className="text-sm text-white font-medium truncate">
+                <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
+                  <p className="text-xs text-[var(--text-secondary)]">Name</p>
+                  <p className="text-sm text-[var(--text-primary)] font-medium truncate">
                     {payment.customer_name}
                   </p>
                 </div>
-                <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
-                  <p className="text-xs text-gray-500">Email</p>
-                  <p className="text-sm text-white font-medium truncate">
+                <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
+                  <p className="text-xs text-[var(--text-secondary)]">Email</p>
+                  <p className="text-sm text-[var(--text-primary)] font-medium truncate">
                     {payment.customer_email || "Not provided"}
                   </p>
                 </div>
@@ -306,38 +315,51 @@ function PaymentSuccessContent() {
             </div>
 
             {/* Custom Fields */}
-            {payment.custom_fields && Object.keys(payment.custom_fields).length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#e1bf46]" />
-                  Additional Information
-                </h3>
-                <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
-                  {Object.entries(payment.custom_fields)
-                    .filter(([key]) => !['customAmount', 'name', 'email', 'phone'].includes(key))
-                    .map(([key, value]) => (
-                      <div key={key} className="flex justify-between py-1 border-b border-gray-800/50 last:border-0">
-                        <span className="text-xs text-gray-500">{key}:</span>
-                        <span className="text-xs text-white">{String(value) || "N/A"}</span>
-                      </div>
-                    ))}
+            {payment.custom_fields &&
+              Object.keys(payment.custom_fields).length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-[var(--color-accent-yellow)]" />
+                    Additional Information
+                  </h3>
+                  <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
+                    {Object.entries(payment.custom_fields)
+                      .filter(
+                        ([key]) =>
+                          !["customAmount", "name", "email", "phone"].includes(
+                            key,
+                          ),
+                      )
+                      .map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex justify-between py-1 border-b border-[var(--border-color)]/50 last:border-0"
+                        >
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            {key}:
+                          </span>
+                          <span className="text-xs text-[var(--text-primary)]">
+                            {String(value) || "N/A"}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Students (for school payments) */}
             {payment.students && payment.students.length > 0 && (
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                  <User className="h-4 w-4 text-[#e1bf46]" />
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+                  <User className="h-4 w-4 text-[var(--color-accent-yellow)]" />
                   Students
                 </h3>
-                <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
+                <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
                   <div className="flex flex-wrap gap-2">
                     {payment.students.map((student, index) => (
                       <span
                         key={index}
-                        className="text-xs bg-[#e1bf46]/10 text-[#e1bf46] px-3 py-1 rounded-full"
+                        className="text-xs bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] px-3 py-1 rounded-full"
                       >
                         {student}
                       </span>
@@ -349,21 +371,25 @@ function PaymentSuccessContent() {
 
             {/* Timestamps */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
+              <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-gray-500" />
-                  <p className="text-xs text-gray-500">Created</p>
+                  <Calendar className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Created
+                  </p>
                 </div>
-                <p className="text-xs text-white mt-1">
+                <p className="text-xs text-[var(--text-primary)] mt-1">
                   {formatDate(payment.created_at)}
                 </p>
               </div>
-              <div className="bg-[#0e0e0e] rounded-xl p-3 border border-gray-800">
+              <div className="bg-[var(--bg-primary)] rounded-xl p-3 border border-[var(--border-color)]">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                  <p className="text-xs text-gray-500">Confirmed</p>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    Confirmed
+                  </p>
                 </div>
-                <p className="text-xs text-white mt-1">
+                <p className="text-xs text-[var(--text-primary)] mt-1">
                   {formatDate(payment.confirmed_at || payment.created_at)}
                 </p>
               </div>
@@ -373,9 +399,12 @@ function PaymentSuccessContent() {
             <div className="bg-green-900/20 rounded-xl p-4 border border-green-800/30 flex items-start gap-3">
               <Mail className="h-5 w-5 text-green-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm text-green-400 font-medium">Receipt Sent</p>
+                <p className="text-sm text-green-400 font-medium">
+                  Receipt Sent
+                </p>
                 <p className="text-xs text-green-400/70">
-                  A receipt has been sent to {payment.customer_email || "your email"}.
+                  A receipt has been sent to{" "}
+                  {payment.customer_email || "your email"}.
                 </p>
               </div>
             </div>
@@ -384,7 +413,7 @@ function PaymentSuccessContent() {
             <div className="flex flex-col gap-3 pt-2">
               <Button
                 onClick={handleRedirect}
-                className="w-full bg-[#e1bf46] text-[#023528] hover:bg-[#e1bf46]/90 font-semibold"
+                className="w-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 font-semibold"
               >
                 <Home className="h-4 w-4 mr-2" />
                 {redirectUrl ? "Continue" : "Return Home"}
@@ -393,15 +422,16 @@ function PaymentSuccessContent() {
 
             {/* Footer */}
             <div className="text-center">
-              <p className="text-[10px] text-gray-600">
-                Secured by Zidwell • Payment confirmed at {formatDate(payment.confirmed_at || payment.created_at)}
+              <p className="text-[10px] text-[var(--text-secondary)]">
+                Secured by Zidwell • Payment confirmed at{" "}
+                {formatDate(payment.confirmed_at || payment.created_at)}
               </p>
             </div>
           </div>
         </motion.div>
 
         {/* Reference for debugging */}
-        <p className="text-center text-[10px] text-gray-700 mt-4">
+        <p className="text-center text-[10px] text-[var(--text-secondary)] mt-4">
           Ref: {reference || payment.id}
         </p>
       </div>
@@ -414,10 +444,10 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
+        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e1bf46] mx-auto"></div>
-            <p className="text-gray-400 mt-4">Loading...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)] mx-auto mb-4"></div>
+            <p className="text-[var(--text-secondary)] mt-4">Loading...</p>
           </div>
         </div>
       }

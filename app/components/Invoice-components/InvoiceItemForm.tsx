@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -14,41 +15,62 @@ interface InvoiceItemFormProps {
   onSubmit: (item: InvoiceItem) => void;
 }
 
+// Form state uses strings so inputs can genuinely be empty
+interface FormData {
+  id: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+}
+
 const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
   item,
   isOpen,
   onClose,
   onSubmit,
 }) => {
-  const [formData, setFormData] = useState<InvoiceItem>({
+  const [formData, setFormData] = useState<FormData>({
     id: "",
     description: "",
-    quantity: 1,
-    unitPrice: 0,
-    total: 0,
+    quantity: "",
+    unitPrice: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Load existing item or reset form
   useEffect(() => {
     if (item) {
-      setFormData(item);
+      setFormData({
+        id: item.id,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice),
+      });
     } else {
       setFormData({
         id: "",
         description: "",
-        quantity: 1,
-        unitPrice: 0,
-        total: 0,
+        quantity: "",
+        unitPrice: "",
       });
     }
+
     setErrors({});
   }, [item]);
 
-  useEffect(() => {
-    const total = formData.quantity * formData.unitPrice;
-    setFormData((prev: any) => ({ ...prev, total }));
-  }, [formData.quantity, formData.unitPrice]);
+  // Calculate total
+  const quantity =
+    formData.quantity === ""
+      ? 0
+      : Number(formData.quantity);
+
+  const unitPrice =
+    formData.unitPrice === ""
+      ? 0
+      : Number(formData.unitPrice);
+
+  const total = quantity * unitPrice;
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -56,44 +78,80 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
     if (!formData.description.trim()) {
       newErrors.description = "Description is required";
     }
-    if (!formData.quantity || formData.quantity <= 0) {
-      newErrors.quantity = "Quantity must be greater than 0";
+
+    if (
+      formData.quantity === "" ||
+      Number(formData.quantity) <= 0
+    ) {
+      newErrors.quantity =
+        "Quantity must be greater than 0";
     }
-    if (!formData.unitPrice || formData.unitPrice < 0) {
-      newErrors.unitPrice = "Price must be 0 or greater";
+
+    if (
+      formData.unitPrice === "" ||
+      Number(formData.unitPrice) < 0
+    ) {
+      newErrors.unitPrice =
+        "Price must be 0 or greater";
     }
 
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
-      onClose();
+
+    if (!validateForm()) {
+      return;
     }
+
+    const quantityNumber = Number(formData.quantity);
+    const unitPriceNumber = Number(formData.unitPrice);
+
+    const invoiceItem: InvoiceItem = {
+      id: formData.id,
+      description: formData.description.trim(),
+      quantity: quantityNumber,
+      unitPrice: unitPriceNumber,
+      total: quantityNumber * unitPriceNumber,
+    };
+
+    onSubmit(invoiceItem);
+    onClose();
   };
 
-  const handleChange = (field: keyof InvoiceItem, value: string | number) => {
-    setFormData((prev: any) => ({
+  const handleChange = (
+    field: keyof FormData,
+    value: string
+  ) => {
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
+
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-(--bg-primary) rounded-lg shadow-pop max-w-md w-full max-h-[90vh] overflow-y-auto squircle-lg">
+        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-(--border-color)">
           <h2 className="text-lg font-semibold text-(--text-primary)">
             {item ? "Edit Item" : "Add New Item"}
           </h2>
+
           <Button
             variant="ghost"
             size="icon"
@@ -104,16 +162,29 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 space-y-4"
+        >
+          {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-(--text-secondary)">
+            <Label
+              htmlFor="description"
+              className="text-(--text-secondary)"
+            >
               Description *
             </Label>
+
             <Input
               id="description"
               placeholder="Item/Service name"
               value={formData.description}
-              onChange={(e: any) => handleChange("description", e.target.value)}
+              onChange={(e) =>
+                handleChange(
+                  "description",
+                  e.target.value
+                )
+              }
               required
               autoFocus
               className={
@@ -121,8 +192,12 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                   ? "border-destructive"
                   : "border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow)"
               }
-              style={{ outline: "none", boxShadow: "none" }}
+              style={{
+                outline: "none",
+                boxShadow: "none",
+              }}
             />
+
             {errors.description && (
               <p className="text-destructive text-xs mt-1">
                 {errors.description}
@@ -130,18 +205,27 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
             )}
           </div>
 
+          {/* Quantity + Unit Price */}
           <div className="grid grid-cols-2 gap-4">
+            {/* Quantity */}
             <div className="space-y-2">
-              <Label htmlFor="quantity" className="text-(--text-secondary)">
+              <Label
+                htmlFor="quantity"
+                className="text-(--text-secondary)"
+              >
                 Quantity *
               </Label>
+
               <Input
                 id="quantity"
                 type="number"
                 placeholder="Qty"
                 value={formData.quantity}
-                onChange={(e: any) =>
-                  handleChange("quantity", parseFloat(e.target.value) || 0)
+                onChange={(e) =>
+                  handleChange(
+                    "quantity",
+                    e.target.value
+                  )
                 }
                 min="1"
                 step="1"
@@ -151,8 +235,12 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                     ? "border-destructive"
                     : "border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow)"
                 }
-                style={{ outline: "none", boxShadow: "none" }}
+                style={{
+                  outline: "none",
+                  boxShadow: "none",
+                }}
               />
+
               {errors.quantity && (
                 <p className="text-destructive text-xs mt-1">
                   {errors.quantity}
@@ -160,17 +248,25 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
               )}
             </div>
 
+            {/* Unit Price */}
             <div className="space-y-2">
-              <Label htmlFor="unitPrice" className="text-(--text-secondary)">
+              <Label
+                htmlFor="unitPrice"
+                className="text-(--text-secondary)"
+              >
                 Unit Price (₦) *
               </Label>
+
               <Input
                 id="unitPrice"
                 type="number"
                 placeholder="Price"
                 value={formData.unitPrice}
-                onChange={(e: any) =>
-                  handleChange("unitPrice", parseFloat(e.target.value) || 0)
+                onChange={(e) =>
+                  handleChange(
+                    "unitPrice",
+                    e.target.value
+                  )
                 }
                 min="0"
                 step="0.01"
@@ -180,8 +276,12 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
                     ? "border-destructive"
                     : "border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow)"
                 }
-                style={{ outline: "none", boxShadow: "none" }}
+                style={{
+                  outline: "none",
+                  boxShadow: "none",
+                }}
               />
+
               {errors.unitPrice && (
                 <p className="text-destructive text-xs mt-1">
                   {errors.unitPrice}
@@ -190,17 +290,22 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
             </div>
           </div>
 
+          {/* Total */}
           <div className="space-y-2">
-            <Label className="text-(--text-secondary)">Total</Label>
+            <Label className="text-(--text-secondary)">
+              Total
+            </Label>
+
             <div className="p-3 bg-(--bg-secondary) rounded-md text-lg font-semibold text-(--text-primary)">
               ₦
-              {formData.total.toLocaleString(undefined, {
+              {total.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
             </div>
           </div>
 
+          {/* Buttons */}
           <div className="flex justify-end space-x-2 pt-4">
             <Button
               type="button"
@@ -210,6 +315,7 @@ const InvoiceItemForm: React.FC<InvoiceItemFormProps> = ({
             >
               Cancel
             </Button>
+
             <Button
               type="submit"
               className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"

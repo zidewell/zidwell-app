@@ -150,8 +150,17 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
-    
+    await page.setContent(html, { waitUntil: "load" });
+
+    await page.evaluate(() => {
+      return Promise.all(
+        Array.from(document.images)
+          .filter(img => !img.complete)
+          .map(img => new Promise(resolve => {
+            img.onload = img.onerror = resolve;
+          }))
+      );
+    });
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,

@@ -12,7 +12,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const MIN_WITHDRAWAL = 1000;
 const WITHDRAWAL_FEE = 0;
 
 export async function POST(request: Request) {
@@ -28,15 +27,6 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Please enter a valid amount" },
-        { status: 400 }
-      );
-    }
-
-    if (numericAmount < MIN_WITHDRAWAL) {
-      return NextResponse.json(
-        {
-          error: `Minimum withdrawal is ₦${MIN_WITHDRAWAL.toLocaleString()}`,
-        },
         { status: 400 }
       );
     }
@@ -90,7 +80,6 @@ export async function POST(request: Request) {
     if (withdrawError) {
       console.error("Withdrawal error:", withdrawError);
 
-      // Map common Postgres errors to friendly messages
       const message = withdrawError.message || "";
 
       if (message.includes("Insufficient wallet balance")) {

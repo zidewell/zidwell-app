@@ -139,16 +139,7 @@ export function StoreNav({ pathname }: { pathname: string }) {
           <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-background to-transparent" />
         </div>
 
-        {/* Fixed help button */}
-        <div className="flex shrink-0 items-center pl-4">
-          <button
-            type="button"
-            aria-label="Help"
-            className="rounded-full p-2 transition-colors hover:bg-muted"
-          >
-            <HelpCircle className="size-4 text-muted-foreground" />
-          </button>
-        </div>
+       
       </div>
 
       {/* Scrollbar styles: hidden but scrollable. */}
