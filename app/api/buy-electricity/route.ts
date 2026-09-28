@@ -52,7 +52,7 @@ async function sendElectricityEmailNotification(
   tokenData?: any
 ) {
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    if (!process.env.ENSEND_NOREPLY || !process.env.EMAIL_PASSWORD) {
       console.warn("Email notifications are disabled");
       return;
     }
@@ -84,7 +84,7 @@ async function sendElectricityEmailNotification(
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
     await transporter.sendMail({
-      from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+      from: `"Zidwell" <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject,
       html: `

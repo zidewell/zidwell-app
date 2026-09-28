@@ -53,7 +53,7 @@ async function sendInvoiceCreatorNotificationEmail(
 ) {
   try {
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: creatorEmail,
       subject: `💰 Payment Received - ₦${amount.toLocaleString()}`,
       html: `
@@ -99,7 +99,7 @@ async function sendVirtualAccountDepositEmail(
     const creditedAmount = amount - (nombaFee || 0);
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject: `💰 Account Deposit Received - ₦${amount.toLocaleString()}`,
       html: `
@@ -163,7 +163,7 @@ async function sendWithdrawalEmail(
     console.log(`📧 Sending email to: ${user.email}`);
 
     const mailOptions: any = {
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject:
         status === "success"

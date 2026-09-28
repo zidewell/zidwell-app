@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Send email using Nodemailer
 
     const mailOptions = {
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject: emailSubject,
       html: emailHtml,

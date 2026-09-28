@@ -14,7 +14,7 @@ export async function sendEmailNotification(
     const html = generateEmailTemplate(templateData);
 
     const mailOptions = {
-      from: `"Zidwell App" <${process.env.EMAIL_USER}>`,
+      from: `"Zidwell App" <${process.env.ENSEND_NOREPLY}>`,
       to,
       subject,
       html,

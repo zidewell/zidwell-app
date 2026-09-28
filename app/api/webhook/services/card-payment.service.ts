@@ -128,7 +128,7 @@ async function sendBookingConfirmationEmail(
 
   try {
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: customerEmail,
       subject: `Booking confirmed - ${pageTitle}`,
       html: `
@@ -317,7 +317,7 @@ async function sendCompletionEmail({
 
   try {
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: customerEmail,
       subject: `Payment complete - ${pageTitle}`,
       html: `
@@ -677,7 +677,7 @@ export async function processCardPaymentWebhook(
           : "";
 
         await transporter.sendMail({
-          from: `Zidwell <${process.env.EMAIL_USER}>`,
+          from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
           to: creator.email,
           subject: `Payment received - ₦${feeBreakdown.netAmount.toLocaleString()}`,
           html: `

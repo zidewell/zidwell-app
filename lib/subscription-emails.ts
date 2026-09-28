@@ -80,7 +80,7 @@ export async function sendSubscriptionReceiptWithPDF(
     const planName = getPlanDisplayName(planTier);
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: email,
       subject: `🧾 Subscription Payment Receipt - ${planName} Plan`,
       html: `
@@ -119,7 +119,7 @@ export async function sendSubscriptionActivationEmail(
     const features = getPlanFeatures(planTier);
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: email,
       subject: `🎉 Subscription Activated - ${planName} Plan`,
       html: `
@@ -156,7 +156,7 @@ export async function sendSubscriptionCancellationEmail(
     const planName = getPlanDisplayName(planTier);
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: email,
       subject: `⚠️ Subscription Cancelled - ${planName} Plan`,
       html: `

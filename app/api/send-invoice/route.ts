@@ -74,7 +74,7 @@ async function sendInvoiceEmail(params: {
   const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
   await transporter.sendMail({
-    from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
+    from: `Zidwell Invoice <${process.env.ENSEND_NOREPLY}>`,
     to: params.to,
     subject: params.subject,
     html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><h2>New Invoice</h2><p>Hello,</p><p>You have received an invoice from <strong>${params.senderName}</strong>.</p><div><p><strong>Invoice ID:</strong> ${params.invoiceId}</p><p><strong>Amount:</strong> ₦${Number(params.amount).toLocaleString()}</p></div><a href="${params.signingLink}" style="background:#FDC020; color:#fff; padding:12px 24px; text-decoration:none;">View Invoice & Pay</a></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,

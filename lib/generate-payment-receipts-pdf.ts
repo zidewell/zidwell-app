@@ -18,12 +18,12 @@ const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 // Helper function to check email configuration
 function checkEmailConfiguration() {
   console.log("📧 [EMAIL-CONFIG] Checking email configuration...");
-  console.log("📧 [EMAIL-CONFIG] EMAIL_USER configured:", !!process.env.EMAIL_USER);
+  console.log("📧 [EMAIL-CONFIG] ENSEND_NOREPLY configured:", !!process.env.ENSEND_NOREPLY);
   console.log("📧 [EMAIL-CONFIG] EMAIL_PASS configured:", !!process.env.EMAIL_PASS);
   console.log("📧 [EMAIL-CONFIG] EMAIL_HOST:", process.env.EMAIL_HOST || "default (smtp.gmail.com)");
   console.log("📧 [EMAIL-CONFIG] EMAIL_PORT:", process.env.EMAIL_PORT || "default (587)");
   
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!process.env.ENSEND_NOREPLY || !process.env.EMAIL_PASS) {
     console.error("❌ [EMAIL-CONFIG] Email credentials missing! Check environment variables.");
   } else {
     console.log("✅ [EMAIL-CONFIG] Email configuration looks good");
@@ -1080,12 +1080,12 @@ export async function sendTransactionReceiptWithPDF(
     };
 
     console.log(`📧 [EMAIL] Preparing email with PDF attachment...`);
-    console.log(`📧 [EMAIL] From: Zidwell <${process.env.EMAIL_USER}>`);
+    console.log(`📧 [EMAIL] From: Zidwell <${process.env.ENSEND_NOREPLY}>`);
     console.log(`📧 [EMAIL] To: ${payerEmail}`);
     console.log(`📧 [EMAIL] Subject: 🧾 Transaction Receipt - ${invoice.invoice_id} - ${formatCurrency(paymentDetails.amount)}`);
     
     const emailResult = await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: payerEmail,
       subject: `🧾 Transaction Receipt - ${invoice.invoice_id} - ${formatCurrency(paymentDetails.amount)}`,
       html: `
@@ -1192,7 +1192,7 @@ async function sendTransactionReceiptFallback(
   };
 
   const emailResult = await transporter.sendMail({
-    from: `Zidwell <${process.env.EMAIL_USER}>`,
+    from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
     to: payerEmail,
     subject: `🧾 Transaction Receipt - ${invoice.invoice_id}`,
     html: `
@@ -1282,7 +1282,7 @@ export async function sendPaymentPageReceiptWithPDF(
     console.log(`📧 [EMAIL-PAGE] Preparing email with PDF attachment for ${customerEmail}`);
     
     const emailResult = await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: customerEmail,
       subject: `✅ Payment Receipt - ${pageTitle} - ${formatCurrency(amount)}`,
       html: `
@@ -1397,7 +1397,7 @@ async function sendPaymentPageReceiptFallback(
   };
 
   const emailResult = await transporter.sendMail({
-    from: `Zidwell <${process.env.EMAIL_USER}>`,
+    from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
     to: customerEmail,
     subject: `Payment Receipt - ${pageTitle}`,
     html: `

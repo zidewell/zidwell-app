@@ -20,7 +20,7 @@ const supabaseAdmin = createClient(
 
 // Initialize webpush with VAPID details
 webpush.setVapidDetails(
-  'mailto:' + process.env.EMAIL_USER!,
+  'mailto:' + process.env.ENSEND_NOREPLY!,
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 )

@@ -163,7 +163,7 @@ async function sendPaymentPageNotificationEmail(
   
   try {
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: creatorEmail,
       subject: `💰 Payment Received for "${pageTitle}" - ₦${netAmount.toLocaleString()}`,
       html: `

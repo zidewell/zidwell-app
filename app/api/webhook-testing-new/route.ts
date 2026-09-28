@@ -188,7 +188,7 @@
 //     `;
 
 //     await transporter.sendMail({
-//       from: `Zidwell <${process.env.EMAIL_USER}>`,
+//       from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
 //       to: user.email,
 //       subject,
 //       text: emailBody,
@@ -342,7 +342,7 @@
 //       status === "success" ? "Transfer Successful" : "Transfer Failed";
 
 //     await transporter.sendMail({
-//       from: `Zidwell <${process.env.EMAIL_USER}>`,
+//       from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
 //       to: user.email,
 //       subject,
 //       text: emailBody,
@@ -462,7 +462,7 @@
 //     `;
 
 //     await transporter.sendMail({
-//       from: `Zidwell <${process.env.EMAIL_USER}>`,
+//       from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
 //       to: creatorEmail,
 //       subject,
 //       text: emailBody,

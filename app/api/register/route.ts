@@ -314,7 +314,7 @@ export async function POST(req: NextRequest) {
         const verificationLink = `${baseUrl}/auth/verify?token=${verificationToken}&email=${encodeURIComponent(email)}`;
 
         await transporter.sendMail({
-          from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+          from: `"Zidwell" <${process.env.ENSEND_NOREPLY}>`,
           to: email,
           subject: "🔐 Verify Your Zidwell Account",
           html: `

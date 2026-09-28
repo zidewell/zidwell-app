@@ -388,7 +388,7 @@ export async function sendTransactionReceipt(
     `;
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: payerEmail,
       subject: `🧾 Transaction Receipt - ${invoice.invoice_id} - ${formatCurrency(amount)}`,
       html: receiptHTML,

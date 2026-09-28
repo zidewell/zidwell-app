@@ -465,7 +465,7 @@ export async function POST(request: Request) {
     }
 
     await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: `${invoice.signee_email}, ${invoice.initiator_email}`,
       subject,
       html: bodyHtml,

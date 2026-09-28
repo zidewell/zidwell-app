@@ -18,7 +18,7 @@ export async function sendPinResetEmail(
 
   try {
     await transporter.sendMail({
-      from: `Zidwell Security <${process.env.EMAIL_USER}>`,
+      from: `Zidwell Security <${process.env.ENSEND_NOREPLY}>`,
       to: email,
       subject: "Reset Your Transaction PIN - Security Alert",
       html: `

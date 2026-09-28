@@ -248,7 +248,7 @@ async function sendEmailNotification({
       .replace(/\n{3,}/g, "\n\n");
 
     const mailOptions = {
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to,
       subject: `🔔 ${subject}`,
       html: `

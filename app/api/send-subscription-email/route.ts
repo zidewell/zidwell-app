@@ -15,7 +15,7 @@ async function sendConfirmationEmail(
   amount: number
 ) {
   await transporter.sendMail({
-    from: `"Subscription Team" <${process.env.EMAIL_USER}>`,
+    from: `"Subscription Team" <${process.env.ENSEND_NOREPLY}>`,
     to: email,
     subject: "Payment Successful ✅",
     html: `

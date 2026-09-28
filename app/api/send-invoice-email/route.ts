@@ -256,7 +256,7 @@ export async function POST(request: Request) {
 
     for (const recipient of recipients) {
       await transporter.sendMail({
-        from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+        from: `"Zidwell" <${process.env.ENSEND_NOREPLY}>`,
         to: recipient.email,
         subject: recipient.subject,
         text: recipient.text,

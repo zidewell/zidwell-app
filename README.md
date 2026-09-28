@@ -164,7 +164,7 @@ Supabase keys
 
 SITE_URL=zidwell.com
 
-EMAIL_USER
+ENSEND_NOREPLY
 
 NOMBA_URL
 ```
@@ -254,7 +254,7 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 NEXT_PUBLIC_DEV_URL=http://localhost:3000
 
 # Email Configuration
-EMAIL_USER=your_email@gmail.com  
+ENSEND_NOREPLY=your_email@gmail.com  
 EMAIL_PASS=your_app_password
 
 # Nomba API

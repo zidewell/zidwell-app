@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
         const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
         await transporter.sendMail({
-          from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+          from: `"Zidwell" <${process.env.ENSEND_NOREPLY}>`,
           to: user.email,
           subject: "🎉 Welcome to Zidwell!",
           html: `

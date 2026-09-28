@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
     await transporter.sendMail({
-      from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
+      from: `Zidwell Contracts <${process.env.ENSEND_NOREPLY}>`,
       to: signeeEmail,
       subject: `Your Signature Verification Code - ${
         contract.contract_title || "Contract"
