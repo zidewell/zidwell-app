@@ -19,24 +19,43 @@ export async function GET(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    // Verify the access token with Supabase
     const {
       data: { user },
-      error,
+      error: authError,
     } = await supabase.auth.getUser(accessToken);
 
-    if (error || !user) {
+    if (authError || !user) {
       return NextResponse.json({ valid: false }, { status: 200 });
     }
 
-    const { data: userData } = await supabase
+    // Look up the current session ID stored on the user row
+    const { data: userData, error: dbError } = await supabase
       .from("users")
-      .select("current_session_id")
+      .select("current_session_id, current_session_expires_at")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!userData || userData.current_session_id !== sessionId) {
+    if (dbError || !userData) {
+      return NextResponse.json({ valid: false }, { status: 200 });
+    }
+
+    // Session mismatch — user logged in elsewhere
+    if (userData.current_session_id !== sessionId) {
       return NextResponse.json(
         { valid: false, reason: "Session invalidated" },
+        { status: 200 }
+      );
+    }
+
+    // Session expired server-side
+    if (
+      userData.current_session_expires_at &&
+      new Date(userData.current_session_expires_at).getTime() < Date.now()
+    ) {
+      return NextResponse.json(
+        { valid: false, reason: "Session expired" },
         { status: 200 }
       );
     }
