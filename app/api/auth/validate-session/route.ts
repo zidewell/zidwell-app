@@ -30,15 +30,26 @@ export async function GET(req: NextRequest) {
 
     const { data: userData } = await supabase
       .from("users")
-      .select("current_session_id")
+      .select("current_session_id, current_session_expires_at")
       .eq("id", user.id)
       .single();
 
     if (!userData || userData.current_session_id !== sessionId) {
       return NextResponse.json(
         { valid: false, reason: "Session invalidated" },
-        { status: 200 }
+        { status: 200 },
       );
+    }
+
+    // Check session expiration (inactivity timeout)
+    if (userData.current_session_expires_at) {
+      const expiresAt = new Date(userData.current_session_expires_at).getTime();
+      if (Date.now() > expiresAt) {
+        return NextResponse.json(
+          { valid: false, reason: "Session expired due to inactivity" },
+          { status: 200 },
+        );
+      }
     }
 
     return NextResponse.json({ valid: true });

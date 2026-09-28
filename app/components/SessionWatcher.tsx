@@ -7,9 +7,7 @@ import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
 const SESSION_TIMEOUT =
-  process.env.NEXT_PUBLIC_NODE_ENV === "production"
-    ? 15 * 60 * 1000
-    : -1;
+  process.env.NEXT_PUBLIC_NODE_ENV === "production" ? 15 * 60 * 1000 : -1;
 
 const IDLE_WARNING_TIME = 60 * 1000;
 
@@ -131,7 +129,7 @@ export default function SessionWatcher({
     async (
       reason: string = "Session expired",
       showAlert: boolean = true,
-      isNetworkError: boolean = false
+      isNetworkError: boolean = false,
     ) => {
       // Never log out from a public route
       if (isPublicRoute()) return;
@@ -181,7 +179,7 @@ export default function SessionWatcher({
         }, 1000);
       }
     },
-    [userData, isPublicRoute, loading, handleSessionExpired, resetTimer]
+    [userData, isPublicRoute, loading, handleSessionExpired, resetTimer],
   );
 
   // ─────────────────────────────────────────────────────────────────────
@@ -274,13 +272,7 @@ export default function SessionWatcher({
         }, 30000);
       }
     }
-  }, [
-    canCheckSession,
-    isOnline,
-    isPublicRoute,
-    handleLogout,
-    resetTimer,
-  ]);
+  }, [canCheckSession, isOnline, isPublicRoute, handleLogout, resetTimer]);
 
   // ─────────────────────────────────────────────────────────────────────
   // 8. ONLINE / OFFLINE
@@ -313,6 +305,22 @@ export default function SessionWatcher({
       resetTimer();
     };
 
+    // Throttled session extension – avoid flooding the server
+    let lastExtend = 0;
+    const extendSession = async () => {
+      const now = Date.now();
+      if (now - lastExtend < 5 * 60 * 1000) return; // max once per 5 min
+      lastExtend = now;
+      try {
+        await fetch("/api/auth/extend-session", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (e) {
+        console.warn("Session extend failed:", e);
+      }
+    };
+
     const events = [
       "mousedown",
       "click",
@@ -321,15 +329,21 @@ export default function SessionWatcher({
       "touchstart",
       "mousemove",
     ];
+    const handleActivity = () => {
+      updateActivity();
+      extendSession();
+    };
+
     events.forEach((event) =>
-      window.addEventListener(event, updateActivity, { passive: true })
+      window.addEventListener(event, handleActivity, { passive: true }),
     );
 
     updateActivity();
+    extendSession();
 
     return () => {
       events.forEach((event) =>
-        window.removeEventListener(event, updateActivity)
+        window.removeEventListener(event, handleActivity),
       );
       if (timerRef.current) {
         clearTimeout(timerRef.current);
