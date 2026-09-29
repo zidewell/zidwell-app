@@ -10,6 +10,7 @@ import BankAccountFields from "./BankAccountFields";
 import P2PFields from "./P2PFields";
 import ExpenseCategoryDropdown from "./ExpenseCategoryDropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import type { AccountTier } from "@/lib/fee";
 
 interface TransferFormProps {
   transferType: "my-account" | "other-bank" | "p2p";
@@ -31,6 +32,10 @@ interface TransferFormProps {
   isDisabled: boolean;
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
+
+  // ✅ NEW: user's account tier for fee/limit display
+  accountTier?: AccountTier;
+
   // Props for child components
   loading2: boolean;
   userDetails: any;
@@ -101,6 +106,7 @@ export default function TransferForm({
   isDisabled,
   loading,
   onSubmit,
+  accountTier = "tier_3", // ✅ NEW
   loading2,
   userDetails,
   savedAccounts,
@@ -182,18 +188,26 @@ export default function TransferForm({
                 type="transfer"
                 amount={Number(amount)}
                 paymentMethod="bank_transfer"
+                tier={accountTier}
+                direction="outflow"
                 onFeeCalculated={(fee, total) => {
                   setCalculatedFee(fee);
                   setTotalDebit(total);
                 }}
               />
             )}
-            {errors.amount && <p className="text-red-600 text-sm">{errors.amount}</p>}
+            {errors.amount && (
+              <p className="text-red-600 text-sm">{errors.amount}</p>
+            )}
           </div>
 
           {/* My Account Details */}
           {transferType === "my-account" && (
-            <MyAccountDetails loading2={loading2} userDetails={userDetails} error={errors.myAccount} />
+            <MyAccountDetails
+              loading2={loading2}
+              userDetails={userDetails}
+              error={errors.myAccount}
+            />
           )}
 
           {/* Other Bank Fields */}
@@ -278,7 +292,9 @@ export default function TransferForm({
           <div className="space-y-1">
             <Label className="text-(--text-primary)">
               Narration{" "}
-              <span className="text-sm text-(--text-secondary)">(purpose of transaction)</span>
+              <span className="text-sm text-(--text-secondary)">
+                (purpose of transaction)
+              </span>
             </Label>
             <Input
               type="text"
@@ -288,7 +304,9 @@ export default function TransferForm({
               maxLength={100}
               className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
             />
-            {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
+            {errors.narration && (
+              <p className="text-red-600 text-sm">{errors.narration}</p>
+            )}
           </div>
 
           {/* Submit Button */}

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
-import PinPopOver from "../PinPopOver"; 
+import PinPopOver from "../PinPopOver";
 import TransactionSummary from "./TransactionSummary";
 import TransferSuccessModal from "./TransferSuccessModal";
-import TransferBalanceCards from "./TransferBalanceCards"; 
-import TransferForm from "./TransferForm"; 
+import TransferBalanceCards from "./TransferBalanceCards";
+import TransferForm from "./TransferForm";
 import { useUserContextData } from "@/app/context/userData";
+import { TIER_CONFIG, type AccountTier } from "@/lib/fee";
 
 // Types
 interface Bank {
@@ -63,7 +64,23 @@ type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer" | "p2p";
 
 export default function Transfer() {
   const inputCount = 4;
-  const { userData, balance, lifetimeBalance } = useUserContextData();
+
+  const {
+    userData,
+    balance,
+    lifetimeBalance,
+    refreshUserProfile,
+  } = useUserContextData();
+
+  // ✅ Tier
+  const accountTier: AccountTier =
+    ((userData as any)?.accountTier as AccountTier) || "tier_3";
+
+  // ✅ Custom fee overrides (Soft Life Travels, etc.)
+  const customOutflowPercent: number | null =
+    (userData as any)?.customOutflowPercent ?? null;
+  const customOutflowMin: number | null =
+    (userData as any)?.customOutflowMin ?? null;
 
   // State declarations
   const [isOpen, setIsOpen] = useState(false);
@@ -121,6 +138,11 @@ export default function Transfer() {
   const accountInputRef = useRef<HTMLInputElement>(null);
   const p2pInputRef = useRef<HTMLInputElement>(null);
   const pendingFavoritesRef = useRef<Set<string>>(new Set());
+
+  // ✅ Refresh user profile on mount so tier changes reflect immediately
+  useEffect(() => {
+    refreshUserProfile();
+  }, [refreshUserProfile]);
 
   // Helper: Format number
   const formatNumber = (value: number) =>
@@ -252,297 +274,119 @@ export default function Transfer() {
     });
   };
 
-// Helper: Download receipt
-const handleDownloadReceiptFromData = async (receiptData: any) => {
-  try {
-    let logoBase64 = "";
+  // Helper: Download receipt
+  const handleDownloadReceiptFromData = async (receiptData: any) => {
     try {
-      const response = await fetch("/logo.png");
-      if (response.ok) {
-        const blob = await response.blob();
-        logoBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
+      let logoBase64 = "";
+      try {
+        const response = await fetch("/logo.png");
+        if (response.ok) {
+          const blob = await response.blob();
+          logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (e) {
+        console.error("Error loading logo:", e);
       }
-    } catch (e) {
-      console.error("Error loading logo:", e);
-    }
 
-    const logoSrc = logoBase64 || "/logo.png";
-    
-    // Properly format amount with ₦ symbol
-    const amountValue = Number(receiptData?.amount || 0);
-    const amountDisplay = `${amountValue.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-    
-    const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+      const logoSrc = logoBase64 || "/logo.png";
 
-    // Properly format fee with ₦ symbol
-    const feeValue = Number(receiptData?.fee || 0);
-    const feeDisplay = feeValue > 0 
-      ? `₦${feeValue.toLocaleString("en-NG", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`
-      : "";
+      const amountValue = Number(receiptData?.amount || 0);
+      const amountDisplay = `${amountValue.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
 
-    // Escape HTML special characters
-    const escapeHtml = (str: string) => {
-      if (!str) return '';
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    };
+      const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
-    const statusColor = "#E5B333";
-    const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
-      <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+      const feeValue = Number(receiptData?.fee || 0);
+      const feeDisplay = feeValue > 0
+        ? `₦${feeValue.toLocaleString("en-NG", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`
+        : "";
 
-    const receiptHTML = `<!DOCTYPE html>
+      const escapeHtml = (str: string) => {
+        if (!str) return '';
+        return str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      };
+
+      const statusColor = "#E5B333";
+      const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+      const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zidwell Receipt | ${receiptData?.transactionId || "N/A"}</title>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Arial', 'Helvetica', sans-serif;
-  }
-  body {
-    background: #101010;
-    display: flex;
-    justify-content: center;
-    padding: 30px 20px;
-  }
-  .receipt {
-    width: 550px;
-    background: #fff;
-    border: 2px solid ${statusColor};
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-  }
-  .header {
-    height: 120px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  .header::after {
-    content: "";
-    position: absolute;
-    bottom: 0px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 280px;
-    height: 130px;
-    background: #101010;
-    border: 2px solid #E5B333;
-    clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
-    border-radius: 0 0 240px 240px;
-  }
-  .logo {
-    position: relative;
-    z-index: 2;
-  }
-  .logo img {
-    width: 130px;
-  }
-  .content {
-    padding: 30px 40px 30px;
-  }
-  .status-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .status-icon svg {
-    width: 48px;
-    height: 48px;
-  }
-  .title {
-    text-align: center;
-  }
-  .title h1 {
-    font-size: 25px;
-    margin-bottom: 10px;
-  }
-  .title p {
-    color: #777;
-  }
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 15px 0;
-  }
-  .divider-line {
-    flex: 1;
-    height: 1px;
-    background: #E5B333;
-  }
-  .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #E5B333;
-  }
-  .amount {
-    text-align: center;
-  }
-  .amount-label {
-    color: #777;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .amount-value {
-    font-size: 30px;
-    font-weight: 700;
-    margin-top: 10px;
-  }
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin: 25px 0 15px;
-  }
-  .section-title .line {
-    flex: 1;
-    height: 1px;
-    background: #E5B333;
-  }
-  .section-title span {
-    color: #E5B333;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 13px;
-  }
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #f0e0a3;
-  }
-  .detail-row-last {
-    border-bottom: none;
-  }
-  .left {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    flex: 1;
-  }
-  .icon {
-    width: 42px;
-    height: 42px;
-    background: #101010;
-    border-radius: 50%;
-    color: #E5B333;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .detail-title {
-    font-size: 13px;
-    color: #444;
-  }
-  .detail-value {
-    font-weight: 600;
-    margin-top: 3px;
-    font-size: 14px;
-  }
-  .sub {
-    color: #777;
-    font-size: 12px;
-  }
-  .right {
-    font-weight: 600;
-    text-align: right;
-    font-size: 14px;
-  }
-  .narration-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex: 1;
-  }
-  .narration-text {
-    font-weight: 400;
-    font-size: 13px;
-    text-align: right;
-    max-width: 60%;
-    word-break: break-word;
-  }
-  .footer {
-    height: 50px;
-    color: #fff;
-    font-size:12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    background: #101010;
-  }
-  .footer::before {
-    content: "";
-    position: absolute;
-    top: -40px;
-    left: 0;
-    width: 100%;
-    height: 80px;
-    background: #101010;
-    border-top: 2px solid #E5B333;
-    border-top-left-radius: 70%;
-    border-top-right-radius: 70%;
-  }
-  .footer span {
-    position: relative;
-    z-index: 2;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', 'Helvetica', sans-serif; }
+  body { background: #101010; display: flex; justify-content: center; padding: 30px 20px; }
+  .receipt { width: 550px; background: #fff; border: 2px solid ${statusColor}; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3); }
+  .header { height: 120px; position: relative; display: flex; justify-content: center; align-items: flex-start; }
+  .header::after { content: ""; position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%); width: 280px; height: 130px; background: #101010; border: 2px solid #E5B333; clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%); border-radius: 0 0 240px 240px; }
+  .logo { position: relative; z-index: 2; }
+  .logo img { width: 130px; }
+  .content { padding: 30px 40px 30px; }
+  .status-icon { width: 48px; height: 48px; margin: 0 auto 20px; display: flex; justify-content: center; align-items: center; }
+  .status-icon svg { width: 48px; height: 48px; }
+  .title { text-align: center; }
+  .title h1 { font-size: 25px; margin-bottom: 10px; }
+  .title p { color: #777; }
+  .divider { display: flex; align-items: center; gap: 8px; margin: 15px 0; }
+  .divider-line { flex: 1; height: 1px; background: #E5B333; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #E5B333; }
+  .amount { text-align: center; }
+  .amount-label { color: #777; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-value { font-size: 30px; font-weight: 700; margin-top: 10px; }
+  .section-title { display: flex; align-items: center; gap: 15px; margin: 25px 0 15px; }
+  .section-title .line { flex: 1; height: 1px; background: #E5B333; }
+  .section-title span { color: #E5B333; font-weight: 600; text-transform: uppercase; font-size: 13px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0e0a3; }
+  .detail-row-last { border-bottom: none; }
+  .left { display: flex; gap: 15px; align-items: center; flex: 1; }
+  .icon { width: 42px; height: 42px; background: #101010; border-radius: 50%; color: #E5B333; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .detail-title { font-size: 13px; color: #444; }
+  .detail-value { font-weight: 600; margin-top: 3px; font-size: 14px; }
+  .sub { color: #777; font-size: 12px; }
+  .right { font-weight: 600; text-align: right; font-size: 14px; }
+  .narration-wrapper { display: flex; justify-content: space-between; align-items: center; flex: 1; }
+  .narration-text { font-weight: 400; font-size: 13px; text-align: right; max-width: 60%; word-break: break-word; }
+  .footer { height: 50px; color: #fff; font-size:12px; display: flex; justify-content: center; align-items: center; position: relative; background: #101010; }
+  .footer::before { content: ""; position: absolute; top: -40px; left: 0; width: 100%; height: 80px; background: #101010; border-top: 2px solid #E5B333; border-top-left-radius: 70%; border-top-right-radius: 70%; }
+  .footer span { position: relative; z-index: 2; }
 </style>
 </head>
 <body>
-
 <div class="receipt">
   <div class="header">
-    <div class="logo">
-      <img src="${logoSrc}" alt="Zidwell Logo">
-    </div>
+    <div class="logo"><img src="${logoSrc}" alt="Zidwell Logo"></div>
   </div>
-
   <div class="content">
-    <div class="status-icon">
-      ${statusIconSvg}
-    </div>
-
+    <div class="status-icon">${statusIconSvg}</div>
     <div class="title">
       <h1>Transfer Successful</h1>
       <p>Your transaction has been completed successfully.</p>
     </div>
-
     <div class="divider">
       <div class="divider-line"></div>
       <div class="dot"></div>
@@ -550,167 +394,76 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       <div class="dot"></div>
       <div class="divider-line"></div>
     </div>
-
     <div class="amount">
       <div class="amount-label">Amount</div>
       <div class="amount-value">${amountDisplay}</div>
     </div>
-
     <div class="section-title">
       <div class="line"></div>
       <span>Transaction Details</span>
       <div class="line"></div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Date & Time</div>
-          </div>
-          <div class="right">${formattedDate}</div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">Date & Time</div></div><div class="right">${formattedDate}</div></div>
       </div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="19" x2="12" y2="5"/>
-            <polyline points="5 12 12 5 19 12"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">From</div>
-            <div class="detail-value">${escapeHtml(receiptData?.senderName || "Zidwell User")}</div>
-            ${receiptData?.senderAccount ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>` : ""}
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">From</div><div class="detail-value">${escapeHtml(receiptData?.senderName || "Zidwell User")}</div>${receiptData?.senderAccount ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>` : ""}</div></div>
       </div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <polyline points="19 12 12 19 5 12"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">To</div>
-            <div class="detail-value">${escapeHtml(receiptData?.recipientName || "N/A")}</div>
-            ${receiptData?.recipientAccount ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>` : ""}
-            ${receiptData?.recipientBank ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>` : ""}
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">To</div><div class="detail-value">${escapeHtml(receiptData?.recipientName || "N/A")}</div>${receiptData?.recipientAccount ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>` : ""}${receiptData?.recipientBank ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>` : ""}</div></div>
       </div>
     </div>
-
-    ${receiptData?.narration ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Narration</div>
-          </div>
-          <div class="narration-text">${escapeHtml(receiptData.narration)}</div>
-        </div>
-      </div>
-    </div>
-    ` : ""}
-
-    ${feeValue > 0 ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Fee</div>
-          </div>
-          <div class="right">${feeDisplay}</div>
-        </div>
-      </div>
-    </div>
-    ` : ""}
-
+    ${receiptData?.narration ? `<div class="detail-row"><div class="left"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="narration-wrapper"><div><div class="detail-title">Narration</div></div><div class="narration-text">${escapeHtml(receiptData.narration)}</div></div></div></div>` : ""}
+    ${feeValue > 0 ? `<div class="detail-row"><div class="left"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="narration-wrapper"><div><div class="detail-title">Fee</div></div><div class="right">${feeDisplay}</div></div></div></div>` : ""}
     <div class="detail-row detail-row-last">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Transaction ID</div>
-            <div class="detail-value">${escapeHtml(receiptData?.transactionId || "N/A")}</div>
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">Transaction ID</div><div class="detail-value">${escapeHtml(receiptData?.transactionId || "N/A")}</div></div></div>
       </div>
     </div>
   </div>
-
-  <div class="footer">
-    <span>Thank you for using Zidwell.</span>
-  </div>
+  <div class="footer"><span>Thank you for using Zidwell.</span></div>
 </div>
-
 </body>
 </html>`;
 
-    const response = await fetch("/api/generate-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ html: receiptHTML }),
-    });
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to generate PDF");
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+
+      const pdfBlob = await response.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zidwell-receipt-${receiptData?.transactionId || "receipt"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Download",
+        text: "Could not generate receipt. Please try again.",
+      });
     }
+  };
 
-    const pdfBlob = await response.blob();
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `zidwell-receipt-${receiptData?.transactionId || "receipt"}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error generating receipt:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Failed to Download",
-      text: "Could not generate receipt. Please try again.",
-    });
-  }
-};
   // Polling
   const startPolling = (transactionId: string) => {
     stopPolling();
@@ -778,7 +531,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
 
           if (Swal.isVisible()) Swal.close();
 
-          // Prepare receipt data and show modal
           const receiptData = {
             transactionId: transactionId,
             amount: Number(amount),
@@ -1047,6 +799,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     try {
       const selectedCategory = expenseCategories.find((c) => c.id === expenseCategory);
 
+      // ✅ Fee and totalDebit computed server-side — we do NOT send them
       const payload: any = {
         userId: userData?.id,
         senderName: userDetails.bank_details.bank_account_name,
@@ -1056,8 +809,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         narration,
         pin: submittedPin,
         type: transferType,
-        fee: calculatedFee,
-        totalDebit,
         category: selectedCategory?.name || narration,
         categoryId: expenseCategory,
       };
@@ -1125,7 +876,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
           await saveP2PBeneficiaryToProfile();
         }
 
-        // Prepare receipt data for download
         const receiptData = {
           transactionId:
             data.transactionId ||
@@ -1159,7 +909,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
           senderAccount: userDetails?.bank_details?.bank_account_number || "N/A",
           narration: narration,
           status: "success",
-          fee: calculatedFee,
+          fee: Number(data.fee ?? calculatedFee),
           type: transferType,
         };
 
@@ -1213,6 +963,21 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     }
   };
 
+  // ✅ Client-side tier limit check
+  const clientLimitGuard = (): string | null => {
+    const cfg = TIER_CONFIG[accountTier];
+    if (!cfg) return null;
+
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    if (amt > cfg.perTransferLimit) {
+      return `Amount exceeds your ${cfg.label} per-transfer limit of ₦${cfg.perTransferLimit.toLocaleString()}`;
+    }
+
+    return null;
+  };
+
   // Handle transfer submission
   const handleTransfer = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1223,6 +988,11 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     if (!narration) newErrors.narration = "Narration is required.";
     if (narration.length > 100) newErrors.narration = "Narration too long.";
     if (!expenseCategory) newErrors.expenseCategory = "Please select an expense category.";
+
+    if (amount && Number(amount) >= 100) {
+      const limitError = clientLimitGuard();
+      if (limitError) newErrors.amount = limitError;
+    }
 
     if (
       transferType === "my-account" &&
@@ -1597,6 +1367,10 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         isDisabled={isDisabled}
         loading={loading}
         onSubmit={handleTransfer}
+        // ✅ Tier + custom overrides
+        accountTier={accountTier}
+        customOutflowPercent={customOutflowPercent}
+        customOutflowMin={customOutflowMin}
         loading2={loading2}
         userDetails={userDetails}
         savedAccounts={savedAccounts}

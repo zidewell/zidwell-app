@@ -1,12 +1,6 @@
 // app/api/user/me/route.ts
 // ─────────────────────────────────────────────────────────────────────────────
-// FIXES:
-//  1. Returns the FULL user profile — not just id/email/subscription.
-//     The original returned a partial object which broke any consumer
-//     expecting full_name, phone, wallet_balance, bvn_verification, etc.
-//  2. Reads from the `users` table via the service-role admin client,
-//     so RLS on the anon role can't silently null out fields.
-//  3. Never returns 401 for missing optional fields — only for missing auth.
+// Returns the FULL user profile including account_tier + custom fee overrides.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
@@ -29,11 +23,10 @@ export async function GET(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    // Fetch the full user record from the users table
     const { data: profile, error } = await supabase
       .from("users")
       .select(
-        "id, full_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, admin_role, city, state, address, date_of_birth, profile_picture, current_login_session, subscription_tier, subscription_expires_at, is_blocked, blocked_at, block_reason, pin_set"
+        "id, full_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, admin_role, city, state, address, date_of_birth, profile_picture, current_login_session, subscription_tier, subscription_expires_at, is_blocked, blocked_at, block_reason, pin_set, account_tier, custom_outflow_percent, custom_outflow_min, custom_fee_note"
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -53,7 +46,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Shape the response the same way the login route does
     const userProfile = {
       id: profile.id,
       fullName: profile.full_name,
@@ -70,19 +62,41 @@ export async function GET(req: NextRequest) {
       dateOfBirth: profile.date_of_birth,
       profilePicture: profile.profile_picture,
       currentLoginSession: profile.current_login_session,
-      subscription_tier: profile.subscription_tier || "free",
-      subscription_expires_at: profile.subscription_expires_at,
+      subscriptionTier: profile.subscription_tier || "free",
+      subscriptionExpiresAt: profile.subscription_expires_at,
       isBlocked: profile.is_blocked,
       blockedAt: profile.blocked_at,
       blockReason: profile.block_reason,
       pinSet: profile.pin_set,
+
+      // ✅ Account tier
+      accountTier: (profile.account_tier as string) || "tier_3",
+
+      // ✅ Custom fee overrides
+      customOutflowPercent:
+        profile.custom_outflow_percent != null
+          ? Number(profile.custom_outflow_percent)
+          : null,
+      customOutflowMin:
+        profile.custom_outflow_min != null
+          ? Number(profile.custom_outflow_min)
+          : null,
+      customFeeNote: profile.custom_fee_note ?? null,
     };
 
-    if (newTokens) {
-      return createAuthResponse(userProfile, newTokens);
-    }
+    const response = newTokens
+      ? createAuthResponse(userProfile, newTokens)
+      : NextResponse.json(userProfile);
 
-    return NextResponse.json(userProfile);
+    // Prevent caching layers from serving stale data
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, max-age=0"
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+
+    return response;
   } catch (error) {
     console.error("❌ Error in /api/me:", error);
     return NextResponse.json(

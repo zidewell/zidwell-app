@@ -20,6 +20,9 @@ export type SubscriptionTier =
   | "enterprise"
   | "corporation";
 
+// ✅ NEW: Account tier for transfer limits & fees
+export type AccountTier = "tier_1" | "tier_2" | "tier_3";
+
 export interface SupabaseUser {
   id: string;
   fullName: string;
@@ -37,8 +40,15 @@ export interface SupabaseUser {
   profilePicture: string | null;
   subscription_tier?: SubscriptionTier | null;
   subscription_expires_at?: string | null;
-}
 
+  // ✅ NEW: account tier
+  accountTier?: AccountTier | null;
+
+  // ✅ NEW: custom fee overrides
+  customOutflowPercent?: number | null;
+  customOutflowMin?: number | null;
+  customFeeNote?: string | null;
+}
 export interface SubscriptionInfo {
   tier: SubscriptionTier;
   status: "active" | "expired" | "cancelled" | "pending";
@@ -100,8 +110,10 @@ interface UserContextType {
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
-  // ✅ NEW — exposed so components can trigger a full session teardown
   handleSessionExpired: () => Promise<void>;
+
+  
+  refreshUserProfile: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -230,7 +242,6 @@ const subscriptionCache = new SubscriptionCache();
 
 // Feature to tier mapping
 const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
-  // Free features
   manual_bookkeeping: "free",
   auto_bookkeeping: "free",
   payment_links: "free",
@@ -239,14 +250,12 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   invoices_5: "free",
   receipts_5: "free",
 
-  // Solopreneur features
   invoices_10: "solopreneur",
   unlimited_receipts: "solopreneur",
   branded_invoices: "solopreneur",
   expense_tracking: "solopreneur",
   financial_insights: "solopreneur",
 
-  // SME features
   bank_statement_upload: "sme",
   connect_3_bank_accounts: "sme",
   unlimited_invoices: "sme",
@@ -256,7 +265,6 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   financial_statements: "sme",
   team_member_1: "sme",
 
-  // Enterprise features
   multi_user_access: "enterprise",
   role_permissions: "enterprise",
   approval_system: "enterprise",
@@ -265,7 +273,6 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   contracts_10: "enterprise",
   dedicated_onboarding: "enterprise",
 
-  // Corporation features
   unlimited_contracts: "corporation",
   department_access: "corporation",
   unlimited_bank_accounts: "corporation",
@@ -276,7 +283,6 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   dedicated_account_manager: "corporation",
 };
 
-// Tier hierarchy (lowest to highest)
 const TIER_HIERARCHY: SubscriptionTier[] = [
   "free",
   "solopreneur",
@@ -285,7 +291,6 @@ const TIER_HIERARCHY: SubscriptionTier[] = [
   "corporation",
 ];
 
-// Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   free: {
     invoices: 5,
@@ -360,7 +365,6 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
 };
 
-// Upgrade benefits mapping
 const UPGRADE_BENEFITS: Record<string, string[]> = {
   free_to_solopreneur: [
     "Up to 10 invoices (up from 5)",
@@ -458,13 +462,8 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
   ],
 };
 
-// ─── ✅ Cookie / storage helpers (module-level, no React deps) ───
+// ─── Cookie / storage helpers ───
 
-/**
- * Cookies that JavaScript CAN clear client-side.
- * httpOnly cookies (sb-access-token, sb-refresh-token, sb-session-risk,
- * sb-session-id) MUST be cleared by the server via Set-Cookie.
- */
 const CLIENT_CLEARABLE_COOKIES = [
   "sb-client-session",
   "sb-login-time",
@@ -473,26 +472,15 @@ const CLIENT_CLEARABLE_COOKIES = [
   "payment_processed",
 ];
 
-/**
- * Best-effort client-side cookie clearing.
- * Silently does nothing for httpOnly cookies (they're invisible to JS).
- * The /api/logout route is responsible for those.
- */
 function clearClientCookies() {
   if (typeof document === "undefined") return;
 
   CLIENT_CLEARABLE_COOKIES.forEach((name) => {
-    // Two variants — one with SameSite, one without — to maximize the
-    // chance of matching whatever the browser stored.
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   });
 }
 
-/**
- * Best-effort localStorage / sessionStorage clearing.
- * Wrapped in try/catch because Safari private mode can throw.
- */
 function clearClientStorage() {
   if (typeof window === "undefined") return;
 
@@ -513,7 +501,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false); // Default: light mode
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [shouldFetchData, setShouldFetchData] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
@@ -554,28 +542,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
- 
+  // ─── Session expired handler ───
   const handleSessionExpired = useCallback(async () => {
     try {
-      // ✅ Step 1: Server clears httpOnly cookies.
-      // Must be awaited — otherwise navigation races the response.
       await fetch("/api/logout", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
       }).catch((err) => {
-        // Non-fatal — we still clear what we can locally
         console.error("Logout API failed:", err);
       });
     } catch (e) {
       console.error("Logout API threw:", e);
     }
 
-    // ✅ Step 2: Clear client-accessible state
     clearClientCookies();
     clearClientStorage();
 
-    // ✅ Step 3: Reset context state
     setUser(null);
     setUserData(null);
     setShouldFetchData(false);
@@ -589,14 +572,51 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     subscriptionCache.clear();
     notificationCache.clear();
 
-    // ✅ Step 4: Navigate to login
     router.push("/auth/login");
   }, [router]);
+
+  // ─── ✅ Refresh user profile from server ───
+  // Picks up DB changes: tier upgrades, wallet balance, KYC status, etc.
+  const refreshUserProfile = useCallback(async () => {
+    try {
+      const response = await fetch("/api/user/me", {
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      });
+
+      if (response.status === 401) {
+        await handleSessionExpired();
+        return;
+      }
+
+      if (!response.ok) {
+        console.error("refreshUserProfile: HTTP", response.status);
+        return;
+      }
+
+      const fresh = await response.json();
+
+      if (fresh && fresh.id) {
+        setUserData((prev: any) => ({ ...prev, ...fresh }));
+        setUser((prev: any) => ({ ...prev, ...fresh }));
+        localStorage.setItem("userData", JSON.stringify(fresh));
+
+        console.log(
+          "🔄 User profile refreshed — accountTier:",
+          fresh.accountTier
+        );
+      }
+    } catch (err) {
+      console.error("refreshUserProfile error:", err);
+    }
+  }, [handleSessionExpired]);
 
   // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     if (sessionRestoreInProgress.current) return null;
-
     sessionRestoreInProgress.current = true;
 
     try {
@@ -621,7 +641,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           return userProfile;
         }
       } else if (response.status === 401) {
-        // Session expired server-side — do full teardown
         await handleSessionExpired();
       }
 
@@ -637,7 +656,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // ─── Initialize user from localStorage or session ───
   const initializeUser = useCallback(async () => {
     try {
-      // First check localStorage
       const storedUser = localStorage.getItem("userData");
 
       if (storedUser) {
@@ -648,10 +666,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
         setInitialCheckDone(true);
         setSessionRestored(true);
+
+        // ✅ Revalidate in the background so tier changes land
+        if (!isPublicPage() && parsedUser?.id) {
+          refreshUserProfile().catch(() => {});
+        }
+
         return;
       }
 
-      // No stored user, try to restore from session
       const restoredUser = await restoreSessionFromCookies();
 
       if (restoredUser) {
@@ -662,7 +685,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setSessionRestored(true);
       } else {
         setShouldFetchData(false);
-        setSessionRestored(true); // ✅ mark check as done even on failure
+        setSessionRestored(true);
       }
     } catch (error) {
       console.error("Failed to initialize user:", error);
@@ -673,9 +696,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       setInitialCheckDone(true);
     }
-  }, [isPublicPage, restoreSessionFromCookies, handleSessionExpired]);
+  }, [
+    isPublicPage,
+    restoreSessionFromCookies,
+    handleSessionExpired,
+    refreshUserProfile,
+  ]);
 
-  // Run initialization on mount
   useEffect(() => {
     initializeUser();
   }, [initializeUser]);
@@ -711,7 +738,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // ─── Watch for pathname changes ───
-  // Only fetch when on a protected page AND we have an authenticated user
   useEffect(() => {
     if (!initialCheckDone) return;
 
@@ -736,7 +762,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     notificationCache.clear();
   }, []);
 
-  // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
+  // ─── Notifications (disabled) ───
   const fetchNotifications = useCallback(
     async (filter: string = "all", limit: number = 50) => {
       console.log(
@@ -766,7 +792,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return;
   }, []);
 
-  // ─── Fetch subscription data ───
+  // ─── Fetch subscription ───
   const fetchSubscription = useCallback(async () => {
     if (!shouldFetchData || !userData?.id) {
       setSubscription(null);
@@ -790,7 +816,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         },
       });
 
-      // ✅ Handle 401 gracefully — full teardown
       if (response.status === 401) {
         await handleSessionExpired();
         return;
@@ -914,7 +939,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [subscription]
   );
 
-  // ─── Check feature access synchronously ───
+  // ─── Sync feature access ───
   const canAccessFeature = useCallback(
     (featureKey: string, currentCount?: number): boolean => {
       if (!subscription) return false;
@@ -945,7 +970,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [subscription]
   );
 
-  // ─── Subscribe to a paid tier ───
+  // ─── Subscribe ───
   const subscribe = useCallback(
     async (
       tier: SubscriptionTier,
@@ -1221,6 +1246,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         getUpgradeBenefits,
         canAccessFeature,
         handleSessionExpired,
+
+        // ✅ NEW
+        refreshUserProfile,
       }}
     >
       {children}
