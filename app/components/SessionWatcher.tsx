@@ -49,6 +49,23 @@ export default function SessionWatcher({
   const isDev = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
   const networkErrorCount = useRef(0);
   const maxNetworkErrors = 3;
+  const extendTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced session extension – coalesces rapid events (mousemove/scroll)
+  // so the DB always reflects LAST activity + 15min. Shared across effects.
+  const scheduleExtend = useCallback(() => {
+    if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
+    extendTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch("/api/auth/extend-session", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (e) {
+        console.warn("Session extend failed:", e);
+      }
+    }, 2000);
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────
   // 1. PATH RESOLUTION
@@ -305,22 +322,6 @@ export default function SessionWatcher({
       resetTimer();
     };
 
-    // Throttled session extension – avoid flooding the server
-    let lastExtend = 0;
-    const extendSession = async () => {
-      const now = Date.now();
-      if (now - lastExtend < 5 * 60 * 1000) return; // max once per 5 min
-      lastExtend = now;
-      try {
-        await fetch("/api/auth/extend-session", {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch (e) {
-        console.warn("Session extend failed:", e);
-      }
-    };
-
     const events = [
       "mousedown",
       "click",
@@ -331,7 +332,7 @@ export default function SessionWatcher({
     ];
     const handleActivity = () => {
       updateActivity();
-      extendSession();
+      scheduleExtend();
     };
 
     events.forEach((event) =>
@@ -339,12 +340,13 @@ export default function SessionWatcher({
     );
 
     updateActivity();
-    extendSession();
+    scheduleExtend();
 
     return () => {
       events.forEach((event) =>
         window.removeEventListener(event, handleActivity),
       );
+      if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -366,6 +368,7 @@ export default function SessionWatcher({
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         checkSession();
+        scheduleExtend();
       } else {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
@@ -381,6 +384,7 @@ export default function SessionWatcher({
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
     };
   }, [canCheckSession, checkSession]);
 
