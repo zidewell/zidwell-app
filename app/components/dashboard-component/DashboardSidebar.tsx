@@ -28,6 +28,9 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  FolderLock,
+  MapPin,
+  Target,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
@@ -52,6 +55,8 @@ export const ALLOWED_PAYMENT_EMAILS = new Set([
   "abbalolo360@gmail.com",
   "boluwatife525@gmail.com",
   "verifiedaboki@gmail.com",
+  "Vivianakuche@gmail.com",
+   "Nenyeattah@gmail.com"
 ]);
 
 const canAccessPaymentPage = (userEmail?: string | null) => {
@@ -123,11 +128,13 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     isActive,
     protected: isProtected = false,
     collapsed: isCollapsed = false,
+    comingSoon = false,
   }: {
     item: any;
     isActive: boolean;
     protected?: boolean;
     collapsed?: boolean;
+    comingSoon?: boolean;
   }) => {
     const protectedLinks = [
       "/dashboard/fund-account",
@@ -150,9 +157,11 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           : "px-3 py-2.5 w-full"
       }
       ${
-        isActive
-          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
-          : "text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary)"
+        comingSoon
+          ? "text-(--text-secondary) opacity-70 cursor-not-allowed"
+          : isActive
+            ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
+            : "text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary)"
       }
     `;
 
@@ -160,10 +169,17 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       <>
         <item.icon
           className={`shrink-0 ${isCollapsed ? "w-5 h-5" : "w-[18px] h-[18px]"}`}
-          strokeWidth={isActive ? 2.2 : 1.9}
+          strokeWidth={isActive && !comingSoon ? 2.2 : 1.9}
         />
         {!isCollapsed && (
-          <span className="truncate flex-1 text-left">{item.name}</span>
+          <>
+            <span className="truncate flex-1 text-left">{item.name}</span>
+            {comingSoon && (
+              <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-red-500 bg-red-500/10 border border-red-500/30 rounded-full px-1.5 py-0.5 leading-none">
+                Soon
+              </span>
+            )}
+          </>
         )}
       </>
     );
@@ -180,8 +196,25 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         "
       >
         {item.name}
+        {comingSoon && (
+          <span className="ml-2 text-[9px] font-bold uppercase text-red-500">
+            Coming Soon
+          </span>
+        )}
       </span>
     ) : null;
+
+    // Coming soon items are non-clickable
+    if (comingSoon) {
+      return (
+        <div className="relative">
+          <div className={baseClass} aria-disabled="true" title="Coming Soon">
+            {inner}
+          </div>
+          {tooltip}
+        </div>
+      );
+    }
 
     if (item.href === "/dashboard/services/payment/dashboard") {
       if (canAccessPaymentPage(userData?.email)) {
@@ -429,6 +462,40 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           }}
           isActive={isPathActive(pathname, "/dashboard/services/buy-cable-tv")}
           collapsed={effectiveCollapsed}
+        />
+      </div>
+
+      <div className="space-y-1">
+        <SectionLabel>Business Suite</SectionLabel>
+        <NavItem
+          item={{
+            name: "Document Vault",
+            href: "/dashboard/document-vault",
+            icon: FolderLock,
+          }}
+          isActive={isPathActive(pathname, "/dashboard/document-vault")}
+          collapsed={effectiveCollapsed}
+          comingSoon
+        />
+        <NavItem
+          item={{
+            name: "Virtual Office",
+            href: "/dashboard/virtual-office",
+            icon: MapPin,
+          }}
+          isActive={isPathActive(pathname, "/dashboard/virtual-office")}
+          collapsed={effectiveCollapsed}
+          comingSoon
+        />
+        <NavItem
+          item={{
+            name: "Business Plan",
+            href: "/dashboard/business-plan",
+            icon: Target,
+          }}
+          isActive={isPathActive(pathname, "/dashboard/business-plan")}
+          collapsed={effectiveCollapsed}
+          comingSoon
         />
       </div>
 

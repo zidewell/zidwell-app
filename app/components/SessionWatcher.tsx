@@ -7,9 +7,7 @@ import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
 const SESSION_TIMEOUT =
-  process.env.NEXT_PUBLIC_NODE_ENV === "production"
-    ? 15 * 60 * 1000
-    : -1;
+  process.env.NEXT_PUBLIC_NODE_ENV === "production" ? 15 * 60 * 1000 : -1;
 
 const IDLE_WARNING_TIME = 60 * 1000;
 
@@ -51,6 +49,23 @@ export default function SessionWatcher({
   const isDev = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
   const networkErrorCount = useRef(0);
   const maxNetworkErrors = 3;
+  const extendTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced session extension – coalesces rapid events (mousemove/scroll)
+  // so the DB always reflects LAST activity + 15min. Shared across effects.
+  const scheduleExtend = useCallback(() => {
+    if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
+    extendTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch("/api/auth/extend-session", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (e) {
+        console.warn("Session extend failed:", e);
+      }
+    }, 2000);
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────
   // 1. PATH RESOLUTION
@@ -131,7 +146,7 @@ export default function SessionWatcher({
     async (
       reason: string = "Session expired",
       showAlert: boolean = true,
-      isNetworkError: boolean = false
+      isNetworkError: boolean = false,
     ) => {
       // Never log out from a public route
       if (isPublicRoute()) return;
@@ -181,7 +196,7 @@ export default function SessionWatcher({
         }, 1000);
       }
     },
-    [userData, isPublicRoute, loading, handleSessionExpired, resetTimer]
+    [userData, isPublicRoute, loading, handleSessionExpired, resetTimer],
   );
 
   // ─────────────────────────────────────────────────────────────────────
@@ -274,13 +289,7 @@ export default function SessionWatcher({
         }, 30000);
       }
     }
-  }, [
-    canCheckSession,
-    isOnline,
-    isPublicRoute,
-    handleLogout,
-    resetTimer,
-  ]);
+  }, [canCheckSession, isOnline, isPublicRoute, handleLogout, resetTimer]);
 
   // ─────────────────────────────────────────────────────────────────────
   // 8. ONLINE / OFFLINE
@@ -321,16 +330,23 @@ export default function SessionWatcher({
       "touchstart",
       "mousemove",
     ];
+    const handleActivity = () => {
+      updateActivity();
+      scheduleExtend();
+    };
+
     events.forEach((event) =>
-      window.addEventListener(event, updateActivity, { passive: true })
+      window.addEventListener(event, handleActivity, { passive: true }),
     );
 
     updateActivity();
+    scheduleExtend();
 
     return () => {
       events.forEach((event) =>
-        window.removeEventListener(event, updateActivity)
+        window.removeEventListener(event, handleActivity),
       );
+      if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -352,6 +368,7 @@ export default function SessionWatcher({
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         checkSession();
+        scheduleExtend();
       } else {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
@@ -367,6 +384,7 @@ export default function SessionWatcher({
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
     };
   }, [canCheckSession, checkSession]);
 

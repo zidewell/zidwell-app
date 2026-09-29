@@ -14,6 +14,7 @@ import {
   generateStoreFrontSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
+import Footer from "@/app/components/home-component/Footer";
 
 export const revalidate = 60;
 
@@ -53,7 +54,7 @@ export async function generateMetadata({ params }: StorePageProps) {
 
   const { data: store } = await supabase
     .from("online_stores")
-    .select("name, description, slug, logo_url, cover_url, city, state")
+    .select("name, description, slug, logo_url, keywords, city, state")
     .eq("slug", storeSlug)
     .eq("is_active", true)
     .eq("activation_paid", true)
@@ -71,7 +72,7 @@ export async function generateMetadata({ params }: StorePageProps) {
     name: store.name,
     slug: store.slug,
     description: store.description,
-    cover_image: store.cover_url,
+    keywords: store.keywords,
     logo: store.logo_url,
     city: store.city,
     state: store.state,
@@ -158,7 +159,6 @@ export default async function PublicStorePage({ params }: StorePageProps) {
     city: store.city,
     state: store.state,
     logo: store.logo_url,
-    cover_image: store.cover_url,
     total_views: store.total_views,
     created_at: store.created_at,
     products: validPages.map((p) => ({
@@ -255,10 +255,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                     </span>
                   )}
 
-                  <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
-                    <Eye className="mr-1.5 h-3.5 w-3.5" />
-                    {(store.total_views || 0).toLocaleString()} views
-                  </span>
+                
                 </div>
               </div>
             </div>
@@ -437,6 +434,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
           </section>
         )}
       </div>
+      <Footer />
     </>
   );
 }

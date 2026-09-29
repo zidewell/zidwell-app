@@ -158,7 +158,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Quantity — hidden for physical products (variants have their own qty) */}
+          {/* Quantity — hidden for physical products */}
           {c.canPickQuantity &&
             !c.isPhysical &&
             !c.isOutOfStock &&
@@ -180,7 +180,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Price */}
+          {/* Price — base amount, fee is disclosed only at checkout */}
           {!c.isDonation && !c.isPlanComplete && (
             <div className="mt-5">
               {c.isPhysical &&
@@ -192,7 +192,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               ) : (
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#FDC020]">
-                    ₦{c.buyerDisplayPrice.toLocaleString()}
+                    ₦{c.displayPrice.toLocaleString()}
                   </span>
                   {c.selectedPaymentOption === "installment" &&
                   c.installmentPlan ? (
@@ -226,6 +226,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
+          {/* Installment breakdown — base, no fee */}
           {c.canDoInstallments &&
             c.installmentPlan &&
             !c.existingAccount &&
@@ -234,10 +235,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 {c.selectedPaymentOption === "installment"
                   ? `${c.installmentPlan.installmentCount} payments of ₦${(
                       (c.installmentPlan.totalAmount *
-                        (c.isPhysical
-                          ? Math.max(1, totalPhysicalUnits)
-                          : c.quantity) *
-                        c.buyerFeeMultiplier) /
+                        (c.isPhysical ? 1 : c.quantity)) /
                       c.installmentPlan.installmentCount
                     ).toLocaleString()} (${c.installmentPlan.period})`
                   : "One-time payment."}
@@ -338,7 +336,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Checkout */}
+          {/* Checkout — base amount shown on button; fee disclosed inside modal */}
           {!c.isPlanComplete && (
             <div className="mt-6 border-t border-border pt-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -352,7 +350,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                     donorAmount={c.donorAmount}
                     showQuantity={c.showQuantity}
                     quantity={c.quantity}
-                    currentTotalAmount={c.buyerPayableAmount}
+                    currentTotalAmount={c.currentTotalAmount}
                     disabledReason={c.getDisabledReason()}
                     onCancel={c.handleCancelCheckout}
                   />
@@ -361,7 +359,9 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 {page.metadata?.whatsappContactEnabled &&
                   page.metadata?.whatsappContactNumber && (
                     <a
-                      href={`https://wa.me/${page.metadata.whatsappContactNumber}?text=${encodeURIComponent(
+                      href={`https://wa.me/${
+                        page.metadata.whatsappContactNumber
+                      }?text=${encodeURIComponent(
                         `Hi, I'm interested in ${page.title}`
                       )}`}
                       target="_blank"
@@ -439,6 +439,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               : c.quantity
           }
           currentTotalAmount={c.buyerPayableAmount}
+          baseAmount={c.currentTotalAmount}
+          feeAmount={Math.max(
+            0,
+            c.buyerPayableAmount - c.currentTotalAmount
+          )}
           processingCardPayment={c.processingCardPayment}
           submissionLock={c.submissionLock}
           onClose={() => c.setShowInfoModal(false)}

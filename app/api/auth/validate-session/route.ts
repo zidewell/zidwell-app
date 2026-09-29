@@ -45,19 +45,19 @@ export async function GET(req: NextRequest) {
     if (userData.current_session_id !== sessionId) {
       return NextResponse.json(
         { valid: false, reason: "Session invalidated" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
-    // Session expired server-side
-    if (
-      userData.current_session_expires_at &&
-      new Date(userData.current_session_expires_at).getTime() < Date.now()
-    ) {
-      return NextResponse.json(
-        { valid: false, reason: "Session expired" },
-        { status: 200 }
-      );
+    // Check session expiration (inactivity timeout)
+    if (userData.current_session_expires_at) {
+      const expiresAt = new Date(userData.current_session_expires_at).getTime();
+      if (Date.now() > expiresAt) {
+        return NextResponse.json(
+          { valid: false, reason: "Session expired due to inactivity" },
+          { status: 200 },
+        );
+      }
     }
 
     return NextResponse.json({ valid: true });

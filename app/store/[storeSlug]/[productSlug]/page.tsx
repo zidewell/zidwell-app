@@ -14,18 +14,17 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import StoreProductClient from "./client";
 import {
-
   generateProductMetadata,
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
-
+import Footer from "@/app/components/home-component/Footer";
 
 export const revalidate = 60;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 interface StoreProductPageProps {
@@ -49,13 +48,13 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
   const [storeRes, productRes] = await Promise.all([
     supabase
       .from("online_stores")
-      .select("name, slug, is_active, activation_paid")
+      .select("name, slug, is_active, activation_paid, keywords")
       .eq("slug", storeSlug)
       .maybeSingle(),
     supabase
       .from("payment_pages")
       .select(
-        "title, description, product_images, cover_image, price, price_type, slug, page_type"
+        "title, description, product_images, cover_image, price, price_type, slug, page_type",
       )
       .eq("slug", productSlug)
       .eq("is_published", true)
@@ -99,6 +98,7 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     coverImage: product.cover_image,
     storeName: store.name,
     storeSlug: store.slug,
+    storeKeywords: store.keywords,
   });
 }
 
@@ -136,9 +136,7 @@ export default async function StoreProductPage({
     .select("*")
     .eq("slug", productSlug)
     .eq("is_published", true)
-    .or(
-      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
-    )
+    .or(`user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`)
     .maybeSingle();
 
   if (pageError || !page) {
@@ -278,13 +276,11 @@ export default async function StoreProductPage({
   const { data: moreProducts } = await supabase
     .from("payment_pages")
     .select(
-      "id, title, slug, description, price, price_type, product_images, cover_image, page_type, metadata"
+      "id, title, slug, description, price, price_type, product_images, cover_image, page_type, metadata",
     )
     .eq("is_published", true)
     .neq("id", page.id)
-    .or(
-      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
-    )
+    .or(`user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`)
     .order("created_at", { ascending: false })
     .limit(8);
 
@@ -305,6 +301,7 @@ export default async function StoreProductPage({
     storeSlug: storeData.slug,
     inStock,
     pageType: page.page_type,
+    storeKeywords: storeData.keywords,
   });
 
   const breadcrumbSchema = generateBreadcrumbSchema([
@@ -339,8 +336,7 @@ export default async function StoreProductPage({
           moreProducts={moreProducts || []}
         />
       </Suspense>
-
-
+      <Footer />
     </>
   );
 }
