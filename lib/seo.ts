@@ -244,45 +244,80 @@ export function generatePageMetadata(options: PageMetaOptions): Metadata {
 // ONLINE STORE SEO
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Strip HTML and normalize whitespace from a description field. */
+function plainText(raw: string | null | undefined, fallback: string): string {
+  if (!raw) return fallback;
+  const stripped = raw
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripped.length > 0 ? stripped.slice(0, 300) : fallback;
+}
+
+/** Merge store keywords into a base list, dedupe, drop empty. */
+function mergeKeywords(
+  base: string[],
+  extra: (string | null | undefined)[] | undefined
+): string[] {
+  const out = new Set<string>();
+  for (const k of base) if (k) out.add(k);
+  for (const k of extra || []) if (k && k.trim()) out.add(k.trim());
+  return Array.from(out);
+}
+
 // ─── STOREFRONT METADATA ───
-// Used by: app/store/[storeSlug]/page.tsx
 export function generateStoreMetadata(store: {
   name: string;
   slug: string;
   description: string | null;
-  cover_image?: string | null;
+  keywords?: string[] | null;
   logo?: string | null;
   city?: string | null;
   state?: string | null;
 }): Metadata {
-  const plainDescription =
-    store.description?.replace(/<[^>]*>/g, "").trim().slice(0, 300) ||
-    `Shop at ${store.name} on Zidwell. Browse products, pay securely, and enjoy fast checkout.`;
-
-  const storeUrl = `${siteConfig.url}/store/${store.slug}`;
-  const image =
-    store.cover_image ||
-    store.logo ||
-    `${siteConfig.url}/images/og-image.png`;
-
   const locationLine =
     store.city && store.state
       ? `${store.city}, ${store.state}`
       : store.city || store.state || "Nigeria";
 
+  const fallbackDescription = `Shop at ${store.name} on Zidwell. Browse products, pay securely, and enjoy fast checkout.`;
+
+  // If the description is very short, enrich with keywords so search
+  // engines still get a meaty snippet.
+  const rawPlain = plainText(store.description, "");
+  const keywordPhrase =
+    Array.isArray(store.keywords) && store.keywords.length > 0
+      ? store.keywords.slice(0, 5).join(", ")
+      : "";
+
+  const plainDescription =
+    rawPlain.length >= 60
+      ? rawPlain
+      : rawPlain
+      ? `${rawPlain} — ${keywordPhrase || locationLine}.`
+      : keywordPhrase
+      ? `${store.name} — ${keywordPhrase} in ${locationLine}. Shop securely on Zidwell.`
+      : fallbackDescription;
+
+  const storeUrl = `${siteConfig.url}/store/${store.slug}`;
+  const image = store.logo || `${siteConfig.url}/images/og-image.png`;
+
   return {
     metadataBase: new URL(siteConfig.url),
     title: `${store.name} | Zidwell Store`,
     description: plainDescription,
-    keywords: [
-      store.name,
-      "online store",
-      "buy online",
-      locationLine,
-      "Nigeria",
-      "Zidwell",
-      "secure checkout",
-    ],
+    keywords: mergeKeywords(
+      [
+        store.name,
+        "online store",
+        "buy online",
+        locationLine,
+        "Nigeria",
+        "Zidwell",
+        "secure checkout",
+      ],
+      store.keywords
+    ),
     alternates: {
       canonical: storeUrl,
     },
@@ -323,15 +358,14 @@ export function generateStoreMetadata(store: {
 }
 
 // ─── STOREFRONT SCHEMA ───
-// Used by: app/store/[storeSlug]/page.tsx
 export function generateStoreFrontSchema(store: {
   name: string;
   slug: string;
   description: string | null;
+  keywords?: string[] | null;
   city?: string | null;
   state?: string | null;
   logo?: string | null;
-  cover_image?: string | null;
   total_views?: number | null;
   created_at?: string | null;
   products?: Array<{
@@ -344,11 +378,12 @@ export function generateStoreFrontSchema(store: {
   }>;
 }) {
   const storeUrl = `${siteConfig.url}/store/${store.slug}`;
-  const imageUrl =
-    store.cover_image ||
-    (store.logo ? store.logo : `${siteConfig.url}/images/og-image.png`);
+  const imageUrl = store.logo || `${siteConfig.url}/images/og-image.png`;
 
   const products = Array.isArray(store.products) ? store.products : [];
+  const keywords = Array.isArray(store.keywords)
+    ? store.keywords.filter(Boolean)
+    : [];
 
   return {
     "@context": "https://schema.org",
@@ -356,11 +391,17 @@ export function generateStoreFrontSchema(store: {
     "@id": storeUrl,
     name: store.name,
     description:
-      store.description?.replace(/<[^>]*>/g, "").trim() ||
+      plainText(store.description, `Shop at ${store.name} on Zidwell.`) ||
       `Shop at ${store.name} on Zidwell.`,
     url: storeUrl,
     image: imageUrl,
     logo: store.logo || `${siteConfig.url}/logo.png`,
+    ...(keywords.length > 0
+      ? {
+          keywords: keywords.join(", "),
+          knowsAbout: keywords,
+        }
+      : {}),
     ...(store.city || store.state
       ? {
           address: {
@@ -395,7 +436,6 @@ export function generateStoreFrontSchema(store: {
 }
 
 // ─── PRODUCT METADATA ───
-// Used by: app/store/[storeSlug]/[productSlug]/page.tsx
 export function generateProductMetadata(product: {
   title: string;
   slug: string;
@@ -405,10 +445,11 @@ export function generateProductMetadata(product: {
   coverImage?: string | null;
   storeName: string;
   storeSlug: string;
+  /** Optional store-level keywords to inherit, e.g. ["phones", "iphones"] */
+  storeKeywords?: string[] | null;
 }): Metadata {
-  const plainDescription =
-    product.description?.replace(/<[^>]*>/g, "").trim().slice(0, 300) ||
-    `Buy ${product.title} on ${product.storeName}. Secure checkout with card or bank transfer on Zidwell.`;
+  const fallbackDescription = `Buy ${product.title} on ${product.storeName}. Secure checkout with card or bank transfer on Zidwell.`;
+  const plainDescription = plainText(product.description, fallbackDescription);
 
   const productUrl = `${siteConfig.url}/store/${product.storeSlug}/${product.slug}`;
 
@@ -425,15 +466,18 @@ export function generateProductMetadata(product: {
     metadataBase: new URL(siteConfig.url),
     title: `${product.title} — ${priceFormatted} | ${product.storeName}`,
     description: plainDescription,
-    keywords: [
-      product.title,
-      product.storeName,
-      "buy online",
-      "secure checkout",
-      "Zidwell",
-      "Nigeria",
-      priceFormatted,
-    ],
+    keywords: mergeKeywords(
+      [
+        product.title,
+        product.storeName,
+        "buy online",
+        "secure checkout",
+        "Zidwell",
+        "Nigeria",
+        priceFormatted,
+      ],
+      product.storeKeywords
+    ),
     alternates: {
       canonical: productUrl,
     },
@@ -476,9 +520,6 @@ export function generateProductMetadata(product: {
 }
 
 // ─── PRODUCT SCHEMA ───
-// Used by: app/store/[storeSlug]/[productSlug]/page.tsx
-// Handles all page types: physical, digital, services, school, donation,
-// link, real_estate, stock, savings, crypto
 export function generateProductSchema(product: {
   title: string;
   slug: string;
@@ -491,6 +532,8 @@ export function generateProductSchema(product: {
   storeSlug: string;
   inStock?: boolean;
   pageType?: string;
+  /** Optional store keywords to enrich the schema */
+  storeKeywords?: string[] | null;
 }) {
   const productUrl = `${siteConfig.url}/store/${product.storeSlug}/${product.slug}`;
   const images =
@@ -505,7 +548,6 @@ export function generateProductSchema(product: {
       ? "https://schema.org/OutOfStock"
       : "https://schema.org/InStock";
 
-  // Map internal page types → schema.org types
   const typeMap: Record<string, string> = {
     physical: "Product",
     digital: "DigitalDocument",
@@ -521,14 +563,18 @@ export function generateProductSchema(product: {
 
   const schemaType = typeMap[product.pageType || "physical"] || "Product";
 
-  // Base schema — works for all types
+  const storeKeywords = Array.isArray(product.storeKeywords)
+    ? product.storeKeywords.filter(Boolean)
+    : [];
+  const combinedKeywords = mergeKeywords([product.title], storeKeywords);
+
   const baseSchema: any = {
     "@context": "https://schema.org",
     "@type": schemaType,
     "@id": productUrl,
     name: product.title,
     description:
-      product.description?.replace(/<[^>]*>/g, "").trim() ||
+      plainText(product.description, `${product.title} on ${product.storeName}.`) ||
       `${product.title} on ${product.storeName}.`,
     url: productUrl,
     image: images,
@@ -536,13 +582,12 @@ export function generateProductSchema(product: {
       "@type": "Brand",
       name: product.storeName,
     },
+    ...(combinedKeywords.length > 0
+      ? { keywords: combinedKeywords.join(", ") }
+      : {}),
   };
 
-  // Add offers for anything that has a purchasable price
-  if (
-    schemaType === "Product" ||
-    schemaType === "DigitalDocument"
-  ) {
+  if (schemaType === "Product" || schemaType === "DigitalDocument") {
     baseSchema.offers = {
       "@type": "Offer",
       url: productUrl,
@@ -557,7 +602,6 @@ export function generateProductSchema(product: {
     };
   }
 
-  // For services, add provider instead of seller
   if (schemaType === "Service") {
     baseSchema.provider = {
       "@type": "Organization",

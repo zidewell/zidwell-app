@@ -1,10 +1,11 @@
+// app/dashboard/services/payment/store/settings/page.tsx
 import { ZidwellShell } from "@/app/components/zidwell-shell";
 import { StorePage } from "@/app/components/store-page";
 import { StoreSettings } from "@/app/components/store/settings";
 
 export const metadata = {
   title: "Settings — Zidwell Online Store",
-  description: "Store settings and preferences.",
+  description: "Manage your store settings and preferences.",
 };
 
 export default function SettingsPage() {

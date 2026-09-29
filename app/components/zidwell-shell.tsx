@@ -58,7 +58,11 @@ export const STORE_LINKS = [
     icon: BarChart3,
   },
 
-  { label: "Settings", href: "#", icon: Settings },
+  {
+    label: "Settings",
+    href: "/dashboard/services/payment/store/settings",
+    icon: Settings,
+  },
 ] as const;
 
 export function StoreNav({ pathname }: { pathname: string }) {
@@ -138,8 +142,6 @@ export function StoreNav({ pathname }: { pathname: string }) {
           <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-background to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-background to-transparent" />
         </div>
-
-       
       </div>
 
       {/* Scrollbar styles: hidden but scrollable. */}
