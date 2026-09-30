@@ -13,6 +13,7 @@ import {
   Check,
   AlertCircle,
   X,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ interface StoreSettingsShape {
   locationEnabled: boolean;
   latitude: number | null;
   longitude: number | null;
+  whatsappNumber: string;
 }
 
 const DEFAULT_STORE: StoreSettingsShape = {
@@ -49,6 +51,7 @@ const DEFAULT_STORE: StoreSettingsShape = {
   locationEnabled: false,
   latitude: null,
   longitude: null,
+  whatsappNumber: "",
 };
 
 // ─── Helper subcomponents ───
@@ -138,7 +141,6 @@ function Field({
 export function StoreSettings() {
   const { store: ctxStore, updateStore } = useStore();
 
-  // Loaded-from-server snapshot (used for dirty comparison)
   const [original, setOriginal] = useState<StoreSettingsShape | null>(null);
   const [form, setForm] = useState<StoreSettingsShape>(DEFAULT_STORE);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -182,6 +184,7 @@ export function StoreSettings() {
           locationEnabled: s.location_enabled === true,
           latitude: s.latitude ?? null,
           longitude: s.longitude ?? null,
+          whatsappNumber: s.whatsapp_number || "",
         };
 
         if (!cancelled) {
@@ -215,6 +218,7 @@ export function StoreSettings() {
       original.locationEnabled !== form.locationEnabled ||
       original.latitude !== form.latitude ||
       original.longitude !== form.longitude ||
+      original.whatsappNumber !== form.whatsappNumber ||
       original.keywords.join("|").toLowerCase() !==
         form.keywords.join("|").toLowerCase()
     );
@@ -417,6 +421,14 @@ export function StoreSettings() {
     if (!form.streetAddress.trim())
       errs.streetAddress = "Street address is required";
 
+    if (form.whatsappNumber.trim().length > 0) {
+      const digits = form.whatsappNumber.replace(/\D/g, "");
+      if (digits.length < 7 || digits.length > 15) {
+        errs.whatsappNumber =
+          "WhatsApp number must be 7–15 digits (with country code)";
+      }
+    }
+
     setErrors(errs);
 
     if (Object.keys(errs).length > 0) {
@@ -453,6 +465,7 @@ export function StoreSettings() {
           locationEnabled: form.locationEnabled,
           latitude: form.locationEnabled ? form.latitude : null,
           longitude: form.locationEnabled ? form.longitude : null,
+          whatsappNumber: form.whatsappNumber.trim() || null,
         }),
       });
 
@@ -462,7 +475,6 @@ export function StoreSettings() {
         throw new Error(data.error || "Failed to save settings");
       }
 
-      // Sync context store so header / dashboard reflect changes
       await updateStore({
         name: data.store.name,
         description: data.store.description,
@@ -491,6 +503,7 @@ export function StoreSettings() {
         locationEnabled: data.store.location_enabled === true,
         latitude: data.store.latitude ?? null,
         longitude: data.store.longitude ?? null,
+        whatsappNumber: data.store.whatsapp_number || "",
       };
 
       setOriginal(updated);
@@ -616,8 +629,7 @@ export function StoreSettings() {
 
           <Field
             label="Store URL"
-            // hint="Your store's public web address. This can't be changed after activation — changing it would break existing product links."
-            hint="Your store's public web address. This can't be changed after activation."
+            hint="Your store's public web address. This can't be changed after activation — changing it would break existing product links."
           >
             <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
               <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
@@ -699,6 +711,53 @@ export function StoreSettings() {
               </div>
             )}
           </Field>
+        </div>
+      </SectionCard>
+
+      {/* ─────────── WhatsApp Contact ─────────── */}
+      <SectionCard>
+        <SectionHead
+          icon={MessageCircle}
+          title="WhatsApp Contact"
+          copy="Buyers can reach you on WhatsApp from your product pages. Toggle it on or off per product."
+        />
+
+        <div className="mt-8 space-y-4">
+          <Field
+            label="WhatsApp Number"
+            hint="Include your country code, no spaces or symbols. Example: 2348012345678 for Nigeria."
+            error={errors.whatsappNumber}
+            htmlFor="whatsappNumber"
+          >
+            <Input
+              id="whatsappNumber"
+              name="whatsappNumber"
+              value={form.whatsappNumber}
+              onChange={(e) =>
+                setField(
+                  "whatsappNumber",
+                  e.target.value.replace(/\D/g, "").slice(0, 15)
+                )
+              }
+              inputMode="numeric"
+              placeholder="2348012345678"
+              disabled={saving}
+              className={cn(
+                "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                errors.whatsappNumber
+                  ? "border-destructive"
+                  : "border-border"
+              )}
+            />
+          </Field>
+
+          {form.whatsappNumber && (
+            <p className="text-xs text-muted-foreground">
+              Buyers will open WhatsApp with this number when they tap{" "}
+              <strong className="text-foreground">Contact store owner</strong>{" "}
+              on a product page.
+            </p>
+          )}
         </div>
       </SectionCard>
 
@@ -861,9 +920,7 @@ export function StoreSettings() {
       {/* ─────────── Save ─────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[2rem] border border-border bg-card p-6">
         <p className="text-sm text-muted-foreground">
-          {isDirty
-            ? "You have unsaved changes."
-            : "All changes are saved."}
+          {isDirty ? "You have unsaved changes." : "All changes are saved."}
         </p>
         <button
           type="button"
