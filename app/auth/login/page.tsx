@@ -156,12 +156,9 @@ const LoginForm = () => {
       if (profile.store) {
         localStorage.setItem(
           "zidwell_store_data",
-          JSON.stringify(profile.store)
+          JSON.stringify(profile.store),
         );
-        localStorage.setItem(
-          "zidwell_store_timestamp",
-          Date.now().toString()
-        );
+        localStorage.setItem("zidwell_store_timestamp", Date.now().toString());
         console.log("💾 Store data cached on login:", profile.store.slug);
       }
     } catch (error) {
@@ -343,8 +340,6 @@ const LoginForm = () => {
       saveUserDataToLocalStorage(profile);
 
       setUserData(profile);
-      localStorage.setItem("userData", JSON.stringify(profile));
-
       Cookies.set("verified", isVerified ? "true" : "false", {
         expires: 7,
         path: "/",

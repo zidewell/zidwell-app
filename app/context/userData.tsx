@@ -145,45 +145,57 @@ const PUBLIC_PAGE_PATTERNS = [
   /^\/faq(\/.*)?$/,
 ];
 
-// ─── Notification cache ───
+// Notification cache class
 class NotificationCache {
   private cache = new Map();
   private readonly DEFAULT_TTL = 3 * 60 * 1000;
   private readonly UNREAD_COUNT_TTL = 60 * 1000;
 
   set(key: string, data: any, ttl: number = this.DEFAULT_TTL) {
-    this.cache.set(key, { data, timestamp: Date.now(), ttl });
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
   }
 
   get(key: string) {
     const item = this.cache.get(key);
     if (!item) return null;
-    if (Date.now() - item.timestamp > item.ttl) {
+
+    const isExpired = Date.now() - item.timestamp > item.ttl;
+    if (isExpired) {
       this.cache.delete(key);
       return null;
     }
+
     return item.data;
   }
 
   delete(key: string) {
     this.cache.delete(key);
   }
+
   clear() {
     this.cache.clear();
   }
+
   cleanup() {
     const now = Date.now();
     for (const [key, item] of this.cache.entries()) {
-      if (now - item.timestamp > item.ttl) this.cache.delete(key);
+      if (now - item.timestamp > item.ttl) {
+        this.cache.delete(key);
+      }
     }
   }
 }
+
 const notificationCache = new NotificationCache();
 
-// ─── Subscription cache ───
+// Subscription cache
 class SubscriptionCache {
   private cache = new Map();
-  private readonly DEFAULT_TTL = 5 * 60 * 1000;
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
 
   set(key: string, data: any) {
     this.cache.set(key, {
@@ -196,23 +208,28 @@ class SubscriptionCache {
   get(key: string) {
     const item = this.cache.get(key);
     if (!item) return null;
-    if (Date.now() - item.timestamp > item.ttl) {
+
+    const isExpired = Date.now() - item.timestamp > item.ttl;
+    if (isExpired) {
       this.cache.delete(key);
       return null;
     }
+
     return item.data;
   }
 
   delete(key: string) {
     this.cache.delete(key);
   }
+
   clear() {
     this.cache.clear();
   }
 }
+
 const subscriptionCache = new SubscriptionCache();
 
-// Feature → tier
+// Feature to tier mapping
 const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   manual_bookkeeping: "free",
   auto_bookkeeping: "free",
@@ -221,11 +238,13 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   basic_financial_overview: "free",
   invoices_5: "free",
   receipts_5: "free",
+
   invoices_10: "solopreneur",
   unlimited_receipts: "solopreneur",
   branded_invoices: "solopreneur",
   expense_tracking: "solopreneur",
   financial_insights: "solopreneur",
+
   bank_statement_upload: "sme",
   connect_3_bank_accounts: "sme",
   unlimited_invoices: "sme",
@@ -234,6 +253,7 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   tax_calculator: "sme",
   financial_statements: "sme",
   team_member_1: "sme",
+
   multi_user_access: "enterprise",
   role_permissions: "enterprise",
   approval_system: "enterprise",
@@ -241,6 +261,7 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   downloadable_reports: "enterprise",
   contracts_10: "enterprise",
   dedicated_onboarding: "enterprise",
+
   unlimited_contracts: "corporation",
   department_access: "corporation",
   unlimited_bank_accounts: "corporation",
@@ -251,6 +272,7 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   dedicated_account_manager: "corporation",
 };
 
+// Tier hierarchy (lowest to highest)
 const TIER_HIERARCHY: SubscriptionTier[] = [
   "free",
   "solopreneur",
@@ -259,6 +281,7 @@ const TIER_HIERARCHY: SubscriptionTier[] = [
   "corporation",
 ];
 
+// Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   free: {
     invoices: 5,
@@ -333,6 +356,7 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
 };
 
+// Upgrade benefits mapping
 const UPGRADE_BENEFITS: Record<string, string[]> = {
   free_to_solopreneur: [
     "Up to 10 invoices (up from 5)",
@@ -441,6 +465,7 @@ const CLIENT_CLEARABLE_COOKIES = [
 
 function clearClientCookies() {
   if (typeof document === "undefined") return;
+
   CLIENT_CLEARABLE_COOKIES.forEach((name) => {
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
     document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
@@ -449,6 +474,7 @@ function clearClientCookies() {
 
 function clearClientStorage() {
   if (typeof window === "undefined") return;
+
   try {
     localStorage.removeItem("userData");
     localStorage.removeItem("zidwell_store_data");
@@ -485,25 +511,36 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     null,
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
 
-  // ─── Idempotency guard for session expiry ───
+  // ─── Idempotency guard for session-expiry handling ───
   const sessionExpiredRef = useRef(false);
 
+  // ─── Check if current page is public ───
   const isPublicPage = useCallback(() => {
     if (!pathname) return false;
-    if (STATIC_PUBLIC_PAGES.some((page) => pathname === page)) return true;
-    if (STATIC_PUBLIC_PAGES.some((page) => pathname.startsWith(page + "/")))
+
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname === page)) {
       return true;
-    if (PUBLIC_PAGE_PATTERNS.some((pattern) => pattern.test(pathname)))
+    }
+
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname.startsWith(page + "/"))) {
       return true;
+    }
+
+    if (PUBLIC_PAGE_PATTERNS.some((pattern) => pattern.test(pathname))) {
+      return true;
+    }
+
     return false;
   }, [pathname]);
 
   // ─── Centralized, idempotent session-expiration handler ───
   const handleSessionExpired = useCallback(async () => {
+    // Idempotency guard: multiple concurrent 401s must trigger only one logout.
     if (sessionExpiredRef.current) return;
     sessionExpiredRef.current = true;
 
@@ -543,7 +580,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }, 2000);
   }, [router]);
 
-  // ─── Restore session from cookies via /api/me ───
+  // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     try {
       const response = await fetch("/api/me", {
@@ -553,43 +590,65 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         const userProfile = await response.json();
-        if (userProfile?.id) return userProfile;
+        if (userProfile && userProfile.id) {
+          return userProfile;
+        }
       }
 
-      // 401 → session is genuinely invalid
+      // 401 here does NOT mean the user is logged out — it means the
+      // server couldn't validate the token *this time*. The proxy refreshes
+      // tokens on the next navigation. Do NOT clear localStorage here.
       if (response.status === 401) {
-        await handleSessionExpired();
+        console.warn(
+          "⚠️ /api/me returned 401 — keeping cached data, will retry",
+        );
+        return null;
       }
 
-      // Any other status → do NOT log out. Let the proxy handle it.
+      // Other statuses (500, 503) — also do not log out.
+      console.warn(
+        "⚠️ /api/me returned",
+        response.status,
+        "— keeping cached data",
+      );
       return null;
     } catch (error) {
-      // Network error → do NOT log out.
-      console.error("Failed to restore session:", error);
+      console.error(
+        "Network error during /api/me — keeping cached data:",
+        error,
+      );
       return null;
     }
-  }, [handleSessionExpired]);
+  }, []);
 
   // ─── Initialize user — runs exactly ONCE on mount ───
   const initializeUser = useCallback(async () => {
     try {
-      // Optimistic UI from cache (display only — never proof of auth)
+      // 1. Read cached user (display only — not auth proof)
       const storedUser =
         typeof window !== "undefined"
           ? localStorage.getItem("userData")
           : null;
 
+      let cached: any = null;
       if (storedUser) {
         try {
-          const parsed = JSON.parse(storedUser);
-          setUser(parsed);
-          setUserData(parsed);
-        } catch {
+          cached = JSON.parse(storedUser);
+        } catch (e) {
+          // Only remove if the stored JSON is actually corrupt
+          console.error("Corrupt userData in localStorage — removing");
           localStorage.removeItem("userData");
         }
       }
 
-      // Always verify with the server
+      // 2. Optimistically hydrate from cache so the UI doesn't flash
+      if (cached && cached.id) {
+        setUser(cached);
+        setUserData(cached);
+        setShouldFetchData(!isPublicPage());
+      }
+
+      // 3. Verify with the server
       const verified = await restoreSessionFromCookies();
 
       if (verified) {
@@ -598,61 +657,60 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         try {
           localStorage.setItem("userData", JSON.stringify(verified));
         } catch {
-          /* ignore quota errors */
+          /* quota — non-fatal */
         }
         setShouldFetchData(!isPublicPage());
-      } else if (!sessionExpiredRef.current) {
-        // Not authenticated, but no 401 either (e.g. server unreachable).
-        // Clear optimistic state without logging out.
+      } else if (!cached || !cached.id) {
+        // No cached user AND no verified user → user is genuinely not logged in.
         setUser(null);
         setUserData(null);
-        try {
-          localStorage.removeItem("userData");
-        } catch {
-          /* ignore */
-        }
         setShouldFetchData(false);
       }
+      // If we HAD a cached user and /api/me failed transiently,
+      // keep the cached user in state. The proxy will sort out auth.
     } catch (error) {
-      console.error("Failed to initialize user:", error);
-      setUser(null);
-      setUserData(null);
-      setShouldFetchData(false);
+      console.error("initializeUser threw:", error);
+      // Never wipe localStorage from here.
     } finally {
       setLoading(false);
       setInitialCheckDone(true);
+      setSessionRestored(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ← intentionally empty: runs once
+  }, []); // ← intentionally empty: runs once on mount
 
+  // Run initialization on mount — once only
   useEffect(() => {
     initializeUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Theme ───
+  // ─── Theme initialization - LIGHT MODE DEFAULT ───
   useEffect(() => {
-    if (typeof window === "undefined") return;
     const storedTheme = localStorage.getItem("theme");
+
     if (storedTheme === "dark") {
       setIsDarkMode(true);
       document.documentElement.classList.add("dark");
     } else {
       setIsDarkMode(false);
       document.documentElement.classList.remove("dark");
-      if (!storedTheme) localStorage.setItem("theme", "light");
+      if (!storedTheme) {
+        localStorage.setItem("theme", "light");
+      }
     }
   }, []);
 
   // ─── Watch for payment processed cookie ───
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const hasPaymentCookie = document.cookie.includes(
-      "payment_processed=true",
-    );
-    if (hasPaymentCookie) {
-      document.cookie =
-        "payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if (typeof window !== "undefined") {
+      const hasPaymentCookie = document.cookie.includes(
+        "payment_processed=true",
+      );
+      if (hasPaymentCookie) {
+        document.cookie =
+          "payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      }
     }
   }, []);
 
@@ -661,6 +719,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // on every pathname change and would cause this effect to over-fire.
   useEffect(() => {
     if (!initialCheckDone) return;
+
     const isPublic = isPublicPage();
     const hasUser = !!userData?.id;
 
@@ -678,22 +737,44 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, initialCheckDone, userData?.id]);
 
+  // ─── Clear notification cache ───
   const clearNotificationCache = useCallback(() => {
     notificationCache.clear();
   }, []);
 
-  // Notifications are disabled
+  // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
   const fetchNotifications = useCallback(
-    async (_filter: string = "all", _limit: number = 50) => {
+    async (filter: string = "all", limit: number = 50) => {
+      console.log(
+        "📢 Notifications API disabled - fetchNotifications called but skipped",
+      );
       return;
     },
     [],
   );
-  const fetchUnreadCount = useCallback(async () => {}, []);
-  const markAsRead = useCallback(async (_id: string) => {}, []);
-  const markAllAsRead = useCallback(async () => {}, []);
 
-  // ─── Fetch subscription ───
+  const fetchUnreadCount = useCallback(async () => {
+    console.log(
+      "📢 Notifications API disabled - fetchUnreadCount called but skipped",
+    );
+    return;
+  }, []);
+
+  const markAsRead = useCallback(async (notificationId: string) => {
+    console.log(
+      "📢 Notifications API disabled - markAsRead called but skipped",
+    );
+    return;
+  }, []);
+
+  const markAllAsRead = useCallback(async () => {
+    console.log(
+      "📢 Notifications API disabled - markAllAsRead called but skipped",
+    );
+    return;
+  }, []);
+
+  // ─── Fetch subscription data ───
   const fetchSubscription = useCallback(async () => {
     if (!shouldFetchData || !userData?.id) {
       setSubscription(null);
@@ -702,6 +783,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const cacheKey = `subscription_${userData.id}`;
     const cached = subscriptionCache.get(cacheKey);
+
     if (cached) {
       setSubscription(cached);
       return;
@@ -711,18 +793,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await fetch(`/api/subscription`, {
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
       });
 
+      // 401 → proxy will handle it on the next navigation.
+      // Do NOT trigger logout from here — it races the proxy's refresh.
       if (response.status === 401) {
-        // Let the proxy handle it on next navigation.
         return;
       }
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.subscription) {
-          const subscriptionData: SubscriptionInfo = {
+          const subscriptionData = {
             ...data.subscription,
             expiresAt: data.subscription.expiresAt
               ? new Date(data.subscription.expiresAt)
@@ -739,12 +824,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           }));
         }
       } else {
-        setSubscription({
+        const defaultSubscription: SubscriptionInfo = {
           tier: "free",
           status: "active",
           expiresAt: null,
           features: {},
-        });
+        };
+        setSubscription(defaultSubscription);
       }
     } catch (error) {
       console.error("❌ Error fetching subscription:", error);
@@ -759,6 +845,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [shouldFetchData, userData?.id]);
 
+  // ─── Refresh subscription ───
   const refreshSubscription = useCallback(async () => {
     if (userData?.id) {
       subscriptionCache.delete(`subscription_${userData.id}`);
@@ -766,7 +853,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, fetchSubscription]);
 
-  // ─── Check feature access (async) ───
+  // ─── Check feature access ───
   const checkFeatureAccess = useCallback(
     async (
       featureKey: string,
@@ -806,7 +893,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         };
       }
 
-      if (feature.value === "true" || feature.value === "unlimited") {
+      if (feature.value === "true") {
+        return { hasAccess: true };
+      }
+
+      if (feature.value === "unlimited") {
         return { hasAccess: true };
       }
 
@@ -831,6 +922,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [subscription],
   );
 
+  // ─── Check feature access synchronously ───
   const canAccessFeature = useCallback(
     (featureKey: string, currentCount?: number): boolean => {
       if (!subscription) return false;
@@ -840,17 +932,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
       const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
 
-      if (userTierIndex < requiredTierIndex) return false;
-      if (!feature) return false;
-      if (feature.value === "true" || feature.value === "unlimited")
+      if (userTierIndex < requiredTierIndex) {
+        return false;
+      }
+
+      if (!feature) {
+        return false;
+      }
+
+      if (feature.value === "true" || feature.value === "unlimited") {
         return true;
-      if (feature.limit && currentCount !== undefined)
+      }
+
+      if (feature.limit && currentCount !== undefined) {
         return currentCount < feature.limit;
+      }
+
       return true;
     },
     [subscription],
   );
 
+  // ─── Subscribe to a paid tier ───
   const subscribe = useCallback(
     async (
       tier: SubscriptionTier,
@@ -867,7 +970,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const response = await fetch("/api/subscription", {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             action: "subscribe",
             tier,
@@ -883,15 +988,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const data = await response.json();
+
         if (data.success) {
           subscriptionCache.delete(`subscription_${userData.id}`);
           await fetchSubscription();
+
           setUserData((prev: any) => ({
             ...prev,
             subscription_tier: tier,
             subscription_expires_at: data.subscription?.expires_at,
           }));
         }
+
         return data;
       } catch (error: any) {
         console.error("❌ Error subscribing:", error);
@@ -901,6 +1009,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [userData?.id, fetchSubscription],
   );
 
+  // ─── Cancel subscription ───
   const cancelSubscription = useCallback(async () => {
     if (!userData?.id) {
       return { success: false, error: "User not authenticated" };
@@ -910,8 +1019,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch("/api/subscription", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "cancel" }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "cancel",
+        }),
       });
 
       if (response.status === 401) {
@@ -919,10 +1032,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const data = await response.json();
+
       if (data.success) {
         subscriptionCache.delete(`subscription_${userData.id}`);
         await fetchSubscription();
       }
+
       return data;
     } catch (error: any) {
       console.error("❌ Error cancelling subscription:", error);
@@ -930,6 +1045,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, fetchSubscription]);
 
+  // ─── Get upgrade benefits ───
   const getUpgradeBenefits = useCallback(
     (targetTier: SubscriptionTier): string[] => {
       const currentTier = subscription?.tier || "free";
@@ -939,22 +1055,40 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [subscription?.tier],
   );
 
+  // ─── Get plan limits ───
+  const getPlanLimits = useCallback(() => {
+    const tier = subscription?.tier || "free";
+    return PLAN_LIMITS[tier];
+  }, [subscription?.tier]);
+
   // ─── Fetch balance ───
   useEffect(() => {
     const fetchBalance = async () => {
       if (!shouldFetchData || !userData?.id) return;
+
       try {
         const res = await fetch("/api/wallet-balance", {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ userId: userData.id }),
         });
-        if (res.status === 401) return; // proxy will handle
+
+        if (res.status === 401) {
+          // proxy will handle on next navigation
+          return;
+        }
+
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         const data = await res.json();
-        if (!data.success)
+
+        if (!data.success) {
           throw new Error(data.error || "Failed to fetch balance");
+        }
+
         setBalance(data.wallet_balance ?? 0);
       } catch (error) {
         console.error("❌ Error fetching balance:", error);
@@ -962,7 +1096,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    if (shouldFetchData && userData?.id) fetchBalance();
+    if (shouldFetchData && userData?.id) {
+      fetchBalance();
+    }
   }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
   // ─── Fetch transaction stats ───
@@ -972,6 +1108,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       const cacheKey = `transaction_stats_${userData.id}`;
       const cached = notificationCache.get(cacheKey);
+
       if (cached) {
         setLifetimeBalance(cached.lifetimeBalance);
         setTotalOutflow(cached.totalOutflow);
@@ -986,41 +1123,64 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: userData.id }),
         });
-        if (res.status === 401) return;
+
+        if (res.status === 401) {
+          // proxy will handle on next navigation
+          return;
+        }
+
         const data = await res.json();
+
         if (data.success) {
           const stats = {
             lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
             totalOutflow: data.totalOutflow || 0,
             totalTransactions: data.totalTransactions || 0,
+            totalInflow: data.totalInflow || 0,
+            netBalance: data.netBalance || 0,
           };
+
           setLifetimeBalance(stats.lifetimeBalance);
           setTotalOutflow(stats.totalOutflow);
           setTotalTransactions(stats.totalTransactions);
           notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
+        } else {
+          console.error("❌ API returned error:", data.error);
         }
       } catch (error) {
         console.error("❌ Error fetching transaction stats:", error);
       }
     };
 
-    if (shouldFetchData && userData?.id) fetchTransactionStats();
+    if (shouldFetchData && userData?.id) {
+      fetchTransactionStats();
+    }
   }, [userData?.id, shouldFetchData]);
 
-  // ─── Subscription load on change ───
+  // ─── Fetch subscription on change ───
   useEffect(() => {
-    if (shouldFetchData && userData?.id) fetchSubscription();
+    if (shouldFetchData && userData?.id) {
+      fetchSubscription();
+    }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
-  // ─── Cache cleanup + subscription refresh intervals ───
+  // ─── Cache cleanup and refresh intervals ───
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
     const cleanupInterval = setInterval(
-      () => notificationCache.cleanup(),
+      () => {
+        notificationCache.cleanup();
+      },
       5 * 60 * 1000,
     );
-    const refreshInterval = setInterval(fetchSubscription, 5 * 60 * 1000);
+
+    const refreshInterval = setInterval(
+      () => {
+        fetchSubscription();
+      },
+      5 * 60 * 1000,
+    );
 
     return () => {
       clearInterval(cleanupInterval);
