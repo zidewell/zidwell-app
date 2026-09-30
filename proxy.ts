@@ -28,8 +28,8 @@ export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 // ─── PRE-NORMALIZE ALLOWED EMAILS FOR O(1) LOOKUPS ───
 // ALLOWED_PAYMENT_EMAILS is exported as a plain array from DashboardSidebar.
 // Convert to a lowercased Set here so `.has()` works and lookups are fast.
-const ALLOWED_PAYMENT_EMAIL_SET = new Set(
-  (ALLOWED_PAYMENT_EMAILS || []).map((e) => e.toLowerCase())
+const ALLOWED_PAYMENT_EMAIL_SET = new Set<string>(
+  Array.from(ALLOWED_PAYMENT_EMAILS ?? []).map((e) => e.toLowerCase())
 );
 
 // ─── PREMIUM ROUTES ───
