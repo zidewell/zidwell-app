@@ -1,5 +1,11 @@
+// lib/suabase-admin.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase admin client + user details cache + tier helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
+import type { AccountTier } from "@/lib/fee";
 
 let supabaseAdminInstance: SupabaseClient<Database> | null = null;
 
@@ -18,7 +24,6 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
   }
   return supabaseAdminInstance;
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // User cache
@@ -61,7 +66,14 @@ export interface UserDetails {
   transaction_pin: string | null;
   pin_set: boolean;
 
-  // Concurrent login fields
+  // ✅ Account tier
+  account_tier: AccountTier;
+
+  // ✅ Custom fee overrides
+  custom_outflow_percent: number | null;
+  custom_outflow_min: number | null;
+  custom_fee_note: string | null;
+
   current_session_id: string | null;
   current_session_ip: string | null;
   current_session_device: string | null;
@@ -69,17 +81,28 @@ export interface UserDetails {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Clear cache for a specific user
+// ─────────────────────────────────────────────────────────────────────────────
+export function invalidateUserCache(userId: string) {
+  userCache.delete(userId);
+  console.log(`🗑️ User cache invalidated for ${userId}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Get user with full details
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getUserWithDetails(
-  userId: string
+  userId: string,
+  options: { bypassCache?: boolean } = {}
 ): Promise<UserDetails | null> {
-  // Check cache
-  const cached = userCache.get(userId);
+  const { bypassCache = false } = options;
 
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+  if (!bypassCache) {
+    const cached = userCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
   }
 
   const supabase = getSupabaseAdmin();
@@ -112,7 +135,11 @@ export async function getUserWithDetails(
       current_session_id,
       current_session_ip,
       current_session_device,
-      current_session_expires_at
+      current_session_expires_at,
+      account_tier,
+      custom_outflow_percent,
+      custom_outflow_min,
+      custom_fee_note
     `)
     .eq("id", userId)
     .single();
@@ -126,8 +153,6 @@ export async function getUserWithDetails(
     return null;
   }
 
-  // Because the Supabase client is typed with Database,
-  // this should now be correctly inferred as the users row.
   const userDetails: UserDetails = {
     id: user.id,
     full_name: user.full_name,
@@ -152,13 +177,24 @@ export async function getUserWithDetails(
     transaction_pin: user.transaction_pin,
     pin_set: user.pin_set ?? false,
 
+    account_tier: (user.account_tier as AccountTier) || "tier_3",
+
+    custom_outflow_percent:
+      user.custom_outflow_percent != null
+        ? Number(user.custom_outflow_percent)
+        : null,
+    custom_outflow_min:
+      user.custom_outflow_min != null
+        ? Number(user.custom_outflow_min)
+        : null,
+    custom_fee_note: user.custom_fee_note ?? null,
+
     current_session_id: user.current_session_id,
     current_session_ip: user.current_session_ip,
     current_session_device: user.current_session_device,
     current_session_expires_at: user.current_session_expires_at,
   };
 
-  // Cache user
   userCache.set(userId, {
     data: userDetails,
     timestamp: Date.now(),
@@ -202,17 +238,14 @@ export function hasSufficientTier(
   const userTierIndex = tierHierarchy.indexOf(
     user.subscription_tier || "free"
   );
-
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
-  // Unknown tier should not accidentally pass the check
   if (userTierIndex === -1 || requiredTierIndex === -1) {
     return false;
   }
 
   return (
-    userTierIndex >= requiredTierIndex &&
-    isSubscriptionActive(user)
+    userTierIndex >= requiredTierIndex && isSubscriptionActive(user)
   );
 }
 

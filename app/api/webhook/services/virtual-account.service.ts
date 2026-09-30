@@ -2,6 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendVirtualAccountDepositEmail } from "../helpers/email-helpers";
+import { TIER_CONFIG, type AccountTier } from "@/lib/fee";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -38,7 +39,20 @@ function extractInvoiceReference(narration: string): string | null {
   return null;
 }
 
-export async function processVirtualAccountDeposit(payload: any, params: VirtualAccountParams) {
+// ─────────────────────────────────────────────────────────────
+// Inflow fee resolver — tier-aware
+// Only this amount is charged to the user.
+// Nomba's fee is absorbed by Zidwell (recorded for accounting only).
+// ─────────────────────────────────────────────────────────────
+function getInflowFee(tier: AccountTier): number {
+  const config = TIER_CONFIG[tier] ?? TIER_CONFIG.tier_3;
+  return config.inflowFee;
+}
+
+export async function processVirtualAccountDeposit(
+  payload: any,
+  params: VirtualAccountParams
+) {
   const {
     aliasAccountReference,
     nombaTransactionId,
@@ -59,13 +73,16 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
   const userId = aliasAccountReference;
   const narration = tx.narration || "";
   const senderName = customer.senderName || customer.name || "Bank Transfer";
-  const netAmount = transactionAmount - nombaFee;
 
+  // ─────────────────────────────────────────────────────────────
+  // Invoice delegation (unchanged)
+  // ─────────────────────────────────────────────────────────────
   const invoiceMatch = extractInvoiceReference(narration);
-
   if (invoiceMatch) {
     console.log("🧾 Invoice payment detected, delegating to invoice service...");
-    const { processVirtualAccountInvoicePayment } = await import('./invoice-payment.service');
+    const { processVirtualAccountInvoicePayment } = await import(
+      "./invoice-payment.service"
+    );
     return processVirtualAccountInvoicePayment(payload, {
       aliasAccountReference,
       nombaTransactionId,
@@ -79,6 +96,9 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
 
   console.log("💰 Regular wallet deposit via virtual account");
 
+  // ─────────────────────────────────────────────────────────────
+  // Duplicate guard
+  // ─────────────────────────────────────────────────────────────
   const { data: existingTx } = await supabase
     .from("transactions")
     .select("*")
@@ -91,37 +111,97 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       success: true,
       message: "Virtual account deposit already processed",
       gross_amount: transactionAmount,
-      fee_deducted: nombaFee,
-      net_credit: netAmount,
+      inflow_fee: Number(existingTx.metadata?.zidwell_fee ?? 0),
+      net_credit: Number(existingTx.net_amount ?? 0),
     };
   }
 
-  // ✅ Build rich metadata
+  // ─────────────────────────────────────────────────────────────
+  // Fetch user's tier (source of truth)
+  // ─────────────────────────────────────────────────────────────
+  const { data: userRow, error: userLookupError } = await supabase
+    .from("users")
+    .select("id, account_tier, email")
+    .eq("id", userId)
+    .single();
+
+  if (userLookupError || !userRow) {
+    console.error("❌ Cannot find user for ID:", userId, userLookupError);
+  }
+
+  const tier: AccountTier =
+    (userRow?.account_tier as AccountTier) || "tier_3";
+
+  // ─────────────────────────────────────────────────────────────
+  // Inflow fee — ONLY the Zidwell tier fee is charged.
+  //   inflowFee  = tier fee (₦50 / ₦100)
+  //   netAmount  = transactionAmount − inflowFee
+  //   nombaFee   = absorbed by Zidwell (recorded for accounting)
+  // ─────────────────────────────────────────────────────────────
+  const inflowFee = getInflowFee(tier);
+  const netAmount = transactionAmount - inflowFee;
+
+  if (netAmount <= 0) {
+    console.error("❌ Inflow fee exceeds deposit — aborting credit", {
+      transactionAmount,
+      inflowFee,
+    });
+    return {
+      error: "Inflow fee exceeds deposit amount",
+      status: 400,
+    };
+  }
+
+  console.log(
+    `💵 Tier ${tier} inflow: gross=₦${transactionAmount}, inflow_fee=₦${inflowFee}, net=₦${netAmount}, nomba_absorbed=₦${nombaFee}`
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Build metadata (full audit trail)
+  // ─────────────────────────────────────────────────────────────
   const txMetadata = {
     deposit_source: "virtual_account",
     nomba_transaction_id: nombaTransactionId,
+
+    // Amounts
     gross_amount: transactionAmount,
-    nomba_fee: nombaFee,
+    inflow_fee: inflowFee,       // what we charged the user
+    zidwell_fee: inflowFee,      // alias for clarity
+    nomba_fee: nombaFee,         // absorbed by Zidwell (for accounting)
     net_amount: netAmount,
+
+    // Sender info
     sender_name: senderName,
     sender_bank: customer.bankName || null,
     sender_bank_code: customer.bankCode || null,
     sender_account_number: customer.accountNumber || null,
     narration: narration || null,
+
+    // Recipient (VA) info
     alias_account_reference: aliasAccountReference,
     alias_account_number: tx.aliasAccountNumber || null,
     alias_account_name: tx.aliasAccountName || null,
+
+    // Tier snapshot
+    account_tier: tier,
+    transfer_direction: "inflow",
+    fee_label: `Inflow — ${TIER_CONFIG[tier].label} (₦${inflowFee} flat)`,
+
     received_at: new Date().toISOString(),
   };
 
-  // ✅ Create the transaction row
+  // ─────────────────────────────────────────────────────────────
+  // Create transaction row
+  //   fee        = inflowFee (only what we charged)
+  //   net_amount = transactionAmount − inflowFee
+  // ─────────────────────────────────────────────────────────────
   const { data: newTx, error: txError } = await supabase
     .from("transactions")
     .insert({
       user_id: userId,
       type: "virtual_account_deposit",
       amount: transactionAmount,
-      fee: nombaFee,
+      fee: inflowFee,
       net_amount: netAmount,
       gross_amount: transactionAmount,
       status: "success",
@@ -144,6 +224,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       metadata: txMetadata,
       external_response: {
         nomba_transaction_id: nombaTransactionId,
+        inflow_fee: inflowFee,
         nomba_fee: nombaFee,
         gross_amount: transactionAmount,
         net_amount: netAmount,
@@ -157,12 +238,14 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     return { error: "Failed to create transaction" };
   }
 
-  // ✅ Credit wallet atomically — records balance_before / balance_after / metadata
+  // ─────────────────────────────────────────────────────────────
+  // Credit wallet atomically
+  // ─────────────────────────────────────────────────────────────
   const { data: newBalance, error: creditError } = await supabase.rpc(
     "mutate_wallet_balance",
     {
       p_user_id: userId,
-      p_amount: netAmount,                // positive = credit
+      p_amount: netAmount, // positive = credit
       p_transaction_id: newTx.id,
       p_reason: "virtual_account_deposit",
     }
@@ -197,11 +280,13 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     }
   } else {
     console.log(
-      `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to wallet ${userId}. New balance: ₦${newBalance}`
+      `✅ Credited ₦${netAmount} (gross ₦${transactionAmount} − inflow_fee ₦${inflowFee}) to wallet ${userId}. New balance: ₦${newBalance}`
     );
   }
 
-  // ✅ Send deposit email
+  // ─────────────────────────────────────────────────────────────
+  // Send deposit email
+  // ─────────────────────────────────────────────────────────────
   const { data: userExists, error: userError } = await supabase
     .from("users")
     .select("id, email")
@@ -221,7 +306,7 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
       tx.aliasAccountName || "N/A",
       senderName,
       narration,
-      nombaFee,
+      inflowFee, // ← what the user was charged
     ).catch(console.error);
   }
 
@@ -229,7 +314,8 @@ export async function processVirtualAccountDeposit(payload: any, params: Virtual
     success: true,
     message: "Virtual account deposit processed",
     gross_amount: transactionAmount,
-    fee_deducted: nombaFee,
+    inflow_fee: inflowFee,
     net_credit: netAmount,
+    tier,
   };
 }
