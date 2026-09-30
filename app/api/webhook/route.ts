@@ -574,7 +574,7 @@ export async function POST(req: NextRequest) {
       return handleErrorResponse(result);
     }
 
-    console.log("Unhandled event type:", eventType);
+    console.log("Unhandled event type:",  eventType);
     return NextResponse.json({ message: "Event ignored" }, { status: 200 });
   } catch (error: any) {
     console.error("Webhook error:", error);
@@ -584,3 +584,24 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+
+
+
+// export async function POST(req: Request) {
+//   const timestamp = req.headers.get("nomba-timestamp");
+//   const signature = req.headers.get("nomba-sig-value");
+
+//   // ✅ TEMP: Allow missing headers only for initial verification
+//   if (!timestamp || !signature) {
+//     console.log("Nomba initial webhook verification ping — allowing");
+//     return new Response(JSON.stringify({ verified: true }), { status: 200 });
+//   }
+
+//   // 🔐 Normal processing for real events
+//   const body = await req.json();
+//   console.log("Nomba Webhook Triggered", body);
+
+//   return new Response(JSON.stringify({ received: true }), { status: 200 });
+// }
