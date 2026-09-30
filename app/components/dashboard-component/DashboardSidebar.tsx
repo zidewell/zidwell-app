@@ -36,6 +36,16 @@ import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 import { ProtectedLink } from "../ProtectedLink";
 import { useTheme } from "../ThemeProvider";
+import {
+  ALLOWED_PAYMENT_EMAILS,
+  ALLOWED_PAYMENT_EMAIL_SET,
+  canAccessPaymentPage, 
+} from "@/lib/constants";
+
+// Re-export for backwards compatibility with any other module that imports
+// ALLOWED_PAYMENT_EMAILS from this file. Prefer importing from @/lib/constants
+// directly instead.
+export { ALLOWED_PAYMENT_EMAILS, ALLOWED_PAYMENT_EMAIL_SET };
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -48,21 +58,6 @@ const formatNumber = (value: number) => {
 const preferenceItems = [
   { name: "My Profile", href: "/dashboard/profile", icon: User },
 ];
-
-export const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "ibrahimlawalabbalolo@gmail.com",
-  "abbalolo360@gmail.com",
-  "boluwatife525@gmail.com",
-  "verifiedaboki@gmail.com",
-  "vivianakuche@gmail.com",
-  "nenyeattah@gmail.com",
-]);
-
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
 
 const isPathActive = (pathname: string | null, href: string) => {
   if (!pathname) return false;
@@ -168,7 +163,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
     const inner = (
       <>
-        {/* Subtle left accent bar for new items */}
         {isNew && !isActive && !isCollapsed && (
           <span
             aria-hidden
@@ -184,14 +178,12 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           <>
             <span className="truncate flex-1 text-left">{item.name}</span>
 
-            {/* Coming soon pill — always visible when comingSoon */}
             {comingSoon && (
               <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-500/25 rounded-full px-1.5 py-0.5 leading-none">
                 Soon
               </span>
             )}
 
-            {/* New dot — only when not coming soon (avoid double badges) */}
             {isNew && !comingSoon && (
               <span
                 aria-label="New"
@@ -228,7 +220,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       </span>
     ) : null;
 
-    // Coming soon items are non-clickable
     if (comingSoon) {
       return (
         <div className="relative">

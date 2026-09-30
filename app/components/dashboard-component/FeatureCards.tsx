@@ -25,17 +25,13 @@ import {
 } from "lucide-react";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
-import { ALLOWED_PAYMENT_EMAILS } from "./DashboardSidebar";
+
+import { canAccessPaymentPage } from "@/lib/constants";
 
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
-
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
 
 const getFeatures = (userEmail?: string | null) => {
   const baseFeatures = [
