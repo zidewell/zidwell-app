@@ -23,14 +23,14 @@ const nextConfig: NextConfig = {
 
   // Remove unnecessary console output in production.
   // Keep warn/error available for debugging.
-  compiler: {
-    removeConsole:
-      process.env.NODE_ENV === "production"
-        ? {
-            exclude: ["error", "warn"],
-          }
-        : false,
-  },
+  // compiler: {
+  //   removeConsole:
+  //     process.env.NODE_ENV === "production"
+  //       ? {
+  //           exclude: ["error", "warn"],
+  //         }
+  //       : false,
+  // },
 
   // Webpack configuration
   webpack: (config) => {
