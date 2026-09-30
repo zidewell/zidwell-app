@@ -57,6 +57,7 @@ export const ALLOWED_PAYMENT_EMAILS = new Set([
   "verifiedaboki@gmail.com",
   "vivianakuche@gmail.com",
   "nenyeattah@gmail.com",
+  "ibrahimlawalabbalolo@gmail.com",
 ]);
 
 const canAccessPaymentPage = (userEmail?: string | null) => {
