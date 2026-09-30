@@ -29,6 +29,13 @@ function cleanSlug(input: string): string {
     .replace(/-+/g, "-");
 }
 
+function normalizeWhatsapp(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const digits = input.trim().replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return null;
+  return digits;
+}
+
 function validateStoreData(storeData: any): string | null {
   const {
     name,
@@ -72,6 +79,7 @@ function buildStorePayload(storeData: any) {
     latitude,
     longitude,
     locationAccuracy,
+    whatsappNumber,
   } = storeData;
 
   return {
@@ -89,6 +97,7 @@ function buildStorePayload(storeData: any) {
     longitude: typeof longitude === "number" ? longitude : null,
     location_accuracy:
       typeof locationAccuracy === "number" ? locationAccuracy : null,
+    whatsapp_number: normalizeWhatsapp(whatsappNumber),
   };
 }
 

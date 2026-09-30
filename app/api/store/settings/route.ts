@@ -30,6 +30,21 @@ function normalizeKeywords(input: unknown): string[] {
   return out;
 }
 
+function normalizeWhatsappNumber(input: unknown): string | null | undefined {
+  if (input === null) return null;
+  if (typeof input !== "string") return undefined;
+
+  const digits = input.replace(/\D/g, "").trim();
+
+  if (digits.length === 0) return null;
+
+  if (digits.length < 7 || digits.length > 15) {
+    throw new Error("WhatsApp number must be 7–15 digits (with country code)");
+  }
+
+  return digits;
+}
+
 // ─── GET /api/store/settings ───
 export async function GET(request: Request) {
   try {
@@ -41,7 +56,7 @@ export async function GET(request: Request) {
     const { data: store, error } = await supabase
       .from("online_stores")
       .select(
-        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude, is_active, activation_paid"
+        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude, is_active, activation_paid, whatsapp_number"
       )
       .eq("owner_id", user.id)
       .maybeSingle();
@@ -161,6 +176,19 @@ export async function PUT(request: Request) {
       updates.longitude = body.longitude;
     }
 
+    // ─── WhatsApp number ───
+    try {
+      const normalized = normalizeWhatsappNumber(body.whatsappNumber);
+      if (normalized !== undefined) {
+        updates.whatsapp_number = normalized;
+      }
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e.message || "Invalid WhatsApp number" },
+        { status: 400 }
+      );
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
@@ -174,7 +202,7 @@ export async function PUT(request: Request) {
       .update(updates)
       .eq("owner_id", user.id)
       .select(
-        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude"
+        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude, whatsapp_number"
       )
       .single();
 

@@ -505,7 +505,6 @@ export default function CreatePage() {
 
   // ─── WhatsApp Contact Me ───
   const [whatsappContactEnabled, setWhatsappContactEnabled] = useState(false);
-  const [whatsappContactNumber, setWhatsappContactNumber] = useState("");
 
   const [cacCertificate, setCacCertificate] = useState("");
   const [taxClearance, setTaxClearance] = useState("");
@@ -520,7 +519,9 @@ export default function CreatePage() {
 
   const isPhysical = pageType === "physical";
   const hasVariants = isPhysical && variants.length > 0;
+  const storeWhatsappNumber = (store as any)?.whatsapp_number || "";
 
+  
   const everyVariantPriced =
     hasVariants &&
     variants.every((v) => {
@@ -777,6 +778,7 @@ export default function CreatePage() {
       router.push("/dashboard/services/payment/create-link");
       return;
     }
+    
 
     if (!canCreate() || !pageType) return;
     setIsCreating(true);
@@ -859,12 +861,10 @@ export default function CreatePage() {
         }
       }
 
-      // ─── WhatsApp Contact Me ───
-      if (whatsappContactEnabled && whatsappContactNumber.trim()) {
+      if (whatsappContactEnabled && storeWhatsappNumber) {
         metadata.whatsappContactEnabled = true;
-        metadata.whatsappContactNumber = whatsappContactNumber.trim();
       }
-
+      
       // ─── Transaction Fee Payer ───
       metadata.feePayer = form.feePayer || "merchant(me)";
 
@@ -1274,38 +1274,53 @@ export default function CreatePage() {
                   <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">
                     WhatsApp Contact
                   </h3>
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <Label className="text-sm font-semibold text-(--text-primary)">
-                        WhatsApp Contact Me
-                      </Label>
-                      <p className="text-xs text-(--text-secondary)">
-                        Enable to allow buyers to contact you via WhatsApp
-                      </p>
+                
+                  {!storeWhatsappNumber ? (
+                    <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">
+                          Add a WhatsApp number first
+                        </p>
+                        <p className="text-xs text-yellow-700/80 dark:text-yellow-400/80 mt-1">
+                          Go to{" "}
+                          <a
+                            href="/dashboard/services/payment/store/settings"
+                            className="font-bold underline hover:no-underline"
+                          >
+                            Store Settings
+                          </a>{" "}
+                          to add your WhatsApp number. You'll then be able to enable this
+                          button on your product pages.
+                        </p>
+                      </div>
                     </div>
-                    <Switch
-                      checked={whatsappContactEnabled}
-                      onCheckedChange={setWhatsappContactEnabled}
-                      className="data-[state=checked]:bg-(--color-accent-yellow)"
-                    />
-                  </div>
-                  {whatsappContactEnabled && (
-                    <div>
-                      <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
-                        WhatsApp Number
-                      </Label>
-                      <Input
-                        placeholder="e.g. 2348012345678"
-                        value={whatsappContactNumber}
-                        onChange={(e) =>
-                          setWhatsappContactNumber(e.target.value)
-                        }
-                        className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 pr-3">
+                        <Label className="text-sm font-semibold text-(--text-primary)">
+                          Show "Contact store owner" button
+                        </Label>
+                        <p className="text-xs text-(--text-secondary) mt-0.5">
+                          Uses{" "}
+                          <span className="font-mono text-(--text-primary)">
+                            {storeWhatsappNumber}
+                          </span>{" "}
+                          — change it in{" "}
+                          <a
+                            href="/dashboard/services/payment/store/settings"
+                            className="font-semibold underline hover:no-underline"
+                          >
+                            Settings
+                          </a>
+                          .
+                        </p>
+                      </div>
+                      <Switch
+                        checked={whatsappContactEnabled}
+                        onCheckedChange={setWhatsappContactEnabled}
+                        className="data-[state=checked]:bg-(--color-accent-yellow) shrink-0"
                       />
-                      <p className="text-xs text-(--text-secondary) mt-1">
-                        Enter your WhatsApp number with country code (e.g.
-                        2348012345678 for Nigeria)
-                      </p>
                     </div>
                   )}
                 </div>
@@ -1786,7 +1801,7 @@ export default function CreatePage() {
             isInvestment && expectedReturn ? expectedReturn : undefined,
           tenure: isInvestment && tenure ? tenure : undefined,
           whatsappContactEnabled: whatsappContactEnabled,
-          whatsappContactNumber: whatsappContactNumber,
+          whatsappContactNumber: storeWhatsappNumber,
         }}
       />
     </div>
