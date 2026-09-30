@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -10,7 +11,7 @@ import BankAccountFields from "./BankAccountFields";
 import P2PFields from "./P2PFields";
 import ExpenseCategoryDropdown from "./ExpenseCategoryDropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import type { AccountTier } from "@/lib/fee";
+import { calculateFees, type AccountTier } from "@/lib/fee";
 
 interface TransferFormProps {
   transferType: "my-account" | "other-bank" | "p2p";
@@ -33,8 +34,12 @@ interface TransferFormProps {
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
 
-  // ✅ NEW: user's account tier for fee/limit display
+  // ✅ User's account tier
   accountTier?: AccountTier;
+
+  // ✅ Per-user custom overrides
+  customOutflowPercent?: number | null;
+  customOutflowMin?: number | null;
 
   // Props for child components
   loading2: boolean;
@@ -106,7 +111,9 @@ export default function TransferForm({
   isDisabled,
   loading,
   onSubmit,
-  accountTier = "tier_3", // ✅ NEW
+  accountTier = "tier_3",
+  customOutflowPercent = null,
+  customOutflowMin = null,
   loading2,
   userDetails,
   savedAccounts,
@@ -154,6 +161,37 @@ export default function TransferForm({
   handleSelectBank,
   getAllBeneficiaries,
 }: TransferFormProps) {
+  // ✅ Compute the fee here — parent owns the calculation
+  const computedFee = amount
+    ? calculateFees(
+        Number(amount),
+        "transfer",
+        "bank_transfer",
+        accountTier,
+        "outflow",
+        {
+          custom_outflow_percent: customOutflowPercent,
+          custom_outflow_min: customOutflowMin,
+        }
+      )
+    : undefined;
+
+  // ✅ Push fee + total up to Transfer.tsx whenever they change
+  useEffect(() => {
+    if (computedFee) {
+      setCalculatedFee(computedFee.totalFee);
+      setTotalDebit(computedFee.totalDebit);
+    } else {
+      setCalculatedFee(0);
+      setTotalDebit(0);
+    }
+  }, [
+    computedFee?.totalFee,
+    computedFee?.totalDebit,
+    setCalculatedFee,
+    setTotalDebit,
+  ]);
+
   return (
     <Card className="shadow-xl border rounded-2xl bg-(--bg-primary) border-(--border-color)">
       <CardHeader>
@@ -190,10 +228,9 @@ export default function TransferForm({
                 paymentMethod="bank_transfer"
                 tier={accountTier}
                 direction="outflow"
-                onFeeCalculated={(fee, total) => {
-                  setCalculatedFee(fee);
-                  setTotalDebit(total);
-                }}
+                customOutflowPercent={customOutflowPercent}
+                customOutflowMin={customOutflowMin}
+                // ✅ No callback — parent already computed it above
               />
             )}
             {errors.amount && (

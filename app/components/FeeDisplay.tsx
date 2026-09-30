@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import {
   calculateFees,
   formatNaira,
@@ -18,8 +18,6 @@ type Props = {
   // ✅ Per-user overrides
   customOutflowPercent?: number | null;
   customOutflowMin?: number | null;
-
-  onFeeCalculated?: (fee: number, total: number) => void;
 };
 
 export default function FeeDisplay({
@@ -30,7 +28,6 @@ export default function FeeDisplay({
   direction = "outflow",
   customOutflowPercent = null,
   customOutflowMin = null,
-  onFeeCalculated,
 }: Props) {
   const feeDetails = amount
     ? calculateFees(amount, type, paymentMethod, tier, direction, {
@@ -38,12 +35,6 @@ export default function FeeDisplay({
         custom_outflow_min: customOutflowMin,
       })
     : undefined;
-
-  useEffect(() => {
-    if (feeDetails && onFeeCalculated) {
-      onFeeCalculated(feeDetails.totalFee, feeDetails.totalDebit);
-    }
-  }, [amount, feeDetails, onFeeCalculated]);
 
   if (!feeDetails) return null;
 
