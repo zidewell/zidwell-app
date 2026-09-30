@@ -16,6 +16,7 @@ import {
   checkTransferLimits,
   type AccountTier,
 } from "@/lib/fee";
+import { upsertSavedBankAccount } from "@/lib/saved-accounts";
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
@@ -45,7 +46,6 @@ export async function POST(req: NextRequest) {
       bankCode,
       narration,
       pin,
-      // NOTE: `fee` and `totalDebit` from client are IGNORED — recomputed server-side
       category,
       categoryId,
     } = await req.json();
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── Fetch user (now includes account_tier + custom overrides) ───
+    // ─── Fetch user ───
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select(
@@ -316,20 +316,14 @@ export async function POST(req: NextRequest) {
       total_deduction: totalDeduction,
       category: category || null,
       category_id: categoryId || null,
-
-      // ── TIER TRACKING ──
       account_tier: tier,
       transfer_direction: "outflow",
       fee_label: feeResult.feeLabel,
       nomba_fee: feeResult.nombaFee,
       app_fee: feeResult.appFee,
-
-      // ── CUSTOM RATE TRACKING ──
       used_custom_rate: feeResult.usedCustomRate,
       custom_outflow_percent: userData.custom_outflow_percent ?? null,
       custom_outflow_min: userData.custom_outflow_min ?? null,
-
-      // ── LIMIT SNAPSHOT ──
       daily_total_before: dailyTotalSoFar,
       daily_total_after: dailyTotalSoFar + Number(amount),
       daily_limit: limitCheck.dailyLimit,
@@ -523,6 +517,29 @@ export async function POST(req: NextRequest) {
             serverFee
           ).catch((err) =>
             console.error("Failed to send withdrawal email:", err)
+          );
+        }
+
+        // ✅ AUTO-SAVE BENEFICIARY (server-side, non-fatal)
+        try {
+          await upsertSavedBankAccount(
+            supabase,
+            userId,
+            {
+              account_number: accountNumber,
+              account_name: accountName,
+              bank_code: bankCode,
+              bank_name: bankName,
+            },
+            { autoSaved: true }
+          );
+          console.log(
+            `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`
+          );
+        } catch (saveErr) {
+          console.error(
+            "Auto-save bank beneficiary failed (non-fatal):",
+            saveErr
           );
         }
       }

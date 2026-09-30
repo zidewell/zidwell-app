@@ -33,15 +33,9 @@ interface TransferFormProps {
   isDisabled: boolean;
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
-
-  // ✅ User's account tier
   accountTier?: AccountTier;
-
-  // ✅ Per-user custom overrides
   customOutflowPercent?: number | null;
   customOutflowMin?: number | null;
-
-  // Props for child components
   loading2: boolean;
   userDetails: any;
   savedAccounts: any[];
@@ -66,12 +60,7 @@ interface TransferFormProps {
   setRecepientAcc: (acc: string) => void;
   p2pDetails: any;
   setP2pDetails: (details: any) => void;
-  saveAccount: boolean;
-  setSaveAccount: (save: boolean) => void;
-  saveP2PBeneficiary: boolean;
-  setSaveP2PBeneficiary: (save: boolean) => void;
   lookupLoading: boolean;
-  // Beneficiary suggestions
   showBeneficiarySuggestions: boolean;
   matchingBeneficiaries: any[];
   onSelectBeneficiary: (beneficiary: any) => void;
@@ -138,10 +127,6 @@ export default function TransferForm({
   setRecepientAcc,
   p2pDetails,
   setP2pDetails,
-  saveAccount,
-  setSaveAccount,
-  saveP2PBeneficiary,
-  setSaveP2PBeneficiary,
   lookupLoading,
   showBeneficiarySuggestions,
   matchingBeneficiaries,
@@ -161,7 +146,6 @@ export default function TransferForm({
   handleSelectBank,
   getAllBeneficiaries,
 }: TransferFormProps) {
-  // ✅ Compute the fee here — parent owns the calculation
   const computedFee = amount
     ? calculateFees(
         Number(amount),
@@ -176,7 +160,6 @@ export default function TransferForm({
       )
     : undefined;
 
-  // ✅ Push fee + total up to Transfer.tsx whenever they change
   useEffect(() => {
     if (computedFee) {
       setCalculatedFee(computedFee.totalFee);
@@ -205,13 +188,11 @@ export default function TransferForm({
 
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Transfer Type */}
           <TransferTypeSelector
             transferType={transferType}
             setTransferType={setTransferType}
           />
 
-          {/* Amount */}
           <div className="space-y-1">
             <Label className="text-(--text-primary)">Amount (₦)</Label>
             <Input
@@ -230,7 +211,6 @@ export default function TransferForm({
                 direction="outflow"
                 customOutflowPercent={customOutflowPercent}
                 customOutflowMin={customOutflowMin}
-                // ✅ No callback — parent already computed it above
               />
             )}
             {errors.amount && (
@@ -238,7 +218,6 @@ export default function TransferForm({
             )}
           </div>
 
-          {/* My Account Details */}
           {transferType === "my-account" && (
             <MyAccountDetails
               loading2={loading2}
@@ -247,7 +226,6 @@ export default function TransferForm({
             />
           )}
 
-          {/* Other Bank Fields */}
           {transferType === "other-bank" && (
             <BankAccountFields
               savedAccounts={savedAccounts}
@@ -263,8 +241,6 @@ export default function TransferForm({
               setAccountNumber={setAccountNumber}
               accountName={accountName}
               setAccountName={setAccountName}
-              saveAccount={saveAccount}
-              setSaveAccount={setSaveAccount}
               lookupLoading={lookupLoading}
               errors={errors}
               showBeneficiarySuggestions={showBeneficiarySuggestions}
@@ -286,7 +262,6 @@ export default function TransferForm({
             />
           )}
 
-          {/* P2P Fields */}
           {transferType === "p2p" && (
             <P2PFields
               savedP2PBeneficiaries={savedP2PBeneficiaries}
@@ -298,8 +273,6 @@ export default function TransferForm({
               setRecepientAcc={setRecepientAcc}
               p2pDetails={p2pDetails}
               setP2pDetails={setP2pDetails}
-              saveP2PBeneficiary={saveP2PBeneficiary}
-              setSaveP2PBeneficiary={setSaveP2PBeneficiary}
               lookupLoading={lookupLoading}
               errors={errors}
               showBeneficiarySuggestions={showBeneficiarySuggestions}
@@ -314,7 +287,6 @@ export default function TransferForm({
             />
           )}
 
-          {/* Expense Category Dropdown */}
           <ExpenseCategoryDropdown
             expenseCategories={expenseCategories}
             expenseCategory={expenseCategory}
@@ -325,7 +297,6 @@ export default function TransferForm({
             onToggleFavorite={onToggleFavorite}
           />
 
-          {/* Narration */}
           <div className="space-y-1">
             <Label className="text-(--text-primary)">
               Narration{" "}
@@ -346,7 +317,6 @@ export default function TransferForm({
             )}
           </div>
 
-          {/* Submit Button */}
           <Button
             type="submit"
             disabled={isDisabled}
