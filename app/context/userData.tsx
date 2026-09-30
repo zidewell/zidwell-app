@@ -20,9 +20,6 @@ export type SubscriptionTier =
   | "enterprise"
   | "corporation";
 
-// ✅ NEW: Account tier for transfer limits & fees
-export type AccountTier = "tier_1" | "tier_2" | "tier_3";
-
 export interface SupabaseUser {
   id: string;
   fullName: string;
@@ -40,15 +37,8 @@ export interface SupabaseUser {
   profilePicture: string | null;
   subscription_tier?: SubscriptionTier | null;
   subscription_expires_at?: string | null;
-
-  // ✅ NEW: account tier
-  accountTier?: AccountTier | null;
-
-  // ✅ NEW: custom fee overrides
-  customOutflowPercent?: number | null;
-  customOutflowMin?: number | null;
-  customFeeNote?: string | null;
 }
+
 export interface SubscriptionInfo {
   tier: SubscriptionTier;
   status: "active" | "expired" | "cancelled" | "pending";
@@ -93,7 +83,7 @@ interface UserContextType {
   refreshSubscription: () => Promise<void>;
   checkFeatureAccess: (
     featureKey: string,
-    currentCount?: number
+    currentCount?: number,
   ) => Promise<{
     hasAccess: boolean;
     limit?: number;
@@ -105,15 +95,12 @@ interface UserContextType {
     paymentMethod: string,
     amount: number,
     paymentReference: string,
-    isYearly?: boolean
+    isYearly?: boolean,
   ) => Promise<any>;
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
   handleSessionExpired: () => Promise<void>;
-
-  
-  refreshUserProfile: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -148,6 +135,8 @@ const PUBLIC_PAGE_PATTERNS = [
   /^\/share\/[^\/]+$/,
   /^\/preview\/[^\/]+$/,
   /^\/public\/[^\/]+$/,
+  /^\/store\/[^\/]+$/,
+  /^\/store\/[^\/]+\/[^\/]+$/,
   /^\/blog(\/.*)?$/,
   /^\/news(\/.*)?$/,
   /^\/article(\/.*)?$/,
@@ -283,6 +272,7 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   dedicated_account_manager: "corporation",
 };
 
+// Tier hierarchy (lowest to highest)
 const TIER_HIERARCHY: SubscriptionTier[] = [
   "free",
   "solopreneur",
@@ -291,6 +281,7 @@ const TIER_HIERARCHY: SubscriptionTier[] = [
   "corporation",
 ];
 
+// Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   free: {
     invoices: 5,
@@ -365,6 +356,7 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
 };
 
+// Upgrade benefits mapping
 const UPGRADE_BENEFITS: Record<string, string[]> = {
   free_to_solopreneur: [
     "Up to 10 invoices (up from 5)",
@@ -463,7 +455,6 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
 };
 
 // ─── Cookie / storage helpers ───
-
 const CLIENT_CLEARABLE_COOKIES = [
   "sb-client-session",
   "sb-login-time",
@@ -496,6 +487,10 @@ function clearClientStorage() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// UserProvider
+// ═══════════════════════════════════════════════════════════════════════════
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
@@ -511,17 +506,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [paymentProcessed, setPaymentProcessed] = useState(false);
+  const [notificationsLoading] = useState(false);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(
-    null
+    null,
   );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
-  const sessionRestoreInProgress = useRef(false);
+
+  // ─── Idempotency guard for session-expiry handling ───
+  const sessionExpiredRef = useRef(false);
 
   // ─── Check if current page is public ───
   const isPublicPage = useCallback(() => {
@@ -542,8 +538,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
-  // ─── Session expired handler ───
+  // ─── Centralized, idempotent session-expiration handler ───
   const handleSessionExpired = useCallback(async () => {
+    // Idempotency guard: multiple concurrent 401s must trigger only one logout.
+    if (sessionExpiredRef.current) return;
+    sessionExpiredRef.current = true;
+
     try {
       await fetch("/api/logout", {
         method: "POST",
@@ -573,66 +573,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     notificationCache.clear();
 
     router.push("/auth/login");
+
+    // Allow future expirations (e.g. user logs in again) after a short delay.
+    setTimeout(() => {
+      sessionExpiredRef.current = false;
+    }, 2000);
   }, [router]);
-
-  // ─── ✅ Refresh user profile from server ───
-  // Picks up DB changes: tier upgrades, wallet balance, KYC status, etc.
-  const refreshUserProfile = useCallback(async () => {
-    try {
-      const response = await fetch("/api/user/me", {
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache",
-        },
-      });
-
-      if (response.status === 401) {
-        await handleSessionExpired();
-        return;
-      }
-
-      if (!response.ok) {
-        console.error("refreshUserProfile: HTTP", response.status);
-        return;
-      }
-
-      const fresh = await response.json();
-
-      if (fresh && fresh.id) {
-        setUserData((prev: any) => ({ ...prev, ...fresh }));
-        setUser((prev: any) => ({ ...prev, ...fresh }));
-        localStorage.setItem("userData", JSON.stringify(fresh));
-
-        console.log(
-          "🔄 User profile refreshed — accountTier:",
-          fresh.accountTier
-        );
-      }
-    } catch (err) {
-      console.error("refreshUserProfile error:", err);
-    }
-  }, [handleSessionExpired]);
 
   // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
-    if (sessionRestoreInProgress.current) return null;
-    sessionRestoreInProgress.current = true;
-
     try {
-      const hasSessionCookie = document.cookie.includes(
-        "sb-client-session=true"
-      );
-
-      if (!hasSessionCookie) {
-        return null;
-      }
-
       const response = await fetch("/api/me", {
         credentials: "include",
-        headers: {
-          "Cache-Control": "no-cache",
-        },
+        headers: { "Cache-Control": "no-cache" },
       });
 
       if (response.ok) {
@@ -640,72 +593,97 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (userProfile && userProfile.id) {
           return userProfile;
         }
-      } else if (response.status === 401) {
-        await handleSessionExpired();
       }
 
+      // 401 here does NOT mean the user is logged out — it means the
+      // server couldn't validate the token *this time*. The proxy refreshes
+      // tokens on the next navigation. Do NOT clear localStorage here.
+      if (response.status === 401) {
+        console.warn(
+          "⚠️ /api/me returned 401 — keeping cached data, will retry",
+        );
+        return null;
+      }
+
+      // Other statuses (500, 503) — also do not log out.
+      console.warn(
+        "⚠️ /api/me returned",
+        response.status,
+        "— keeping cached data",
+      );
       return null;
     } catch (error) {
-      console.error("Failed to restore session:", error);
+      console.error(
+        "Network error during /api/me — keeping cached data:",
+        error,
+      );
       return null;
-    } finally {
-      sessionRestoreInProgress.current = false;
     }
-  }, [handleSessionExpired]);
+  }, []);
 
-  // ─── Initialize user from localStorage or session ───
+  // ─── Initialize user — runs exactly ONCE on mount ───
   const initializeUser = useCallback(async () => {
     try {
-      const storedUser = localStorage.getItem("userData");
+      // 1. Read cached user (display only — not auth proof)
+      const storedUser =
+        typeof window !== "undefined"
+          ? localStorage.getItem("userData")
+          : null;
 
+      let cached: any = null;
       if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setUserData(parsedUser);
-        setShouldFetchData(!isPublicPage());
-        setLoading(false);
-        setInitialCheckDone(true);
-        setSessionRestored(true);
-
-        // ✅ Revalidate in the background so tier changes land
-        if (!isPublicPage() && parsedUser?.id) {
-          refreshUserProfile().catch(() => {});
+        try {
+          cached = JSON.parse(storedUser);
+        } catch (e) {
+          // Only remove if the stored JSON is actually corrupt
+          console.error("Corrupt userData in localStorage — removing");
+          localStorage.removeItem("userData");
         }
-
-        return;
       }
 
-      const restoredUser = await restoreSessionFromCookies();
-
-      if (restoredUser) {
-        setUser(restoredUser);
-        setUserData(restoredUser);
-        localStorage.setItem("userData", JSON.stringify(restoredUser));
+      // 2. Optimistically hydrate from cache so the UI doesn't flash
+      if (cached && cached.id) {
+        setUser(cached);
+        setUserData(cached);
         setShouldFetchData(!isPublicPage());
-        setSessionRestored(true);
-      } else {
-        setShouldFetchData(false);
-        setSessionRestored(true);
       }
+
+      // 3. Verify with the server
+      const verified = await restoreSessionFromCookies();
+
+      if (verified) {
+        setUser(verified);
+        setUserData(verified);
+        try {
+          localStorage.setItem("userData", JSON.stringify(verified));
+        } catch {
+          /* quota — non-fatal */
+        }
+        setShouldFetchData(!isPublicPage());
+      } else if (!cached || !cached.id) {
+        // No cached user AND no verified user → user is genuinely not logged in.
+        setUser(null);
+        setUserData(null);
+        setShouldFetchData(false);
+      }
+      // If we HAD a cached user and /api/me failed transiently,
+      // keep the cached user in state. The proxy will sort out auth.
     } catch (error) {
-      console.error("Failed to initialize user:", error);
-      localStorage.removeItem("userData");
-      await handleSessionExpired();
-      setSessionRestored(true);
+      console.error("initializeUser threw:", error);
+      // Never wipe localStorage from here.
     } finally {
       setLoading(false);
       setInitialCheckDone(true);
+      setSessionRestored(true);
     }
-  }, [
-    isPublicPage,
-    restoreSessionFromCookies,
-    handleSessionExpired,
-    refreshUserProfile,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← intentionally empty: runs once on mount
 
+  // Run initialization on mount — once only
   useEffect(() => {
     initializeUser();
-  }, [initializeUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Theme initialization - LIGHT MODE DEFAULT ───
   useEffect(() => {
@@ -727,17 +705,18 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const hasPaymentCookie = document.cookie.includes(
-        "payment_processed=true"
+        "payment_processed=true",
       );
       if (hasPaymentCookie) {
-        setPaymentProcessed(true);
         document.cookie =
           "payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       }
     }
   }, []);
 
-  // ─── Watch for pathname changes ───
+  // ─── React to pathname / auth state changes ───
+  // NOTE: isPublicPage is intentionally omitted from deps — it's recreated
+  // on every pathname change and would cause this effect to over-fire.
   useEffect(() => {
     if (!initialCheckDone) return;
 
@@ -755,44 +734,47 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setTotalTransactions(0);
       setSubscription(null);
     }
-  }, [pathname, initialCheckDone, isPublicPage, userData?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, initialCheckDone, userData?.id]);
 
   // ─── Clear notification cache ───
   const clearNotificationCache = useCallback(() => {
     notificationCache.clear();
   }, []);
 
-  // ─── Notifications (disabled) ───
+  // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
   const fetchNotifications = useCallback(
     async (filter: string = "all", limit: number = 50) => {
       console.log(
-        "📢 Notifications API disabled - fetchNotifications called but skipped"
+        "📢 Notifications API disabled - fetchNotifications called but skipped",
       );
       return;
     },
-    []
+    [],
   );
 
   const fetchUnreadCount = useCallback(async () => {
     console.log(
-      "📢 Notifications API disabled - fetchUnreadCount called but skipped"
+      "📢 Notifications API disabled - fetchUnreadCount called but skipped",
     );
     return;
   }, []);
 
   const markAsRead = useCallback(async (notificationId: string) => {
-    console.log("📢 Notifications API disabled - markAsRead called but skipped");
+    console.log(
+      "📢 Notifications API disabled - markAsRead called but skipped",
+    );
     return;
   }, []);
 
   const markAllAsRead = useCallback(async () => {
     console.log(
-      "📢 Notifications API disabled - markAllAsRead called but skipped"
+      "📢 Notifications API disabled - markAllAsRead called but skipped",
     );
     return;
   }, []);
 
-  // ─── Fetch subscription ───
+  // ─── Fetch subscription data ───
   const fetchSubscription = useCallback(async () => {
     if (!shouldFetchData || !userData?.id) {
       setSubscription(null);
@@ -816,8 +798,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         },
       });
 
+      // 401 → proxy will handle it on the next navigation.
+      // Do NOT trigger logout from here — it races the proxy's refresh.
       if (response.status === 401) {
-        await handleSessionExpired();
         return;
       }
 
@@ -860,7 +843,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setSubscriptionLoading(false);
     }
-  }, [shouldFetchData, userData?.id, handleSessionExpired]);
+  }, [shouldFetchData, userData?.id]);
 
   // ─── Refresh subscription ───
   const refreshSubscription = useCallback(async () => {
@@ -874,7 +857,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const checkFeatureAccess = useCallback(
     async (
       featureKey: string,
-      currentCount?: number
+      currentCount?: number,
     ): Promise<{
       hasAccess: boolean;
       limit?: number;
@@ -926,7 +909,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             limit,
             message: `You've reached your ${featureKey.replace(
               /_/g,
-              " "
+              " ",
             )} limit of ${limit} for the ${subscription.tier} plan`,
             requiredTier,
           };
@@ -936,10 +919,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       return { hasAccess: true };
     },
-    [subscription]
+    [subscription],
   );
 
-  // ─── Sync feature access ───
+  // ─── Check feature access synchronously ───
   const canAccessFeature = useCallback(
     (featureKey: string, currentCount?: number): boolean => {
       if (!subscription) return false;
@@ -967,17 +950,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       return true;
     },
-    [subscription]
+    [subscription],
   );
 
-  // ─── Subscribe ───
+  // ─── Subscribe to a paid tier ───
   const subscribe = useCallback(
     async (
       tier: SubscriptionTier,
       paymentMethod: string,
       amount: number,
       paymentReference: string,
-      isYearly: boolean = false
+      isYearly: boolean = false,
     ) => {
       if (!userData?.id) {
         return { success: false, error: "User not authenticated" };
@@ -1001,7 +984,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (response.status === 401) {
-          await handleSessionExpired();
           return { success: false, error: "Session expired" };
         }
 
@@ -1024,7 +1006,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         return { success: false, error: error.message };
       }
     },
-    [userData?.id, fetchSubscription, handleSessionExpired]
+    [userData?.id, fetchSubscription],
   );
 
   // ─── Cancel subscription ───
@@ -1046,7 +1028,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (response.status === 401) {
-        await handleSessionExpired();
         return { success: false, error: "Session expired" };
       }
 
@@ -1062,7 +1043,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       console.error("❌ Error cancelling subscription:", error);
       return { success: false, error: error.message };
     }
-  }, [userData?.id, fetchSubscription, handleSessionExpired]);
+  }, [userData?.id, fetchSubscription]);
 
   // ─── Get upgrade benefits ───
   const getUpgradeBenefits = useCallback(
@@ -1071,7 +1052,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const key = `${currentTier}_to_${targetTier}`;
       return UPGRADE_BENEFITS[key] || [];
     },
-    [subscription?.tier]
+    [subscription?.tier],
   );
 
   // ─── Get plan limits ───
@@ -1096,7 +1077,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (res.status === 401) {
-          await handleSessionExpired();
+          // proxy will handle on next navigation
           return;
         }
 
@@ -1118,12 +1099,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (shouldFetchData && userData?.id) {
       fetchBalance();
     }
-  }, [
-    userData?.id,
-    userData?.zidcoinBalance,
-    shouldFetchData,
-    handleSessionExpired,
-  ]);
+  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
   // ─── Fetch transaction stats ───
   useEffect(() => {
@@ -1149,7 +1125,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (res.status === 401) {
-          await handleSessionExpired();
+          // proxy will handle on next navigation
           return;
         }
 
@@ -1179,7 +1155,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (shouldFetchData && userData?.id) {
       fetchTransactionStats();
     }
-  }, [userData?.id, shouldFetchData, handleSessionExpired]);
+  }, [userData?.id, shouldFetchData]);
 
   // ─── Fetch subscription on change ───
   useEffect(() => {
@@ -1192,13 +1168,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
-    const cleanupInterval = setInterval(() => {
-      notificationCache.cleanup();
-    }, 5 * 60 * 1000);
+    const cleanupInterval = setInterval(
+      () => {
+        notificationCache.cleanup();
+      },
+      5 * 60 * 1000,
+    );
 
-    const refreshInterval = setInterval(() => {
-      fetchSubscription();
-    }, 5 * 60 * 1000);
+    const refreshInterval = setInterval(
+      () => {
+        fetchSubscription();
+      },
+      5 * 60 * 1000,
+    );
 
     return () => {
       clearInterval(cleanupInterval);
@@ -1246,9 +1228,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         getUpgradeBenefits,
         canAccessFeature,
         handleSessionExpired,
-
-        // ✅ NEW
-        refreshUserProfile,
       }}
     >
       {children}
@@ -1256,7 +1235,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useUserContextData = () => {
+ export const useUserContextData = () => {
   const context = useContext(UserContext);
   if (!context) {
     throw new Error("useUserContextData must be used inside UserProvider");
