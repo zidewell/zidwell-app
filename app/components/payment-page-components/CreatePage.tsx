@@ -519,7 +519,7 @@ export default function CreatePage() {
 
   const isPhysical = pageType === "physical";
   const hasVariants = isPhysical && variants.length > 0;
-  const storeWhatsappNumber = (store as any)?.whatsapp_number || "";
+  const storeWhatsappNumber = store?.whatsappNumber || "";
 
   
   const everyVariantPriced =

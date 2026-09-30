@@ -583,7 +583,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     try {
-      const response = await fetch("/api/me", {
+      const response = await fetch("/api/user/me", {
         credentials: "include",
         headers: { "Cache-Control": "no-cache" },
       });
