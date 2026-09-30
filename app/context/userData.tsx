@@ -64,6 +64,7 @@ interface UserContextType {
   totalOutflow: number;
   totalTransactions: number;
   setUserData: Dispatch<SetStateAction<any | null>>;
+  refreshUserProfile: () => Promise<void>;
   loading: boolean;
   isDarkMode: boolean;
   setIsDarkMode: Dispatch<SetStateAction<boolean>>;
@@ -583,7 +584,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     try {
-      const response = await fetch("/api/me", {
+      const response = await fetch("/api/user/me", {
         credentials: "include",
         headers: { "Cache-Control": "no-cache" },
       });
@@ -620,6 +621,52 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   }, []);
+
+  // ─── Refresh user profile (re-uses /api/me + localStorage cache) ───
+  const refreshUserProfile = useCallback(async () => {
+    if (!userData?.id) return;
+
+    try {
+      const response = await fetch("/api/user/me", {
+        credentials: "include",
+        headers: { "Cache-Control": "no-cache" },
+      });
+
+      if (response.ok) {
+        const fresh = await response.json();
+
+        if (fresh && fresh.id) {
+          setUser(fresh);
+          setUserData(fresh);
+
+          try {
+            localStorage.setItem("userData", JSON.stringify(fresh));
+          } catch {
+            /* quota — non-fatal */
+          }
+
+          // Bust subscription cache so tier flips are picked up
+          subscriptionCache.delete(`subscription_${fresh.id}`);
+        }
+        return;
+      }
+
+      // 401 / transient failure → keep cached data, do NOT log out
+      if (response.status === 401) {
+        console.warn("⚠️ refreshUserProfile got 401 — keeping cached data");
+        return;
+      }
+
+      console.warn(
+        "⚠️ refreshUserProfile got status",
+        response.status,
+        "— keeping cached data",
+      );
+    } catch (error) {
+      console.error("refreshUserProfile network error:", error);
+      // swallow — UI stays on cached data
+    }
+  }, [userData?.id]);
 
   // ─── Initialize user — runs exactly ONCE on mount ───
   const initializeUser = useCallback(async () => {
@@ -1205,6 +1252,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         totalOutflow: shouldFetchData ? totalOutflow : 0,
         totalTransactions: shouldFetchData ? totalTransactions : 0,
         setUserData,
+        refreshUserProfile,
         loading,
         isDarkMode,
         setIsDarkMode,
@@ -1235,7 +1283,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
- export const useUserContextData = () => {
+export const useUserContextData = () => {
   const context = useContext(UserContext);
   if (!context) {
     throw new Error("useUserContextData must be used inside UserProvider");
