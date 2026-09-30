@@ -15,6 +15,7 @@ import {
   getUserWithDetails,
   hasSufficientTier,
 } from "@/lib/suabase-admin";
+import { ALLOWED_PAYMENT_EMAILS } from "./app/components/dashboard-component/DashboardSidebar";
 
 export const TIER_HIERARCHY = [
   "free",
@@ -120,15 +121,6 @@ const publicPaths = [
   "/blog",
 ];
 
-export const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "ibrahimlawalabbalolo@gmail.com",
-  "abbalolo360@gmail.com",
-  "boluwatife525@gmail.com",
-  "verifiedaboki@gmail.com",
-  "vivianakuche@gmail.com",
-  "venyeattah@gmail.com"
-]);
 
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
 const storeProtectedSet = new Set(storeProtectedRoutes);
