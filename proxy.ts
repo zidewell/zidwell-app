@@ -14,7 +14,11 @@ import {
   getUserWithDetails,
   hasSufficientTier,
 } from "@/lib/suabase-admin";
-import { ALLOWED_PAYMENT_EMAILS } from "./app/components/dashboard-component/DashboardSidebar";
+// ✅ Import from the SHARED constants module — NOT from the client sidebar.
+import {
+  ALLOWED_PAYMENT_EMAIL_SET,
+  canAccessPaymentPage,
+} from "@/lib/constants";
 
 export const TIER_HIERARCHY = [
   "free",
@@ -25,12 +29,16 @@ export const TIER_HIERARCHY = [
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 
-// ─── PRE-NORMALIZE ALLOWED EMAILS FOR O(1) LOOKUPS ───
-// ALLOWED_PAYMENT_EMAILS is exported as a plain array from DashboardSidebar.
-// Convert to a lowercased Set here so `.has()` works and lookups are fast.
-const ALLOWED_PAYMENT_EMAIL_SET = new Set<string>(
-  Array.from(ALLOWED_PAYMENT_EMAILS ?? []).map((e) => e.toLowerCase())
-);
+// Debug: confirm the set actually loaded at edge runtime.
+if (ALLOWED_PAYMENT_EMAIL_SET.size === 0) {
+  console.error(
+    "❌ ALLOWED_PAYMENT_EMAIL_SET is EMPTY at proxy runtime — check lib/constants.ts import path.",
+  );
+} else {
+  console.log(
+    `✅ ALLOWED_PAYMENT_EMAIL_SET loaded with ${ALLOWED_PAYMENT_EMAIL_SET.size} emails`,
+  );
+}
 
 // ─── PREMIUM ROUTES ───
 const premiumRoutes: {
@@ -131,7 +139,7 @@ const bvnRequiredSet = new Set(bvnRequiredRoutes);
 const storeProtectedSet = new Set(storeProtectedRoutes);
 
 const sortedPremiumRoutes = [...allPremiumRoutes].sort(
-  (a, b) => b.path.length - a.path.length
+  (a, b) => b.path.length - a.path.length,
 );
 
 function getRequiredTier(pathname: string): SubscriptionTier | null {
@@ -144,7 +152,6 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
       return requiredTier;
     }
   }
-
   return null;
 }
 
@@ -166,44 +173,27 @@ function requiresStoreOwnership(pathname: string): boolean {
       return true;
     }
   }
-
   return false;
 }
 
 // ─── PUBLIC STOREFRONT DETECTION ───
 function isPublicStoreFront(pathname: string): boolean {
-  // /store/[slug]
   const singleMatch = pathname.match(/^\/store\/([^\/]+)$/);
-
   if (singleMatch) {
     const slug = singleMatch[1].toLowerCase();
-
-    if (RESERVED_STORE_SLUGS.has(slug)) {
-      return false;
-    }
-
+    if (RESERVED_STORE_SLUGS.has(slug)) return false;
     return true;
   }
 
-  // /store/[slug]/[product]
   const doubleMatch = pathname.match(/^\/store\/([^\/]+)\/([^\/]+)$/);
-
   if (doubleMatch) {
     const storeSlug = doubleMatch[1].toLowerCase();
     const productSlug = doubleMatch[2].toLowerCase();
-
-    if (productSlug === "link") {
-      return false;
-    }
-
-    if (RESERVED_STORE_SLUGS.has(storeSlug)) {
-      return false;
-    }
-
+    if (productSlug === "link") return false;
+    if (RESERVED_STORE_SLUGS.has(storeSlug)) return false;
     return true;
   }
 
-  // /store/[slug]/link/[linkSlug]
   if (/^\/store\/[^\/]+\/link\/[^\/]+$/.test(pathname)) {
     return true;
   }
@@ -212,22 +202,10 @@ function isPublicStoreFront(pathname: string): boolean {
 }
 
 function isPublicPaymentPage(pathname: string): boolean {
-  if (pathname.match(/^\/pay\/[^\/]+$/)) {
-    return true;
-  }
-
-  if (pathname.startsWith("/payment-page/status")) {
-    return true;
-  }
-
-  if (pathname.startsWith("/payment/callback")) {
-    return true;
-  }
-
-  if (pathname.startsWith("/payment-page-success")) {
-    return true;
-  }
-
+  if (pathname.match(/^\/pay\/[^\/]+$/)) return true;
+  if (pathname.startsWith("/payment-page/status")) return true;
+  if (pathname.startsWith("/payment/callback")) return true;
+  if (pathname.startsWith("/payment-page-success")) return true;
   return false;
 }
 
@@ -237,18 +215,14 @@ function isValidSlug(slug: string): boolean {
 
 function areStoreFrontSlugsValid(pathname: string): boolean {
   const parts = pathname.split("/").filter(Boolean);
-
-  if (parts.length < 2) {
-    return false;
-  }
-
+  if (parts.length < 2) return false;
   return parts.slice(1).every((p) => isValidSlug(p));
 }
 
 function shouldBypassAuth(pathname: string): boolean {
   if (
     pathname.match(
-      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/
+      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/,
     )
   ) {
     return true;
@@ -256,19 +230,14 @@ function shouldBypassAuth(pathname: string): boolean {
 
   if (
     publicPaths.some(
-      (path) => pathname === path || pathname.startsWith(path + "/")
+      (path) => pathname === path || pathname.startsWith(path + "/"),
     )
   ) {
     return true;
   }
 
-  if (isPublicStoreFront(pathname)) {
-    return true;
-  }
-
-  if (isPublicPaymentPage(pathname)) {
-    return true;
-  }
+  if (isPublicStoreFront(pathname)) return true;
+  if (isPublicPaymentPage(pathname)) return true;
 
   return false;
 }
@@ -277,15 +246,12 @@ function shouldBypassAuth(pathname: string): boolean {
 type TokenValidationResult = User | { error: "expired" } | null;
 
 async function validateTokenAndGetUser(
-  token: string
+  token: string,
 ): Promise<TokenValidationResult> {
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   try {
     const supabase = getSupabaseAdmin();
-
     const {
       data: { user },
       error,
@@ -295,9 +261,7 @@ async function validateTokenAndGetUser(
       if (error.message?.includes("JWT expired")) {
         return { error: "expired" };
       }
-
       console.error("Token validation error:", error.message);
-
       return null;
     }
 
@@ -311,15 +275,10 @@ async function validateTokenAndGetUser(
 async function refreshAccessToken(refreshToken: string) {
   try {
     const supabase = getSupabaseAdmin();
-
     const { data, error } = await supabase.auth.refreshSession({
       refresh_token: refreshToken,
     });
-
-    if (error || !data.session) {
-      return null;
-    }
-
+    if (error || !data.session) return null;
     return data.session;
   } catch (error) {
     console.error("Token refresh error:", error);
@@ -328,7 +287,7 @@ async function refreshAccessToken(refreshToken: string) {
 }
 
 function isTokenError(
-  result: TokenValidationResult
+  result: TokenValidationResult,
 ): result is { error: "expired" } {
   return (
     result !== null &&
@@ -354,7 +313,6 @@ function clearAuthCookies(response: NextResponse) {
     "sb-session-id",
     "sb-session-risk",
   ];
-
   cookiesToDelete.forEach((name) => response.cookies.delete(name));
 }
 
@@ -363,91 +321,62 @@ function redirectToLogin(req: NextRequest, clearCookies: boolean = true) {
   const fullUrl = `${pathname}${search}`;
 
   const loginUrl = new URL("/auth/login", req.url);
-
   loginUrl.searchParams.set("callbackUrl", encodeURIComponent(fullUrl));
 
   console.log(`🔄 Redirecting to login from ${fullUrl}`);
 
   const res = NextResponse.redirect(loginUrl);
-
-  if (clearCookies) {
-    clearAuthCookies(res);
-  }
-
+  if (clearCookies) clearAuthCookies(res);
   return res;
 }
 
 function redirectFromPaymentPage(req: NextRequest) {
   console.log(
-    `🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`
+    `🚫 Unauthorized access attempt to payment page from ${req.nextUrl.pathname}`,
   );
-
   const response = NextResponse.redirect(new URL("/dashboard", req.url));
-
   response.cookies.set(
     "payment_access_denied",
     "You don't have permission to access the payment page",
-    {
-      httpOnly: true,
-      maxAge: 5,
-      path: "/",
-      sameSite: "lax",
-    }
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
   );
-
   return response;
 }
 
 function redirectNoStore(req: NextRequest) {
   console.log(`🚫 No store found for user accessing ${req.nextUrl.pathname}`);
-
   const response = NextResponse.redirect(
-    new URL("/dashboard/services/payment", req.url)
+    new URL("/dashboard/services/payment", req.url),
   );
-
   response.cookies.set(
     "store_required",
     "You need to create a store to access this page",
-    {
-      httpOnly: true,
-      maxAge: 5,
-      path: "/",
-      sameSite: "lax",
-    }
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
   );
-
   return response;
 }
 
 function redirectInsufficientTier(
   req: NextRequest,
   requiredTier: SubscriptionTier,
-  currentPath: string
+  currentPath: string,
 ) {
   console.log(
-    `⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`
+    `⚠️ Insufficient tier for ${currentPath}, requires ${requiredTier}`,
   );
-
   const response = NextResponse.redirect(
     new URL(
       `/pricing?upgrade=${requiredTier}&redirect=${encodeURIComponent(
-        currentPath
+        currentPath,
       )}`,
-      req.url
-    )
+      req.url,
+    ),
   );
-
   response.cookies.set(
     "subscription_message",
     `This feature requires the ${requiredTier} plan`,
-    {
-      httpOnly: true,
-      maxAge: 5,
-      path: "/",
-      sameSite: "lax",
-    }
+    { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
   );
-
   return response;
 }
 
@@ -461,16 +390,13 @@ export async function proxy(req: NextRequest) {
     if (!areStoreFrontSlugsValid(currentPath)) {
       return NextResponse.redirect(new URL("/", req.url));
     }
-
     console.log(`🌐 Public storefront bypass: ${currentPath}`);
-
     return NextResponse.next();
   }
 
   // ─── PUBLIC PATHS ───
   if (shouldBypassAuth(currentPath)) {
     console.log(`✅ Public path bypass: ${currentPath}`);
-
     return NextResponse.next();
   }
 
@@ -479,20 +405,15 @@ export async function proxy(req: NextRequest) {
     console.log(`🔐 Checking payment page access for: ${currentPath}`);
 
     let accessToken = req.cookies.get("sb-access-token")?.value;
-
     const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 
     if (!accessToken && refreshToken) {
       const session = await refreshAccessToken(refreshToken);
-
-      if (session) {
-        accessToken = session.access_token;
-      }
+      if (session) accessToken = session.access_token;
     }
 
     if (!accessToken) {
       console.log("❌ No valid token for payment page access");
-
       return redirectToLogin(req);
     }
 
@@ -500,17 +421,15 @@ export async function proxy(req: NextRequest) {
 
     if (!tokenResult || isTokenError(tokenResult) || !isUser(tokenResult)) {
       console.log("❌ Invalid user for payment page");
-
       return redirectToLogin(req);
     }
 
     const userEmail = tokenResult.email?.toLowerCase();
 
-    if (!userEmail || !ALLOWED_PAYMENT_EMAIL_SET.has(userEmail)) {
+    if (!canAccessPaymentPage(userEmail)) {
       console.log(
-        `🚫 Unauthorized email: ${userEmail} attempted to access payment page`
+        `🚫 Unauthorized email: ${userEmail} attempted to access payment page (set size=${ALLOWED_PAYMENT_EMAIL_SET.size})`,
       );
-
       return redirectFromPaymentPage(req);
     }
 
@@ -523,11 +442,8 @@ export async function proxy(req: NextRequest) {
     req.cookies.get("payment_processed")
   ) {
     console.log("🟡 Post-payment access granted");
-
     const response = NextResponse.next();
-
     response.cookies.delete("payment_processed");
-
     return response;
   }
 
@@ -540,32 +456,24 @@ export async function proxy(req: NextRequest) {
 
   // ─── GET TOKENS ───
   let accessToken = req.cookies.get("sb-access-token")?.value;
-
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
-
   const clientSession = req.cookies.get("sb-client-session")?.value;
-
   const loginTime = req.cookies.get("sb-login-time")?.value;
-
   const sessionIdCookie = req.cookies.get("sb-session-id")?.value;
 
   // ─── CLIENT SESSION CHECK ───
   if (clientSession === "true" && !accessToken && !refreshToken) {
     if (loginTime && Date.now() - parseInt(loginTime) < 5000) {
       console.log("🟢 Recent login detected (within 5s), allowing access");
-
       return NextResponse.next();
     }
-
     console.log("❌ Invalid session state - redirecting to login");
-
     return redirectToLogin(req);
   }
 
   // ─── NO TOKENS ───
   if (!accessToken && !refreshToken) {
     console.log("❌ No tokens found, redirecting to login");
-
     return redirectToLogin(req);
   }
 
@@ -574,19 +482,16 @@ export async function proxy(req: NextRequest) {
 
   if (!accessToken && refreshToken) {
     console.log("🔄 Attempting token refresh");
-
     const session = await refreshAccessToken(refreshToken);
 
     if (!session) {
       console.log("❌ Token refresh failed");
-
       return redirectToLogin(req);
     }
 
     console.log("✅ Token refresh successful");
 
     refreshedResponse = NextResponse.next();
-
     refreshedResponse.cookies.set("sb-access-token", session.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -594,7 +499,6 @@ export async function proxy(req: NextRequest) {
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     refreshedResponse.cookies.set(
       "sb-refresh-token",
       session.refresh_token!,
@@ -604,9 +508,8 @@ export async function proxy(req: NextRequest) {
         sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24 * 7,
-      }
+      },
     );
-
     refreshedResponse.cookies.set("sb-client-session", "true", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -624,9 +527,8 @@ export async function proxy(req: NextRequest) {
 
   // ─── VALIDATE TOKEN ───
   const tokenValidationPromise = validateTokenAndGetUser(accessToken);
-
   const tokenTimeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 8000)
+    setTimeout(() => resolve(null), 8000),
   );
 
   const tokenResult = await Promise.race([
@@ -636,27 +538,23 @@ export async function proxy(req: NextRequest) {
 
   if (!tokenResult) {
     console.log("⏱️ Token validation timed out - allowing access");
-
     return refreshedResponse || NextResponse.next();
   }
 
   if (isTokenError(tokenResult)) {
     console.log("⚠️ Token expired");
-
     return redirectToLogin(req);
   }
 
   if (!isUser(tokenResult)) {
     console.log("❌ Invalid user object");
-
     return redirectToLogin(req);
   }
 
   // ─── USER DETAILS ───
   const userDetailsPromise = getUserWithDetails(tokenResult.id);
-
   const userTimeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 8000)
+    setTimeout(() => resolve(null), 8000),
   );
 
   const userDetails = await Promise.race([
@@ -666,19 +564,13 @@ export async function proxy(req: NextRequest) {
 
   if (!userDetails) {
     console.log("⏱️ User details fetch timed out - allowing access");
-
     return refreshedResponse || NextResponse.next();
   }
 
   if (userDetails.is_blocked) {
     console.log("🚫 User is blocked");
-
-    const response = NextResponse.redirect(
-      new URL("/auth/blocked", req.url)
-    );
-
+    const response = NextResponse.redirect(new URL("/auth/blocked", req.url));
     clearAuthCookies(response);
-
     return response;
   }
 
@@ -690,7 +582,7 @@ export async function proxy(req: NextRequest) {
     .single();
 
   const sessionTimeoutPromise = new Promise<{ data: null }>((resolve) =>
-    setTimeout(() => resolve({ data: null }), 8000)
+    setTimeout(() => resolve({ data: null }), 8000),
   );
 
   const { data: sessionData } = (await Promise.race([
@@ -700,14 +592,12 @@ export async function proxy(req: NextRequest) {
 
   if (sessionData) {
     const dbSessionId = sessionData.current_session_id as string | null;
-
     const dbSessionExpires = sessionData.current_session_expires_at as
       | string
       | null;
 
     if (dbSessionId && !sessionIdCookie) {
       console.log("❌ Session ID cookie missing");
-
       return redirectToLogin(req, true);
     }
 
@@ -715,44 +605,38 @@ export async function proxy(req: NextRequest) {
       console.warn(
         `🚫 Session mismatch. DB: ${dbSessionId.slice(
           0,
-          8
-        )}... Cookie: ${sessionIdCookie.slice(0, 8)}...`
+          8,
+        )}... Cookie: ${sessionIdCookie.slice(0, 8)}...`,
       );
-
       const res = redirectToLogin(req, true);
-
       res.cookies.set(
         "login_error",
         "Your session was invalidated because you logged in on another device",
-        {
-          httpOnly: false,
-          maxAge: 30,
-          path: "/",
-          sameSite: "lax",
-        }
+        { httpOnly: false, maxAge: 30, path: "/", sameSite: "lax" },
       );
-
       return res;
     }
 
     if (dbSessionExpires && new Date(dbSessionExpires) < new Date()) {
       console.log("⏰ Session expired in database");
-
       return redirectToLogin(req, true);
     }
   }
 
   // ─── RISK COOKIE ───
   const sessionRisk = req.cookies.get("sb-session-risk")?.value;
-
   if (sessionRisk && parseInt(sessionRisk) >= 60) {
     console.log("🚫 High-risk session cookie, forcing logout");
-
     return redirectToLogin(req, true);
   }
 
   // ─── STORE OWNERSHIP ───
-  if (requiresStoreOwnership(currentPath)) {
+  // Authorized payment emails are exempt — they must always be able to reach
+  // the store dashboard even before creating/activating a store.
+  const userEmailForStore = tokenResult.email?.toLowerCase();
+  const isAuthorizedPaymentUser = canAccessPaymentPage(userEmailForStore);
+
+  if (requiresStoreOwnership(currentPath) && !isAuthorizedPaymentUser) {
     console.log(`🏪 Checking store ownership for: ${currentPath}`);
 
     try {
@@ -768,14 +652,7 @@ export async function proxy(req: NextRequest) {
         data: null;
         error: null;
       }>((resolve) =>
-        setTimeout(
-          () =>
-            resolve({
-              data: null,
-              error: null,
-            }),
-          8000
-        )
+        setTimeout(() => resolve({ data: null, error: null }), 8000),
       );
 
       const { data: store, error: storeError } = (await Promise.race([
@@ -785,13 +662,11 @@ export async function proxy(req: NextRequest) {
 
       if (storeError) {
         console.error("❌ Error checking store:", storeError);
-
         return redirectNoStore(req);
       }
 
       if (!store) {
         console.log(`🚫 No store found for user ${tokenResult.id}`);
-
         return redirectNoStore(req);
       }
 
@@ -800,29 +675,24 @@ export async function proxy(req: NextRequest) {
 
       if (!hasActiveStore) {
         console.log(`🚫 No active store found for user ${tokenResult.id}`);
-
         const response = redirectNoStore(req);
-
         response.cookies.set(
           "store_required_message",
           store ? "Please activate your store" : "Please create a store",
-          {
-            httpOnly: false,
-            maxAge: 5,
-            path: "/",
-            sameSite: "lax",
-          }
+          { httpOnly: false, maxAge: 5, path: "/", sameSite: "lax" },
         );
-
         return response;
       }
 
       console.log(`✅ Store ownership verified for ${currentPath}`);
     } catch (error) {
       console.error("❌ Store check error:", error);
-
       return redirectNoStore(req);
     }
+  } else if (requiresStoreOwnership(currentPath) && isAuthorizedPaymentUser) {
+    console.log(
+      `✅ Store ownership bypass for authorized payment email: ${userEmailForStore}`,
+    );
   }
 
   // ─── BVN CHECK ───
@@ -831,25 +701,17 @@ export async function proxy(req: NextRequest) {
     userDetails.bvn_verification !== "verified"
   ) {
     console.log(`⚠️ BVN verification required for ${currentPath}`);
-
     const response = NextResponse.redirect(
       new URL(
         `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
-        req.url
-      )
+        req.url,
+      ),
     );
-
     response.cookies.set(
       "verification_message",
       "Please verify your BVN to access this feature",
-      {
-        httpOnly: true,
-        maxAge: 5,
-        path: "/",
-        sameSite: "lax",
-      }
+      { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
     );
-
     return response;
   }
 
@@ -858,13 +720,11 @@ export async function proxy(req: NextRequest) {
 
   if (requiredTier) {
     const hasAccess = hasSufficientTier(userDetails, requiredTier);
-
     if (!hasAccess) {
       return redirectInsufficientTier(req, requiredTier, currentPath);
     }
-
     console.log(
-      `✅ Tier check passed for ${currentPath} (requires ${requiredTier})`
+      `✅ Tier check passed for ${currentPath} (requires ${requiredTier})`,
     );
   }
 
@@ -878,16 +738,13 @@ export async function proxy(req: NextRequest) {
       !allowedAdminRoles.includes(userDetails.admin_role)
     ) {
       console.log(`⚠️ Admin access denied for ${currentPath}`);
-
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
-
     console.log(`✅ Admin access granted for role: ${userDetails.admin_role}`);
   }
 
   // ─── RESPONSE TIME ───
   const responseTime = Date.now() - startTime;
-
   if (responseTime > 200) {
     console.warn(`⚠️ Slow proxy (${responseTime}ms) for ${currentPath}`);
   } else {
