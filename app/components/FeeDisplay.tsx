@@ -42,7 +42,7 @@ export default function FeeDisplay({
     <div className="text-sm text-gray-700">
       <div className="text-sm text-gray-800 space-y-1">
         <div className="border-t pt-1 mt-1">
-          <p className="text-xs text-gray-500">{feeDetails.feeLabel}</p>
+          {/*<p className="text-xs text-gray-500">{feeDetails.feeLabel}</p>*/}
           <p className="font-semibold">
             Total fee: <span>{formatNaira(feeDetails.totalFee)}</span>
           </p>
