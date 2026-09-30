@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/suabase-admin";
 
-const SESSION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+const SESSION_TIMEOUT = 15 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,8 +15,6 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
-
-    // Find the user with this session
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("id, current_session_expires_at")
@@ -30,7 +28,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Do not extend an already expired session
     if (userData.current_session_expires_at) {
       const expiresAt = new Date(userData.current_session_expires_at).getTime();
       if (Date.now() > expiresAt) {
@@ -41,7 +38,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Extend session expiration
     const newExpiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
     await supabase
       .from("users")
