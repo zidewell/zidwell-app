@@ -123,12 +123,11 @@ const publicPaths = [
 export const ALLOWED_PAYMENT_EMAILS = new Set([
   "characterinternational@gmail.com",
   "ibrahimlawalabbalolo@gmail.com",
-  
   "abbalolo360@gmail.com",
   "boluwatife525@gmail.com",
   "verifiedaboki@gmail.com",
-  "Vivianakuche@gmail.com",
-  "Nenyeattah@gmail.com"
+  "vivianakuche@gmail.com",
+  "venyeattah@gmail.com"
 ]);
 
 const bvnRequiredSet = new Set(bvnRequiredRoutes);
