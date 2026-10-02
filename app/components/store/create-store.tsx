@@ -1,3 +1,4 @@
+// app/components/store/create-store.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -34,7 +35,7 @@ import { Label } from "@/app/components/ui/label";
 import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 
-const ACTIVATION_FEE_NAIRA = 200;
+const ACTIVATION_FEE_NAIRA = 500;
 
 type StoreFormData = {
   name: string;
@@ -50,6 +51,7 @@ type StoreFormData = {
   latitude: number | null;
   longitude: number | null;
   locationAccuracy: number | null;
+  whatsappNumber: string;
 };
 
 const initialFormData: StoreFormData = {
@@ -66,6 +68,7 @@ const initialFormData: StoreFormData = {
   latitude: null,
   longitude: null,
   locationAccuracy: null,
+  whatsappNumber: "",
 };
 
 // ─── Slugify — mirrors the server-side cleaning ───
@@ -357,7 +360,6 @@ export function CreateStoreForm() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // ─── Name validation state ───
   const [nameValidation, setNameValidation] = useState<{
     isValid: boolean;
     isChecking: boolean;
@@ -376,7 +378,6 @@ export function CreateStoreForm() {
     hasChecked: false,
   });
 
-  // ─── Slug validation state ───
   const [slugValidation, setSlugValidation] = useState<{
     isValid: boolean;
     isChecking: boolean;
@@ -395,20 +396,15 @@ export function CreateStoreForm() {
     hasChecked: false,
   });
 
-  // Guards to prevent duplicate API calls
   const draftFetchStartedRef = useRef(false);
   const autoLoadDoneRef = useRef(false);
-  // Autosave debounce timer
   const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Slug validation debounce timer
   const slugValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  // Name validation debounce timer
   const nameValidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
-  // Tracks whether the user manually edited the slug
   const slugManuallyEditedRef = useRef(false);
 
   const totalSteps = 4;
@@ -417,8 +413,6 @@ export function CreateStoreForm() {
   // ============================================================
   // PENDING-MARKER LIFECYCLE
   // ============================================================
-  // Reset processing state when page is restored from bfcache, then
-  // clear the pending marker.
   useEffect(() => {
     const handlePageShow = () => {
       if (sessionStorage.getItem(PENDING_CHECKOUT_KEY) === "true") {
@@ -431,8 +425,6 @@ export function CreateStoreForm() {
     return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  // Clear pending markers when the user leaves the page (close tab,
-  // hard navigate away, or refresh without completing checkout).
   useEffect(() => {
     const handleLeave = () => clearPendingMarkers();
 
@@ -445,22 +437,18 @@ export function CreateStoreForm() {
     };
   }, []);
 
-  // Clear pending markers when the component unmounts (SPA navigation
-  // away from the create-store page).
   useEffect(() => {
     return () => {
       clearPendingMarkers();
     };
   }, []);
 
-  // Redirect if user has an active (live) store
   useEffect(() => {
     if (hasActiveStore) {
       router.push("/dashboard/services/payment/dashboard");
     }
   }, [hasActiveStore, router]);
 
-  // Load pending activation store data
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
       setFormData({
@@ -479,6 +467,7 @@ export function CreateStoreForm() {
         latitude: (store as any).latitude ?? null,
         longitude: (store as any).longitude ?? null,
         locationAccuracy: (store as any).locationAccuracy ?? null,
+        whatsappNumber: (store as any).whatsappNumber || "",
       });
       setHasLoadedStoreData(true);
       setStep(4);
@@ -639,7 +628,6 @@ export function CreateStoreForm() {
   useEffect(() => {
     const trimmedName = formData.name.trim();
 
-    // ─── Debounced NAME validation ───
     if (!trimmedName) {
       setNameValidation({
         isValid: true,
@@ -659,7 +647,6 @@ export function CreateStoreForm() {
       }, 600);
     }
 
-    // ─── Auto-populate SLUG (unless user manually edited) ───
     if (!slugManuallyEditedRef.current) {
       if (!trimmedName) {
         if (formData.slug) {
@@ -701,7 +688,7 @@ export function CreateStoreForm() {
   }, [formData.name]);
 
   // ============================================================
-  // loadDraft with meaningful-content check + draftAvailable
+  // loadDraft
   // ============================================================
   const loadDraft = useCallback(async (showToast = true): Promise<boolean> => {
     if (draftFetchStartedRef.current) return false;
@@ -765,10 +752,9 @@ export function CreateStoreForm() {
         latitude: draft.latitude ?? null,
         longitude: draft.longitude ?? null,
         locationAccuracy: draft.location_accuracy ?? null,
+        whatsappNumber: draft.whatsapp_number || "",
       });
 
-      // If the draft had a slug, treat it as manually edited so auto-fill
-      // doesn't overwrite it when the user edits the name.
       if (draft.slug && String(draft.slug).trim()) {
         slugManuallyEditedRef.current = true;
       }
@@ -832,12 +818,11 @@ export function CreateStoreForm() {
   }, [hasPendingActivation, hasActiveStore, loadDraft]);
 
   // ============================================================
-  // DEBOUNCED AUTOSAVE — saves the draft as the user types
+  // DEBOUNCED AUTOSAVE
   // ============================================================
   useEffect(() => {
     if (hasPendingActivation || hasActiveStore) return;
     if (!draftLoaded) return;
-    // Skip if the form is completely empty (nothing to save)
     if (
       !formData.name &&
       !formData.slug &&
@@ -875,6 +860,7 @@ export function CreateStoreForm() {
             latitude: formData.latitude,
             longitude: formData.longitude,
             locationAccuracy: formData.locationAccuracy,
+            whatsappNumber: formData.whatsappNumber.trim(),
             step,
           }),
         });
@@ -942,7 +928,6 @@ export function CreateStoreForm() {
     [errors.description]
   );
 
-  // Slug input — mark as manually edited so auto-populate stops
   const handleSlugChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       slugManuallyEditedRef.current = true;
@@ -1086,6 +1071,15 @@ export function CreateStoreForm() {
         else if (cleanDescription.length < 10)
           newErrors.description =
             "Description should be at least 10 characters";
+
+        // WhatsApp — optional but validate if provided
+        if (formData.whatsappNumber.trim().length > 0) {
+          const digits = formData.whatsappNumber.replace(/\D/g, "");
+          if (digits.length < 7 || digits.length > 15) {
+            newErrors.whatsappNumber =
+              "WhatsApp number must be 7–15 digits (with country code)";
+          }
+        }
       }
       if (stepNumber === 2) {
         if (!formData.country?.trim())
@@ -1112,15 +1106,13 @@ export function CreateStoreForm() {
 
     if (!nameValidation.isValid) {
       toast.error("Cannot save", {
-        description:
-          nameValidation.message || "Store name is not available.",
+        description: nameValidation.message || "Store name is not available.",
       });
       return;
     }
     if (!slugValidation.isValid) {
       toast.error("Cannot save", {
-        description:
-          slugValidation.message || "Store URL is not available.",
+        description: slugValidation.message || "Store URL is not available.",
       });
       return;
     }
@@ -1149,6 +1141,7 @@ export function CreateStoreForm() {
           latitude: formData.latitude,
           longitude: formData.longitude,
           locationAccuracy: formData.locationAccuracy,
+          whatsappNumber: formData.whatsappNumber.trim(),
           step,
         }),
       });
@@ -1236,7 +1229,6 @@ export function CreateStoreForm() {
     setIsProcessingCheckout(true);
     sessionStorage.setItem(PENDING_CHECKOUT_KEY, "true");
 
-    // Force-save the draft right now, before opening Nomba.
     try {
       const keywordsArray = formData.keywords
         .split(",")
@@ -1260,11 +1252,12 @@ export function CreateStoreForm() {
           latitude: formData.latitude,
           longitude: formData.longitude,
           locationAccuracy: formData.locationAccuracy,
+          whatsappNumber: formData.whatsappNumber.trim(),
           step: 3,
         }),
       });
     } catch {
-      // Non-fatal — proceed to checkout even if draft save fails
+      // Non-fatal
     }
 
     const safetyTimer = setTimeout(() => {
@@ -1293,6 +1286,7 @@ export function CreateStoreForm() {
         latitude: formData.latitude,
         longitude: formData.longitude,
         locationAccuracy: formData.locationAccuracy,
+        whatsappNumber: formData.whatsappNumber.trim() || undefined,
       };
 
       const response = await fetch("/api/store/activate", {
@@ -1345,9 +1339,6 @@ export function CreateStoreForm() {
   const isWorking =
     isCreating || creatingStore || isActivating || isProcessingCheckout;
 
-  // ============================================================
-  // BLOCKING LOADER: show until draft check completes
-  // ============================================================
   if (!draftCheckDone && !hasActiveStore) {
     return (
       <div className="max-w-3xl mx-auto py-6 sm:py-8 px-3 sm:px-4">
@@ -1363,9 +1354,6 @@ export function CreateStoreForm() {
 
   if (hasActiveStore) return null;
 
-  // ============================================================
-  // STEP INDICATOR (new design — icon cards + progress bar)
-  // ============================================================
   const STEPS = [
     { n: 1, label: "Brand", icon: Building2 },
     { n: 2, label: "Location", icon: MapPin },
@@ -1423,7 +1411,6 @@ export function CreateStoreForm() {
             />
 
             <div className="mt-8 space-y-7">
-              {/* ─── Store / Brand Name ─── */}
               <Field
                 label="Store / Brand Name"
                 hint="The public name of your store. Shown on your storefront, receipts and payment links."
@@ -1446,7 +1433,6 @@ export function CreateStoreForm() {
                   style={{ outline: "none", boxShadow: "none" }}
                 />
 
-                {/* Live name validation feedback */}
                 {formData.name.trim().length >= 2 && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs font-medium">
                     {nameValidation.isChecking ? (
@@ -1479,7 +1465,6 @@ export function CreateStoreForm() {
                 )}
               </Field>
 
-              {/* ─── Store URL / Slug ─── */}
               <Field
                 label="Store URL / Slug"
                 hint="Your store's web address. Keep it short and easy to say out loud — you can share it anywhere."
@@ -1504,7 +1489,6 @@ export function CreateStoreForm() {
                   />
                 </div>
 
-                {/* Live slug validation feedback */}
                 {formData.slug.trim().length >= 3 && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs font-medium">
                     {slugValidation.isChecking ? (
@@ -1537,7 +1521,6 @@ export function CreateStoreForm() {
                 )}
               </Field>
 
-              {/* ─── Description ─── */}
               <Field
                 label="Store Description"
                 hint="Describe your business and what you do for potential customers. 2–3 sentences is plenty."
@@ -1557,7 +1540,6 @@ export function CreateStoreForm() {
                 </p>
               </Field>
 
-              {/* ─── Keywords ─── */}
               <Field
                 label="Business Keywords / Phrases"
                 hint="Type words or phrases people would search to find a business like yours, separated by commas."
@@ -1576,6 +1558,41 @@ export function CreateStoreForm() {
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </Field>
+
+              {/* ─── WhatsApp Contact Number ─── */}
+              <Field
+                label="WhatsApp Contact Number"
+                hint="Optional. Buyers can reach you on WhatsApp from your product pages. Include your country code, no spaces."
+                optional
+                error={errors.whatsappNumber}
+                htmlFor="whatsappNumber"
+              >
+                <Input
+                  id="whatsappNumber"
+                  name="whatsappNumber"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.whatsappNumber}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      whatsappNumber: e.target.value
+                        .replace(/\D/g, "")
+                        .slice(0, 15),
+                    }))
+                  }
+                  placeholder="2348012345678"
+                  autoComplete="tel"
+                  disabled={isWorking}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
+                    errors.whatsappNumber
+                      ? "border-red-500"
+                      : "border-(--border-color)"
+                  )}
+                  style={{ outline: "none", boxShadow: "none" }}
+                />
+              </Field>
             </div>
           </SectionCard>
         );
@@ -1589,7 +1606,6 @@ export function CreateStoreForm() {
             />
 
             <div className="mt-8 space-y-7">
-              {/* ─── Country ─── */}
               <Field
                 label="Country"
                 hint="The country where your business is registered and operates."
@@ -1605,7 +1621,9 @@ export function CreateStoreForm() {
                   disabled={isWorking}
                   className={cn(
                     "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors",
-                    errors.country ? "border-red-500" : "border-(--border-color)"
+                    errors.country
+                      ? "border-red-500"
+                      : "border-(--border-color)"
                   )}
                   style={{ outline: "none", boxShadow: "none" }}
                 >
@@ -1618,7 +1636,6 @@ export function CreateStoreForm() {
                 </select>
               </Field>
 
-              {/* ─── State / City ─── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
                 <Field
                   label="State"
@@ -1637,7 +1654,9 @@ export function CreateStoreForm() {
                     disabled={isWorking}
                     className={cn(
                       "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
-                      errors.state ? "border-red-500" : "border-(--border-color)"
+                      errors.state
+                        ? "border-red-500"
+                        : "border-(--border-color)"
                     )}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
@@ -1660,14 +1679,15 @@ export function CreateStoreForm() {
                     disabled={isWorking}
                     className={cn(
                       "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-(--bg-primary) text-(--text-primary) focus:outline-none focus:border-foreground transition-colors placeholder:font-medium placeholder:text-(--text-secondary)",
-                      errors.city ? "border-red-500" : "border-(--border-color)"
+                      errors.city
+                        ? "border-red-500"
+                        : "border-(--border-color)"
                     )}
                     style={{ outline: "none", boxShadow: "none" }}
                   />
                 </Field>
               </div>
 
-              {/* ─── Street Address ─── */}
               <Field
                 label="Street Address"
                 hint="Where you operate from. Helps with local search, delivery estimates and customer trust."
@@ -1693,7 +1713,6 @@ export function CreateStoreForm() {
                 />
               </Field>
 
-              {/* ─── Precise Location ─── */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 rounded-[1.5rem] bg-(--bg-secondary) border border-(--border-color)">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -1873,8 +1892,8 @@ export function CreateStoreForm() {
                       User credentials not verified
                     </p>
                     <p className="text-xs text-yellow-600 dark:text-yellow-500 font-medium">
-                      You can still activate your store. Verify later to
-                      enable withdrawals.
+                      You can still activate your store. Verify later to enable
+                      withdrawals.
                     </p>
                     <button
                       onClick={openVerificationModal}
@@ -1966,7 +1985,6 @@ export function CreateStoreForm() {
         dismissable={true}
       />
 
-      {/* Manual Load Draft button — only when a draft actually exists */}
       {!hasPendingActivation &&
         !hasActiveStore &&
         draftAvailable &&
@@ -2000,7 +2018,6 @@ export function CreateStoreForm() {
           </div>
         )}
 
-      {/* Draft restored banner */}
       {hasExistingDraft && !hasPendingActivation && step <= 3 && (
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[1.5rem] border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 px-5 py-4 text-sm">
           <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
@@ -2017,7 +2034,6 @@ export function CreateStoreForm() {
         </div>
       )}
 
-      {/* Step indicator */}
       {!hasPendingActivation && renderStepIndicator()}
 
       {hasPendingActivation && (
@@ -2049,9 +2065,7 @@ export function CreateStoreForm() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Footer nav — single source of truth for Back/Next */}
       <div className="mt-8 flex items-center justify-between gap-4">
-        {/* Back button — always visible except on step 1 */}
         {step > 1 ? (
           <button
             onClick={handleBack}
@@ -2065,7 +2079,6 @@ export function CreateStoreForm() {
         )}
 
         <div className="flex items-center gap-3">
-          {/* Save for later — only on steps 1-3 (not on Activate) */}
           {step <= 3 && (
             <button
               onClick={handleSaveAndContinueLater}
@@ -2084,7 +2097,6 @@ export function CreateStoreForm() {
             </button>
           )}
 
-          {/* Continue on step 1 */}
           {step === 1 && (
             <button
               onClick={handleNext}
@@ -2100,7 +2112,6 @@ export function CreateStoreForm() {
             </button>
           )}
 
-          {/* Continue on step 2 */}
           {step === 2 && (
             <button
               onClick={handleNext}
@@ -2110,7 +2121,6 @@ export function CreateStoreForm() {
             </button>
           )}
 
-          {/* Proceed to Activation on step 3 */}
           {step === 3 && (
             <button
               onClick={handleGoToActivation}

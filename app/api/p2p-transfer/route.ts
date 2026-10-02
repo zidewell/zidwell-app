@@ -6,7 +6,12 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { generateTransferReceipt, getLogoBase64, generatePdfBufferFromHtml } from "../webhook/helpers/email-helpers"; 
+import {
+  generateTransferReceipt,
+  getLogoBase64,
+  generatePdfBufferFromHtml,
+} from "../webhook/helpers/email-helpers";
+import { upsertSavedP2PBeneficiary } from "@/lib/saved-accounts";
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -35,16 +40,16 @@ async function sendP2PSuccessEmailNotification(
   isInvoicePayment: boolean = false,
   invoiceReference?: string,
   receiptHtml?: string,
-  transactionId?: string,
+  transactionId?: string
 ) {
   try {
     console.log(`📧 sendP2PSuccessEmailNotification called for user ${userId}`);
     console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
     console.log(`📧 Transaction ID: ${transactionId}`);
-    
+
     const supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const { data: user, error } = await supabase
       .from("users")
@@ -65,11 +70,23 @@ async function sendP2PSuccessEmailNotification(
       from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Recipient:"}</strong> ${isInvoicePayment ? invoiceReference : receiverName}</p><p><strong>Reference:</strong> ${transactionRef}</p>${isInvoicePayment ? '' : '<p>📎 Please find your receipt attached to this email.</p>'}<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${
+        isInvoicePayment ? "Invoice Payment" : "P2P Transfer"
+      } Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${
+        isInvoicePayment ? "Invoice:" : "Recipient:"
+      }</strong> ${
+        isInvoicePayment ? invoiceReference : receiverName
+      }</p><p><strong>Reference:</strong> ${transactionRef}</p>${
+        isInvoicePayment
+          ? ""
+          : "<p>📎 Please find your receipt attached to this email.</p>"
+      }<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     };
 
     if (receiptHtml && transactionId) {
-      console.log(`📎 Attempting to attach receipt for P2P transaction ${transactionId}`);
+      console.log(
+        `📎 Attempting to attach receipt for P2P transaction ${transactionId}`
+      );
       try {
         const logo = getLogoBase64();
         let finalHtml = receiptHtml;
@@ -79,17 +96,19 @@ async function sendP2PSuccessEmailNotification(
             `src="${logo}"`
           );
         }
-        console.log('🔄 Generating PDF with Puppeteer...');
+        console.log("🔄 Generating PDF with Puppeteer...");
         const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
         console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
             content: pdfBuffer,
-            contentType: 'application/pdf',
-          }
+            contentType: "application/pdf",
+          },
         ];
-        console.log(`✅ PDF receipt attached for P2P transaction ${transactionId}`);
+        console.log(
+          `✅ PDF receipt attached for P2P transaction ${transactionId}`
+        );
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for P2P email:", pdfError);
         console.log(`⚠️ P2P email sent without PDF attachment`);
@@ -111,12 +130,12 @@ async function sendP2PReceivedEmailNotification(
   transactionRef: string,
   narration: string,
   isInvoicePayment: boolean = false,
-  invoiceReference?: string,
+  invoiceReference?: string
 ) {
   try {
     const supabase = createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
     const { data: user, error } = await supabase
       .from("users")
@@ -134,7 +153,13 @@ async function sendP2PReceivedEmailNotification(
       from: `Zidwell <${process.env.ENSEND_NOREPLY}>`,
       to: user.email,
       subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>💰 ${isInvoicePayment ? "Invoice Payment" : "P2P Transfer"} Received</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${isInvoicePayment ? "Invoice:" : "Sender:"}</strong> ${isInvoicePayment ? invoiceReference : senderName}</p><p><strong>Reference:</strong> ${transactionRef}</p><p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
+      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>💰 ${
+        isInvoicePayment ? "Invoice Payment" : "P2P Transfer"
+      } Received</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${
+        isInvoicePayment ? "Invoice:" : "Sender:"
+      }</strong> ${
+        isInvoicePayment ? invoiceReference : senderName
+      }</p><p><strong>Reference:</strong> ${transactionRef}</p><p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
     });
   } catch (emailError) {
     logger.error("Failed to send P2P received email", emailError);
@@ -144,7 +169,7 @@ async function sendP2PReceivedEmailNotification(
 async function updateInvoiceTotals(
   invoice: any,
   paidAmountNaira: number,
-  supabase: any,
+  supabase: any
 ) {
   const targetQty = Number(invoice.target_quantity || 1);
   const totalAmount = Number(invoice.total_amount || 0);
@@ -183,7 +208,7 @@ export async function POST(req: NextRequest) {
   if (!user) {
     const response = NextResponse.json(
       { error: "Please login to access transactions", logout: true },
-      { status: 401 },
+      { status: 401 }
     );
     if (newTokens) return createAuthResponse(await response.json(), newTokens);
     return response;
@@ -191,32 +216,38 @@ export async function POST(req: NextRequest) {
 
   const supabase = createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
   try {
-    // ✅ FIX: Destructure category and categoryId from request body
-    const { userId, receiverAccountId, amount, narration, pin, category, categoryId } =
-      await req.json();
+    const {
+      userId,
+      receiverAccountId,
+      amount,
+      narration,
+      pin,
+      category,
+      categoryId,
+    } = await req.json();
 
     if (!userId || !pin || !amount || amount < 100 || !receiverAccountId) {
       return NextResponse.json(
         { message: "Missing or invalid required fields" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     if (userId !== user.id) {
       return NextResponse.json(
         { error: "Unauthorized: User ID mismatch" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
     const { data: sender, error: userError } = await supabase
       .from("users")
       .select(
-        "id, full_name, transaction_pin, wallet_balance, wallet_id, bank_name, bank_account_number, email",
+        "id, full_name, transaction_pin, wallet_balance, wallet_id, bank_name, bank_account_number, email"
       )
       .eq("id", userId)
       .single();
@@ -231,7 +262,7 @@ export async function POST(req: NextRequest) {
     if (!isValid)
       return NextResponse.json(
         { message: "Invalid transaction PIN" },
-        { status: 401 },
+        { status: 401 }
       );
 
     if (
@@ -240,20 +271,20 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "Only Nombank MFB users can perform transfers" },
-        { status: 403 },
+        { status: 403 }
       );
     }
 
     if (sender.wallet_balance < amount)
       return NextResponse.json(
         { message: "Insufficient wallet balance" },
-        { status: 400 },
+        { status: 400 }
       );
 
     const { data: receiver, error: receiverError } = await supabase
       .from("users")
       .select(
-        "id, full_name, wallet_id, bank_name, bank_account_number, email, wallet_balance",
+        "id, full_name, wallet_id, bank_name, bank_account_number, email, wallet_balance"
       )
       .eq("wallet_id", receiverAccountId)
       .single();
@@ -261,7 +292,7 @@ export async function POST(req: NextRequest) {
     if (!receiver)
       return NextResponse.json(
         { message: "Receiver wallet not found" },
-        { status: 404 },
+        { status: 404 }
       );
 
     const receiverBalanceBefore = Number(receiver.wallet_balance || 0);
@@ -272,12 +303,12 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "You cannot transfer to your own account" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const senderName = sender.full_name || 'Zidwell User';
-    const receiverName = receiver.full_name || 'Zidwell User';
+    const senderName = sender.full_name || "Zidwell User";
+    const receiverName = receiver.full_name || "Zidwell User";
 
     const timestamp = Date.now();
     const senderTxRef = `P2P_SND_${timestamp}_${userId}`;
@@ -331,7 +362,7 @@ export async function POST(req: NextRequest) {
         transaction_type: "p2p_transfer",
         reference: senderTxRef,
         description: senderDescription,
-      },
+      }
     );
 
     if (
@@ -341,12 +372,12 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "Insufficient funds for transfer" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
     const transactionId = deductionResult[0]?.transaction_id;
-    
+
     const { data: senderAfterData } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -356,7 +387,7 @@ export async function POST(req: NextRequest) {
 
     const { error: creditError } = await supabase.rpc(
       "increment_wallet_balance",
-      { user_id: receiver.id, amt: amount },
+      { user_id: receiver.id, amt: amount }
     );
 
     if (creditError) {
@@ -366,7 +397,7 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { message: "Transfer failed, funds refunded" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -416,7 +447,6 @@ export async function POST(req: NextRequest) {
 
       await updateInvoiceTotals(invoiceDetails, amount, supabase);
 
-      // ✅ FIX: Added balance_before and balance_after for receiver's invoice payment
       await supabase.from("transactions").insert([
         {
           user_id: receiver.id,
@@ -429,8 +459,8 @@ export async function POST(req: NextRequest) {
           channel: "p2p_transfer",
           category: category || narration,
           category_id: categoryId || null,
-          balance_before: receiverBalanceBefore,                                                    // ✅ ADDED
-          balance_after: receiverBalanceAfter - platformFee,                                        // ✅ ADDED
+          balance_before: receiverBalanceBefore,
+          balance_after: receiverBalanceAfter - platformFee,
           external_response: {
             invoice_payment: true,
             invoice_reference: invoicePaymentData.invoice_reference,
@@ -467,7 +497,6 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-    // ✅ FIX: Update sender's transaction WITH balance_before and balance_after
     await supabase
       .from("transactions")
       .update({
@@ -487,9 +516,9 @@ export async function POST(req: NextRequest) {
         narration,
         category: category || narration,
         category_id: categoryId || null,
-        balance_before: senderBalanceBefore,                                                    // ✅ ADDED
-        balance_after: senderBalanceAfter,                                                      // ✅ ADDED
-        deducted_at: new Date().toISOString(),                                                  // ✅ ADDED
+        balance_before: senderBalanceBefore,
+        balance_after: senderBalanceAfter,
+        deducted_at: new Date().toISOString(),
         description: senderDescription,
         external_response: {
           status: "success",
@@ -505,9 +534,15 @@ export async function POST(req: NextRequest) {
             },
             receiver: {
               before: receiverBalanceBefore,
-              after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
-              credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-              fee_deducted: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
+              after: invoicePaymentData?.isInvoicePayment
+                ? receiverBalanceAfter - platformFee
+                : receiverBalanceAfter,
+              credited: invoicePaymentData?.isInvoicePayment
+                ? netAmount
+                : amount,
+              fee_deducted: invoicePaymentData?.isInvoicePayment
+                ? platformFee
+                : 0,
             },
           },
         },
@@ -515,7 +550,6 @@ export async function POST(req: NextRequest) {
       .eq("reference", senderTxRef)
       .eq("user_id", userId);
 
-    // ✅ FIX: Insert receiver's transaction WITH balance_before and balance_after
     await supabase.from("transactions").insert({
       user_id: receiver.id,
       type: invoicePaymentData?.isInvoicePayment
@@ -527,10 +561,10 @@ export async function POST(req: NextRequest) {
       narration,
       category: category || narration,
       category_id: categoryId || null,
-      balance_before: receiverBalanceBefore,                                                      // ✅ ADDED
+      balance_before: receiverBalanceBefore,
       balance_after: invoicePaymentData?.isInvoicePayment
         ? receiverBalanceAfter - platformFee
-        : receiverBalanceAfter,                                                                   // ✅ ADDED
+        : receiverBalanceAfter,
       description: receiverDescription,
       fee: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
       external_response: {
@@ -547,9 +581,15 @@ export async function POST(req: NextRequest) {
           },
           receiver: {
             before: receiverBalanceBefore,
-            after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
-            credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-            fee_deducted: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
+            after: invoicePaymentData?.isInvoicePayment
+              ? receiverBalanceAfter - platformFee
+              : receiverBalanceAfter,
+            credited: invoicePaymentData?.isInvoicePayment
+              ? netAmount
+              : amount,
+            fee_deducted: invoicePaymentData?.isInvoicePayment
+              ? platformFee
+              : 0,
           },
         },
       },
@@ -565,22 +605,42 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // ✅ AUTO-SAVE P2P BENEFICIARY (server-side, non-fatal)
+    try {
+      await upsertSavedP2PBeneficiary(
+        supabase,
+        userId,
+        {
+          wallet_id: receiver.wallet_id,
+          account_number:
+            receiver.bank_account_number || receiver.wallet_id || "N/A",
+          account_name: receiverName,
+        },
+        { autoSaved: true }
+      );
+      console.log(
+        `💾 Auto-saved P2P beneficiary ${receiverName} (${receiver.wallet_id}) for user ${userId}`
+      );
+    } catch (saveErr) {
+      console.error("Auto-save P2P beneficiary failed (non-fatal):", saveErr);
+    }
+
     const transactionIdForReceipt = transactionId || linkedTransactionId;
     const receiptHtml = generateTransferReceipt({
       transactionId: transactionIdForReceipt,
       amount: Number(amount),
       date: new Date().toISOString(),
       recipientName: receiverName,
-      recipientAccount: receiver.bank_account_number || receiver.wallet_id || 'N/A',
-      recipientBank: receiver.bank_name || 'Zidwell',
+      recipientAccount:
+        receiver.bank_account_number || receiver.wallet_id || "N/A",
+      recipientBank: receiver.bank_name || "Zidwell",
       senderName: senderName,
-      senderAccount: sender.bank_account_number || 'N/A',
+      senderAccount: sender.bank_account_number || "N/A",
       narration: narration || "N/A",
       fee: 0,
-      type: "p2p"
+      type: "p2p",
     });
 
-    // ✅ AWAIT emails before returning response
     await Promise.all([
       sendP2PSuccessEmailNotification(
         userId,
@@ -601,7 +661,7 @@ export async function POST(req: NextRequest) {
         linkedTransactionId,
         narration,
         invoicePaymentData?.isInvoicePayment || false,
-        invoicePaymentData?.invoice_reference,
+        invoicePaymentData?.invoice_reference
       ).catch((err) => logger.error("Receiver email failed", err)),
     ]);
 
@@ -621,12 +681,14 @@ export async function POST(req: NextRequest) {
         },
         receiver: {
           before: receiverBalanceBefore,
-          after: invoicePaymentData?.isInvoicePayment ? receiverBalanceAfter - platformFee : receiverBalanceAfter,
+          after: invoicePaymentData?.isInvoicePayment
+            ? receiverBalanceAfter - platformFee
+            : receiverBalanceAfter,
           credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
         },
       },
     };
-    
+
     if (invoicePaymentData?.isInvoicePayment)
       Object.assign(responseData, {
         invoicePayment: true,
@@ -641,7 +703,7 @@ export async function POST(req: NextRequest) {
     logger.error("P2P API error", error);
     return NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

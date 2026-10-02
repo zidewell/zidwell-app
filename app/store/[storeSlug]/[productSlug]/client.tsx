@@ -6,7 +6,7 @@ import { useProductCheckout } from "./hooks/useProductCheckout";
 import type { StoreProductClientProps } from "./utils/types";
 import { TYPE_LABELS } from "./utils/helpers";
 import { ProductHeader } from "./components/ProductHeader";
-import { ProductImageGallery } from "./components/ProductImageGallery";
+import { ProductImageGallery } from "./components/ProductImageGallery"
 import { StockBadge } from "./components/StockBadge";
 import { QuantityPicker } from "./components/QuantityPicker";
 import { PaymentOptionToggle } from "./components/PaymentOptionToggle";
@@ -34,6 +34,20 @@ export default function StoreProductClient(props: StoreProductClientProps) {
     (sum, l) => sum + (l.quantity || 0),
     0
   );
+
+  // ─── WhatsApp — store-level number with legacy fallback ───
+  const storeWhatsappNumber =
+    (store as any)?.whatsapp_number ||
+    page.metadata?.whatsappContactNumber ||
+    null;
+
+  const whatsappDigits = storeWhatsappNumber
+    ? String(storeWhatsappNumber).replace(/\D/g, "")
+    : "";
+
+  const showWhatsappButton =
+    page.metadata?.whatsappContactEnabled === true &&
+    whatsappDigits.length > 0;
 
   function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -180,7 +194,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Price — base amount, fee is disclosed only at checkout */}
+          {/* Price */}
           {!c.isDonation && !c.isPlanComplete && (
             <div className="mt-5">
               {c.isPhysical &&
@@ -336,7 +350,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Checkout — base amount shown on button; fee disclosed inside modal */}
+          {/* Checkout */}
           {!c.isPlanComplete && (
             <div className="mt-6 border-t border-border pt-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -356,23 +370,20 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                   />
                 </div>
 
-                {page.metadata?.whatsappContactEnabled &&
-                  page.metadata?.whatsappContactNumber && (
-                    <a
-                      href={`https://wa.me/${
-                        page.metadata.whatsappContactNumber
-                      }?text=${encodeURIComponent(
-                        `Hi, I'm interested in ${page.title}`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:w-auto"
-                      title="Contact store owner on WhatsApp"
-                    >
-                      <WhatsAppIcon className="h-4 w-4 shrink-0" />
-                      <span>Contact store owner</span>
-                    </a>
-                  )}
+                {showWhatsappButton && (
+                  <a
+                    href={`https://wa.me/${whatsappDigits}?text=${encodeURIComponent(
+                      `Hi, I'm interested in ${page.title}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:w-auto"
+                    title="Contact store owner on WhatsApp"
+                  >
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
+                    <span>Contact store owner</span>
+                  </a>
+                )}
               </div>
             </div>
           )}

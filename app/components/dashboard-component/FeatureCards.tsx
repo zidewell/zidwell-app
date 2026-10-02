@@ -19,20 +19,19 @@ import {
   FileSpreadsheet,
   Store,
   Zap,
+  FolderLock,
+  MapPin,
+  Target,
 } from "lucide-react";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
-import { ALLOWED_PAYMENT_EMAILS } from "./DashboardSidebar";
+
+import { canAccessPaymentPage } from "@/lib/constants";
 
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
-
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
 
 const getFeatures = (userEmail?: string | null) => {
   const baseFeatures = [
@@ -179,6 +178,49 @@ const getFeatures = (userEmail?: string | null) => {
       featureKey: "cable_tv",
       type: "utility",
     },
+    // -------- Business Suite (Coming Soon placeholders) --------
+    {
+      id: 12,
+      title: "Document Vault",
+      desc: "Securely store & share files",
+      icon: FolderLock,
+      gradient: "from-slate-500 to-gray-700",
+      iconBg: "bg-slate-50 dark:bg-slate-950/30",
+      iconColor: "text-slate-600 dark:text-slate-300",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "document_vault",
+      type: "suite",
+      comingSoon: true,
+    },
+    {
+      id: 13,
+      title: "Virtual Office",
+      desc: "Get a real mailing address",
+      icon: MapPin,
+      gradient: "from-teal-500 to-emerald-600",
+      iconBg: "bg-teal-50 dark:bg-teal-950/30",
+      iconColor: "text-teal-600 dark:text-teal-400",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "virtual_office",
+      type: "suite",
+      comingSoon: true,
+    },
+    {
+      id: 14,
+      title: "Business Plan",
+      desc: "Set goals & stay accountable",
+      icon: Target,
+      gradient: "from-purple-500 to-violet-600",
+      iconBg: "bg-purple-50 dark:bg-purple-950/30",
+      iconColor: "text-purple-600 dark:text-purple-400",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "business_plan",
+      type: "suite",
+      comingSoon: true,
+    },
   ];
 
   if (canAccessPaymentPage(userEmail)) {
@@ -194,10 +236,11 @@ const getFeatures = (userEmail?: string | null) => {
       requiredTier: "growth",
       featureKey: "online_store",
       type: "payment",
-    });
+      isNew: true,
+    } as any);
   }
 
-  return baseFeatures.sort((a, b) => a.id - b.id);
+  return baseFeatures.sort((a: any, b: any) => a.id - b.id);
 };
 
 const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
@@ -218,7 +261,11 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
     "/dashboard/services/create-invoice",
   ];
 
-  const handleFeatureClick = (feature: (typeof features)[0]) => {
+  const handleFeatureClick = (feature: any) => {
+    // Coming soon + placeholder links: do nothing
+    if (feature.comingSoon) return;
+    if (feature.link === "#") return;
+
     const isVerified = userData?.bvnVerification === "verified";
     const requiresBVN = bvnRequiredServices.includes(feature.link);
 
@@ -227,13 +274,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
       return;
     }
 
-    if (feature.type === "utility") {
-      router.push(feature.link);
-      onActionComplete?.();
-      return;
-    }
-
-    if (feature.type === "payment") {
+    if (feature.type === "utility" || feature.type === "payment") {
       router.push(feature.link);
       onActionComplete?.();
       return;
@@ -296,11 +337,16 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-      {features.map((feature) => {
+      {features.map((feature: any) => {
         const isUtility = feature.type === "utility";
         const isPayment = feature.type === "payment";
+        const isSuite = feature.type === "suite";
+        const isNew = feature.isNew === true;
+        const comingSoon = feature.comingSoon === true;
         const hasAccess =
-          isUtility || isPayment ? true : canAccessFeature(feature.featureKey);
+          isUtility || isPayment
+            ? true
+            : canAccessFeature(feature.featureKey);
         const remaining = getRemainingCount(feature.featureKey);
         const progress = getProgressPercentage(feature.featureKey);
         const Icon = feature.icon;
@@ -309,9 +355,16 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
         const hasBookkeepingTrial =
           feature.featureKey === "bookkeeping_access" &&
           usage?.bookkeepingTrial?.isActive;
+
+        // Coming soon items are always "locked" (non-clickable)
         const isLocked =
+          comingSoon ||
           (requiresBVN && !isVerified) ||
           (!hasAccess && !isUtility && !isPayment && !hasBookkeepingTrial);
+
+        // Show the "Soon" badge for coming soon items instead of "New"
+        const showNewBadge = isNew && !comingSoon && !isLocked;
+        const showSoonBadge = comingSoon;
 
         return (
           <button
@@ -320,21 +373,41 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
             className={`
               group relative flex flex-col items-start gap-3 p-4 sm:p-5
               bg-white dark:bg-neutral-900
-              border border-neutral-200/80 dark:border-neutral-800
-              rounded-2xl
+              border rounded-2xl
               shadow-sm
-              hover:shadow-lg hover:border-neutral-300 dark:hover:border-neutral-700
-              hover:-translate-y-0.5
+              hover:shadow-md hover:-translate-y-0.5
               active:translate-y-0 active:shadow-sm
               transition-all duration-200 ease-out
               text-left w-full
-              ${isLocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+              ${
+                comingSoon
+                  ? "border-amber-200/70 dark:border-amber-500/25 ring-1 ring-amber-100/60 dark:ring-amber-500/10 opacity-90 cursor-not-allowed"
+                  : isNew && !isLocked
+                    ? "border-amber-200 dark:border-amber-500/30 ring-1 ring-amber-100 dark:ring-amber-500/10"
+                    : "border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
+              }
+              ${isLocked && !comingSoon ? "opacity-60 cursor-not-allowed" : ""}
+              ${!isLocked && !comingSoon ? "cursor-pointer" : ""}
             `}
             disabled={isLocked}
           >
-            {/* Top-right status badge */}
+            {/* Top-right status badge cluster */}
             <div className="absolute top-3 right-3 flex items-center gap-1.5">
-              {requiresBVN && !isVerified && (
+              {/* SOON — for coming soon features */}
+              {showSoonBadge && (
+                <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                  Soon
+                </span>
+              )}
+
+              {/* NEW — only for genuine new releases (e.g. Online Store) */}
+              {showNewBadge && (
+                <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                  New
+                </span>
+              )}
+
+              {requiresBVN && !isVerified && !comingSoon && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-[10px] font-semibold">
                   <Lock className="w-2.5 h-2.5" />
                   BVN
@@ -344,13 +417,14 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
                 !isUtility &&
                 !isPayment &&
                 !hasBookkeepingTrial &&
-                !requiresBVN && (
+                !requiresBVN &&
+                !comingSoon && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[10px] font-semibold">
                     <Lock className="w-2.5 h-2.5" />
                     {feature.requiredTier}
                   </span>
                 )}
-              {hasBookkeepingTrial && (
+              {hasBookkeepingTrial && !comingSoon && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
                   <Clock className="w-2.5 h-2.5" />
                   {usage.bookkeepingTrial.daysRemaining}d
@@ -383,12 +457,13 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
               </span>
             </div>
 
-            {/* Usage badge for free tier */}
+            {/* Usage badge for free tier (only for non-suite, non-coming-soon) */}
             {userTier === "free" &&
               remaining !== null &&
               !isUtility &&
               !isPayment &&
-              !hasBookkeepingTrial && (
+              !hasBookkeepingTrial &&
+              !comingSoon && (
                 <div className="flex items-center justify-between w-full mt-auto pt-1">
                   <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
@@ -412,20 +487,29 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
                 </div>
               )}
 
-            {/* Upgrade hint */}
+            {/* Upgrade hint — hidden for coming soon items */}
             {!hasAccess &&
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial &&
-              !requiresBVN && (
+              !requiresBVN &&
+              !comingSoon && (
                 <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                   <Zap className="w-3 h-3" />
                   Upgrade to {feature.requiredTier}
                 </div>
               )}
 
+            {/* Coming Soon hint */}
+            {comingSoon && (
+              <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                <Clock className="w-3 h-3" />
+                Coming Soon
+              </div>
+            )}
+
             {/* BVN required hint */}
-            {requiresBVN && !isVerified && (
+            {requiresBVN && !isVerified && !comingSoon && (
               <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-red-500 dark:text-red-400">
                 <Lock className="w-3 h-3" />
                 Verify BVN to unlock
