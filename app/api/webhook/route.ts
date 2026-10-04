@@ -1,13 +1,12 @@
 // app/api/webhook/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
 import { processPayout } from "./services/payout.service";
-import { processPayoutRefund } from "./services/payout-refund.service";       // ✅ NEW
-import { processPaymentReversal } from "./services/payment-reversal.service"; // ✅ NEW
+import { processPayoutRefund } from "./services/payout-refund.service";
+import { processPaymentReversal } from "./services/payment-reversal.service";
 import {
   processSubscriptionPayment,
   processSubscriptionBankTransfer,
@@ -440,6 +439,11 @@ export async function POST(req: NextRequest) {
     // ============================================================
     // PRIORITY 4: REGULAR WALLET DEPOSITS
     // ============================================================
+    // ⭐ This is the ONE branch that triggers user account activation.
+    // After the wallet is credited, we check if the balance has
+    // reached ₦2,000. If so, debit ₦1,000 as the activation fee
+    // and mark the account as active.
+    // ============================================================
     const isRegularDeposit = await isRegularWalletDeposit(
       aliasAccountReference
     );
@@ -448,6 +452,8 @@ export async function POST(req: NextRequest) {
       (eventType === "payment_success" || txStatus === "success")
     ) {
       console.log("Processing wallet deposit...");
+
+      // 1. Credit the wallet (existing behavior — unchanged)
       const result = await processVirtualAccountDeposit(payload, {
         aliasAccountReference,
         nombaTransactionId,
@@ -456,6 +462,44 @@ export async function POST(req: NextRequest) {
         customer,
         tx,
       });
+
+      // 2. After successful credit, run the activation check
+      if (result && !("error" in result)) {
+        try {
+          const { processActivation } = await import("@/lib/activation");
+
+          const activationResult = await processActivation({
+            userId: aliasAccountReference,
+            inflowAmount: transactionAmount,
+            inflowReference: nombaTransactionId,
+            inflowProviderTxId: nombaTransactionId,
+            inflowChannel: "virtual_account",
+            inflowSender: {
+              name:
+                customer.senderName ||
+                customer.name ||
+                "Bank Transfer",
+              bank: customer.bankName,
+              account: customer.accountNumber,
+            },
+          });
+
+          console.log("[webhook] Activation check:", {
+            userId: aliasAccountReference,
+            activated: activationResult.activated,
+            reason: activationResult.reason,
+            newBalance: activationResult.newBalance,
+            feeCharged: activationResult.feeCharged,
+          });
+        } catch (activationErr: any) {
+          // Non-fatal — the funding itself already succeeded
+          console.error(
+            "[webhook] Activation check failed (non-fatal):",
+            activationErr.message
+          );
+        }
+      }
+
       return handleErrorResponse(result);
     }
 
@@ -510,9 +554,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 7: PAYOUT REFUNDS (NEW)
-    // Nomba returned money to your corporate wallet.
-    // Credit the user back if they were originally deducted.
+    // PRIORITY 7: PAYOUT REFUNDS
     // ============================================================
     if (eventType === "payout_refund") {
       console.log("Processing payout refund...");
@@ -538,9 +580,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 8: PAYMENT REVERSALS (NEW)
-    // A customer credit was reversed by the bank.
-    // Debit the user's wallet to claw back the money.
+    // PRIORITY 8: PAYMENT REVERSALS
     // ============================================================
     if (eventType === "payment_reversal") {
       console.log("Processing payment reversal...");
@@ -555,7 +595,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // WITHDRAWALS/TRANSFERS (PAYOUTS)
+    // PRIORITY 9: WITHDRAWALS / TRANSFERS (PAYOUTS)
     // ============================================================
     const transactionType = (tx.type || "").toLowerCase();
     const isPayout =

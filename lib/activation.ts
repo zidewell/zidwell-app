@@ -13,28 +13,29 @@ export interface ActivationResult {
 }
 
 /**
- * Called when a Bank78 wallet inflow is detected.
- * If the user isn't activated yet and the inflow pushes their balance
- * to at least ₦2,000, debit ₦1,000 and mark them activated.
+ * Fee-only activation.
+ * Called AFTER `processVirtualAccountDeposit` has already credited the wallet.
  *
- * Idempotent: safe to call multiple times.
+ *   - User already activated?         → no-op
+ *   - Wallet balance < ₦2,000?        → no-op
+ *   - Otherwise:                      → debit ₦1,000, mark activated
+ *
+ * Idempotent. Safe to call multiple times for the same deposit.
  */
 export async function processActivation(params: {
   userId: string;
-  inflowAmount: number;              // in naira
-  inflowReference?: string;          // Bank78 ref for reconciliation
-  inflowProviderTxId?: string;       // Bank78 tx id
+  inflowAmount: number;
+  inflowReference?: string;
+  inflowProviderTxId?: string;
   inflowChannel?: string;
   inflowSender?: Record<string, any>;
 }): Promise<ActivationResult> {
   const supabase = getSupabaseAdmin() as any;
 
-  // ─── 1. Load current user state ───
+  // 1. Load current state — wallet is ALREADY credited by the deposit service
   const { data: user, error } = await supabase
     .from("users")
-    .select(
-      "id, wallet_balance, activation_paid, bank78_verified, primary_provider, bank78_personal_account_number, bank78_business_account_number"
-    )
+    .select("id, wallet_balance, activation_paid")
     .eq("id", params.userId)
     .single();
 
@@ -42,85 +43,29 @@ export async function processActivation(params: {
     return { ok: false, reason: "User not found" };
   }
 
-  if (!user.bank78_verified) {
-    return { ok: false, reason: "Identity not verified" };
-  }
-
-  // ─── 2. Compute the balance after this inflow ───
-  const currentBalance = Number(user.wallet_balance || 0);
-  const balanceAfterInflow = currentBalance + params.inflowAmount;
-
-  const accountNumber =
-    user.bank78_business_account_number ||
-    user.bank78_personal_account_number ||
-    null;
-
-  // ─── 3. Log the inflow (idempotent via unique reference) ───
-  const inflowRef =
-    params.inflowReference || `bank78_inflow_${params.userId}_${Date.now()}`;
-
-  try {
-    await supabase.from("transactions").insert({
-      user_id: params.userId,
-      type: "wallet_funding",
-      amount: params.inflowAmount,
-      status: "success",
-      reference: inflowRef,
-      narration: "Wallet funding via Bank78",
-      description: "Incoming transfer to your Zidwell wallet",
-      provider: "bank78",
-      provider_transaction_id: params.inflowProviderTxId || null,
-      provider_account_id: accountNumber,
-      channel: params.inflowChannel || "bank_transfer",
-      category: "funding",
-      sender: params.inflowSender || null,
-      gross_amount: params.inflowAmount,
-      net_amount: params.inflowAmount,
-      balance_before: currentBalance,
-      balance_after: balanceAfterInflow,
-      metadata: {
-        activation_triggered:
-          balanceAfterInflow >= ACTIVATION_MIN_FUNDING,
-      },
-    });
-  } catch (err: any) {
-    if (!String(err?.message || "").toLowerCase().includes("duplicate")) {
-      console.error("[activation] Failed to log inflow:", err.message);
-    }
-  }
-
-  // ─── 4. Already activated? Just credit and return ───
+  // 2. Already activated → no-op
   if (user.activation_paid) {
-    await supabase
-      .from("users")
-      .update({ wallet_balance: balanceAfterInflow })
-      .eq("id", params.userId);
-
     return {
       ok: true,
       activated: true,
       reason: "Already activated",
-      newBalance: balanceAfterInflow,
+      newBalance: Number(user.wallet_balance),
     };
   }
 
-  // ─── 5. Not enough yet? Credit, don't activate ───
-  if (balanceAfterInflow < ACTIVATION_MIN_FUNDING) {
-    await supabase
-      .from("users")
-      .update({ wallet_balance: balanceAfterInflow })
-      .eq("id", params.userId);
-
+  // 3. Below minimum → no-op
+  const currentBalance = Number(user.wallet_balance || 0);
+  if (currentBalance < ACTIVATION_MIN_FUNDING) {
     return {
       ok: true,
       activated: false,
       reason: `Below activation minimum (₦${ACTIVATION_MIN_FUNDING})`,
-      newBalance: balanceAfterInflow,
+      newBalance: currentBalance,
     };
   }
 
-  // ─── 6. Activate: debit fee, mark paid ───
-  const newBalance = balanceAfterInflow - ACTIVATION_FEE;
+  // 4. Debit the fee
+  const newBalance = currentBalance - ACTIVATION_FEE;
   const activationRef = `activation_fee_${params.userId}_${Date.now()}`;
 
   const { error: updateErr } = await supabase
@@ -137,7 +82,7 @@ export async function processActivation(params: {
     return { ok: false, reason: "Failed to update wallet" };
   }
 
-  // ─── 7. Log the activation fee ───
+  // 5. Log the fee (funding was logged by the deposit service)
   try {
     await supabase.from("transactions").insert({
       user_id: params.userId,
@@ -147,22 +92,22 @@ export async function processActivation(params: {
       reference: activationRef,
       narration: "Account activation fee",
       description: "One-time fee to activate your Zidwell account",
-      provider: "bank78",
+      provider: "nomba",
       category: "fee",
       gross_amount: ACTIVATION_FEE,
       net_amount: ACTIVATION_FEE,
-      balance_before: balanceAfterInflow,
+      balance_before: currentBalance,
       balance_after: newBalance,
       metadata: {
-        inflow_reference: inflowRef,
+        inflow_reference: params.inflowReference || null,
         inflow_amount: params.inflowAmount,
+        inflow_channel: params.inflowChannel || "virtual_account",
+        inflow_sender: params.inflowSender || null,
+        activation_paid_at: new Date().toISOString(),
       },
     });
   } catch (err: any) {
-    console.error(
-      "[activation] Failed to log activation fee:",
-      err.message
-    );
+    console.error("[activation] Failed to log fee:", err.message);
   }
 
   return {

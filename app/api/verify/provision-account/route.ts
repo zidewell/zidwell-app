@@ -5,9 +5,12 @@ import {
   createAuthResponse,
 } from "@/lib/auth-check-api";
 import { getSupabaseAdmin } from "@/lib/suabase-admin";
-import { createBank78Wallet } from "@/lib/bank78";
+import { createNombaAccount } from "@/lib/nomba";
+import type { Database } from "@/types/supabase";
 
-function splitName(fullName: string) {
+type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
+
+function splitName(fullName: string): { first: string; last: string } {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: parts[0] };
   return { first: parts[0], last: parts.slice(1).join(" ") };
@@ -20,16 +23,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = user.id;
     const supabase = getSupabaseAdmin();
-    const { data: profile } = await supabase
+
+    const { data: profile, error: userErr } = await supabase
       .from("users")
       .select(
         "id, full_name, email, phone, purpose, is_business_registered, bvn_data, pin_set"
       )
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
-    if (!profile) {
+    if (userErr || !profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -40,110 +45,103 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isBusiness =
-      profile.purpose === "business" &&
-      profile.is_business_registered === true;
+    const isBusiness = profile.purpose === "business";
+    const isRegisteredBusiness =
+      isBusiness && profile.is_business_registered === true;
 
     const { first, last } = splitName(profile.full_name || "Zidwell User");
-    const bvnData = (profile.bvn_data as any) || {};
-    const bvn: string | undefined = bvnData.bvn;
-    const nin: string | undefined = bvnData.nin;
 
-    if (!bvn && !nin) {
+    const bvnData = (profile.bvn_data as any) || {};
+    const extractedBvn: string | undefined = bvnData.bvn;
+
+    if (!extractedBvn) {
       return NextResponse.json(
         {
           error:
-            "We couldn't find your BVN/NIN from verification. Please contact support.",
-          code: "MISSING_IDENTITY",
+            "A BVN is required for account creation. Please verify your BVN.",
+          code: "MISSING_BVN",
         },
         { status: 400 }
       );
     }
 
-    let accountName = profile.full_name || "Zidwell User";
+    let businessName: string | undefined;
     if (isBusiness) {
       const { data: biz } = await supabase
         .from("businesses")
         .select("business_name, company_name")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle();
-      accountName = biz?.company_name || biz?.business_name || accountName;
+      businessName = biz?.company_name || biz?.business_name || undefined;
     }
 
-    const result = await createBank78Wallet({
-      userId: profile.id,
-      firstName: first,
-      lastName: last,
-      email: profile.email,
-      phone: profile.phone,
-      bvn,
-      nin,
+    const accountName =
+      isRegisteredBusiness && businessName
+        ? businessName
+        : profile.full_name;
+
+    console.log("[/provision] Creating Nomba account:", {
       accountName,
-      accountType: 1,
+      accountRef: profile.id,
+      hasBvn: !!extractedBvn,
     });
 
-    if (!result.ok || !result.wallet) {
-      console.error("[provision] Bank78 failed:", result.error);
+    const nombaResult = await createNombaAccount({
+      accountName,
+      accountRef: profile.id,
+      bvn: extractedBvn,
+    });
+
+    if (!nombaResult.ok || !nombaResult.account) {
+      console.error("[/provision] Nomba failed:", nombaResult.error);
       return NextResponse.json(
-        { error: result.error || "Bank78 wallet creation failed" },
+        { error: nombaResult.error || "Account creation failed" },
         { status: 500 }
       );
     }
 
-    const w = result.wallet;
+    const acc = nombaResult.account;
 
-    const update: Record<string, any> = {
-      bank78_verified: true,
-      bank78_verified_at: new Date().toISOString(),
-      primary_provider: "bank78",
-      wallet_provider: "bank78",
+    const update: UserUpdate = {
+      bank_name: acc.bankName,
+      bank_account_name: acc.bankAccountName,
+      bank_account_number: acc.bankAccountNumber,
+      wallet_id: acc.accountRef,
+      wallet_updated_at: new Date().toISOString(),
+      primary_provider: "nomba",
+      wallet_provider: "nomba",
       verification_completed: true,
       verification_status: "verified",
       kyc_level: "verified",
     };
 
-    if (isBusiness) {
-      update.bank78_business_account_id = w.accountReference;
-      update.bank78_business_account_number = w.accountNumber;
-      update.bank78_business_account_name = w.accountName;
-      update.bank78_business_bank_name = w.bankName;
-    } else {
-      update.bank78_personal_account_id = w.accountReference;
-      update.bank78_personal_account_number = w.accountNumber;
-      update.bank78_personal_account_name = w.accountName;
-      update.bank78_personal_bank_name = w.bankName;
-    }
-
-    await supabase.from("users").update(update).eq("id", user.id);
-
-    if (isBusiness) {
-      await supabase
-        .from("businesses")
-        .update({
-          bank78_account_id: w.accountReference,
-          bank78_account_number: w.accountNumber,
-          bank78_account_name: w.accountName,
-          bank78_bank_name: w.bankName,
-        })
-        .eq("user_id", user.id);
-    }
+    await supabase.from("users").update(update).eq("id", userId);
 
     const responseBody = {
       success: true,
-      provider: "bank78",
-      accountType: isBusiness ? "business" : "personal",
+      provider: "nomba",
+      accountType: isRegisteredBusiness ? "business" : "personal",
       account: {
-        accountNumber: w.accountNumber,
-        accountName: w.accountName,
-        bankName: w.bankName,
-        bankCode: w.bankCode,
+        accountNumber: acc.bankAccountNumber,
+        accountName: acc.bankAccountName,
+        bankName: acc.bankName,
+      },
+      updates: {
+        verificationCompleted: true,
+        identityVerified: true,
+        bvnVerification: "verified",
+        bankName: acc.bankName,
+        bankAccountName: acc.bankAccountName,
+        bankAccountNumber: acc.bankAccountNumber,
       },
     };
 
-    if (newTokens) return createAuthResponse(responseBody, { status: 200, newTokens });
+    if (newTokens) {
+      return createAuthResponse(responseBody, { status: 200, newTokens });
+    }
     return NextResponse.json(responseBody);
   } catch (err: any) {
-    console.error("[provision] exception:", err.message);
+    console.error("[/api/verify/provision-account] Exception:", err.message);
     return NextResponse.json(
       { error: err.message || "Internal server error" },
       { status: 500 }
