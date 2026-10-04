@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,

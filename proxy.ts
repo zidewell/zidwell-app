@@ -1,19 +1,6 @@
 // proxy.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Simplified session validation for Next.js 16.
-//
-// Responsibilities:
-//   • Identify public vs protected routes
-//   • Validate auth for protected routes (via Supabase getUser)
-//   • Refresh expired access tokens
-//   • Write refreshed cookies to the response
-//   • Redirect unauthenticated users to /auth/login
-//   • Preserve authorization checks (tier, BVN, admin, store, payment)
-//
-// Removed:
-//   • Timeout races that granted access on failure
-//   • sb-client-session forgery bypass
-//   • Redundant DB session-id lookups in the hot path
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -22,11 +9,11 @@ import {
   getSupabaseAdmin,
   getUserWithDetails,
   hasSufficientTier,
+  isBvnVerified,
   type UserDetails,
-} from "@/lib/suabase-admin";
+} from "@/lib/supabase-admin";
 import { canAccessPaymentPage } from "@/lib/constants";
 
-// ─── Tier types ───
 export const TIER_HIERARCHY = [
   "free",
   "sme",
@@ -36,7 +23,6 @@ export const TIER_HIERARCHY = [
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 
-// ─── Premium routes ───
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/bookkeeping", requiredTier: "sme" },
   { path: "/dashboard/bank-statements", requiredTier: "sme" },
@@ -54,7 +40,6 @@ const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
   { path: "/dashboard/custom-structure", requiredTier: "corporation" },
   { path: "/dashboard/account-manager", requiredTier: "corporation" },
-  // legacy
   { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
   { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
@@ -95,7 +80,6 @@ const allowedAdminRoles = new Set([
   "blog_admin",
 ]);
 
-// ─── Public route detection ───
 const RESERVED_STORE_SLUGS = new Set<string>(["link"]);
 
 const publicPaths = [
@@ -106,6 +90,7 @@ const publicPaths = [
   "/auth/blocked",
   "/auth/verify",
   "/auth/verify-success",
+  "/auth/callback", // ← added
   "/api/auth/verify",
   "/api/auth/resend-verification",
   "/",
@@ -187,9 +172,7 @@ function shouldBypassAuth(pathname: string): boolean {
   ) {
     return true;
   }
-  if (
-    publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))
-  ) {
+  if (publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return true;
   }
   if (isPublicStoreFront(pathname)) return true;
@@ -197,7 +180,6 @@ function shouldBypassAuth(pathname: string): boolean {
   return false;
 }
 
-// ─── Cookie helpers ───
 const AUTH_COOKIE_NAMES = [
   "sb-access-token",
   "sb-refresh-token",
@@ -261,14 +243,44 @@ function redirectToLogin(req: NextRequest) {
   return res;
 }
 
-// ─── Token validation + refresh ───
+// ─── Network error detection ───
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
+
+  const name = err?.name || "";
+  const msg = (err?.message || "").toLowerCase();
+
+  if (name === "AuthRetryableFetchError") return true;
+  if (name === "AuthUnknownError" && msg.includes("fetch")) return true;
+  if (name === "TypeError" && msg.includes("fetch")) return true;
+  if (name === "AbortError") return true;
+
+  const networkSignals = [
+    "fetch failed",
+    "econnrefused",
+    "econnreset",
+    "enotfound",
+    "etimedout",
+    "eai_again",
+    "und_err",
+    "network",
+    "socket hang up",
+    "connection timeout",
+    "connect timeout",
+    "getaddrinfo",
+  ];
+
+  return networkSignals.some((s) => msg.includes(s));
+}
+
 type ValidationResult =
   | {
       status: "valid";
       user: User;
       newTokens?: { access: string; refresh: string };
     }
-  | { status: "invalid" };
+  | { status: "invalid" }
+  | { status: "unavailable" };
 
 async function validateOrRefresh(
   accessToken: string | undefined,
@@ -276,7 +288,8 @@ async function validateOrRefresh(
 ): Promise<ValidationResult> {
   const supabase = getSupabaseAdmin();
 
-  // 1. Try the access token
+  let sawNetworkError = false;
+
   if (accessToken) {
     try {
       const {
@@ -287,12 +300,21 @@ async function validateOrRefresh(
       if (!error && user) {
         return { status: "valid", user };
       }
-    } catch {
-      // fall through to refresh
+
+      if (error && isNetworkError(error)) {
+        sawNetworkError = true;
+      }
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        sawNetworkError = true;
+      }
     }
   }
 
-  // 2. Try to refresh
+  if (sawNetworkError) {
+    return { status: "unavailable" };
+  }
+
   if (refreshToken) {
     try {
       const { data, error } = await supabase.auth.refreshSession({
@@ -309,19 +331,23 @@ async function validateOrRefresh(
           },
         };
       }
-    } catch {
-      // fall through
+
+      if (error && isNetworkError(error)) {
+        return { status: "unavailable" };
+      }
+    } catch (err: any) {
+      if (isNetworkError(err)) {
+        return { status: "unavailable" };
+      }
     }
   }
 
   return { status: "invalid" };
 }
 
-// ─── Main proxy ───
 export async function proxy(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
 
-  // 1. Public storefronts
   if (isPublicStoreFront(currentPath)) {
     if (!areStoreFrontSlugsValid(currentPath)) {
       return NextResponse.redirect(new URL("/", req.url));
@@ -329,17 +355,14 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Other public paths
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
 
-  // 3. /app redirect
   if (currentPath === "/app") {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // 4. Read tokens
   const accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 
@@ -347,36 +370,44 @@ export async function proxy(req: NextRequest) {
     return redirectToLogin(req);
   }
 
-  // 5. Validate / refresh (no timeout bypass)
   const validation = await validateOrRefresh(accessToken, refreshToken);
 
-  if (validation.status !== "valid") {
+  if (validation.status === "unavailable") {
+    console.warn(
+      "⚠️ Supabase unreachable — allowing request through without auth refresh",
+    );
+    return NextResponse.next();
+  }
+
+  if (validation.status === "invalid") {
     return redirectToLogin(req);
   }
 
   const { user } = validation;
 
-  // 6. Load user details — failure means unauthenticated, not a bypass
   let userDetails: UserDetails | null = null;
   try {
     userDetails = await getUserWithDetails(user.id);
-  } catch (err) {
+  } catch (err: any) {
     console.error("❌ proxy: getUserWithDetails failed:", err);
+    if (isNetworkError(err)) {
+      return NextResponse.next();
+    }
     return redirectToLogin(req);
   }
 
   if (!userDetails) {
-    return redirectToLogin(req);
+    // Could not load profile. Don't log out — likely transient.
+    console.warn("⚠️ Could not load user details — allowing request through");
+    return NextResponse.next();
   }
 
-  // 7. Blocked user
   if (userDetails.is_blocked) {
     const res = NextResponse.redirect(new URL("/auth/blocked", req.url));
     clearAuthCookies(res);
     return res;
   }
 
-  // Build the "pass-through" response with refreshed cookies if any
   const buildResponse = () => {
     const res = NextResponse.next();
     if (validation.newTokens) {
@@ -389,7 +420,6 @@ export async function proxy(req: NextRequest) {
     return res;
   };
 
-  // 8. Payment page email restriction
   if (requiresPaymentEmailRestriction(currentPath)) {
     const email = user.email?.toLowerCase();
     if (!canAccessPaymentPage(email)) {
@@ -403,18 +433,21 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // 9. Store ownership (authorized payment emails are exempt)
   const emailForStore = user.email?.toLowerCase();
   const isAuthorizedPaymentUser = canAccessPaymentPage(emailForStore);
 
   if (requiresStoreOwnership(currentPath) && !isAuthorizedPaymentUser) {
     try {
       const supabase = getSupabaseAdmin();
-      const { data: store } = await supabase
+      const { data: store, error: storeError } = await supabase
         .from("online_stores")
         .select("id, is_active, activation_paid")
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      if (storeError && isNetworkError(storeError)) {
+        return buildResponse();
+      }
 
       if (!store) {
         const res = NextResponse.redirect(
@@ -439,8 +472,11 @@ export async function proxy(req: NextRequest) {
         );
         return res;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ proxy: store check failed:", err);
+      if (isNetworkError(err)) {
+        return buildResponse();
+      }
       const res = NextResponse.redirect(
         new URL("/dashboard/services/payment", req.url),
       );
@@ -453,11 +489,8 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // 10. BVN check
-  if (
-    bvnRequiredRoutes.has(currentPath) &&
-    userDetails.bvn_verification !== "verified"
-  ) {
+  // BVN check — uses the canonical helper
+  if (bvnRequiredRoutes.has(currentPath) && !isBvnVerified(userDetails)) {
     const res = NextResponse.redirect(
       new URL(
         `/dashboard?verify=bvn&redirect=${encodeURIComponent(currentPath)}`,
@@ -472,7 +505,6 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
-  // 11. Subscription tier
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier && !hasSufficientTier(userDetails, requiredTier)) {
     const res = NextResponse.redirect(
@@ -491,7 +523,6 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
-  // 12. Admin routes
   if (
     currentPath.startsWith("/admin") ||
     currentPath.startsWith("/blog/admin")

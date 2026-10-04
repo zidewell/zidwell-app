@@ -14,12 +14,24 @@ import {
   AlertCircle,
   X,
   MessageCircle,
+  Truck,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
+import { DeliveryAddressModal } from "./DeliveryAddressModal";
+import type { DeliveryAddress } from "@/lib/delivery-utils";
 
 // ─── Types ───
 interface StoreSettingsShape {
@@ -36,6 +48,13 @@ interface StoreSettingsShape {
   latitude: number | null;
   longitude: number | null;
   whatsappNumber: string;
+
+  // Delivery
+  deliveryEnabled: boolean;
+  localPickupEnabled: boolean;
+  localPickupAddress: string;
+  localPickupNotes: string;
+  deliveryNotes: string;
 }
 
 const DEFAULT_STORE: StoreSettingsShape = {
@@ -52,6 +71,12 @@ const DEFAULT_STORE: StoreSettingsShape = {
   latitude: null,
   longitude: null,
   whatsappNumber: "",
+
+  deliveryEnabled: false,
+  localPickupEnabled: false,
+  localPickupAddress: "",
+  localPickupNotes: "",
+  deliveryNotes: "",
 };
 
 // ─── Helper subcomponents ───
@@ -66,7 +91,7 @@ function SectionCard({
     <div
       className={cn(
         "rounded-[2rem] border border-border bg-card p-6 sm:p-8",
-        className
+        className,
       )}
     >
       {children}
@@ -135,11 +160,50 @@ function Field({
   );
 }
 
+function Toggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label
+      className={cn(
+        "relative inline-flex items-center shrink-0",
+        disabled ? "cursor-wait opacity-70" : "cursor-pointer",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="sr-only peer"
+      />
+      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#FDC020] transition-colors duration-200 relative">
+        <div
+          className={cn(
+            "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200",
+            checked && "translate-x-5",
+          )}
+        />
+      </div>
+    </label>
+  );
+}
+
 // ────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ────────────────────────────────────────────────────────────
 export function StoreSettings() {
   const { store: ctxStore, updateStore } = useStore();
+
+  const [activeTab, setActiveTab] = useState<
+    "store-info" | "store-location" | "delivery"
+  >("store-info");
 
   const [original, setOriginal] = useState<StoreSettingsShape | null>(null);
   const [form, setForm] = useState<StoreSettingsShape>(DEFAULT_STORE);
@@ -152,6 +216,18 @@ export function StoreSettings() {
 
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Delivery state
+  const [storeId, setStoreId] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<DeliveryAddress | null>(
+    null,
+  );
+  const [deletingAddressId, setDeletingAddressId] = useState<string | null>(
+    null,
+  );
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -185,11 +261,18 @@ export function StoreSettings() {
           latitude: s.latitude ?? null,
           longitude: s.longitude ?? null,
           whatsappNumber: s.whatsapp_number || "",
+
+          deliveryEnabled: s.delivery_enabled === true,
+          localPickupEnabled: s.local_pickup_enabled === true,
+          localPickupAddress: s.local_pickup_address || "",
+          localPickupNotes: s.local_pickup_notes || "",
+          deliveryNotes: s.delivery_notes || "",
         };
 
         if (!cancelled) {
           setForm(shape);
           setOriginal(shape);
+          setStoreId(s.id);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -203,6 +286,29 @@ export function StoreSettings() {
       cancelled = true;
     };
   }, []);
+
+  // ─── Load delivery addresses once store id is known ───
+  const loadAddresses = useCallback(async () => {
+    if (!storeId) return;
+    setAddressesLoading(true);
+    try {
+      const res = await fetch(
+        `/api/store/delivery-addresses?storeId=${storeId}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load addresses");
+      setAddresses(data.addresses ?? []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load delivery addresses");
+    } finally {
+      setAddressesLoading(false);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (storeId) loadAddresses();
+  }, [storeId, loadAddresses]);
 
   // ─── Dirty check ───
   const isDirty = useMemo(() => {
@@ -219,6 +325,11 @@ export function StoreSettings() {
       original.latitude !== form.latitude ||
       original.longitude !== form.longitude ||
       original.whatsappNumber !== form.whatsappNumber ||
+      original.deliveryEnabled !== form.deliveryEnabled ||
+      original.localPickupEnabled !== form.localPickupEnabled ||
+      original.localPickupAddress !== form.localPickupAddress ||
+      original.localPickupNotes !== form.localPickupNotes ||
+      original.deliveryNotes !== form.deliveryNotes ||
       original.keywords.join("|").toLowerCase() !==
         form.keywords.join("|").toLowerCase()
     );
@@ -228,7 +339,7 @@ export function StoreSettings() {
   const setField = useCallback(
     <K extends keyof StoreSettingsShape>(
       key: K,
-      value: StoreSettingsShape[K]
+      value: StoreSettingsShape[K],
     ) => {
       setForm((prev) => ({ ...prev, [key]: value }));
       setErrors((prev) => {
@@ -238,7 +349,7 @@ export function StoreSettings() {
         return next;
       });
     },
-    []
+    [],
   );
 
   const handleInput = useCallback(
@@ -246,12 +357,12 @@ export function StoreSettings() {
       const { name, value } = e.target;
       setField(name as keyof StoreSettingsShape, value as any);
     },
-    [setField]
+    [setField],
   );
 
   const handleDescription = useCallback(
     (html: string) => setField("description", html),
-    [setField]
+    [setField],
   );
 
   const handleKeywordsBlur = useCallback(
@@ -271,7 +382,7 @@ export function StoreSettings() {
       }
       setField("keywords", clean);
     },
-    [setField]
+    [setField],
   );
 
   // ─── Copy slug ───
@@ -330,7 +441,7 @@ export function StoreSettings() {
         if (logoInputRef.current) logoInputRef.current.value = "";
       }
     },
-    [setField]
+    [setField],
   );
 
   const removeLogo = useCallback(() => {
@@ -370,7 +481,7 @@ export function StoreSettings() {
           toast.error("Location unavailable", { description: msg });
           resolve(null);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       );
     });
   }, []);
@@ -406,8 +517,52 @@ export function StoreSettings() {
         setLocationLoading(false);
       }
     },
-    [requestLocation]
+    [requestLocation],
   );
+
+  // ─── Delivery address actions ───
+  const openAddAddress = () => {
+    setEditingAddress(null);
+    setAddressModalOpen(true);
+  };
+
+  const openEditAddress = (addr: DeliveryAddress) => {
+    setEditingAddress(addr);
+    setAddressModalOpen(true);
+  };
+
+  const handleDeleteAddress = async (addr: DeliveryAddress) => {
+    setDeletingAddressId(addr.id);
+    try {
+      const res = await fetch(`/api/store/delivery-addresses/${addr.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete");
+      toast.success(`Deleted "${addr.label}"`);
+      await loadAddresses();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete address");
+    } finally {
+      setDeletingAddressId(null);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addr: DeliveryAddress) => {
+    try {
+      const res = await fetch("/api/store/delivery-addresses/set-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: addr.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to set default");
+      toast.success(`"${addr.label}" is now the default`);
+      await loadAddresses();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to set default");
+    }
+  };
 
   // ─── Validation ───
   const validate = useCallback((): boolean => {
@@ -434,6 +589,12 @@ export function StoreSettings() {
     if (Object.keys(errs).length > 0) {
       const first = Object.values(errs)[0];
       toast.error("Please fix the errors", { description: first });
+
+      // Auto-jump to the offending tab
+      if (errs.name || errs.whatsappNumber) setActiveTab("store-info");
+      else if (errs.state || errs.city || errs.streetAddress)
+        setActiveTab("store-location");
+
       return false;
     }
     return true;
@@ -466,6 +627,13 @@ export function StoreSettings() {
           latitude: form.locationEnabled ? form.latitude : null,
           longitude: form.locationEnabled ? form.longitude : null,
           whatsappNumber: form.whatsappNumber.trim() || null,
+
+          // Delivery fields
+          deliveryEnabled: form.deliveryEnabled,
+          localPickupEnabled: form.localPickupEnabled,
+          localPickupAddress: form.localPickupAddress.trim() || null,
+          localPickupNotes: form.localPickupNotes.trim() || null,
+          deliveryNotes: form.deliveryNotes.trim() || null,
         }),
       });
 
@@ -504,6 +672,12 @@ export function StoreSettings() {
         latitude: data.store.latitude ?? null,
         longitude: data.store.longitude ?? null,
         whatsappNumber: data.store.whatsapp_number || "",
+
+        deliveryEnabled: data.store.delivery_enabled === true,
+        localPickupEnabled: data.store.local_pickup_enabled === true,
+        localPickupAddress: data.store.local_pickup_address || "",
+        localPickupNotes: data.store.local_pickup_notes || "",
+        deliveryNotes: data.store.delivery_notes || "",
       };
 
       setOriginal(updated);
@@ -520,6 +694,7 @@ export function StoreSettings() {
   if (loading) {
     return (
       <div className="max-w-4xl space-y-6">
+        <div className="h-14 rounded-2xl border border-border bg-card animate-pulse" />
         <div className="h-64 rounded-[2rem] border border-border bg-card animate-pulse" />
         <div className="h-64 rounded-[2rem] border border-border bg-card animate-pulse" />
       </div>
@@ -530,394 +705,651 @@ export function StoreSettings() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* ─────────── Branding (Logo) ─────────── */}
-      <SectionCard>
-        <SectionHead
-          icon={StoreIcon}
-          title="Store Logo"
-          copy="Your logo appears on your storefront, receipts, and shared links."
-        />
+      {/* ─────────── Tabs ─────────── */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as any)}
+        className="w-full"
+      >
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted p-1 h-auto">
+          <TabsTrigger
+            value="store-info"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <StoreIcon className="size-4 mr-2" />
+            Store Info
+          </TabsTrigger>
+          <TabsTrigger
+            value="store-location"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <MapPin className="size-4 mr-2" />
+            Store Location
+          </TabsTrigger>
+          <TabsTrigger
+            value="delivery"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            <Truck className="size-4 mr-2" />
+            Delivery
+          </TabsTrigger>
+        </TabsList>
 
-        <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-border bg-muted/30">
-            {form.logoUrl ? (
-              <img
-                src={form.logoUrl}
-                alt="Store logo"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <StoreIcon className="size-9 text-muted-foreground/50" />
-            )}
-          </div>
+        {/* ═══════════ TAB: STORE INFO ═══════════ */}
+        <TabsContent value="store-info" className="mt-6 space-y-6">
+          {/* ─── Branding (Logo) ─── */}
+          <SectionCard>
+            <SectionHead
+              icon={StoreIcon}
+              title="Store Logo"
+              copy="Your logo appears on your storefront, receipts, and shared links."
+            />
 
-          <div className="flex-1 min-w-0 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => logoInputRef.current?.click()}
-                disabled={uploadingLogo}
-                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-bold hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                {uploadingLogo ? (
-                  <Loader2 className="size-4 animate-spin" />
+            <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-border bg-muted/30">
+                {form.logoUrl ? (
+                  <img
+                    src={form.logoUrl}
+                    alt="Store logo"
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <Upload className="size-4" />
+                  <StoreIcon className="size-9 text-muted-foreground/50" />
                 )}
-                {uploadingLogo
-                  ? "Uploading…"
-                  : form.logoUrl
-                  ? "Replace logo"
-                  : "Upload logo"}
-              </button>
+              </div>
 
-              {form.logoUrl && !uploadingLogo && (
-                <button
-                  type="button"
-                  onClick={removeLogo}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <X className="size-4" /> Remove
-                </button>
-              )}
-            </div>
-
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onChange={handleLogoSelect}
-              className="hidden"
-            />
-
-            <p className="text-xs text-muted-foreground">
-              PNG, JPG, WebP, or GIF · up to 3 MB. Square images work best.
-            </p>
-          </div>
-        </div>
-      </SectionCard>
-
-      {/* ─────────── Store Information ─────────── */}
-      <SectionCard>
-        <SectionHead
-          icon={StoreIcon}
-          title="Store Information"
-          copy="The public name, URL, description, and keywords used to describe your store."
-        />
-
-        <div className="mt-8 space-y-7">
-          <Field
-            label="Store Name"
-            hint="The public name of your store. Shown on your storefront, receipts and payment links."
-            required
-            error={errors.name}
-            htmlFor="name"
-          >
-            <Input
-              id="name"
-              name="name"
-              value={form.name}
-              onChange={handleInput}
-              placeholder="e.g., Juice Hub"
-              disabled={saving}
-              className={cn(
-                "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
-                errors.name ? "border-destructive" : "border-border"
-              )}
-            />
-          </Field>
-
-          <Field
-            label="Store URL"
-            hint="Your store's public web address. This can't be changed after activation — changing it would break existing product links."
-          >
-            <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
-              <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
-                zidwell.com/store/
-              </span>
-              <input
-                type="text"
-                value={form.slug}
-                readOnly
-                disabled
-                className="flex-1 min-w-0 bg-transparent px-3 py-3.5 text-[15px] font-semibold text-foreground cursor-not-allowed"
-              />
-              <button
-                type="button"
-                onClick={copySlug}
-                aria-label="Copy store URL"
-                className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors"
-              >
-                {copiedSlug ? (
-                  <Check className="size-4 text-green-600" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-              </button>
-            </div>
-          </Field>
-
-          <Field
-            label="Store Description"
-            hint="Describe your business and what you sell. Appears on your public storefront and in search results."
-            htmlFor="description"
-          >
-            <RichTextArea
-              value={form.description}
-              onChange={handleDescription}
-              placeholder="Describe what your business is all about to potential customers..."
-              minHeight="160px"
-              maxHeight="320px"
-            />
-          </Field>
-
-          <Field
-            label="Keywords / Phrases"
-            hint="Comma-separated words or phrases people would search to find a business like yours. These power your store's SEO — every product page inherits them."
-            htmlFor="keywords"
-          >
-            <Input
-              id="keywords"
-              name="keywords"
-              defaultValue={keywordsInput}
-              onBlur={(e) => handleKeywordsBlur(e.target.value)}
-              placeholder="phones, iphones, samsung, phone repairs"
-              disabled={saving}
-              className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
-            />
-            {form.keywords.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {form.keywords.map((k, i) => (
-                  <span
-                    key={`${k}-${i}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+              <div className="flex-1 min-w-0 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-bold hover:bg-muted transition-colors disabled:opacity-50"
                   >
-                    {k}
+                    {uploadingLogo ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Upload className="size-4" />
+                    )}
+                    {uploadingLogo
+                      ? "Uploading…"
+                      : form.logoUrl
+                        ? "Replace logo"
+                        : "Upload logo"}
+                  </button>
+
+                  {form.logoUrl && !uploadingLogo && (
                     <button
                       type="button"
-                      onClick={() =>
-                        setField(
-                          "keywords",
-                          form.keywords.filter((_, idx) => idx !== i)
-                        )
-                      }
-                      className="text-muted-foreground hover:text-foreground"
-                      aria-label={`Remove ${k}`}
+                      onClick={removeLogo}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-border px-4 py-2.5 text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors"
                     >
-                      <X className="size-3" />
+                      <X className="size-4" /> Remove
                     </button>
+                  )}
+                </div>
+
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleLogoSelect}
+                  className="hidden"
+                />
+
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG, WebP, or GIF · up to 3 MB. Square images work best.
+                </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* ─── Store Information ─── */}
+          <SectionCard>
+            <SectionHead
+              icon={StoreIcon}
+              title="Store Information"
+              copy="The public name, URL, description, and keywords used to describe your store."
+            />
+
+            <div className="mt-8 space-y-7">
+              <Field
+                label="Store Name"
+                hint="The public name of your store. Shown on your storefront, receipts and payment links."
+                required
+                error={errors.name}
+                htmlFor="name"
+              >
+                <Input
+                  id="name"
+                  name="name"
+                  value={form.name}
+                  onChange={handleInput}
+                  placeholder="e.g., Juice Hub"
+                  disabled={saving}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    errors.name ? "border-destructive" : "border-border",
+                  )}
+                />
+              </Field>
+
+              <Field
+                label="Store URL"
+                hint="Your store's public web address. This can't be changed after activation — changing it would break existing product links."
+              >
+                <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
+                  <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
+                    zidwell.com/store/
                   </span>
-                ))}
-              </div>
-            )}
-          </Field>
-        </div>
-      </SectionCard>
+                  <input
+                    type="text"
+                    value={form.slug}
+                    readOnly
+                    disabled
+                    className="flex-1 min-w-0 bg-transparent px-3 py-3.5 text-[15px] font-semibold text-foreground cursor-not-allowed"
+                  />
+                  <button
+                    type="button"
+                    onClick={copySlug}
+                    aria-label="Copy store URL"
+                    className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors"
+                  >
+                    {copiedSlug ? (
+                      <Check className="size-4 text-green-600" />
+                    ) : (
+                      <Copy className="size-4" />
+                    )}
+                  </button>
+                </div>
+              </Field>
 
-      {/* ─────────── WhatsApp Contact ─────────── */}
-      <SectionCard>
-        <SectionHead
-          icon={MessageCircle}
-          title="WhatsApp Contact"
-          copy="Buyers can reach you on WhatsApp from your product pages. Toggle it on or off per product."
-        />
+              <Field
+                label="Store Description"
+                hint="Describe your business and what you sell. Appears on your public storefront and in search results."
+                htmlFor="description"
+              >
+                <RichTextArea
+                  value={form.description}
+                  onChange={handleDescription}
+                  placeholder="Describe what your business is all about to potential customers..."
+                  minHeight="160px"
+                  maxHeight="320px"
+                />
+              </Field>
 
-        <div className="mt-8 space-y-4">
-          <Field
-            label="WhatsApp Number"
-            hint="Include your country code, no spaces or symbols. Example: 2348012345678 for Nigeria."
-            error={errors.whatsappNumber}
-            htmlFor="whatsappNumber"
-          >
-            <Input
-              id="whatsappNumber"
-              name="whatsappNumber"
-              value={form.whatsappNumber}
-              onChange={(e) =>
-                setField(
-                  "whatsappNumber",
-                  e.target.value.replace(/\D/g, "").slice(0, 15)
-                )
-              }
-              inputMode="numeric"
-              placeholder="2348012345678"
-              disabled={saving}
-              className={cn(
-                "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
-                errors.whatsappNumber
-                  ? "border-destructive"
-                  : "border-border"
-              )}
-            />
-          </Field>
-
-          {form.whatsappNumber && (
-            <p className="text-xs text-muted-foreground">
-              Buyers will open WhatsApp with this number when they tap{" "}
-              <strong className="text-foreground">Contact store owner</strong>{" "}
-              on a product page.
-            </p>
-          )}
-        </div>
-      </SectionCard>
-
-      {/* ─────────── Location ─────────── */}
-      <SectionCard>
-        <SectionHead
-          icon={MapPin}
-          title="Location"
-          copy="Where is your store based? This helps with local search, delivery estimates and customer trust."
-        />
-
-        <div className="mt-8 space-y-7">
-          <Field
-            label="Country"
-            hint="The country where your business is registered and operates."
-            htmlFor="country"
-          >
-            <select
-              id="country"
-              name="country"
-              value={form.country}
-              onChange={handleInput}
-              disabled={saving}
-              className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
-            >
-              <option value="Nigeria">Nigeria</option>
-              <option value="Ghana">Ghana</option>
-              <option value="Kenya">Kenya</option>
-              <option value="South Africa">South Africa</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United States">United States</option>
-            </select>
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
-            <Field
-              label="State"
-              hint="The state or region your business operates from."
-              required
-              error={errors.state}
-              htmlFor="state"
-            >
-              <Input
-                id="state"
-                name="state"
-                value={form.state}
-                onChange={handleInput}
-                placeholder="e.g., Lagos"
-                disabled={saving}
-                className={cn(
-                  "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
-                  errors.state ? "border-destructive" : "border-border"
+              <Field
+                label="Keywords / Phrases"
+                hint="Comma-separated words or phrases people would search to find a business like yours. These power your store's SEO — every product page inherits them."
+                htmlFor="keywords"
+              >
+                <Input
+                  id="keywords"
+                  name="keywords"
+                  defaultValue={keywordsInput}
+                  onBlur={(e) => handleKeywordsBlur(e.target.value)}
+                  placeholder="phones, iphones, samsung, phone repairs"
+                  disabled={saving}
+                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
+                />
+                {form.keywords.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {form.keywords.map((k, i) => (
+                      <span
+                        key={`${k}-${i}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium"
+                      >
+                        {k}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setField(
+                              "keywords",
+                              form.keywords.filter((_, idx) => idx !== i),
+                            )
+                          }
+                          className="text-muted-foreground hover:text-foreground"
+                          aria-label={`Remove ${k}`}
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 )}
-              />
-            </Field>
+              </Field>
+            </div>
+          </SectionCard>
 
-            <Field
-              label="City"
-              hint="The city or town your store is based in."
-              required
-              error={errors.city}
-              htmlFor="city"
-            >
-              <Input
-                id="city"
-                name="city"
-                value={form.city}
-                onChange={handleInput}
-                placeholder="e.g., Ikeja"
-                disabled={saving}
-                className={cn(
-                  "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
-                  errors.city ? "border-destructive" : "border-border"
-                )}
-              />
-            </Field>
-          </div>
-
-          <Field
-            label="Street Address"
-            hint="Where you operate from. Helps with local search, delivery estimates and customer trust."
-            required
-            error={errors.streetAddress}
-            htmlFor="streetAddress"
-          >
-            <Input
-              id="streetAddress"
-              name="streetAddress"
-              value={form.streetAddress}
-              onChange={handleInput}
-              placeholder="e.g., 123 Main Street"
-              disabled={saving}
-              className={cn(
-                "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
-                errors.streetAddress
-                  ? "border-destructive"
-                  : "border-border"
-              )}
+          {/* ─── WhatsApp Contact ─── */}
+          <SectionCard>
+            <SectionHead
+              icon={MessageCircle}
+              title="WhatsApp Contact"
+              copy="Buyers can reach you on WhatsApp from your product pages. Toggle it on or off per product."
             />
-          </Field>
 
-          {/* Precise location toggle */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <MapPin className="size-4 text-muted-foreground shrink-0" />
-                <p className="font-bold text-sm text-foreground">
-                  Allow precise location
-                </p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Used for local search and delivery matching on your public
-                storefront.
-              </p>
+            <div className="mt-8 space-y-4">
+              <Field
+                label="WhatsApp Number"
+                hint="Include your country code, no spaces or symbols. Example: 2348012345678 for Nigeria."
+                error={errors.whatsappNumber}
+                htmlFor="whatsappNumber"
+              >
+                <Input
+                  id="whatsappNumber"
+                  name="whatsappNumber"
+                  value={form.whatsappNumber}
+                  onChange={(e) =>
+                    setField(
+                      "whatsappNumber",
+                      e.target.value.replace(/\D/g, "").slice(0, 15),
+                    )
+                  }
+                  inputMode="numeric"
+                  placeholder="2348012345678"
+                  disabled={saving}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    errors.whatsappNumber
+                      ? "border-destructive"
+                      : "border-border",
+                  )}
+                />
+              </Field>
 
-              {form.latitude != null && form.longitude != null && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all font-medium">
-                  Captured: {form.latitude.toFixed(5)},{" "}
-                  {form.longitude.toFixed(5)}
-                </p>
-              )}
-
-              {locationError && (
-                <p className="text-xs text-destructive mt-2 font-medium">
-                  {locationError}
+              {form.whatsappNumber && (
+                <p className="text-xs text-muted-foreground">
+                  Buyers will open WhatsApp with this number when they tap{" "}
+                  <strong className="text-foreground">
+                    Contact store owner
+                  </strong>{" "}
+                  on a product page.
                 </p>
               )}
             </div>
+          </SectionCard>
+        </TabsContent>
 
-            <label
-              className={cn(
-                "relative inline-flex items-center shrink-0 self-start sm:self-center",
-                locationLoading ? "cursor-wait" : "cursor-pointer"
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={form.locationEnabled}
-                onChange={(e) => handleLocationToggle(e.target.checked)}
-                disabled={locationLoading || saving}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#FDC020] transition-colors duration-200 relative">
-                <div
-                  className={cn(
-                    "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 flex items-center justify-center",
-                    form.locationEnabled && "translate-x-5"
-                  )}
+        {/* ═══════════ TAB: STORE LOCATION ═══════════ */}
+        <TabsContent value="store-location" className="mt-6 space-y-6">
+          <SectionCard>
+            <SectionHead
+              icon={MapPin}
+              title="Location"
+              copy="Where is your store based? This helps with local search, delivery estimates and customer trust."
+            />
+
+            <div className="mt-8 space-y-7">
+              <Field
+                label="Country"
+                hint="The country where your business is registered and operates."
+                htmlFor="country"
+              >
+                <select
+                  id="country"
+                  name="country"
+                  value={form.country}
+                  onChange={handleInput}
+                  disabled={saving}
+                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
                 >
-                  {locationLoading && (
-                    <Loader2 className="size-2.5 animate-spin text-gray-700" />
+                  <option value="Nigeria">Nigeria</option>
+                  <option value="Ghana">Ghana</option>
+                  <option value="Kenya">Kenya</option>
+                  <option value="South Africa">South Africa</option>
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="United States">United States</option>
+                </select>
+              </Field>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
+                <Field
+                  label="State"
+                  hint="The state or region your business operates from."
+                  required
+                  error={errors.state}
+                  htmlFor="state"
+                >
+                  <Input
+                    id="state"
+                    name="state"
+                    value={form.state}
+                    onChange={handleInput}
+                    placeholder="e.g., Lagos"
+                    disabled={saving}
+                    className={cn(
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                      errors.state ? "border-destructive" : "border-border",
+                    )}
+                  />
+                </Field>
+
+                <Field
+                  label="City"
+                  hint="The city or town your store is based in."
+                  required
+                  error={errors.city}
+                  htmlFor="city"
+                >
+                  <Input
+                    id="city"
+                    name="city"
+                    value={form.city}
+                    onChange={handleInput}
+                    placeholder="e.g., Ikeja"
+                    disabled={saving}
+                    className={cn(
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                      errors.city ? "border-destructive" : "border-border",
+                    )}
+                  />
+                </Field>
+              </div>
+
+              <Field
+                label="Street Address"
+                hint="Where you operate from. Helps with local search, delivery estimates and customer trust."
+                required
+                error={errors.streetAddress}
+                htmlFor="streetAddress"
+              >
+                <Input
+                  id="streetAddress"
+                  name="streetAddress"
+                  value={form.streetAddress}
+                  onChange={handleInput}
+                  placeholder="e.g., 123 Main Street"
+                  disabled={saving}
+                  className={cn(
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    errors.streetAddress
+                      ? "border-destructive"
+                      : "border-border",
+                  )}
+                />
+              </Field>
+
+              {/* Precise location toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-4 text-muted-foreground shrink-0" />
+                    <p className="font-bold text-sm text-foreground">
+                      Allow precise location
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used for local search and delivery matching on your public
+                    storefront.
+                  </p>
+
+                  {form.latitude != null && form.longitude != null && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all font-medium">
+                      Captured: {form.latitude.toFixed(5)},{" "}
+                      {form.longitude.toFixed(5)}
+                    </p>
+                  )}
+
+                  {locationError && (
+                    <p className="text-xs text-destructive mt-2 font-medium">
+                      {locationError}
+                    </p>
                   )}
                 </div>
-              </div>
-            </label>
-          </div>
-        </div>
-      </SectionCard>
 
-      {/* ─────────── Save ─────────── */}
+                <Toggle
+                  checked={form.locationEnabled}
+                  onChange={handleLocationToggle}
+                  disabled={locationLoading || saving}
+                />
+              </div>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        {/* ═══════════ TAB: DELIVERY ═══════════ */}
+        <TabsContent value="delivery" className="mt-6 space-y-6">
+          <SectionCard>
+            <SectionHead
+              icon={Truck}
+              title="Delivery"
+              copy="Configure how customers receive physical products. Add delivery addresses and pickup options — customers will select from these at checkout."
+            />
+
+            <div className="mt-8 space-y-6">
+              {/* Master toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-start justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">
+                      Enable Delivery
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Customers choose a delivery address at checkout.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={form.deliveryEnabled}
+                    onChange={(v) => setField("deliveryEnabled", v)}
+                    disabled={saving}
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground">
+                      Enable Local Pickup
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Let customers pick up from your location.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={form.localPickupEnabled}
+                    onChange={(v) => setField("localPickupEnabled", v)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* Delivery addresses */}
+              {form.deliveryEnabled && (
+                <div className="rounded-[1.5rem] border border-border overflow-hidden">
+                  <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/20">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-foreground">
+                        Delivery Addresses
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Customers will select one of these at checkout.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={openAddAddress}
+                      disabled={saving || !storeId}
+                      className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+                    >
+                      <Plus className="size-4" />
+                      Add Address
+                    </button>
+                  </div>
+
+                  <div className="p-5">
+                    {addressesLoading ? (
+                      <div className="space-y-3">
+                        <div className="h-20 rounded-2xl bg-muted animate-pulse" />
+                        <div className="h-20 rounded-2xl bg-muted animate-pulse" />
+                      </div>
+                    ) : addresses.length === 0 ? (
+                      <div className="rounded-2xl border-2 border-dashed border-border py-12 text-center">
+                        <Truck className="mx-auto size-8 text-muted-foreground/40" />
+                        <p className="mt-3 text-sm font-medium text-foreground">
+                          No delivery addresses yet
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Add your first one so customers can order.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {addresses.map((addr) => (
+                          <div
+                            key={addr.id}
+                            className={cn(
+                              "rounded-2xl border p-4 flex items-start justify-between gap-4 transition-colors",
+                              addr.is_active
+                                ? "border-border bg-background"
+                                : "border-border bg-muted/20 opacity-70",
+                            )}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="font-bold text-sm text-foreground">
+                                  {addr.label}
+                                </span>
+                                {addr.is_default && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                                    <Star className="size-3" /> Default
+                                  </span>
+                                )}
+                                {!addr.is_active && (
+                                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                    Inactive
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {addr.contact_name} · {addr.contact_phone}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                                {addr.street_address}, {addr.city},{" "}
+                                {addr.state}
+                              </p>
+                              <p className="text-xs font-medium text-foreground/70 mt-1.5">
+                                ₦{Number(addr.delivery_fee).toLocaleString()} ·
+                                ~{addr.estimated_days} day
+                                {addr.estimated_days === 1 ? "" : "s"}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => openEditAddress(addr)}
+                                disabled={saving}
+                                className="text-xs font-bold text-foreground underline underline-offset-2 hover:no-underline disabled:opacity-50"
+                              >
+                                Edit
+                              </button>
+                              {!addr.is_default && addr.is_active && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleSetDefaultAddress(addr)
+                                  }
+                                  disabled={saving}
+                                  className="text-xs font-bold text-foreground/70 hover:text-foreground disabled:opacity-50"
+                                >
+                                  Set Default
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAddress(addr)}
+                                disabled={
+                                  saving || deletingAddressId === addr.id
+                                }
+                                className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:opacity-80 disabled:opacity-50"
+                              >
+                                {deletingAddressId === addr.id ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3" />
+                                )}
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Pickup config */}
+              {form.localPickupEnabled && (
+                <div className="rounded-[1.5rem] border border-border p-5 space-y-4">
+                  <p className="font-bold text-sm text-foreground">
+                    Local Pickup Details
+                  </p>
+
+                  <Field
+                    label="Pickup Address"
+                    hint="Where should customers come to collect their order?"
+                  >
+                    <textarea
+                      value={form.localPickupAddress}
+                      onChange={(e) =>
+                        setField("localPickupAddress", e.target.value)
+                      }
+                      rows={2}
+                      disabled={saving}
+                      placeholder="e.g., 25 Commissioner Road, Kano, Kano State"
+                      className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
+                    />
+                  </Field>
+
+                  <Field
+                    label="Pickup Notes"
+                    hint="Hours, entry instructions, or anything the customer should know."
+                  >
+                    <textarea
+                      value={form.localPickupNotes}
+                      onChange={(e) =>
+                        setField("localPickupNotes", e.target.value)
+                      }
+                      rows={2}
+                      disabled={saving}
+                      placeholder="e.g., Open Mon-Sat 9am-6pm. Ask for John at reception."
+                      className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
+                    />
+                  </Field>
+                </div>
+              )}
+
+              {/* Global delivery notes */}
+              <Field
+                label="Delivery Notes (shown to customers)"
+                hint="Optional message about delivery timing, coverage, or policies. Appears at checkout."
+              >
+                <textarea
+                  value={form.deliveryNotes}
+                  onChange={(e) => setField("deliveryNotes", e.target.value)}
+                  rows={2}
+                  disabled={saving}
+                  placeholder="e.g., We deliver within 3-5 business days across Nigeria."
+                  className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
+                />
+              </Field>
+
+              {form.deliveryEnabled &&
+                !addressesLoading &&
+                addresses.length === 0 && (
+                  <p className="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-3">
+                    ⚠️ Delivery is enabled but you haven't added any addresses.
+                    Customers won't be able to complete delivery orders until
+                    you add at least one.
+                  </p>
+                )}
+            </div>
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
+
+      {/* ─────────── Save Bar (always visible) ─────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[2rem] border border-border bg-card p-6">
         <p className="text-sm text-muted-foreground">
           {isDirty ? "You have unsaved changes." : "All changes are saved."}
@@ -930,7 +1362,7 @@ export function StoreSettings() {
             "inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-colors",
             saving || !isDirty
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#FDC020] text-black hover:bg-[#eab308]"
+              : "bg-[#FDC020] text-black hover:bg-[#eab308]",
           )}
         >
           {saving ? (
@@ -944,6 +1376,17 @@ export function StoreSettings() {
           )}
         </button>
       </div>
+
+      {/* Delivery address modal */}
+      {addressModalOpen && storeId && (
+        <DeliveryAddressModal
+          open={addressModalOpen}
+          onClose={() => setAddressModalOpen(false)}
+          onSaved={loadAddresses}
+          storeId={storeId}
+          address={editingAddress}
+        />
+      )}
     </div>
   );
 }

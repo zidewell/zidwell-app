@@ -31,50 +31,73 @@ export async function POST(req: NextRequest) {
 
     if (accessToken) {
       const supabase = getSupabaseAdmin();
-      const { data: userData } = await supabase.auth.getUser(accessToken);
-      const user = userData?.user;
 
-      if (user) {
-        const { data: latestSession } = await supabase
-          .from("login_history")
-          .select("id")
-          .eq("user_id", user.id)
-          .is("logout_time", null)
-          .order("login_time", { ascending: false })
-          .limit(1)
-          .single();
+      // ─── 1. Revoke the session at Supabase ───
+      // signOut() with the current access token revokes that specific
+      // session's refresh token. We scope it to "local" because the
+      // admin client can't call global signOut on behalf of a user
+      // without the user's own session — the local revoke is enough
+      // for a single-device logout, and the cookies are cleared next.
+      try {
+        const { data: userData } = await supabase.auth.getUser(accessToken);
+        const user = userData?.user;
 
-        if (latestSession?.id) {
-          await supabase
+        if (user) {
+          // Revoke the refresh token associated with this session.
+          // The admin API lets us do this by user ID + session scope.
+          await supabase.auth.admin.signOut(user.id, "local").catch(() => {
+            // If the admin signOut API is unavailable or the user is
+            // already signed out, we still proceed with cookie cleanup.
+          });
+
+          // ─── 2. Close the login_history row ───
+          const { data: latestSession } = await supabase
             .from("login_history")
-            .update({ logout_time: new Date().toISOString() })
-            .eq("id", latestSession.id);
+            .select("id")
+            .eq("user_id", user.id)
+            .is("logout_time", null)
+            .order("login_time", { ascending: false })
+            .limit(1)
+            .single();
+
+          if (latestSession?.id) {
+            await supabase
+              .from("login_history")
+              .update({ logout_time: new Date().toISOString() })
+              .eq("id", latestSession.id);
+          }
+
+          // ─── 3. Null out the current session on the user record ───
+          await supabase
+            .from("users")
+            .update({
+              current_session_id: null,
+              current_session_expires_at: null,
+            })
+            .eq("id", user.id);
+
+          // ─── 4. Clean up abandoned unpaid stores ───
+          const { error: deleteError } = await supabase
+            .from("online_stores")
+            .delete()
+            .eq("owner_id", user.id)
+            .eq("is_active", false)
+            .eq("activation_paid", false);
+
+          if (deleteError) {
+            console.error(
+              "Failed to clear abandoned unpaid store on logout:",
+              deleteError,
+            );
+          }
         }
-
-        await supabase
-          .from("users")
-          .update({
-            current_session_id: null,
-            current_session_expires_at: null,
-          })
-          .eq("id", user.id);
-
-        const { error: deleteError } = await supabase
-          .from("online_stores")
-          .delete()
-          .eq("owner_id", user.id)
-          .eq("is_active", false)
-          .eq("activation_paid", false);
-
-        if (deleteError) {
-          console.error(
-            "Failed to clear abandoned unpaid store on logout:",
-            deleteError,
-          );
-        }
+      } catch (e) {
+        // Non-fatal — we still clear cookies below.
+        console.warn("Supabase signOut failed (non-fatal):", e);
       }
     }
 
+    // ─── 5. Build response and clear all cookies ───
     const res = NextResponse.json(
       { success: true, message: "Logged out successfully" },
       { status: 200 },

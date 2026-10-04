@@ -1,6 +1,6 @@
 // app/api/auth/validate-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 // Always return 200. The client reads `data.valid`.
 export async function GET(req: NextRequest) {

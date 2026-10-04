@@ -1,14 +1,4 @@
 // app/store/[storeSlug]/[productSlug]/page.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// SEO:
-//   • generateProductMetadata()  → title with price, OG image, product:price tags
-//   • generateProductSchema()    → JSON-LD Product / Service / DigitalDocument / FinancialProduct
-//   • generateBreadcrumbSchema() → Home > Store > Product breadcrumbs
-//   • ISR (revalidate = 60)
-//   • Slug sanitization
-//   • Public paid-students map for school pages
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -35,7 +25,6 @@ function isValidSlug(slug: string): boolean {
   return /^[a-z0-9][a-z0-9-]{0,100}$/i.test(slug);
 }
 
-// ─── SEO: Dynamic metadata ───
 export async function generateMetadata({ params }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
   if (!isValidSlug(storeSlug) || !isValidSlug(productSlug)) {
@@ -179,7 +168,7 @@ export default async function StoreProductPage({
     }
   }
 
-  // ─── Public paid-students map for school pages ───
+  // Public paid-students map for school pages
   let initialPaidStudents: Record<string, number> = {};
 
   if (page.page_type === "school") {
@@ -196,7 +185,6 @@ export default async function StoreProductPage({
     for (const p of payments || []) {
       const amount = Number(p.amount) || 0;
       const names: string[] = [];
-
       const rawSelected: any = p.selected_students;
 
       if (Array.isArray(rawSelected) && rawSelected.length > 0) {
@@ -272,7 +260,6 @@ export default async function StoreProductPage({
     updatedAt: page.updated_at || null,
   };
 
-  // ─── Fetch more products from the same store (excluding current) ───
   const { data: moreProducts } = await supabase
     .from("payment_pages")
     .select(
@@ -284,11 +271,9 @@ export default async function StoreProductPage({
     .order("created_at", { ascending: false })
     .limit(8);
 
-  // ─── SEO: Determine stock status ───
   const stockValue = parsedMetadata?.stock;
   const inStock = stockValue == null ? true : Number(stockValue) > 0;
 
-  // ─── SEO: JSON-LD schemas ───
   const productSchema = generateProductSchema({
     title: page.title,
     slug: page.slug,
@@ -312,7 +297,6 @@ export default async function StoreProductPage({
 
   return (
     <>
-      {/* ─── SEO: JSON-LD structured data ─── */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}

@@ -1,3 +1,4 @@
+// lib/supabase-admin.ts
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
 
@@ -13,12 +14,11 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
           autoRefreshToken: false,
           persistSession: false,
         },
-      }
+      },
     );
   }
   return supabaseAdminInstance;
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // User cache
@@ -61,7 +61,6 @@ export interface UserDetails {
   transaction_pin: string | null;
   pin_set: boolean;
 
-  // Concurrent login fields
   current_session_id: string | null;
   current_session_ip: string | null;
   current_session_device: string | null;
@@ -73,9 +72,8 @@ export interface UserDetails {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getUserWithDetails(
-  userId: string
+  userId: string,
 ): Promise<UserDetails | null> {
-  // Check cache
   const cached = userCache.get(userId);
 
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -86,7 +84,8 @@ export async function getUserWithDetails(
 
   const { data: user, error } = await supabase
     .from("users")
-    .select(`
+    .select(
+      `
       id,
       full_name,
       email,
@@ -113,7 +112,8 @@ export async function getUserWithDetails(
       current_session_ip,
       current_session_device,
       current_session_expires_at
-    `)
+    `,
+    )
     .eq("id", userId)
     .single();
 
@@ -126,8 +126,6 @@ export async function getUserWithDetails(
     return null;
   }
 
-  // Because the Supabase client is typed with Database,
-  // this should now be correctly inferred as the users row.
   const userDetails: UserDetails = {
     id: user.id,
     full_name: user.full_name,
@@ -158,7 +156,6 @@ export async function getUserWithDetails(
     current_session_expires_at: user.current_session_expires_at,
   };
 
-  // Cache user
   userCache.set(userId, {
     data: userDetails,
     timestamp: Date.now(),
@@ -169,6 +166,14 @@ export async function getUserWithDetails(
   }, CACHE_TTL);
 
   return userDetails;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cache invalidation (used after login/session changes)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function invalidateUserCache(userId: string): void {
+  userCache.delete(userId);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,43 +194,54 @@ export function isSubscriptionActive(user: UserDetails): boolean {
 
 export function hasSufficientTier(
   user: UserDetails,
-  requiredTier: string
+  requiredTier: string,
 ): boolean {
-  const tierHierarchy = [
-    "free",
-    "zidlite",
-    "growth",
-    "premium",
-    "elite",
-  ];
+  const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
 
   const userTierIndex = tierHierarchy.indexOf(
-    user.subscription_tier || "free"
+    user.subscription_tier || "free",
   );
 
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
 
-  // Unknown tier should not accidentally pass the check
   if (userTierIndex === -1 || requiredTierIndex === -1) {
     return false;
   }
 
-  return (
-    userTierIndex >= requiredTierIndex &&
-    isSubscriptionActive(user)
-  );
+  return userTierIndex >= requiredTierIndex && isSubscriptionActive(user);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verification helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Canonical check for BVN verification.
+ *
+ * Returns true ONLY when `bvn_verification === "verified"`.
+ * Every other value — null, undefined, "pending", "rejected", or any
+ * unexpected string — is treated as unverified.
+ *
+ * Do not loosen this check. It gates fund transfers and storefront
+ * creation in a fintech application; it must fail closed.
+ */
+export function isBvnVerified(user: UserDetails | null | undefined): boolean {
+  return user?.bvn_verification === "verified";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Clear expired cache entries
 // ─────────────────────────────────────────────────────────────────────────────
 
-setInterval(() => {
-  const now = Date.now();
+setInterval(
+  () => {
+    const now = Date.now();
 
-  for (const [key, entry] of userCache.entries()) {
-    if (now - entry.timestamp > CACHE_TTL) {
-      userCache.delete(key);
+    for (const [key, entry] of userCache.entries()) {
+      if (now - entry.timestamp > CACHE_TTL) {
+        userCache.delete(key);
+      }
     }
-  }
-}, CACHE_TTL);
+  },
+  CACHE_TTL,
+);

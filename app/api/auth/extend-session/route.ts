@@ -1,6 +1,6 @@
 // app/api/auth/extend-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const SESSION_TIMEOUT = 15 * 60 * 1000;
 

@@ -6,12 +6,14 @@ import { format } from "date-fns";
 import {
   X,
   Truck,
+  Store,
   CalendarIcon,
   Clock,
   MessageSquare,
   CreditCard,
   Loader2,
   CircleCheck,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -29,9 +31,9 @@ import {
   PRIMARY_BG_HOVER,
   PRIMARY_TEXT,
 } from "../utils/helpers";
+import type { FulfillmentSelection } from "../hooks/useProductCheckout";
 
 interface Props {
-  // Form state
   isDonation: boolean;
   requireDonorName: boolean;
   customerName: string;
@@ -43,61 +45,52 @@ interface Props {
   errors: Record<string, string>;
   setErrors: (e: Record<string, string>) => void;
 
-  // Shipping
   requiresShipping: boolean;
-  shippingAddress: {
+  fulfillment?: FulfillmentSelection;
+  deliveryFee?: number;
+  shippingAddress?: {
     street: string;
     city: string;
     state: string;
     country: string;
     zipCode: string;
   };
-  setShippingAddress: (a: any) => void;
+  setShippingAddress?: (a: any) => void;
 
-  // Booking
   bookingEnabled: boolean;
   bookingDate: string;
   setBookingDate: (v: string) => void;
   bookingTime: string;
   setBookingTime: (v: string) => void;
 
-  // Note
   customerNoteEnabled: boolean;
   customerNote: string;
   setCustomerNote: (v: string) => void;
 
-  // Donation
   allowDonorMessage: boolean;
   donorMessage: string;
   setDonorMessage: (v: string) => void;
 
-  // Payment link custom fields
   isPaymentLink: boolean;
   customFields: any[];
   linkConfig: any;
   customFieldValues: Record<string, any>;
   setCustomFieldValues: (v: Record<string, any>) => void;
 
-  // School
   isSchoolPage: boolean;
   schoolRequiredFields: string[];
   schoolFields: Record<string, any>;
   setSchoolFields: (v: Record<string, any>) => void;
 
-  // Pricing
   showQuantity: boolean;
   quantity: number;
   currentTotalAmount: number;
-  /** Pre-fee subtotal. Falls back to currentTotalAmount when absent. */
   baseAmount?: number;
-  /** Fee being added on top of baseAmount. Falsy = no fee disclosed. */
   feeAmount?: number;
 
-  // Payment
   processingCardPayment: boolean;
   submissionLock: boolean;
 
-  // Actions
   onClose: () => void;
   onProceed: () => void;
 }
@@ -114,8 +107,8 @@ export function InfoModal({
   errors,
   setErrors,
   requiresShipping,
-  shippingAddress,
-  setShippingAddress,
+  fulfillment,
+  deliveryFee = 0,
   bookingEnabled,
   bookingDate,
   setBookingDate,
@@ -150,6 +143,19 @@ export function InfoModal({
 
   const resolvedBase = baseAmount ?? currentTotalAmount;
   const hasFee = feeAmount != null && feeAmount > 0;
+  const hasDelivery = requiresShipping && deliveryFee > 0;
+
+  const showFulfillmentBlock =
+    requiresShipping && fulfillment != null && fulfillment.method != null;
+
+  const showPickupBlock =
+    showFulfillmentBlock && fulfillment!.method === "pickup";
+
+  const showDeliveryBlock =
+    showFulfillmentBlock && fulfillment!.method === "delivery";
+
+  const showFulfillmentError =
+    requiresShipping && errors.fulfillment != null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -171,7 +177,6 @@ export function InfoModal({
         </div>
 
         <div className="space-y-4">
-          {/* Name */}
           {(!isDonation || requireDonorName) && (
             <div>
               <Label className="mb-1.5 block text-sm font-medium">
@@ -192,7 +197,6 @@ export function InfoModal({
             </div>
           )}
 
-          {/* Email */}
           <div>
             <Label className="mb-1.5 block text-sm font-medium">
               Email {!isDonation && "*"}
@@ -212,7 +216,6 @@ export function InfoModal({
             )}
           </div>
 
-          {/* Phone */}
           <div>
             <Label className="mb-1.5 block text-sm font-medium">
               Phone number
@@ -225,67 +228,91 @@ export function InfoModal({
             />
           </div>
 
-          {/* Shipping */}
-          {requiresShipping && (
+          {requiresShipping && showFulfillmentBlock && (
             <div className="border-t border-border pt-4">
-              <p className="mb-3 flex items-center gap-2 text-sm font-medium">
-                <Truck className="h-4 w-4 text-foreground/60" />
-                Delivery address
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <Label className="mb-1 block text-xs font-medium">
-                    Street address *
-                  </Label>
-                  <Input
-                    value={shippingAddress.street}
-                    onChange={(e) =>
-                      setShippingAddress({
-                        ...shippingAddress,
-                        street: e.target.value,
-                      })
-                    }
-                    className={errors.shippingStreet ? "border-red-500" : ""}
-                    placeholder="123 Main St"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="mb-1 block text-xs font-medium">
-                      City *
-                    </Label>
-                    <Input
-                      value={shippingAddress.city}
-                      onChange={(e) =>
-                        setShippingAddress({
-                          ...shippingAddress,
-                          city: e.target.value,
-                        })
-                      }
-                      placeholder="Lagos"
-                    />
-                  </div>
-                  <div>
-                    <Label className="mb-1 block text-xs font-medium">
-                      State *
-                    </Label>
-                    <Input
-                      value={shippingAddress.state}
-                      onChange={(e) =>
-                        setShippingAddress({
-                          ...shippingAddress,
-                          state: e.target.value,
-                        })
-                      }
-                      placeholder="Lagos"
-                    />
-                  </div>
-                </div>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  {showDeliveryBlock ? (
+                    <>
+                      <Truck className="h-4 w-4 text-foreground/60" />
+                      Delivery details
+                    </>
+                  ) : (
+                    <>
+                      <Store className="h-4 w-4 text-foreground/60" />
+                      Pickup details
+                    </>
+                  )}
+                </p>
+                <span className="rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                  {showDeliveryBlock ? "Delivery" : "Pickup"}
+                </span>
               </div>
+
+              {showDeliveryBlock && fulfillment!.address && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        {fulfillment!.address.label}
+                      </p>
+                      {fulfillment!.address.contact_name && (
+                        <p className="mt-0.5 text-xs text-foreground/70">
+                          {fulfillment!.address.contact_name}
+                          {fulfillment!.address.contact_phone
+                            ? ` · ${fulfillment!.address.contact_phone}`
+                            : ""}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-foreground/60">
+                        {fulfillment!.address.street_address},{" "}
+                        {fulfillment!.address.city},{" "}
+                        {fulfillment!.address.state}
+                      </p>
+                      {fulfillment!.address.estimated_days > 0 && (
+                        <p className="mt-1 text-xs text-foreground/50">
+                          Estimated delivery: ~
+                          {fulfillment!.address.estimated_days} day(s)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showDeliveryBlock && !fulfillment!.address && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs text-red-700">
+                    No delivery address selected. Please go back and choose one.
+                  </p>
+                </div>
+              )}
+
+              {showPickupBlock && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <div className="flex items-start gap-2">
+                    <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">
+                        You'll pick up your order from the seller
+                      </p>
+                      <p className="mt-1 text-xs text-foreground/60">
+                        The seller will contact you with pickup instructions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showFulfillmentError && (
+                <p className="mt-2 text-xs text-red-500">
+                  {errors.fulfillment}
+                </p>
+              )}
             </div>
           )}
 
-          {/* Booking */}
           {bookingEnabled && (
             <div className="border-t border-border pt-5">
               <div className="mb-4 flex items-center gap-2">
@@ -301,7 +328,6 @@ export function InfoModal({
               </div>
 
               <div className="space-y-3">
-                {/* Date picker */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
@@ -320,7 +346,7 @@ export function InfoModal({
                             {bookingDate
                               ? format(
                                   new Date(bookingDate),
-                                  "EEEE, MMM d, yyyy"
+                                  "EEEE, MMM d, yyyy",
                                 )
                               : "Select a date"}
                           </p>
@@ -336,11 +362,11 @@ export function InfoModal({
                         if (!d) return;
                         setBookingDate(
                           `${d.getFullYear()}-${String(
-                            d.getMonth() + 1
+                            d.getMonth() + 1,
                           ).padStart(2, "0")}-${String(d.getDate()).padStart(
                             2,
-                            "0"
-                          )}`
+                            "0",
+                          )}`,
                         );
                         if (errors.bookingDate)
                           setErrors({ ...errors, bookingDate: "" });
@@ -353,7 +379,6 @@ export function InfoModal({
                   </PopoverContent>
                 </Popover>
 
-                {/* Time picker */}
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
@@ -372,7 +397,7 @@ export function InfoModal({
                             {bookingTime
                               ? format(
                                   new Date(`2000-01-01T${bookingTime}`),
-                                  "h:mm a"
+                                  "h:mm a",
                                 )
                               : "Select a time"}
                           </p>
@@ -395,13 +420,13 @@ export function InfoModal({
 
               {bookingDate && bookingTime && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#FDC020]/40 bg-[#FDC020]/5 px-3 py-2">
-                  <CircleCheck className="h-3.5 w-3.5 text-[#191919] dark:text-[#FDC020] shrink-0" />
+                  <CircleCheck className="h-3.5 w-3.5 shrink-0 text-[#191919] dark:text-[#FDC020]" />
                   <p className="text-xs text-foreground/80">
                     Booking for{" "}
                     <strong>
                       {format(
                         new Date(`${bookingDate}T${bookingTime}`),
-                        "EEEE, MMM d 'at' h:mm a"
+                        "EEEE, MMM d 'at' h:mm a",
                       )}
                     </strong>
                   </p>
@@ -410,7 +435,6 @@ export function InfoModal({
             </div>
           )}
 
-          {/* Customer note */}
           {customerNoteEnabled && (
             <div>
               <Label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
@@ -426,7 +450,6 @@ export function InfoModal({
             </div>
           )}
 
-          {/* Donor message */}
           {isDonation && allowDonorMessage && (
             <div>
               <Label className="mb-1.5 block text-sm font-medium">
@@ -442,7 +465,6 @@ export function InfoModal({
             </div>
           )}
 
-          {/* Payment link custom fields */}
           {isPaymentLink && customFields.length > 0 && (
             <div className="border-t border-border pt-4">
               <p className="mb-3 text-sm font-medium">
@@ -502,7 +524,7 @@ export function InfoModal({
                             <option key={i} value={opt}>
                               {opt}
                             </option>
-                          )
+                          ),
                         )}
                       </select>
                     ) : field.type === "checkbox" ? (
@@ -526,8 +548,8 @@ export function InfoModal({
                           field.type === "number"
                             ? "number"
                             : field.type === "date"
-                            ? "date"
-                            : "text"
+                              ? "date"
+                              : "text"
                         }
                         value={customFieldValues[field.id] || ""}
                         onChange={(e) =>
@@ -544,7 +566,6 @@ export function InfoModal({
             </div>
           )}
 
-          {/* School required fields */}
           {isSchoolPage && schoolRequiredFields.length > 0 && (
             <div className="border-t border-border pt-4">
               <p className="mb-3 text-sm font-medium">
@@ -571,9 +592,7 @@ export function InfoModal({
             </div>
           )}
 
-          {/* ─── Summary: subtotal + fee + total ─── */}
           <div className="rounded-lg border border-border bg-muted/20 p-3">
-            {/* Quantity × unit price row */}
             {showQuantity && quantity > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-foreground/60">
@@ -583,7 +602,7 @@ export function InfoModal({
                     {
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 2,
-                    }
+                    },
                   )}
                 </span>
                 <span className="font-medium">
@@ -592,28 +611,43 @@ export function InfoModal({
               </div>
             )}
 
-            {/* Fee breakdown — only when a fee is actually charged */}
-            {hasFee && (
+            {(hasFee || hasDelivery) && (
               <>
-                <div className="flex justify-between text-sm mt-2">
-                  <span className="text-foreground/60">Subtotal</span>
-                  <span className="font-medium">
-                    ₦{resolvedBase.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground/60">Processing fee</span>
-                  <span className="font-medium">
-                    ₦{feeAmount!.toLocaleString()}
-                  </span>
-                </div>
+                {showQuantity && quantity > 0 ? null : (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-foreground/60">Subtotal</span>
+                    <span className="font-medium">
+                      ₦{resolvedBase.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                {hasFee && (
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="text-foreground/60">Processing fee</span>
+                    <span className="font-medium">
+                      ₦{feeAmount!.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                {hasDelivery && (
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="flex items-center gap-1.5 text-foreground/60">
+                      <Truck className="h-3.5 w-3.5" />
+                      Delivery fee
+                    </span>
+                    <span className="font-medium">
+                      ₦{deliveryFee.toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </>
             )}
 
-            {/* Total */}
-            <div className="flex justify-between pt-2 mt-2 border-t border-border">
+            <div className="mt-2 flex justify-between border-t border-border pt-2">
               <span className="text-sm font-medium">
-                {hasFee ? "Total" : "Amount"}
+                {hasFee || hasDelivery ? "Total" : "Amount"}
               </span>
               <span className="text-lg font-semibold">
                 ₦{currentTotalAmount.toLocaleString()}
@@ -621,7 +655,6 @@ export function InfoModal({
             </div>
           </div>
 
-          {/* Submit */}
           <Button
             onClick={onProceed}
             disabled={isSubmitting}
