@@ -6,7 +6,7 @@ import { useProductCheckout } from "./hooks/useProductCheckout";
 import type { StoreProductClientProps } from "./utils/types";
 import { TYPE_LABELS } from "./utils/helpers";
 import { ProductHeader } from "./components/ProductHeader";
-import { ProductImageGallery } from "./components/ProductImageGallery";
+import { ProductImageGallery } from "./components/ProductImageGallery"
 import { StockBadge } from "./components/StockBadge";
 import { QuantityPicker } from "./components/QuantityPicker";
 import { PaymentOptionToggle } from "./components/PaymentOptionToggle";
