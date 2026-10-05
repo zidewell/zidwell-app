@@ -155,10 +155,14 @@ export async function getUserWithDetails(
       bank_name,
       bank_account_name,
       bank_account_number,
-      wallet_id,
-      activation_paid,
-      activated_at,
-      activation_reference`,
+        wallet_id,
+        activation_paid,
+        activated_at,
+        activation_reference,
+        account_tier,
+        custom_outflow_percent,
+        custom_outflow_min,
+        custom_fee_note`,
     )
     .eq("id", userId)
     .single();

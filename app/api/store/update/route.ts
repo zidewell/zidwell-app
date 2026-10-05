@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest) {
 
   const { data: store, error } = await supabase
     .from("online_stores")
-    .update(updates)
+    .update(updates as any)
     .eq("owner_id", user.id)
     .select()
     .single();

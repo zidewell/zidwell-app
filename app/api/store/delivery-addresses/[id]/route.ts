@@ -65,7 +65,7 @@ export async function PATCH(
 
     const { data, error } = await supabase
       .from("store_delivery_addresses")
-      .update(patch)
+      .update(patch as any)
       .eq("id", id)
       .select()
       .single();

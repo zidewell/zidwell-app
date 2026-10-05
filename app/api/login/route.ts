@@ -336,6 +336,11 @@ export async function POST(request: NextRequest) {
     // ─── PARALLELIZE INDEPENDENT CALLS ───
     // Security analysis, session write, business lookup, and store lookup
     // are independent — run them together instead of sequentially.
+
+    // ─── SESSION TOKEN ───
+    const sessionToken = generateSessionId();
+    const sessionExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
     const [
       securityContextResult,
       sessionWriteResult,
@@ -374,12 +379,8 @@ export async function POST(request: NextRequest) {
         .maybeSingle(),
     ]);
 
-    // ─── SESSION TOKEN ───
-    const sessionToken = generateSessionId();
-    const sessionExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
     // ─── SECURITY CONTEXT ───
-    let securityContext =
+        let securityContext =
       securityContextResult.status === "fulfilled"
         ? securityContextResult.value
         : {
