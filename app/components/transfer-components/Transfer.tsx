@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
-import PinPopOver from "../PinPopOver"; 
+import PinPopOver from "../PinPopOver";
 import TransactionSummary from "./TransactionSummary";
 import TransferSuccessModal from "./TransferSuccessModal";
-import TransferBalanceCards from "./TransferBalanceCards"; 
-import TransferForm from "./TransferForm"; 
+import TransferBalanceCards from "./TransferBalanceCards";
+import TransferForm from "./TransferForm";
 import { useUserContextData } from "@/app/context/userData";
+import { TIER_CONFIG, type AccountTier } from "@/lib/fee";
 
 // Types
 interface Bank {
@@ -27,7 +28,8 @@ interface SavedAccount {
   bank_name: string;
   bank_code: string;
   is_default: boolean;
-  last_used?: string;
+  last_used_at?: string;
+  use_count?: number;
 }
 
 interface SavedP2PBeneficiary {
@@ -37,7 +39,8 @@ interface SavedP2PBeneficiary {
   account_name: string;
   is_default: boolean;
   created_at: string;
-  last_used?: string;
+  last_used_at?: string;
+  use_count?: number;
 }
 
 interface RecentBeneficiary {
@@ -63,11 +66,22 @@ type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer" | "p2p";
 
 export default function Transfer() {
   const inputCount = 4;
-  const { userData, balance, lifetimeBalance } = useUserContextData();
 
-  // State declarations
+  const { userData, balance, lifetimeBalance, refreshUserProfile } =
+    useUserContextData();
+
+  const accountTier: AccountTier =
+    ((userData as any)?.accountTier as AccountTier) || "tier_3";
+
+  const customOutflowPercent: number | null =
+    (userData as any)?.customOutflowPercent ?? null;
+  const customOutflowMin: number | null =
+    (userData as any)?.customOutflowMin ?? null;
+
   const [isOpen, setIsOpen] = useState(false);
-  const [transferType, setTransferType] = useState<"my-account" | "other-bank" | "p2p">("my-account");
+  const [transferType, setTransferType] = useState<
+    "my-account" | "other-bank" | "p2p"
+  >("my-account");
   const [amount, setAmount] = useState<string>("");
   const [bankCode, setBankCode] = useState<string>("");
   const [bankName, setBankName] = useState<string>("");
@@ -90,30 +104,39 @@ export default function Transfer() {
   const [totalDebit, setTotalDebit] = useState(0);
   const [pinError, setPinError] = useState<string | null>(null);
   const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
-  const [saveAccount, setSaveAccount] = useState(false);
-  const [selectedSavedAccount, setSelectedSavedAccount] = useState<SavedAccount | null>(null);
+  const [selectedSavedAccount, setSelectedSavedAccount] =
+    useState<SavedAccount | null>(null);
   const [showSavedAccounts, setShowSavedAccounts] = useState(false);
-  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<SavedP2PBeneficiary[]>([]);
-  const [saveP2PBeneficiary, setSaveP2PBeneficiary] = useState(false);
-  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] = useState<SavedP2PBeneficiary | null>(null);
-  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] = useState(false);
+  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<
+    SavedP2PBeneficiary[]
+  >([]);
+  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] =
+    useState<SavedP2PBeneficiary | null>(null);
+  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] =
+    useState(false);
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
-  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(
+    []
+  );
   const [expenseCategory, setExpenseCategory] = useState<string>("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [recentBeneficiaries, setRecentBeneficiaries] = useState<RecentBeneficiary[]>([]);
-  const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] = useState(false);
+  const [recentBeneficiaries, setRecentBeneficiaries] = useState<
+    RecentBeneficiary[]
+  >([]);
+  const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] =
+    useState(false);
   const [beneficiarySearch, setBeneficiarySearch] = useState("");
-  const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<RecentBeneficiary[]>([]);
+  const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<
+    RecentBeneficiary[]
+  >([]);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState<any>(null);
   const [isDownloadingReceipt, setIsDownloadingReceipt] = useState(false);
 
-  // Refs
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const alertShownRef = useRef<boolean>(false);
   const currentTransactionIdRef = useRef<string | null>(null);
@@ -122,7 +145,10 @@ export default function Transfer() {
   const p2pInputRef = useRef<HTMLInputElement>(null);
   const pendingFavoritesRef = useRef<Set<string>>(new Set());
 
-  // Helper: Format number
+  useEffect(() => {
+    refreshUserProfile();
+  }, [refreshUserProfile]);
+
   const formatNumber = (value: number) =>
     new Intl.NumberFormat("en-US", {
       style: "decimal",
@@ -130,7 +156,6 @@ export default function Transfer() {
       maximumFractionDigits: 2,
     }).format(value);
 
-  // Helper: Reset form
   const resetForm = () => {
     setAmount("");
     setAccountNumber("");
@@ -141,8 +166,6 @@ export default function Transfer() {
     setBankName("");
     setPin(Array(inputCount).fill(""));
     setErrors({});
-    setSaveAccount(false);
-    setSaveP2PBeneficiary(false);
     setSelectedSavedAccount(null);
     setSelectedSavedP2PBeneficiary(null);
     setExpenseCategory("");
@@ -153,7 +176,6 @@ export default function Transfer() {
     setIsInputFocused(false);
   };
 
-  // Helper: Stop polling
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -162,7 +184,6 @@ export default function Transfer() {
     currentTransactionIdRef.current = null;
   };
 
-  // Helper: Get all beneficiaries
   const getAllBeneficiaries = () => {
     const allBeneficiaries: RecentBeneficiary[] = [
       ...recentBeneficiaries,
@@ -172,7 +193,7 @@ export default function Transfer() {
         account_name: acc.account_name,
         bank_name: acc.bank_name,
         type: "bank" as const,
-        last_used: acc.last_used || new Date().toISOString(),
+        last_used: acc.last_used_at || new Date().toISOString(),
       })),
       ...savedP2PBeneficiaries.map((b) => ({
         id: `p2p_${b.account_number}`,
@@ -180,7 +201,7 @@ export default function Transfer() {
         account_name: b.account_name,
         bank_name: "Zidwell",
         type: "p2p" as const,
-        last_used: b.last_used || b.created_at,
+        last_used: b.last_used_at || b.created_at,
       })),
     ];
 
@@ -196,16 +217,13 @@ export default function Transfer() {
     return unique;
   };
 
-  // Helper: Select beneficiary
   const handleSelectBeneficiary = (beneficiary: RecentBeneficiary) => {
     if (beneficiary.type === "bank") {
       setAccountNumber(beneficiary.account_number);
       setAccountName(beneficiary.account_name);
       setBankName(beneficiary.bank_name || "");
       const foundBank = banks.find((b) => b.name === beneficiary.bank_name);
-      if (foundBank) {
-        setBankCode(foundBank.code);
-      }
+      if (foundBank) setBankCode(foundBank.code);
       setShowBeneficiarySuggestions(false);
       setBeneficiarySearch("");
       setMatchingBeneficiaries([]);
@@ -225,7 +243,6 @@ export default function Transfer() {
     }
   };
 
-  // Helper: Save recent beneficiary
   const saveRecentBeneficiary = (
     accountNumber: string,
     accountName: string,
@@ -252,297 +269,121 @@ export default function Transfer() {
     });
   };
 
-// Helper: Download receipt
-const handleDownloadReceiptFromData = async (receiptData: any) => {
-  try {
-    let logoBase64 = "";
+  const handleDownloadReceiptFromData = async (receiptData: any) => {
     try {
-      const response = await fetch("/logo.png");
-      if (response.ok) {
-        const blob = await response.blob();
-        logoBase64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
+      let logoBase64 = "";
+      try {
+        const response = await fetch("/logo.png");
+        if (response.ok) {
+          const blob = await response.blob();
+          logoBase64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch (e) {
+        console.error("Error loading logo:", e);
       }
-    } catch (e) {
-      console.error("Error loading logo:", e);
-    }
 
-    const logoSrc = logoBase64 || "/logo.png";
-    
-    // Properly format amount with ₦ symbol
-    const amountValue = Number(receiptData?.amount || 0);
-    const amountDisplay = `${amountValue.toLocaleString("en-NG", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-    
-    const formattedDate = new Date(receiptData?.date || Date.now()).toLocaleString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+      const logoSrc = logoBase64 || "/logo.png";
 
-    // Properly format fee with ₦ symbol
-    const feeValue = Number(receiptData?.fee || 0);
-    const feeDisplay = feeValue > 0 
-      ? `₦${feeValue.toLocaleString("en-NG", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`
-      : "";
+      const amountValue = Number(receiptData?.amount || 0);
+      const amountDisplay = `${amountValue.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
 
-    // Escape HTML special characters
-    const escapeHtml = (str: string) => {
-      if (!str) return '';
-      return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    };
+      const formattedDate = new Date(
+        receiptData?.date || Date.now()
+      ).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
-    const statusColor = "#E5B333";
-    const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
-      <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+      const feeValue = Number(receiptData?.fee || 0);
+      const feeDisplay =
+        feeValue > 0
+          ? `₦${feeValue.toLocaleString("en-NG", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`
+          : "";
 
-    const receiptHTML = `<!DOCTYPE html>
+      const escapeHtml = (str: string) => {
+        if (!str) return "";
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+
+      const statusColor = "#E5B333";
+      const statusIconSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#E5B333" stroke="none"/>
+        <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+
+      const receiptHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zidwell Receipt | ${receiptData?.transactionId || "N/A"}</title>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Arial', 'Helvetica', sans-serif;
-  }
-  body {
-    background: #101010;
-    display: flex;
-    justify-content: center;
-    padding: 30px 20px;
-  }
-  .receipt {
-    width: 550px;
-    background: #fff;
-    border: 2px solid ${statusColor};
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-  }
-  .header {
-    height: 120px;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
-  .header::after {
-    content: "";
-    position: absolute;
-    bottom: 0px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 280px;
-    height: 130px;
-    background: #101010;
-    border: 2px solid #E5B333;
-    clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%);
-    border-radius: 0 0 240px 240px;
-  }
-  .logo {
-    position: relative;
-    z-index: 2;
-  }
-  .logo img {
-    width: 130px;
-  }
-  .content {
-    padding: 30px 40px 30px;
-  }
-  .status-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .status-icon svg {
-    width: 48px;
-    height: 48px;
-  }
-  .title {
-    text-align: center;
-  }
-  .title h1 {
-    font-size: 25px;
-    margin-bottom: 10px;
-  }
-  .title p {
-    color: #777;
-  }
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 15px 0;
-  }
-  .divider-line {
-    flex: 1;
-    height: 1px;
-    background: #E5B333;
-  }
-  .dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #E5B333;
-  }
-  .amount {
-    text-align: center;
-  }
-  .amount-label {
-    color: #777;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .amount-value {
-    font-size: 30px;
-    font-weight: 700;
-    margin-top: 10px;
-  }
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    margin: 25px 0 15px;
-  }
-  .section-title .line {
-    flex: 1;
-    height: 1px;
-    background: #E5B333;
-  }
-  .section-title span {
-    color: #E5B333;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 13px;
-  }
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #f0e0a3;
-  }
-  .detail-row-last {
-    border-bottom: none;
-  }
-  .left {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    flex: 1;
-  }
-  .icon {
-    width: 42px;
-    height: 42px;
-    background: #101010;
-    border-radius: 50%;
-    color: #E5B333;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .detail-title {
-    font-size: 13px;
-    color: #444;
-  }
-  .detail-value {
-    font-weight: 600;
-    margin-top: 3px;
-    font-size: 14px;
-  }
-  .sub {
-    color: #777;
-    font-size: 12px;
-  }
-  .right {
-    font-weight: 600;
-    text-align: right;
-    font-size: 14px;
-  }
-  .narration-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex: 1;
-  }
-  .narration-text {
-    font-weight: 400;
-    font-size: 13px;
-    text-align: right;
-    max-width: 60%;
-    word-break: break-word;
-  }
-  .footer {
-    height: 50px;
-    color: #fff;
-    font-size:12px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    background: #101010;
-  }
-  .footer::before {
-    content: "";
-    position: absolute;
-    top: -40px;
-    left: 0;
-    width: 100%;
-    height: 80px;
-    background: #101010;
-    border-top: 2px solid #E5B333;
-    border-top-left-radius: 70%;
-    border-top-right-radius: 70%;
-  }
-  .footer span {
-    position: relative;
-    z-index: 2;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', 'Helvetica', sans-serif; }
+  body { background: #101010; display: flex; justify-content: center; padding: 30px 20px; }
+  .receipt { width: 550px; background: #fff; border: 2px solid ${statusColor}; border-radius: 20px; overflow: hidden; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3); }
+  .header { height: 120px; position: relative; display: flex; justify-content: center; align-items: flex-start; }
+  .header::after { content: ""; position: absolute; bottom: 0px; left: 50%; transform: translateX(-50%); width: 280px; height: 130px; background: #101010; border: 2px solid #E5B333; clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%); border-radius: 0 0 240px 240px; }
+  .logo { position: relative; z-index: 2; }
+  .logo img { width: 130px; }
+  .content { padding: 30px 40px 30px; }
+  .status-icon { width: 48px; height: 48px; margin: 0 auto 20px; display: flex; justify-content: center; align-items: center; }
+  .status-icon svg { width: 48px; height: 48px; }
+  .title { text-align: center; }
+  .title h1 { font-size: 25px; margin-bottom: 10px; }
+  .title p { color: #777; }
+  .divider { display: flex; align-items: center; gap: 8px; margin: 15px 0; }
+  .divider-line { flex: 1; height: 1px; background: #E5B333; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #E5B333; }
+  .amount { text-align: center; }
+  .amount-label { color: #777; text-transform: uppercase; letter-spacing: 1px; }
+  .amount-value { font-size: 30px; font-weight: 700; margin-top: 10px; }
+  .section-title { display: flex; align-items: center; gap: 15px; margin: 25px 0 15px; }
+  .section-title .line { flex: 1; height: 1px; background: #E5B333; }
+  .section-title span { color: #E5B333; font-weight: 600; text-transform: uppercase; font-size: 13px; }
+  .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0e0a3; }
+  .detail-row-last { border-bottom: none; }
+  .left { display: flex; gap: 15px; align-items: center; flex: 1; }
+  .icon { width: 42px; height: 42px; background: #101010; border-radius: 50%; color: #E5B333; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .detail-title { font-size: 13px; color: #444; }
+  .detail-value { font-weight: 600; margin-top: 3px; font-size: 14px; }
+  .sub { color: #777; font-size: 12px; }
+  .right { font-weight: 600; text-align: right; font-size: 14px; }
+  .narration-wrapper { display: flex; justify-content: space-between; align-items: center; flex: 1; }
+  .narration-text { font-weight: 400; font-size: 13px; text-align: right; max-width: 60%; word-break: break-word; }
+  .footer { height: 50px; color: #fff; font-size:12px; display: flex; justify-content: center; align-items: center; position: relative; background: #101010; }
+  .footer::before { content: ""; position: absolute; top: -40px; left: 0; width: 100%; height: 80px; background: #101010; border-top: 2px solid #E5B333; border-top-left-radius: 70%; border-top-right-radius: 70%; }
+  .footer span { position: relative; z-index: 2; }
 </style>
 </head>
 <body>
-
 <div class="receipt">
   <div class="header">
-    <div class="logo">
-      <img src="${logoSrc}" alt="Zidwell Logo">
-    </div>
+    <div class="logo"><img src="${logoSrc}" alt="Zidwell Logo"></div>
   </div>
-
   <div class="content">
-    <div class="status-icon">
-      ${statusIconSvg}
-    </div>
-
+    <div class="status-icon">${statusIconSvg}</div>
     <div class="title">
       <h1>Transfer Successful</h1>
       <p>Your transaction has been completed successfully.</p>
     </div>
-
     <div class="divider">
       <div class="divider-line"></div>
       <div class="dot"></div>
@@ -550,168 +391,104 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       <div class="dot"></div>
       <div class="divider-line"></div>
     </div>
-
     <div class="amount">
       <div class="amount-label">Amount</div>
       <div class="amount-value">${amountDisplay}</div>
     </div>
-
     <div class="section-title">
       <div class="line"></div>
       <span>Transaction Details</span>
       <div class="line"></div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Date & Time</div>
-          </div>
-          <div class="right">${formattedDate}</div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">Date & Time</div></div><div class="right">${formattedDate}</div></div>
       </div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="19" x2="12" y2="5"/>
-            <polyline points="5 12 12 5 19 12"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">From</div>
-            <div class="detail-value">${escapeHtml(receiptData?.senderName || "Zidwell User")}</div>
-            ${receiptData?.senderAccount ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>` : ""}
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">From</div><div class="detail-value">${escapeHtml(
+          receiptData?.senderName || "Zidwell User"
+        )}</div>${
+        receiptData?.senderAccount
+          ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>`
+          : ""
+      }</div></div>
       </div>
     </div>
-
     <div class="detail-row">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <polyline points="19 12 12 19 5 12"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">To</div>
-            <div class="detail-value">${escapeHtml(receiptData?.recipientName || "N/A")}</div>
-            ${receiptData?.recipientAccount ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>` : ""}
-            ${receiptData?.recipientBank ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>` : ""}
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">To</div><div class="detail-value">${escapeHtml(
+          receiptData?.recipientName || "N/A"
+        )}</div>${
+        receiptData?.recipientAccount
+          ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>`
+          : ""
+      }${
+        receiptData?.recipientBank
+          ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>`
+          : ""
+      }</div></div>
       </div>
     </div>
-
-    ${receiptData?.narration ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Narration</div>
-          </div>
-          <div class="narration-text">${escapeHtml(receiptData.narration)}</div>
-        </div>
-      </div>
-    </div>
-    ` : ""}
-
-    ${feeValue > 0 ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Fee</div>
-          </div>
-          <div class="right">${feeDisplay}</div>
-        </div>
-      </div>
-    </div>
-    ` : ""}
-
+    ${
+      receiptData?.narration
+        ? `<div class="detail-row"><div class="left"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="narration-wrapper"><div><div class="detail-title">Narration</div></div><div class="narration-text">${escapeHtml(
+            receiptData.narration
+          )}</div></div></div></div>`
+        : ""
+    }
+    ${
+      feeValue > 0
+        ? `<div class="detail-row"><div class="left"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><div class="narration-wrapper"><div><div class="detail-title">Fee</div></div><div class="right">${feeDisplay}</div></div></div></div>`
+        : ""
+    }
     <div class="detail-row detail-row-last">
       <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Transaction ID</div>
-            <div class="detail-value">${escapeHtml(receiptData?.transactionId || "N/A")}</div>
-          </div>
-        </div>
+        <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="narration-wrapper"><div><div class="detail-title">Transaction ID</div><div class="detail-value">${escapeHtml(
+          receiptData?.transactionId || "N/A"
+        )}</div></div></div>
       </div>
     </div>
   </div>
-
-  <div class="footer">
-    <span>Thank you for using Zidwell.</span>
-  </div>
+  <div class="footer"><span>Thank you for using Zidwell.</span></div>
 </div>
-
 </body>
 </html>`;
 
-    const response = await fetch("/api/generate-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ html: receiptHTML }),
-    });
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to generate PDF");
+      if (!response.ok) throw new Error("Failed to generate PDF");
+
+      const pdfBlob = await response.blob();
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zidwell-receipt-${
+        receiptData?.transactionId || "receipt"
+      }.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating receipt:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Failed to Download",
+        text: "Could not generate receipt. Please try again.",
+      });
     }
+  };
 
-    const pdfBlob = await response.blob();
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `zidwell-receipt-${receiptData?.transactionId || "receipt"}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error("Error generating receipt:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Failed to Download",
-      text: "Could not generate receipt. Please try again.",
-    });
-  }
-};
-  // Polling
   const startPolling = (transactionId: string) => {
     stopPolling();
     alertShownRef.current = false;
@@ -722,19 +499,13 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     const pollIntervalMs = 2000;
 
     const pollStatus = async () => {
-      if (currentTransactionIdRef.current !== transactionId) {
-        console.log("Transaction ID mismatch, stopping polling");
-        return;
-      }
-
+      if (currentTransactionIdRef.current !== transactionId) return;
       if (alertShownRef.current) {
-        console.log("Alert already shown, stopping polling");
         stopPolling();
         return;
       }
 
       if (attempts >= maxAttempts) {
-        console.log("Max polling attempts reached");
         stopPolling();
         if (Swal.isVisible() && !alertShownRef.current) {
           alertShownRef.current = true;
@@ -752,33 +523,19 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       attempts++;
 
       try {
-        console.log(`Polling attempt ${attempts} for transaction ${transactionId}`);
-
         const res = await fetch(
           `/api/transaction/status?transactionId=${transactionId}`
         );
-
-        if (!res.ok) {
-          console.error(`Polling failed with status: ${res.status}`);
-          return;
-        }
+        if (!res.ok) return;
 
         const data = await res.json();
-        console.log("Polling response:", {
-          status: data.status,
-          transactionId,
-        });
-
         if (alertShownRef.current) return;
 
         if (data.status === "success") {
-          console.log("Transaction successful!");
           alertShownRef.current = true;
           stopPolling();
-
           if (Swal.isVisible()) Swal.close();
 
-          // Prepare receipt data and show modal
           const receiptData = {
             transactionId: transactionId,
             amount: Number(amount),
@@ -815,14 +572,15 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
           setSuccessData(receiptData);
           setShowSuccessModal(true);
 
+          // ✅ Refresh saved lists after success (server already saved)
+          refreshSavedLists();
+
           resetForm();
           setConfirmTransaction(false);
           setIsOpen(false);
         } else if (data.status === "failed") {
-          console.log("Transaction failed!");
           alertShownRef.current = true;
           stopPolling();
-
           if (Swal.isVisible()) Swal.close();
 
           await Swal.fire({
@@ -836,8 +594,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
 
           setConfirmTransaction(false);
           setIsOpen(false);
-        } else {
-          console.log("Still processing...");
         }
       } catch (error) {
         console.error("Polling error:", error);
@@ -848,98 +604,30 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     pollingIntervalRef.current = setInterval(pollStatus, pollIntervalMs);
   };
 
-  // Save account to profile
-  const saveAccountToProfile = async () => {
-    if (!userData?.id || !accountNumber || !accountName || !bankCode || !bankName) return;
+  // ✅ Background refresh of saved lists (server already saved the beneficiary)
+  const refreshSavedLists = async () => {
+    if (!userData?.id) return;
     try {
-      const response = await fetch("/api/saved-accounts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData.id,
-          accountNumber,
-          accountName,
-          bankCode,
-          bankName,
-          isDefault: false,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSavedAccounts((prev) => [...prev, data.account]);
-        Swal.fire({
-          icon: "success",
-          title: "Account Saved!",
-          text: "This account has been saved to your profile for future transfers.",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Failed to Save",
-          text: data.message || "Could not save account",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save account:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to save account. Please try again.",
-      });
+      const [bankRes, p2pRes] = await Promise.all([
+        fetch(`/api/saved-accounts?userId=${userData.id}`),
+        fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
+      ]);
+      const bankData = bankRes.ok ? await bankRes.json() : null;
+      const p2pData = p2pRes.ok ? await p2pRes.json() : null;
+      if (bankData?.success) setSavedAccounts(bankData.accounts || []);
+      if (p2pData?.success)
+        setSavedP2PBeneficiaries(p2pData.beneficiaries || []);
+    } catch (err) {
+      console.error("Failed to refresh saved lists:", err);
     }
   };
 
-  // Save P2P beneficiary to profile
-  const saveP2PBeneficiaryToProfile = async () => {
-    if (!userData?.id || !recepientAcc || !p2pDetails?.name || !p2pDetails?.id) return;
-    try {
-      const response = await fetch("/api/save-p2p-beneficiary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: userData.id,
-          walletId: p2pDetails.id,
-          accountNumber: recepientAcc,
-          accountName: p2pDetails.name,
-          isDefault: false,
-        }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSavedP2PBeneficiaries((prev) => [...prev, data.beneficiary]);
-        Swal.fire({
-          icon: "success",
-          title: "Beneficiary Saved!",
-          text: "This user has been saved to your beneficiaries for future transfers.",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Failed to Save",
-          text: data.message || "Could not save beneficiary",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to save beneficiary:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to save beneficiary. Please try again.",
-      });
-    }
-  };
-
-  // Toggle favorite category
-  const toggleFavoriteCategory = async (category: ExpenseCategory, e: React.MouseEvent) => {
+  const toggleFavoriteCategory = async (
+    category: ExpenseCategory,
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation();
-
-    if (pendingFavoritesRef.current.has(category.id)) {
-      return;
-    }
+    if (pendingFavoritesRef.current.has(category.id)) return;
 
     const newFavoriteStatus = !category.is_favorite;
 
@@ -978,12 +666,13 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
               ? {
                   ...cat,
                   is_favorite: !newFavoriteStatus,
-                  favorite_order: !newFavoriteStatus ? 0 : category.favorite_order,
+                  favorite_order: !newFavoriteStatus
+                    ? 0
+                    : category.favorite_order,
                 }
               : cat
           )
         );
-        console.error("Failed to update favorite status");
       }
     } catch (error) {
       setExpenseCategories((prev) =>
@@ -997,13 +686,11 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
             : cat
         )
       );
-      console.error("Failed to update favorite:", error);
     } finally {
       pendingFavoritesRef.current.delete(category.id);
     }
   };
 
-  // Handle select saved account
   const handleSelectSavedAccount = (account: SavedAccount) => {
     setSelectedSavedAccount(account);
     setAccountNumber(account.account_number);
@@ -1011,14 +698,14 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     setBankCode(account.bank_code);
     setBankName(account.bank_name);
     setShowSavedAccounts(false);
-    setSaveAccount(false);
     setShowBeneficiarySuggestions(false);
     setMatchingBeneficiaries([]);
     setIsInputFocused(false);
   };
 
-  // Handle select saved P2P beneficiary
-  const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
+  const handleSelectSavedP2PBeneficiary = (
+    beneficiary: SavedP2PBeneficiary
+  ) => {
     setSelectedSavedP2PBeneficiary(beneficiary);
     setRecepientAcc(beneficiary.account_number);
     setP2pDetails({
@@ -1026,13 +713,11 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       id: beneficiary.wallet_id,
     });
     setShowSavedP2PBeneficiaries(false);
-    setSaveP2PBeneficiary(false);
     setShowBeneficiarySuggestions(false);
     setMatchingBeneficiaries([]);
     setIsInputFocused(false);
   };
 
-  // Handle select bank
   const handleSelectBank = (bank: Bank) => {
     setBankName(bank.name);
     setBankCode(bank.code);
@@ -1040,12 +725,13 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     setSearch("");
   };
 
-  // Perform transfer
   const performTransfer = async (submittedPin: string) => {
     setLoading(true);
 
     try {
-      const selectedCategory = expenseCategories.find((c) => c.id === expenseCategory);
+      const selectedCategory = expenseCategories.find(
+        (c) => c.id === expenseCategory
+      );
 
       const payload: any = {
         userId: userData?.id,
@@ -1056,8 +742,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         narration,
         pin: submittedPin,
         type: transferType,
-        fee: calculatedFee,
-        totalDebit,
         category: selectedCategory?.name || narration,
         categoryId: expenseCategory,
       };
@@ -1118,14 +802,9 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         setLoading(false);
         return { success: true };
       } else if (res.ok) {
-        if (saveAccount && !selectedSavedAccount && transferType === "other-bank") {
-          await saveAccountToProfile();
-        }
-        if (saveP2PBeneficiary && !selectedSavedP2PBeneficiary && transferType === "p2p") {
-          await saveP2PBeneficiaryToProfile();
-        }
+        // ✅ Server already saved the beneficiary — just refresh local list
+        refreshSavedLists();
 
-        // Prepare receipt data for download
         const receiptData = {
           transactionId:
             data.transactionId ||
@@ -1159,7 +838,7 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
           senderAccount: userDetails?.bank_details?.bank_account_number || "N/A",
           narration: narration,
           status: "success",
-          fee: calculatedFee,
+          fee: Number(data.fee ?? calculatedFee),
           type: transferType,
         };
 
@@ -1172,7 +851,8 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         setLoading(false);
         return { success: true };
       } else {
-        const errorMessage = data?.reason || data?.message || "Transfer failed.";
+        const errorMessage =
+          data?.reason || data?.message || "Transfer failed.";
 
         if (
           errorMessage.toLowerCase().includes("pin") ||
@@ -1213,16 +893,36 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     }
   };
 
-  // Handle transfer submission
+  const clientLimitGuard = (): string | null => {
+    const cfg = TIER_CONFIG[accountTier];
+    if (!cfg) return null;
+
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+
+    if (amt > cfg.perTransferLimit) {
+      return `Amount exceeds your ${
+        cfg.label
+      } per-transfer limit of ₦${cfg.perTransferLimit.toLocaleString()}`;
+    }
+    return null;
+  };
+
   const handleTransfer = (e: React.FormEvent) => {
     e.preventDefault();
-
     const newErrors: { [key: string]: string } = {};
 
-    if (!amount || Number(amount) < 100) newErrors.amount = "Amount must be at least ₦100.";
+    if (!amount || Number(amount) < 100)
+      newErrors.amount = "Amount must be at least ₦100.";
     if (!narration) newErrors.narration = "Narration is required.";
     if (narration.length > 100) newErrors.narration = "Narration too long.";
-    if (!expenseCategory) newErrors.expenseCategory = "Please select an expense category.";
+    if (!expenseCategory)
+      newErrors.expenseCategory = "Please select an expense category.";
+
+    if (amount && Number(amount) >= 100) {
+      const limitError = clientLimitGuard();
+      if (limitError) newErrors.amount = limitError;
+    }
 
     if (
       transferType === "my-account" &&
@@ -1236,7 +936,10 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
       if (!bankCode || !accountNumber || !accountName) {
         newErrors.otherBank = "Please complete all bank fields.";
       }
-      if (accountNumber && (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))) {
+      if (
+        accountNumber &&
+        (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber))
+      ) {
         newErrors.accountNumber = "Account number must be 10 digits.";
       }
     }
@@ -1258,7 +961,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     setConfirmTransaction(true);
   };
 
-  // Modal handlers
   const handleModalDownload = async () => {
     if (!successData) return;
     setIsDownloadingReceipt(true);
@@ -1273,7 +975,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     }, 300);
   };
 
-  // Computed values
   const filteredBanks = banks.filter((bank) =>
     bank.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -1284,8 +985,10 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     !narration ||
     !expenseCategory ||
     Number(amount) <= 0 ||
-    (transferType === "my-account" && !userDetails?.payment_details?.p_account_number) ||
-    (transferType === "other-bank" && (!bankCode || !accountNumber || !accountName)) ||
+    (transferType === "my-account" &&
+      !userDetails?.payment_details?.p_account_number) ||
+    (transferType === "other-bank" &&
+      (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
   const getPaymentMethod = (): PaymentMethod => {
@@ -1294,12 +997,15 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
   };
 
   const showSuggestions =
-    showBeneficiarySuggestions && matchingBeneficiaries.length > 0 && isInputFocused;
+    showBeneficiarySuggestions &&
+    matchingBeneficiaries.length > 0 &&
+    isInputFocused;
 
-  // Effects
   useEffect(() => {
     const loadRecentBeneficiaries = () => {
-      const cached = localStorage.getItem(`recent_beneficiaries_${userData?.id}`);
+      const cached = localStorage.getItem(
+        `recent_beneficiaries_${userData?.id}`
+      );
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -1309,34 +1015,28 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         }
       }
     };
-
-    if (userData?.id) {
-      loadRecentBeneficiaries();
-    }
+    if (userData?.id) loadRecentBeneficiaries();
   }, [userData?.id]);
 
-  // Fetch expense categories
   const fetchExpenseCategories = async () => {
     if (!userData?.id) return;
-
     setLoadingCategories(true);
     try {
-      const response = await fetch(`/api/journal/categories?userId=${userData.id}`);
+      const response = await fetch(
+        `/api/journal/categories?userId=${userData.id}`
+      );
       const data = await response.json();
-
-      const expenseCats = data.filter((cat: ExpenseCategory) => cat.type === "expense");
-
+      const expenseCats = data.filter(
+        (cat: ExpenseCategory) => cat.type === "expense"
+      );
       const uniqueCategories = expenseCats.reduce(
         (acc: ExpenseCategory[], current: ExpenseCategory) => {
           const exists = acc.find((cat) => cat.name === current.name);
-          if (!exists) {
-            acc.push(current);
-          }
+          if (!exists) acc.push(current);
           return acc;
         },
         []
       );
-
       setExpenseCategories(uniqueCategories);
     } catch (error) {
       console.error("Failed to fetch expense categories:", error);
@@ -1351,20 +1051,23 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     const fetchDetails = async () => {
       setLoading2(true);
       try {
-        const [accountRes, banksRes, savedAccountsRes, savedP2PRes] = await Promise.all([
-          fetch("/api/get-wallet-account-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: userData.id }),
-          }),
-          fetch("/api/banks"),
-          fetch(`/api/saved-accounts?userId=${userData.id}`),
-          fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
-        ]);
+        const [accountRes, banksRes, savedAccountsRes, savedP2PRes] =
+          await Promise.all([
+            fetch("/api/get-wallet-account-details", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: userData.id }),
+            }),
+            fetch("/api/banks"),
+            fetch(`/api/saved-accounts?userId=${userData.id}`),
+            fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
+          ]);
 
         const accountData = accountRes.ok ? await accountRes.json() : {};
         const banksData = banksRes.ok ? await banksRes.json() : {};
-        const savedAccountsData = savedAccountsRes.ok ? await savedAccountsRes.json() : {};
+        const savedAccountsData = savedAccountsRes.ok
+          ? await savedAccountsRes.json()
+          : {};
         const savedP2PData = savedP2PRes.ok ? await savedP2PRes.json() : {};
 
         setUserDetails(accountData || {});
@@ -1386,7 +1089,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     fetchExpenseCategories();
   }, [userData?.id]);
 
-  // Bank lookup effect
   useEffect(() => {
     if (transferType !== "other-bank") return;
     if (accountNumber.length !== 10 || !bankCode) return;
@@ -1434,7 +1136,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType, userDetails]);
 
-  // P2P lookup effect
   useEffect(() => {
     if (transferType !== "p2p") return;
     if (!recepientAcc || recepientAcc.length < 6) return;
@@ -1459,7 +1160,8 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         const data = res.ok ? await res.json() : null;
 
         if (data?.receiverName || data?.full_name) {
-          const displayName = data.receiverName || data.full_name || "Zidwell User";
+          const displayName =
+            data.receiverName || data.full_name || "Zidwell User";
           setP2pDetails({
             name: displayName,
             id: data.walletId,
@@ -1486,7 +1188,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     return () => clearTimeout(timeout);
   }, [recepientAcc, transferType, userDetails]);
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -1495,7 +1196,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     };
   }, []);
 
-  // Click outside handler for beneficiary suggestions
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -1515,7 +1215,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
     if (showBeneficiarySuggestions) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
@@ -1597,6 +1296,9 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         isDisabled={isDisabled}
         loading={loading}
         onSubmit={handleTransfer}
+        accountTier={accountTier}
+        customOutflowPercent={customOutflowPercent}
+        customOutflowMin={customOutflowMin}
         loading2={loading2}
         userDetails={userDetails}
         savedAccounts={savedAccounts}
@@ -1621,10 +1323,6 @@ const handleDownloadReceiptFromData = async (receiptData: any) => {
         setRecepientAcc={setRecepientAcc}
         p2pDetails={p2pDetails}
         setP2pDetails={setP2pDetails}
-        saveAccount={saveAccount}
-        setSaveAccount={setSaveAccount}
-        saveP2PBeneficiary={saveP2PBeneficiary}
-        setSaveP2PBeneficiary={setSaveP2PBeneficiary}
         lookupLoading={lookupLoading}
         showBeneficiarySuggestions={showBeneficiarySuggestions}
         matchingBeneficiaries={matchingBeneficiaries}

@@ -112,6 +112,8 @@ export interface StoreData {
   totalRevenue: number;
   totalOrders: number;
   totalViews: number;
+  /** Store-level WhatsApp number (digits only, with country code). */
+  whatsappNumber?: string | null;
 }
 
 export interface PaymentPage {
@@ -245,6 +247,8 @@ const mapDbStoreToStoreData = (dbStore: any): StoreData | null => {
     totalRevenue: dbStore.total_revenue || 0,
     totalOrders: dbStore.total_orders || 0,
     totalViews: dbStore.total_views || 0,
+    // ─── WhatsApp number passthrough ───
+    whatsappNumber: dbStore.whatsapp_number ?? null,
   };
 };
 
@@ -286,8 +290,6 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname]);
 
   // ─── shouldFetchStore ───
-  // Only true for the owner dashboard. Public storefronts under
-  // /store/[arbitrary-slug] return false.
   const shouldFetchStore = useCallback(() => {
     const path = pathnameRef.current;
     if (!path) return false;

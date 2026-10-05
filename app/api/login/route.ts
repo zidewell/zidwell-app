@@ -20,7 +20,7 @@ const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
 // ─── Deterministic fallback fingerprint ───
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     const ipLimit = checkRateLimit(
       `ip:${ip}`,
       MAX_FAILED_ATTEMPTS,
-      RATE_LIMIT_WINDOW
+      RATE_LIMIT_WINDOW,
     );
     if (!ipLimit.allowed) {
       return NextResponse.json(
@@ -67,14 +67,14 @@ export async function POST(request: NextRequest) {
           error: "Too many login attempts. Please try again in 15 minutes.",
           retryAfter: Math.ceil((ipLimit.resetTime - Date.now()) / 1000),
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
     const emailLimit = checkRateLimit(
       `email:${email.toLowerCase()}`,
       MAX_FAILED_ATTEMPTS,
-      RATE_LIMIT_WINDOW
+      RATE_LIMIT_WINDOW,
     );
     if (!emailLimit.allowed) {
       return NextResponse.json(
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
             "Too many failed attempts for this account. Please try again later.",
           retryAfter: Math.ceil((emailLimit.resetTime - Date.now()) / 1000),
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
         if (!authListError && authUsers?.users) {
           userExists = authUsers.users.some(
-            (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+            (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
           );
         }
       } catch (e) {
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
           error: "No account found with this email address.",
           userNotFound: true,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
           const { data: tokenRow } = await supabaseAdmin
             .from("users")
             .select(
-              "email_verification_token, email_verification_token_expires"
+              "email_verification_token, email_verification_token_expires",
             )
             .eq("id", existingUser.id)
             .maybeSingle();
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
             hasPendingToken,
             resendAvailable: true,
           },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -249,18 +249,20 @@ export async function POST(request: NextRequest) {
       trackFailedAttempt(`email:${email.toLowerCase()}`, email);
 
       if (
-        authError?.message?.toLowerCase().includes("invalid login credentials") ||
+        authError?.message
+          ?.toLowerCase()
+          .includes("invalid login credentials") ||
         authError?.message?.toLowerCase().includes("invalid password")
       ) {
         return NextResponse.json(
           { error: "Invalid password. Please try again." },
-          { status: 401 }
+          { status: 401 },
         );
       }
 
       return NextResponse.json(
         { error: authError?.message || "Invalid email or password" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -273,7 +275,7 @@ export async function POST(request: NextRequest) {
     if (!userProfile) {
       return NextResponse.json(
         { error: "Account not found. Please sign up first." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -286,7 +288,7 @@ export async function POST(request: NextRequest) {
           blockedReason: userProfile.block_reason,
           blockedAt: userProfile.blocked_at,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -311,7 +313,7 @@ export async function POST(request: NextRequest) {
 
     if (isDevLocalhost) {
       console.log(
-        "🔓 Development localhost detected — bypassing geo/time risk checks"
+        "🔓 Development localhost detected — bypassing geo/time risk checks",
       );
       securityContext = {
         ...securityContext,
@@ -325,13 +327,13 @@ export async function POST(request: NextRequest) {
 
     if (isSuspicious) {
       console.warn(
-        `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`
+        `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`,
       );
     }
 
     // ─── GENERATE SESSION TOKEN ───
     const sessionToken = generateSessionId();
-    const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const sessionExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     try {
       await supabaseAdmin
@@ -347,7 +349,9 @@ export async function POST(request: NextRequest) {
       console.error("Failed to update session in DB:", e);
     }
 
-    console.log(`🔑 Session ${sessionToken.slice(0, 8)}... created for ${email}`);
+    console.log(
+      `🔑 Session ${sessionToken.slice(0, 8)}... created for ${email}`,
+    );
 
     // ─── BUSINESS INFO ───
     const { data: businessData, error: businessError } = await supabase
@@ -368,7 +372,7 @@ export async function POST(request: NextRequest) {
       const { data: store, error: storeError } = await supabaseAdmin
         .from("online_stores")
         .select(
-          "id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at"
+          "id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at",
         )
         .eq("owner_id", userId)
         .maybeSingle();
@@ -405,7 +409,7 @@ export async function POST(request: NextRequest) {
     } catch (storeFetchError) {
       console.debug(
         "Store fetch skipped or failed (non-critical):",
-        storeFetchError
+        storeFetchError,
       );
     }
 
@@ -505,7 +509,7 @@ export async function POST(request: NextRequest) {
             },
             {
               onConflict: "user_id,device_fingerprint",
-            }
+            },
           );
 
         if (upsertError) {
@@ -565,7 +569,7 @@ export async function POST(request: NextRequest) {
     };
     const responseTime = Date.now() - startTime;
     console.log(
-      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`
+      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`,
     );
 
     return NextResponse.json({
@@ -590,7 +594,7 @@ export async function POST(request: NextRequest) {
     console.error("Secure Login API Error:", err.message);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,6 +1,11 @@
 // lib/suabase-admin.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase admin client + user details cache + tier helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/supabase";
+import type { AccountTier } from "@/lib/fee";
 
 let supabaseAdminInstance: SupabaseClient<Database> | null = null;
 
@@ -14,13 +19,21 @@ export function getSupabaseAdmin(): SupabaseClient<Database> {
           autoRefreshToken: false,
           persistSession: false,
         },
-      }
+      },
     );
   }
   return supabaseAdminInstance;
 }
 
-// ─── Cache ───
+// ─────────────────────────────────────────────────────────────────────────────
+// User cache
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function invalidateUserCache(userId: string) {
+  userCache.delete(userId);
+  console.log(`🗑️ User cache invalidated for ${userId}`);
+}
+
 interface CacheEntry {
   data: UserDetails;
   timestamp: number;
@@ -53,37 +66,54 @@ export interface UserDetails {
   block_reason: string | null;
   transaction_pin: string | null;
   pin_set: boolean;
+
+  // ✅ Account tier (from a4efef0ffe30e603af3d012263a99692e78c1740)
+  account_tier: AccountTier;
+
+  // ✅ Custom fee overrides (from a4efef0ffe30e603af3d012263a99692e78c1740)
+  custom_outflow_percent: number | null;
+  custom_outflow_min: number | null;
+  custom_fee_note: string | null;
+
   current_session_id: string | null;
   current_session_ip: string | null;
   current_session_device: string | null;
   current_session_expires_at: string | null;
 
-  // ─── Verification ───
+  // ─── Verification (from HEAD) ───
   identity_verified: boolean | null;
   verification_completed: boolean | null;
   bank78_verified: boolean | null;
   is_business_registered: boolean | null;
   purpose: string | null;
 
-  // ─── Bank ───
+  // ─── Bank (from HEAD) ───
   bank_name: string | null;
   bank_account_name: string | null;
   bank_account_number: string | null;
   wallet_id: string | null;
 
-  // ─── Activation ───
+  // ─── Activation (from HEAD) ───
   activation_paid: boolean | null;
   activated_at: string | null;
   activation_reference: string | null;
 }
 
-export async function getUserWithDetails(
-  userId: string
-): Promise<UserDetails | null> {
-  const cached = userCache.get(userId);
+// ─────────────────────────────────────────────────────────────────────────────
+// Get user with full details
+// ─────────────────────────────────────────────────────────────────────────────
 
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+export async function getUserWithDetails(
+  userId: string,
+  options: { bypassCache?: boolean } = {},
+): Promise<UserDetails | null> {
+  const { bypassCache = false } = options;
+
+  if (!bypassCache) {
+    const cached = userCache.get(userId);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
   }
 
   const supabase = getSupabaseAdmin();
@@ -91,8 +121,7 @@ export async function getUserWithDetails(
   const { data: user, error } = await supabase
     .from("users")
     .select(
-      `
-      id,
+      `id,
       full_name,
       email,
       phone,
@@ -129,8 +158,7 @@ export async function getUserWithDetails(
       wallet_id,
       activation_paid,
       activated_at,
-      activation_reference
-    `
+      activation_reference`,
     )
     .eq("id", userId)
     .single();
@@ -144,8 +172,6 @@ export async function getUserWithDetails(
     return null;
   }
 
-  // Because the Supabase client is typed with Database,
-  // this should now be correctly inferred as the users row.
   const userDetails: UserDetails = {
     id: user.id,
     full_name: user.full_name,
@@ -170,13 +196,37 @@ export async function getUserWithDetails(
     transaction_pin: user.transaction_pin,
     pin_set: user.pin_set ?? false,
 
+    account_tier: (user.account_tier as AccountTier) || "tier_3",
+
+    custom_outflow_percent:
+      user.custom_outflow_percent != null
+        ? Number(user.custom_outflow_percent)
+        : null,
+    custom_outflow_min:
+      user.custom_outflow_min != null ? Number(user.custom_outflow_min) : null,
+    custom_fee_note: user.custom_fee_note ?? null,
+
     current_session_id: user.current_session_id,
     current_session_ip: user.current_session_ip,
     current_session_device: user.current_session_device,
     current_session_expires_at: user.current_session_expires_at,
+
+    identity_verified: user.identity_verified,
+    verification_completed: user.verification_completed,
+    bank78_verified: user.bank78_verified,
+    is_business_registered: user.is_business_registered,
+    purpose: user.purpose,
+
+    bank_name: user.bank_name,
+    bank_account_name: user.bank_account_name,
+    bank_account_number: user.bank_account_number,
+    wallet_id: user.wallet_id,
+
+    activation_paid: user.activation_paid,
+    activated_at: user.activated_at,
+    activation_reference: user.activation_reference,
   };
 
-  // Cache user
   userCache.set(userId, {
     data: userDetails,
     timestamp: Date.now(),
@@ -211,21 +261,16 @@ export function isSubscriptionActive(user: UserDetails): boolean {
 
 export function hasSufficientTier(
   user: UserDetails,
-  requiredTier: string
+  requiredTier: string,
 ): boolean {
-  const tierHierarchy = [
-    "free",
-    "zidlite",
-    "growth",
-    "premium",
-    "elite",
-  ];
+  const tierHierarchy = ["free", "zidlite", "growth", "premium", "elite"];
 
-  const userTierIndex = tierHierarchy.indexOf(
-    user.subscription_tier || "free"
-  );
-
+  const userTierIndex = tierHierarchy.indexOf(user.subscription_tier || "free");
   const requiredTierIndex = tierHierarchy.indexOf(requiredTier);
+
+  if (userTierIndex === -1 || requiredTierIndex === -1) {
+    return false;
+  }
 
   return userTierIndex >= requiredTierIndex && isSubscriptionActive(user);
 }

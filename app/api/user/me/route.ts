@@ -1,4 +1,11 @@
 // app/api/user/me/route.ts
+<<<<<<< HEAD
+=======
+// ─────────────────────────────────────────────────────────────────────────────
+// Returns the FULL user profile including account_tier + custom fee overrides.
+// ─────────────────────────────────────────────────────────────────────────────
+
+>>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 import { NextRequest, NextResponse } from "next/server";
 import {
   isAuthenticatedWithRefresh,
@@ -22,6 +29,7 @@ export async function GET(req: NextRequest) {
     const { data: profile, error } = await supabase
       .from("users")
       .select(
+<<<<<<< HEAD
         `
         id,
         full_name,
@@ -56,6 +64,9 @@ export async function GET(req: NextRequest) {
         activated_at,
         activation_reference
       `
+=======
+        "id, full_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, admin_role, city, state, address, date_of_birth, profile_picture, current_login_session, subscription_tier, subscription_expires_at, is_blocked, blocked_at, block_reason, pin_set, account_tier, custom_outflow_percent, custom_outflow_min, custom_fee_note"
+>>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -91,11 +102,12 @@ export async function GET(req: NextRequest) {
       dateOfBirth: profile.date_of_birth,
       profilePicture: profile.profile_picture,
       currentLoginSession: profile.current_login_session,
-      subscription_tier: profile.subscription_tier || "free",
-      subscription_expires_at: profile.subscription_expires_at,
+      subscriptionTier: profile.subscription_tier || "free",
+      subscriptionExpiresAt: profile.subscription_expires_at,
       isBlocked: profile.is_blocked,
       blockedAt: profile.blocked_at,
       blockReason: profile.block_reason,
+<<<<<<< HEAD
       pinSet: profile.pin_set ?? false,
 
       // ─── Verification ───
@@ -114,13 +126,38 @@ export async function GET(req: NextRequest) {
       activationPaid: profile.activation_paid ?? false,
       activatedAt: profile.activated_at,
       activationReference: profile.activation_reference,
+=======
+      pinSet: profile.pin_set,
+
+      // ✅ Account tier
+      accountTier: (profile.account_tier as string) || "tier_3",
+
+      // ✅ Custom fee overrides
+      customOutflowPercent:
+        profile.custom_outflow_percent != null
+          ? Number(profile.custom_outflow_percent)
+          : null,
+      customOutflowMin:
+        profile.custom_outflow_min != null
+          ? Number(profile.custom_outflow_min)
+          : null,
+      customFeeNote: profile.custom_fee_note ?? null,
+>>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     };
 
-    if (newTokens) {
-      return createAuthResponse(userProfile, newTokens);
-    }
+    const response = newTokens
+      ? createAuthResponse(userProfile, newTokens)
+      : NextResponse.json(userProfile);
 
-    return NextResponse.json(userProfile);
+    // Prevent caching layers from serving stale data
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, max-age=0"
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+
+    return response;
   } catch (error) {
     console.error("❌ Error in /api/user/me:", error);
     return NextResponse.json(

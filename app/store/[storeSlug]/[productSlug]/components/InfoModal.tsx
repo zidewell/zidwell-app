@@ -88,6 +88,10 @@ interface Props {
   showQuantity: boolean;
   quantity: number;
   currentTotalAmount: number;
+  /** Pre-fee subtotal. Falls back to currentTotalAmount when absent. */
+  baseAmount?: number;
+  /** Fee being added on top of baseAmount. Falsy = no fee disclosed. */
+  feeAmount?: number;
 
   // Payment
   processingCardPayment: boolean;
@@ -135,12 +139,17 @@ export function InfoModal({
   showQuantity,
   quantity,
   currentTotalAmount,
+  baseAmount,
+  feeAmount,
   processingCardPayment,
   submissionLock,
   onClose,
   onProceed,
 }: Props) {
   const isSubmitting = processingCardPayment || submissionLock;
+
+  const resolvedBase = baseAmount ?? currentTotalAmount;
+  const hasFee = feeAmount != null && feeAmount > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -562,13 +571,14 @@ export function InfoModal({
             </div>
           )}
 
-          {/* Total */}
+          {/* ─── Summary: subtotal + fee + total ─── */}
           <div className="rounded-lg border border-border bg-muted/20 p-3">
+            {/* Quantity × unit price row */}
             {showQuantity && quantity > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-foreground/60">
                   {quantity} × ₦
-                  {(currentTotalAmount / Math.max(quantity, 1)).toLocaleString(
+                  {(resolvedBase / Math.max(quantity, 1)).toLocaleString(
                     undefined,
                     {
                       minimumFractionDigits: 0,
@@ -577,12 +587,34 @@ export function InfoModal({
                   )}
                 </span>
                 <span className="font-medium">
-                  ₦{currentTotalAmount.toLocaleString()}
+                  ₦{resolvedBase.toLocaleString()}
                 </span>
               </div>
             )}
+
+            {/* Fee breakdown — only when a fee is actually charged */}
+            {hasFee && (
+              <>
+                <div className="flex justify-between text-sm mt-2">
+                  <span className="text-foreground/60">Subtotal</span>
+                  <span className="font-medium">
+                    ₦{resolvedBase.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-foreground/60">Processing fee</span>
+                  <span className="font-medium">
+                    ₦{feeAmount!.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Total */}
             <div className="flex justify-between pt-2 mt-2 border-t border-border">
-              <span className="text-sm font-medium">Amount</span>
+              <span className="text-sm font-medium">
+                {hasFee ? "Total" : "Amount"}
+              </span>
               <span className="text-lg font-semibold">
                 ₦{currentTotalAmount.toLocaleString()}
               </span>

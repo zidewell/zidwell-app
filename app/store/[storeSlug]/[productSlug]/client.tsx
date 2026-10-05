@@ -6,7 +6,7 @@ import { useProductCheckout } from "./hooks/useProductCheckout";
 import type { StoreProductClientProps } from "./utils/types";
 import { TYPE_LABELS } from "./utils/helpers";
 import { ProductHeader } from "./components/ProductHeader";
-import { ProductImageGallery } from "./components/ProductImageGallery";
+import { ProductImageGallery } from "./components/ProductImageGallery"
 import { StockBadge } from "./components/StockBadge";
 import { QuantityPicker } from "./components/QuantityPicker";
 import { PaymentOptionToggle } from "./components/PaymentOptionToggle";
@@ -34,6 +34,20 @@ export default function StoreProductClient(props: StoreProductClientProps) {
     (sum, l) => sum + (l.quantity || 0),
     0
   );
+
+  // ─── WhatsApp — store-level number with legacy fallback ───
+  const storeWhatsappNumber =
+    (store as any)?.whatsapp_number ||
+    page.metadata?.whatsappContactNumber ||
+    null;
+
+  const whatsappDigits = storeWhatsappNumber
+    ? String(storeWhatsappNumber).replace(/\D/g, "")
+    : "";
+
+  const showWhatsappButton =
+    page.metadata?.whatsappContactEnabled === true &&
+    whatsappDigits.length > 0;
 
   function WhatsAppIcon({ className }: { className?: string }) {
     return (
@@ -158,7 +172,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Quantity — hidden for physical products (variants have their own qty) */}
+          {/* Quantity — hidden for physical products */}
           {c.canPickQuantity &&
             !c.isPhysical &&
             !c.isOutOfStock &&
@@ -192,7 +206,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               ) : (
                 <div className="flex flex-wrap items-baseline gap-2">
                   <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#FDC020]">
-                    ₦{c.buyerDisplayPrice.toLocaleString()}
+                    ₦{c.displayPrice.toLocaleString()}
                   </span>
                   {c.selectedPaymentOption === "installment" &&
                   c.installmentPlan ? (
@@ -226,6 +240,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
+          {/* Installment breakdown — base, no fee */}
           {c.canDoInstallments &&
             c.installmentPlan &&
             !c.existingAccount &&
@@ -234,10 +249,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 {c.selectedPaymentOption === "installment"
                   ? `${c.installmentPlan.installmentCount} payments of ₦${(
                       (c.installmentPlan.totalAmount *
-                        (c.isPhysical
-                          ? Math.max(1, totalPhysicalUnits)
-                          : c.quantity) *
-                        c.buyerFeeMultiplier) /
+                        (c.isPhysical ? 1 : c.quantity)) /
                       c.installmentPlan.installmentCount
                     ).toLocaleString()} (${c.installmentPlan.period})`
                   : "One-time payment."}
@@ -352,27 +364,26 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                     donorAmount={c.donorAmount}
                     showQuantity={c.showQuantity}
                     quantity={c.quantity}
-                    currentTotalAmount={c.buyerPayableAmount}
+                    currentTotalAmount={c.currentTotalAmount}
                     disabledReason={c.getDisabledReason()}
                     onCancel={c.handleCancelCheckout}
                   />
                 </div>
 
-                {page.metadata?.whatsappContactEnabled &&
-                  page.metadata?.whatsappContactNumber && (
-                    <a
-                      href={`https://wa.me/${page.metadata.whatsappContactNumber}?text=${encodeURIComponent(
-                        `Hi, I'm interested in ${page.title}`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:w-auto"
-                      title="Contact store owner on WhatsApp"
-                    >
-                      <WhatsAppIcon className="h-4 w-4 shrink-0" />
-                      <span>Contact store owner</span>
-                    </a>
-                  )}
+                {showWhatsappButton && (
+                  <a
+                    href={`https://wa.me/${whatsappDigits}?text=${encodeURIComponent(
+                      `Hi, I'm interested in ${page.title}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-green-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 sm:w-auto"
+                    title="Contact store owner on WhatsApp"
+                  >
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
+                    <span>Contact store owner</span>
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -439,6 +450,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               : c.quantity
           }
           currentTotalAmount={c.buyerPayableAmount}
+          baseAmount={c.currentTotalAmount}
+          feeAmount={Math.max(
+            0,
+            c.buyerPayableAmount - c.currentTotalAmount
+          )}
           processingCardPayment={c.processingCardPayment}
           submissionLock={c.submissionLock}
           onClose={() => c.setShowInfoModal(false)}

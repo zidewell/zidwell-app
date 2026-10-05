@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 2000;
+const ACTIVATION_FEE_NAIRA = 500;
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);

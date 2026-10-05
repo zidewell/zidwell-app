@@ -28,11 +28,24 @@ import {
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
+  FolderLock,
+  MapPin,
+  Target,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 import { ProtectedLink } from "../ProtectedLink";
 import { useTheme } from "../ThemeProvider";
+import {
+  ALLOWED_PAYMENT_EMAILS,
+  ALLOWED_PAYMENT_EMAIL_SET,
+  canAccessPaymentPage, 
+} from "@/lib/constants";
+
+// Re-export for backwards compatibility with any other module that imports
+// ALLOWED_PAYMENT_EMAILS from this file. Prefer importing from @/lib/constants
+// directly instead.
+export { ALLOWED_PAYMENT_EMAILS, ALLOWED_PAYMENT_EMAIL_SET };
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -45,19 +58,6 @@ const formatNumber = (value: number) => {
 const preferenceItems = [
   { name: "My Profile", href: "/dashboard/profile", icon: User },
 ];
-
-export const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "ibrahimlawalabbalolo@gmail.com",
-  "abbalolo360@gmail.com",
-  "boluwatife525@gmail.com",
-  "verifiedaboki@gmail.com",
-]);
-
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
 
 const isPathActive = (pathname: string | null, href: string) => {
   if (!pathname) return false;
@@ -80,7 +80,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const { userData, balance } = useUserContextData();
   const { theme, setTheme } = useTheme();
 
-  // ✅ Derive effective collapse at render time — mobile never collapses
   const effectiveCollapsed = !isMobile && collapsed;
 
   useEffect(() => {
@@ -123,11 +122,15 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     isActive,
     protected: isProtected = false,
     collapsed: isCollapsed = false,
+    comingSoon = false,
+    isNew = false,
   }: {
     item: any;
     isActive: boolean;
     protected?: boolean;
     collapsed?: boolean;
+    comingSoon?: boolean;
+    isNew?: boolean;
   }) => {
     const protectedLinks = [
       "/dashboard/fund-account",
@@ -150,20 +153,44 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           : "px-3 py-2.5 w-full"
       }
       ${
-        isActive
-          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
-          : "text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary)"
+        comingSoon
+          ? "text-(--text-secondary) opacity-80 cursor-not-allowed"
+          : isActive
+            ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-sm"
+            : "text-(--text-secondary) hover:bg-(--bg-secondary) hover:text-(--text-primary)"
       }
     `;
 
     const inner = (
       <>
+        {isNew && !isActive && !isCollapsed && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-amber-400/70"
+          />
+        )}
+
         <item.icon
           className={`shrink-0 ${isCollapsed ? "w-5 h-5" : "w-[18px] h-[18px]"}`}
-          strokeWidth={isActive ? 2.2 : 1.9}
+          strokeWidth={isActive && !comingSoon ? 2.2 : 1.9}
         />
         {!isCollapsed && (
-          <span className="truncate flex-1 text-left">{item.name}</span>
+          <>
+            <span className="truncate flex-1 text-left">{item.name}</span>
+
+            {comingSoon && (
+              <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/70 dark:border-amber-500/25 rounded-full px-1.5 py-0.5 leading-none">
+                Soon
+              </span>
+            )}
+
+            {isNew && !comingSoon && (
+              <span
+                aria-label="New"
+                className="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500"
+              />
+            )}
+          </>
         )}
       </>
     );
@@ -180,8 +207,29 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         "
       >
         {item.name}
+        {comingSoon && (
+          <span className="ml-2 text-[9px] font-semibold uppercase text-amber-500">
+            Soon
+          </span>
+        )}
+        {isNew && !comingSoon && (
+          <span className="ml-2 text-[9px] font-semibold uppercase text-amber-500">
+            New
+          </span>
+        )}
       </span>
     ) : null;
+
+    if (comingSoon) {
+      return (
+        <div className="relative">
+          <div className={baseClass} aria-disabled="true" title="Coming Soon">
+            {inner}
+          </div>
+          {tooltip}
+        </div>
+      );
+    }
 
     if (item.href === "/dashboard/services/payment/dashboard") {
       if (canAccessPaymentPage(userData?.email)) {
@@ -240,7 +288,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
   const showPaymentPage = canAccessPaymentPage(userData?.email);
 
-  // ------- Section heading -------
   const SectionLabel = ({ children }: { children: React.ReactNode }) => {
     if (effectiveCollapsed) {
       return (
@@ -254,7 +301,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     );
   };
 
-  // ------- Theme toggle -------
   const ThemeToggle = ({ compact = false }: { compact?: boolean }) => (
     <div
       className={`flex items-center gap-1 p-1 bg-(--bg-secondary) rounded-xl ${
@@ -286,7 +332,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </div>
   );
 
-  // ------- Navigation content -------
   const NavigationContent = () => (
     <div className="space-y-5">
       <div className="space-y-1">
@@ -433,6 +478,43 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       </div>
 
       <div className="space-y-1">
+        <SectionLabel>Business Suite</SectionLabel>
+        <NavItem
+          item={{
+            name: "Document Vault",
+            href: "#",
+            icon: FolderLock,
+          }}
+          isActive={false}
+          collapsed={effectiveCollapsed}
+          comingSoon
+          isNew
+        />
+        <NavItem
+          item={{
+            name: "Virtual Office",
+            href: "#",
+            icon: MapPin,
+          }}
+          isActive={false}
+          collapsed={effectiveCollapsed}
+          comingSoon
+          isNew
+        />
+        <NavItem
+          item={{
+            name: "Business Plan",
+            href: "#",
+            icon: Target,
+          }}
+          isActive={false}
+          collapsed={effectiveCollapsed}
+          comingSoon
+          isNew
+        />
+      </div>
+
+      <div className="space-y-1">
         <SectionLabel>More</SectionLabel>
         <NavItem
           item={{ name: "Blog / Articles", href: "/blog", icon: Newspaper }}
@@ -500,7 +582,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </div>
   );
 
-  // ------- Logo header -------
   const LogoHeader = ({ onToggle }: { onToggle?: () => void }) => (
     <div
       className={`flex items-center h-16 border-b border-(--border-color) ${
@@ -533,7 +614,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </div>
   );
 
-  // ------- Wallet card -------
   const WalletCard = () => {
     if (!userData || !userData.fullName) return null;
 
@@ -574,7 +654,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     );
   };
 
-  // ------- Collapse toggle (desktop only) -------
   const CollapseToggle = () => (
     <button
       onClick={() => setCollapsed((c) => !c)}
@@ -594,7 +673,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </button>
   );
 
-  // ------- Thin scrollbar styles -------
   const sidebarScrollStyles = `
     .sidebar-scroll::-webkit-scrollbar {
       width: 6px;
@@ -624,7 +702,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     }
   `;
 
-  // ------- Mobile sidebar (full width) -------
   const MobileSidebar = () => (
     <>
       {open && (
@@ -663,7 +740,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     </>
   );
 
-  // ------- Desktop sidebar -------
   const DesktopSidebar = () => (
     <aside
       className={`
