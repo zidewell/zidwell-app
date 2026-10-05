@@ -1,14 +1,11 @@
-// app/api/withdraw/route.ts
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-<<<<<<< HEAD
-import { createBank78Withdrawal } from "@/lib/bank78";
-=======
 import { sendPinResetEmail } from "@/lib/email/pin-reset";
 import {
   sendWithdrawalEmail,
@@ -20,10 +17,10 @@ import {
   type AccountTier,
 } from "@/lib/fee";
 import { upsertSavedBankAccount } from "@/lib/saved-accounts";
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 
 export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+
   if (!user) {
     return NextResponse.json(
       { error: "Please login to access transactions", logout: true },
@@ -39,41 +36,37 @@ export async function POST(req: NextRequest) {
   try {
     const {
       userId,
+      senderName,
+      senderAccountNumber,
+      senderBankName,
       amount,
       accountNumber,
       accountName,
-      bankCode,
       bankName,
+      bankCode,
       narration,
       pin,
-<<<<<<< HEAD
-      fee = 0,
-=======
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       category,
       categoryId,
     } = await req.json();
 
     if (userId !== user.id) {
-      return NextResponse.json({ error: "User ID mismatch" }, { status: 403 });
+      console.error(`User ID mismatch: ${userId} vs ${user.id}`);
+      return NextResponse.json(
+        { error: "Unauthorized: User ID mismatch" },
+        { status: 403 }
+      );
     }
 
     if (
-<<<<<<< HEAD
-=======
       !userId ||
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       !pin ||
       !amount ||
       amount < 100 ||
       !accountNumber ||
       !accountName ||
-<<<<<<< HEAD
-      !bankCode
-=======
       !bankCode ||
       !bankName
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     ) {
       return NextResponse.json(
         { message: "Missing or invalid required fields" },
@@ -81,40 +74,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-<<<<<<< HEAD
-    const { data: userData } = await supabase
-      .from("users")
-      .select(
-        "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, full_name, bank_name, bank_account_number, bank78_personal_bank_name"
-=======
     // ─── Fetch user ───
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select(
         "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name, account_tier, custom_outflow_percent, custom_outflow_min"
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       )
       .eq("id", userId)
       .single();
 
-    if (!userData) {
+    if (userError || !userData) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-<<<<<<< HEAD
-=======
     // ─── PIN lock check ───
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     if (
       userData.pin_locked_until &&
       new Date(userData.pin_locked_until) > new Date()
     ) {
-<<<<<<< HEAD
-      return NextResponse.json(
-        { message: "PIN locked. Try again later.", locked: true },
-        { status: 401 }
-      );
-=======
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil(
         (lockedUntil.getTime() - Date.now()) / 60000
@@ -131,25 +108,10 @@ export async function POST(req: NextRequest) {
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     }
 
     // ─── PIN validation ───
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-<<<<<<< HEAD
-    const okPin = await bcrypt.compare(plainPin, userData.transaction_pin);
-    if (!okPin) {
-      const attempts = (userData.pin_attempts || 0) + 1;
-      const update: any = { pin_attempts: attempts };
-      if (attempts >= 3) {
-        update.pin_locked_until = new Date(Date.now() + 30 * 60 * 1000);
-      }
-      await supabase.from("users").update(update).eq("id", userId);
-      return NextResponse.json(
-        { message: "Invalid transaction PIN", remainingAttempts: Math.max(0, 3 - attempts) },
-        { status: 401 }
-      );
-=======
     const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
 
     if (!isValid) {
@@ -211,29 +173,11 @@ export async function POST(req: NextRequest) {
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     }
 
-    // Reset pin attempts on success
+    // ✅ PIN valid — reset attempts
     await supabase
       .from("users")
-<<<<<<< HEAD
-      .update({ pin_attempts: 0, pin_locked_until: null })
-      .eq("id", userId);
-
-    const totalDebit = Number(amount) + Number(fee || 0);
-    if (Number(userData.wallet_balance) < totalDebit) {
-      return NextResponse.json(
-        { message: "Insufficient wallet balance (including fees)" },
-        { status: 400 }
-      );
-    }
-
-    const merchantTxRef = `B78-WD-${Date.now()}-${userId.slice(0, 8)}`;
-
-    // 1. Create pending transaction
-    const { data: pendingTx, error: txErr } = await supabase
-=======
       .update({
         pin_attempts: 0,
         pin_locked_until: null,
@@ -388,41 +332,20 @@ export async function POST(req: NextRequest) {
 
     // ─── Create PENDING transaction ───
     const { data: pendingTx, error: txError } = await supabase
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       .from("transactions")
       .insert({
         user_id: userId,
         type: "withdrawal",
-        amount: Number(amount),
-        fee: Number(fee || 0),
-        total_deduction: totalDebit,
-        status: "pending",
-        merchant_tx_ref: merchantTxRef,
-        narration: narration || "Wallet withdrawal",
-        category: category || null,
-        category_id: categoryId || null,
-        channel: "bank78_payout",
-        provider: "bank78",
         sender: {
-          name: userData.full_name,
-          accountNumber: userData.bank_account_number,
-          bankName: userData.bank78_personal_bank_name || "Bank78",
+          name: senderName,
+          accountNumber: senderAccountNumber,
+          bankName: senderBankName,
         },
         receiver: {
           name: accountName,
           accountNumber,
-          bankName: bankName || "",
-          bankCode,
+          bankName,
         },
-        metadata: {
-          initiated_at: new Date().toISOString(),
-          recipient_bank_code: bankCode,
-          requested_amount: Number(amount),
-          requested_fee: Number(fee || 0),
-          total_deduction: totalDebit,
-        },
-<<<<<<< HEAD
-=======
         amount: Number(amount),
         fee: serverFee,
         total_deduction: totalDeduction,
@@ -434,30 +357,16 @@ export async function POST(req: NextRequest) {
         category: category || null,
         category_id: categoryId || null,
         metadata: pendingMetadata,
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       })
       .select("*")
       .single();
 
-    if (txErr || !pendingTx) {
-      return NextResponse.json(
-        { error: "Could not create transaction" },
+    if (txError || !pendingTx) {
+      console.error("Transaction creation error:", txError);
+      const response = NextResponse.json(
+        { error: "Could not create transaction record" },
         { status: 500 }
       );
-<<<<<<< HEAD
-    }
-
-    // 2. Call Bank78
-    const result = await createBank78Withdrawal({
-      reference: merchantTxRef,
-      accountName,
-      accountNumber,
-      bankCode,
-      bankName,
-      amount: Number(amount),
-      narration: narration || "Wallet withdrawal",
-    });
-=======
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
@@ -487,51 +396,41 @@ export async function POST(req: NextRequest) {
         }),
       }
     );
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 
-    if (!result.ok) {
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: result.raw || { error: result.message },
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", pendingTx.id);
+    const nombaData = await nombaResponse.json();
+    console.log("📤 Nomba response:", {
+      status: nombaResponse.status,
+      merchantTxRef,
+      nombaId: nombaData?.data?.id,
+    });
 
-<<<<<<< HEAD
-      return NextResponse.json(
-        { message: result.message || "Withdrawal failed" },
-        { status: 502 }
-      );
-    }
-
-=======
     const isSuccess =
       nombaResponse.ok && nombaData?.data?.status === "success";
     const finalStatus = isSuccess ? "success" : "processing";
     const nombaTransactionId = nombaData?.data?.id || null;
 
     // ─── Update transaction with Nomba response ───
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     await supabase
       .from("transactions")
       .update({
-        status: "processing",
-        provider_transaction_id: result.batchReference || null,
-        external_response: result.raw,
+        status: finalStatus,
+        description: `Transfer of ₦${amount} to ${accountName}`,
+        metadata: {
+          ...pendingMetadata,
+          nomba_status: nombaData?.data?.status || null,
+          nomba_description: nombaData?.description || null,
+          nomba_requested_at: new Date().toISOString(),
+        },
+        external_response: {
+          nomba_request: nombaData,
+          requested_at: new Date().toISOString(),
+          merchant_tx_ref: merchantTxRef,
+          nomba_transaction_id: nombaTransactionId,
+        },
         updated_at: new Date().toISOString(),
       })
       .eq("id", pendingTx.id);
 
-<<<<<<< HEAD
-    const responseData = {
-      message: "Transfer initiated. Processing...",
-      transactionId: pendingTx.id,
-      merchantTxRef,
-      batchReference: result.batchReference,
-      status: "processing",
-=======
     // ─── If immediately successful — mutate wallet ───
     if (isSuccess) {
       console.log(
@@ -661,24 +560,22 @@ export async function POST(req: NextRequest) {
       category: category || null,
       ...(isSuccess &&
         nombaTransactionId && { reference: nombaTransactionId }),
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     };
 
     if (newTokens) return createAuthResponse(responseData, newTokens);
     return NextResponse.json(responseData);
-<<<<<<< HEAD
-  } catch (err: any) {
-    console.error("[withdraw] error:", err);
-    return NextResponse.json(
-      { error: err.message || "Server error" },
-=======
   } catch (error: any) {
     console.error("Withdraw API error:", error);
 
     const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       { status: 500 }
     );
+
+    if ((error as any).newTokens) {
+      return createAuthResponse(await response.json(), (error as any).newTokens);
+    }
+
+    return response;
   }
 }

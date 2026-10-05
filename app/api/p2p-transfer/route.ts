@@ -1,4 +1,4 @@
-// app/api/transfer/p2p/route.ts
+﻿// app/api/transfer/p2p/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -6,24 +6,8 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-<<<<<<< HEAD
 import { generateTransferReceipt } from "../webhook/helpers/email-helpers";
 import { sendP2PSuccessEmail, sendP2PReceivedEmail } from "@/lib/p2p-emails";
-=======
-import {
-  generateTransferReceipt,
-  getLogoBase64,
-  generatePdfBufferFromHtml,
-} from "../webhook/helpers/email-helpers";
-import { upsertSavedP2PBeneficiary } from "@/lib/saved-accounts";
-
-const baseUrl =
-  process.env.NODE_ENV === "development"
-    ? process.env.NEXT_PUBLIC_DEV_URL
-    : process.env.NEXT_PUBLIC_BASE_URL;
-const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 
 const logger = {
   info: (m: string, d?: any) =>
@@ -34,7 +18,6 @@ const logger = {
   warn: (m: string, d?: any) => console.warn(`⚠️ ${m}`, d || ""),
 };
 
-<<<<<<< HEAD
 // ─────────────────────────────────────────────────────────────
 // Safely read an unnamed-column RPC result row by position
 // (works whether Postgres names them tx_id/?column?/?column?1
@@ -66,140 +49,6 @@ function readDeductResult(raw: any): {
       newBalance: balanceKey != null ? Number(row[balanceKey]) : null,
       status: statusKey != null ? String(row[statusKey]) : null,
     };
-=======
-async function sendP2PSuccessEmailNotification(
-  userId: string,
-  receiverName: string,
-  amount: number,
-  transactionRef: string,
-  narration: string,
-  isInvoicePayment: boolean = false,
-  invoiceReference?: string,
-  receiptHtml?: string,
-  transactionId?: string
-) {
-  try {
-    console.log(`📧 sendP2PSuccessEmailNotification called for user ${userId}`);
-    console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
-    console.log(`📧 Transaction ID: ${transactionId}`);
-
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("email, full_name")
-      .eq("id", userId)
-      .single();
-    if (error || !user) {
-      console.error(`❌ User not found: ${userId}`);
-      return;
-    }
-
-    const subject = isInvoicePayment
-      ? `✅ Invoice Payment Sent - ₦${amount.toLocaleString()}`
-      : `✅ P2P Transfer Successful - ₦${amount.toLocaleString()}`;
-    const greeting = user.full_name ? `Hi ${user.full_name},` : "Hello,";
-
-    const mailOptions: any = {
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>✅ ${
-        isInvoicePayment ? "Invoice Payment" : "P2P Transfer"
-      } Successful</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${
-        isInvoicePayment ? "Invoice:" : "Recipient:"
-      }</strong> ${
-        isInvoicePayment ? invoiceReference : receiverName
-      }</p><p><strong>Reference:</strong> ${transactionRef}</p>${
-        isInvoicePayment
-          ? ""
-          : "<p>📎 Please find your receipt attached to this email.</p>"
-      }<p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
-    };
-
-    if (receiptHtml && transactionId) {
-      console.log(
-        `📎 Attempting to attach receipt for P2P transaction ${transactionId}`
-      );
-      try {
-        const logo = getLogoBase64();
-        let finalHtml = receiptHtml;
-        if (logo) {
-          finalHtml = receiptHtml.replace(
-            /src="[^"]*\/logo\.png"/g,
-            `src="${logo}"`
-          );
-        }
-        console.log("🔄 Generating PDF with Puppeteer...");
-        const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
-        console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
-        mailOptions.attachments = [
-          {
-            filename: `zidwell-receipt-${transactionId}.pdf`,
-            content: pdfBuffer,
-            contentType: "application/pdf",
-          },
-        ];
-        console.log(
-          `✅ PDF receipt attached for P2P transaction ${transactionId}`
-        );
-      } catch (pdfError) {
-        console.error("❌ Failed to generate PDF for P2P email:", pdfError);
-        console.log(`⚠️ P2P email sent without PDF attachment`);
-      }
-    }
-
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ P2P success email sent to ${user.email}`);
-  } catch (emailError) {
-    console.error("❌ Failed to send P2P success email:", emailError);
-    logger.error("Failed to send P2P success email", emailError);
-  }
-}
-
-async function sendP2PReceivedEmailNotification(
-  receiverId: string,
-  senderName: string,
-  amount: number,
-  transactionRef: string,
-  narration: string,
-  isInvoicePayment: boolean = false,
-  invoiceReference?: string
-) {
-  try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("email, full_name")
-      .eq("id", receiverId)
-      .single();
-    if (error || !user) return;
-
-    const subject = isInvoicePayment
-      ? `💰 Invoice Payment Received - ₦${amount.toLocaleString()}`
-      : `💰 P2P Transfer Received - ₦${amount.toLocaleString()}`;
-    const greeting = user.full_name ? `Hi ${user.full_name},` : "Hello,";
-
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject,
-      html: `<div><img src="${headerImageUrl}" style="width:100%;" /><div style="padding:20px;"><p>${greeting}</p><h3>💰 ${
-        isInvoicePayment ? "Invoice Payment" : "P2P Transfer"
-      } Received</h3><p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p><p><strong>${
-        isInvoicePayment ? "Invoice:" : "Sender:"
-      }</strong> ${
-        isInvoicePayment ? invoiceReference : senderName
-      }</p><p><strong>Reference:</strong> ${transactionRef}</p><p>Thank you for using Zidwell!</p></div><img src="${footerImageUrl}" style="width:100%;" /></div>`,
-    });
-  } catch (emailError) {
-    logger.error("Failed to send P2P received email", emailError);
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
   }
 
   // Fallback: read by position (Postgres/Supabase preserve column order)
@@ -271,21 +120,12 @@ export async function POST(req: NextRequest) {
   const { user, newTokens } = await isAuthenticatedWithRefresh(req);
 
   if (!user) {
-<<<<<<< HEAD
     const body = {
       error: "Please login to access transactions",
       logout: true,
     };
     if (newTokens) return createAuthResponse(body, { status: 401, newTokens });
     return NextResponse.json(body, { status: 401 });
-=======
-    const response = NextResponse.json(
-      { error: "Please login to access transactions", logout: true },
-      { status: 401 }
-    );
-    if (newTokens) return createAuthResponse(await response.json(), newTokens);
-    return response;
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
   }
 
   const supabase = createClient(
@@ -323,11 +163,7 @@ export async function POST(req: NextRequest) {
     const { data: sender, error: userErr } = await supabase
       .from("users")
       .select(
-<<<<<<< HEAD
         "id, full_name, transaction_pin, wallet_balance, wallet_id, bank_name, bank_account_number, bank78_personal_account_number, bank78_personal_bank_name, email, pin_attempts, pin_locked_until",
-=======
-        "id, full_name, transaction_pin, wallet_balance, wallet_id, bank_name, bank_account_number, email"
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       )
       .eq("id", userId)
       .single();
@@ -345,17 +181,12 @@ export async function POST(req: NextRequest) {
         (new Date(sender.pin_locked_until).getTime() - Date.now()) / 60000,
       );
       return NextResponse.json(
-<<<<<<< HEAD
         {
           message: `PIN locked. Try again in ${mins} minutes.`,
           locked: true,
           lockedUntil: sender.pin_locked_until,
         },
         { status: 401 },
-=======
-        { message: "Invalid transaction PIN" },
-        { status: 401 }
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       );
     }
 
@@ -372,7 +203,6 @@ export async function POST(req: NextRequest) {
       await supabase.from("users").update(update).eq("id", userId);
 
       return NextResponse.json(
-<<<<<<< HEAD
         {
           message: `Invalid transaction PIN. ${
             3 - attempts
@@ -395,10 +225,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { message: "Only Bank78 wallet users can perform P2P transfers" },
         { status: 403 },
-=======
-        { message: "Only Nombank MFB users can perform transfers" },
-        { status: 403 }
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       );
     }
 
@@ -414,11 +240,7 @@ export async function POST(req: NextRequest) {
     const { data: receiver, error: receiverErr } = await supabase
       .from("users")
       .select(
-<<<<<<< HEAD
         "id, full_name, wallet_id, bank_name, bank_account_number, bank78_personal_account_number, bank78_personal_bank_name, email, wallet_balance",
-=======
-        "id, full_name, wallet_id, bank_name, bank_account_number, email, wallet_balance"
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       )
       .eq("wallet_id", receiverAccountId)
       .single();
@@ -443,10 +265,7 @@ export async function POST(req: NextRequest) {
 
     const senderName = sender.full_name || "Zidwell User";
     const receiverName = receiver.full_name || "Zidwell User";
-<<<<<<< HEAD
     const receiverBalanceBefore = Number(receiver.wallet_balance || 0);
-=======
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 
     // ─── 7. References ───
     const ts = Date.now();
@@ -532,7 +351,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-<<<<<<< HEAD
     if (rpcStatus !== "OK" || !transactionId) {
       logger.error("deduct_wallet_balance unexpected result", { deductRaw });
       return NextResponse.json(
@@ -543,11 +361,6 @@ export async function POST(req: NextRequest) {
 
     // Re-fetch sender balance to be safe
     const { data: senderAfter } = await supabase
-=======
-    const transactionId = deductionResult[0]?.transaction_id;
-
-    const { data: senderAfterData } = await supabase
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       .from("users")
       .select("wallet_balance")
       .eq("id", userId)
@@ -679,10 +492,7 @@ export async function POST(req: NextRequest) {
       ]);
     }
 
-<<<<<<< HEAD
     // ─── 12. Update sender transaction row to success ───
-=======
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     await supabase
       .from("transactions")
       .update({
@@ -734,10 +544,7 @@ export async function POST(req: NextRequest) {
       .eq("id", transactionId)
       .eq("user_id", userId);
 
-<<<<<<< HEAD
     // ─── 13. Insert receiver transaction row ───
-=======
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     await supabase.from("transactions").insert({
       user_id: receiver.id,
       type: invoicePaymentData?.isInvoicePayment
@@ -770,13 +577,7 @@ export async function POST(req: NextRequest) {
             after: invoicePaymentData?.isInvoicePayment
               ? receiverBalanceAfter - platformFee
               : receiverBalanceAfter,
-<<<<<<< HEAD
             credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-=======
-            credited: invoicePaymentData?.isInvoicePayment
-              ? netAmount
-              : amount,
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
             fee_deducted: invoicePaymentData?.isInvoicePayment
               ? platformFee
               : 0,
@@ -795,33 +596,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-<<<<<<< HEAD
     // ─── 14. Receipt + emails ───
     const receiptId = transactionId || linkedTransactionId;
 
-=======
-    // ✅ AUTO-SAVE P2P BENEFICIARY (server-side, non-fatal)
-    try {
-      await upsertSavedP2PBeneficiary(
-        supabase,
-        userId,
-        {
-          wallet_id: receiver.wallet_id,
-          account_number:
-            receiver.bank_account_number || receiver.wallet_id || "N/A",
-          account_name: receiverName,
-        },
-        { autoSaved: true }
-      );
-      console.log(
-        `💾 Auto-saved P2P beneficiary ${receiverName} (${receiver.wallet_id}) for user ${userId}`
-      );
-    } catch (saveErr) {
-      console.error("Auto-save P2P beneficiary failed (non-fatal):", saveErr);
-    }
-
-    const transactionIdForReceipt = transactionId || linkedTransactionId;
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     const receiptHtml = generateTransferReceipt({
       transactionId: receiptId,
       amount: Number(amount),
@@ -830,11 +607,7 @@ export async function POST(req: NextRequest) {
       recipientAccount:
         receiver.bank_account_number || receiver.wallet_id || "N/A",
       recipientBank: receiver.bank_name || "Zidwell",
-<<<<<<< HEAD
       senderName,
-=======
-      senderName: senderName,
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       senderAccount: sender.bank_account_number || "N/A",
       narration: narration || "N/A",
       fee: 0,
@@ -860,15 +633,9 @@ export async function POST(req: NextRequest) {
         amount: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
         transactionRef: linkedTransactionId,
         narration,
-<<<<<<< HEAD
         isInvoicePayment: invoicePaymentData?.isInvoicePayment || false,
         invoiceReference: invoicePaymentData?.invoice_reference,
       }).catch((e) => logger.error("Receiver email failed", e)),
-=======
-        invoicePaymentData?.isInvoicePayment || false,
-        invoicePaymentData?.invoice_reference
-      ).catch((err) => logger.error("Receiver email failed", err)),
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     ]);
 
     // ─── 15. Response ───
@@ -896,11 +663,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-<<<<<<< HEAD
     if (invoicePaymentData?.isInvoicePayment) {
-=======
-    if (invoicePaymentData?.isInvoicePayment)
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
       Object.assign(responseData, {
         invoicePayment: true,
         invoiceReference: invoicePaymentData.invoice_reference,
@@ -914,13 +677,8 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     logger.error("P2P API error", err);
     return NextResponse.json(
-<<<<<<< HEAD
       { error: "Server error: " + (err.message || err.description) },
       { status: 500 },
-=======
-      { error: "Server error: " + (error.message || error.description) },
-      { status: 500 }
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     );
   }
 }

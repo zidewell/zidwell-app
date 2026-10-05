@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth-check-api";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function PUT(req: NextRequest) {
   const user = await isAuthenticated(req);
@@ -29,6 +29,12 @@ export async function PUT(req: NextRequest) {
     locationEnabled: "location_enabled",
     logoUrl: "logo_url",
     coverUrl: "cover_url",
+    // Delivery settings
+    deliveryEnabled: "delivery_enabled",
+    localPickupEnabled: "local_pickup_enabled",
+    localPickupAddress: "local_pickup_address",
+    localPickupNotes: "local_pickup_notes",
+    deliveryNotes: "delivery_notes",
   };
 
   const updates: Record<string, any> = {};
@@ -37,7 +43,10 @@ export async function PUT(req: NextRequest) {
   }
 
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No updatable fields supplied" }, { status: 400 });
+    return NextResponse.json(
+      { error: "No updatable fields supplied" },
+      { status: 400 },
+    );
   }
 
   const { data: store, error } = await supabase
@@ -48,7 +57,10 @@ export async function PUT(req: NextRequest) {
     .single();
 
   if (error || !store) {
-    return NextResponse.json({ error: error?.message || "Update failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Update failed" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ store });

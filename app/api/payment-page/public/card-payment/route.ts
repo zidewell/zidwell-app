@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import { computeNextDueDate } from "@/lib/installment-utils";
+import { resolveDeliveryForCheckout } from "@/app/api/_lib/delivery-resolver";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -41,7 +42,6 @@ const generateOrderReference = (pageId: string): string => {
   return `CARD-${shortId}-${timestamp}-${random}`;
 };
 
-/** Safely parse a metadata column that may be a JSON string or object. */
 function parseMetadata(raw: any): any {
   if (!raw) return {};
   if (typeof raw === "string") {
@@ -54,15 +54,9 @@ function parseMetadata(raw: any): any {
   return raw;
 }
 
-/**
- * Sum how many units of a given variant have already been sold on this page.
- *
- * For installment buyers, `metadata.quantity` is the FULL committed amount,
- * so we count every unit from the first installment onward.
- */
 async function getSoldUnitsForVariant(
   pageId: string,
-  variantSku: string
+  variantSku: string,
 ): Promise<number> {
   const { data: payments, error } = await supabase
     .from("payment_page_payments")
@@ -99,12 +93,14 @@ export async function POST(request: Request) {
       amount,
       metadata,
       returnUrl,
+      fulfillmentMethod = null,
+      deliveryAddressId = null,
     } = body;
 
     if (!pageSlug || !customerName || !customerEmail) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -118,15 +114,15 @@ export async function POST(request: Request) {
     if (pageError || !page) {
       return NextResponse.json(
         { error: "Payment page not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const pageMetadata = parseMetadata(page.metadata);
 
-    // ─────────────────────────────────────────────────────────────────
-    // ✅ VARIANT STOCK GUARD — physical products only
-    // ─────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────
+    // VARIANT STOCK GUARD — physical products only
+    // ──────────────────────────────────────────────────────────────
     if (page.page_type === "physical" && metadata?.selectedVariantSku) {
       const selectedVariantSku = String(metadata.selectedVariantSku);
       const variants = Array.isArray(pageMetadata?.variants)
@@ -134,7 +130,7 @@ export async function POST(request: Request) {
         : [];
 
       const variant = variants.find(
-        (v: any) => (v?.sku || v?.name) === selectedVariantSku
+        (v: any) => (v?.sku || v?.name) === selectedVariantSku,
       );
 
       if (!variant) {
@@ -144,14 +140,11 @@ export async function POST(request: Request) {
               "This variant is no longer available. Please pick another.",
             code: "VARIANT_NOT_FOUND",
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
 
       const rawStock = variant.stock;
-
-      // ✅ Only null / undefined / "" mean "unlimited".
-      //    A numeric 0 is a real cap of zero (sold out).
       const isUnlimitedStock = rawStock == null || rawStock === "";
       const declaredStock = isUnlimitedStock ? 0 : Number(rawStock);
       const hasRealStock =
@@ -169,7 +162,7 @@ export async function POST(request: Request) {
               error: "Could not verify stock right now. Please try again.",
               code: "STOCK_CHECK_FAILED",
             },
-            { status: 500 }
+            { status: 500 },
           );
         }
 
@@ -183,12 +176,10 @@ export async function POST(request: Request) {
               code: "VARIANT_OUT_OF_STOCK",
               remaining: 0,
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
 
-        // ✅ THE FIX: block multi-unit orders that exceed remaining stock.
-        //    This is what allowed the 2-unit purchase on 1-unit stock.
         if (requestedQty > remaining) {
           return NextResponse.json(
             {
@@ -196,7 +187,7 @@ export async function POST(request: Request) {
               code: "INSUFFICIENT_STOCK",
               remaining,
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -211,7 +202,7 @@ export async function POST(request: Request) {
       ) {
         finalAmount = pageMetadata.feeBreakdown.reduce(
           (sum: number, item: any) => sum + (item.amount || 0),
-          0
+          0,
         );
       } else {
         finalAmount = Number(page.price) || 0;
@@ -222,7 +213,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const feeBreakdown = calculateFees(finalAmount);
+    // ──────────────────────────────────────────────────────────────
+    // RESOLVE DELIVERY (server-authoritative)
+    // ──────────────────────────────────────────────────────────────
+    let resolvedDelivery;
+    try {
+      resolvedDelivery = await resolveDeliveryForCheckout({
+        storeId: page.store_id ?? null,
+        pageType: page.page_type,
+        productType: page.product_type,
+        deliveryAddressId,
+        chosenMethod: fulfillmentMethod,
+      });
+    } catch (err: any) {
+      console.error(
+        "[card-payment] Delivery resolution failed:",
+        err?.message,
+      );
+      return NextResponse.json(
+        {
+          error: err?.message || "Delivery not available",
+          code: "DELIVERY_RESOLUTION_FAILED",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Fees charged on product price only, delivery added on top
+    const deliveryFee = Number(resolvedDelivery.fee || 0);
+    const baseAmount = finalAmount;
+    const chargeAmount = baseAmount + deliveryFee;
+
+    const feeBreakdown = calculateFees(baseAmount);
     const orderReference = generateOrderReference(page.id);
 
     const storeSlug =
@@ -267,7 +289,7 @@ export async function POST(request: Request) {
       customer_phone: customerPhone || "",
       order_reference: orderReference,
       payment_type: isInstallment ? "installment" : "full",
-      total_amount: metadata?.totalAmount || finalAmount,
+      total_amount: Number(metadata?.totalAmount) || chargeAmount,
       payment_method: "card_payment",
       installment_number: isInstallment ? currentInstallment : null,
       total_installments: isInstallment ? totalInstallments : null,
@@ -278,9 +300,14 @@ export async function POST(request: Request) {
               | "weekly"
               | "bi-weekly"
               | "monthly",
-            currentInstallment
+            currentInstallment,
           )
         : null,
+      // ✅ Delivery snapshot
+      delivery_address_id: resolvedDelivery.address?.id ?? null,
+      delivery_fee: deliveryFee,
+      delivery_address_snapshot: resolvedDelivery.snapshot,
+      fulfillment_method: resolvedDelivery.method,
       metadata: {
         ...metadata,
         storeSlug,
@@ -288,9 +315,11 @@ export async function POST(request: Request) {
         fee_breakdown: feeBreakdown,
         fee_percentage: 3.4,
         entity_ids: metadata?.entityIds || ["default"],
+        delivery_fee: deliveryFee,
+        fulfillment_method: resolvedDelivery.method,
         installment_plan: isInstallment
           ? {
-              totalAmount: metadata?.totalAmount || finalAmount,
+              totalAmount: metadata?.totalAmount || chargeAmount,
               installmentCount: totalInstallments,
               installmentAmount: metadata?.installmentAmount,
               period: metadata?.installmentPeriod || "monthly",
@@ -299,7 +328,6 @@ export async function POST(request: Request) {
       },
     };
 
-    // School: student tracking
     if (page.page_type === "school") {
       const selectedStudents = metadata?.selectedStudents || [];
       if (selectedStudents.length === 1) {
@@ -311,22 +339,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Physical: variant + shipping + quantity (variant already validated)
     if (page.page_type === "physical") {
       if (metadata?.selectedVariantSku) {
         paymentData.metadata.selectedVariantSku =
           metadata.selectedVariantSku;
       }
-      if (metadata?.shippingAddress) {
-        paymentData.metadata.shippingAddress = metadata.shippingAddress;
-      }
       paymentData.metadata.quantity = Math.max(
         1,
-        Number(metadata?.quantity) || 1
+        Number(metadata?.quantity) || 1,
       );
+
+      if (resolvedDelivery.snapshot) {
+        paymentData.metadata.shippingAddress = resolvedDelivery.snapshot;
+      } else if (resolvedDelivery.method === "pickup") {
+        paymentData.metadata.shippingAddress = null;
+        paymentData.metadata.pickupSelected = true;
+      }
     }
 
-    // Services: booking + note
     if (page.page_type === "services") {
       if (metadata?.bookingDate) {
         paymentData.metadata.bookingDate = metadata.bookingDate;
@@ -339,14 +369,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Digital: delivery info
     if (page.page_type === "digital") {
       paymentData.metadata.emailDelivery = metadata?.emailDelivery !== false;
       paymentData.metadata.downloadUrl = metadata?.downloadUrl || null;
       paymentData.metadata.accessLink = metadata?.accessLink || null;
     }
 
-    // Donation: message
     if (page.page_type === "donation" && metadata?.donorMessage) {
       paymentData.metadata.donorMessage = metadata.donorMessage;
     }
@@ -361,7 +389,7 @@ export async function POST(request: Request) {
       console.error("Error creating payment:", paymentError);
       return NextResponse.json(
         { error: "Failed to create payment" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -373,18 +401,19 @@ export async function POST(request: Request) {
         .eq("id", payment.id);
       return NextResponse.json(
         { error: "Payment service unavailable" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
     const sessionId = `${payment.id}_${Date.now()}`;
     const callbackUrl = `${baseUrl}/payment/callback?session_id=${sessionId}`;
 
+    // Nomba charges the total: product + delivery.
     const checkoutPayload = {
       order: {
         callbackUrl,
         customerEmail,
-        amount: feeBreakdown.gross.toString(),
+        amount: chargeAmount.toString(),
         currency: "NGN",
         orderReference,
         customerId: page.user_id,
@@ -401,6 +430,9 @@ export async function POST(request: Request) {
           isInstallment,
           entityIds: metadata?.entityIds || ["default"],
           selectedVariantSku: metadata?.selectedVariantSku || null,
+          deliveryFee,
+          fulfillmentMethod: resolvedDelivery.method,
+          deliveryAddressId: resolvedDelivery.address?.id ?? null,
         },
       },
       tokenizeCard: false,
@@ -416,7 +448,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(checkoutPayload),
-      }
+      },
     );
 
     const data = await response.json();
@@ -433,7 +465,10 @@ export async function POST(request: Request) {
       success: true,
       checkoutLink: data.data.checkoutLink,
       orderReference,
-      amount: feeBreakdown.gross,
+      amount: chargeAmount,
+      productAmount: baseAmount,
+      deliveryFee,
+      fulfillmentMethod: resolvedDelivery.method,
       redirectUrl: successRedirectUrl,
       storeSlug,
       fees: feeBreakdown,

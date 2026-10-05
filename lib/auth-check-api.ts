@@ -7,6 +7,11 @@
 //  4. Debug logging gated behind NODE_ENV !== "production".
 //  5. Removed the in-memory auth cache (unsafe on Vercel serverless).
 //  6. hasRequiredTier treats undefined is_subscription_active as "not blocking".
+//  7. NEW: Distinguishes network failures ("unavailable") from genuine
+//     auth failures ("unauthenticated"). requireAuth / hasRequiredTier /
+//     checkFeatureAccess now return 503 instead of 401 when Supabase is
+//     unreachable, so client code doesn't log the user out on a network
+//     blip.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
@@ -31,6 +36,8 @@ export interface AuthResult {
     accessToken: string;
     refreshToken: string;
   };
+  // ✅ NEW — true when we couldn't reach Supabase to verify
+  unavailable?: boolean;
 }
 
 const IS_DEV = process.env.NODE_ENV !== "production";
@@ -71,6 +78,47 @@ const getSupabaseAnon = (): SupabaseClient => {
   return _anonClient;
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ NEW — Network error detection
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Determine whether a Supabase auth error is a network/socket failure
+ * (meaning "we couldn't verify right now") vs. a genuine auth failure
+ * (meaning "the token is bad").
+ *
+ * Used by every auth helper in this file to decide between returning a
+ * 401 (log out) and a 503 (retry later).
+ */
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
+
+  const name = err?.name || "";
+  const msg = (err?.message || "").toLowerCase();
+
+  // Supabase's own retryable-fetch error class
+  if (name === "AuthRetryableFetchError") return true;
+  if (name === "AuthUnknownError" && msg.includes("fetch")) return true;
+  if (name === "TypeError" && msg.includes("fetch")) return true;
+  if (name === "AbortError") return true;
+
+  const networkSignals = [
+    "fetch failed",
+    "econnrefused",
+    "econnreset",
+    "enotfound",
+    "etimedout",
+    "eai_again",
+    "und_err",
+    "network",
+    "socket hang up",
+    "connection timeout",
+    "connect timeout",
+    "getaddrinfo",
+  ];
+
+  return networkSignals.some((s) => msg.includes(s));
+}
+
 export async function isAuthenticated(
   req: NextRequest,
 ): Promise<AuthenticatedUser | null> {
@@ -93,55 +141,88 @@ export async function isAuthenticatedWithRefresh(
     const supabaseAdmin = getSupabaseAdmin();
     let user: any = null;
     let newTokens: AuthResult["newTokens"] = undefined;
+    let sawNetworkError = false;
 
+    // ─── 1. Validate access token ───
     if (accessToken) {
-      const {
-        data: { user: userData },
-        error: tokenError,
-      } = await supabaseAdmin.auth.getUser(accessToken);
+      try {
+        const {
+          data: { user: userData },
+          error: tokenError,
+        } = await supabaseAdmin.auth.getUser(accessToken);
 
-      if (!tokenError && userData) {
-        user = userData;
-      } else if (tokenError) {
-        authLog("🔴 Token validation error:", tokenError.message);
+        if (!tokenError && userData) {
+          user = userData;
+        } else if (tokenError) {
+          authLog("🔴 Token validation error:", tokenError.message);
+          if (isNetworkError(tokenError)) {
+            sawNetworkError = true;
+          }
+        }
+      } catch (err: any) {
+        if (isNetworkError(err)) {
+          sawNetworkError = true;
+        } else {
+          authLog("🔴 Token validation threw:", err?.message);
+        }
       }
     }
 
-    if (!user && refreshToken) {
+    // ─── 2. Attempt refresh if we still don't have a user ───
+    //         (Skip if the access-token check hit a network error —
+    //          refresh would hit the same wall.)
+    if (!user && refreshToken && !sawNetworkError) {
       authLog("🔄 Attempting token refresh...");
 
-      const supabaseAnon = getSupabaseAnon();
-      const { data: refreshData, error: refreshError } =
-        await supabaseAnon.auth.refreshSession({
-          refresh_token: refreshToken,
-        });
+      try {
+        const supabaseAnon = getSupabaseAnon();
+        const { data: refreshData, error: refreshError } =
+          await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
 
-      if (!refreshError && refreshData.session) {
-        authLog("✅ Token refreshed successfully");
+        if (!refreshError && refreshData.session) {
+          authLog("✅ Token refreshed successfully");
 
-        const {
-          data: { user: refreshedUser },
-        } = await supabaseAdmin.auth.getUser(
-          refreshData.session.access_token,
-        );
+          const {
+            data: { user: refreshedUser },
+          } = await supabaseAdmin.auth.getUser(
+            refreshData.session.access_token,
+          );
 
-        if (refreshedUser) {
-          user = refreshedUser;
-          newTokens = {
-            accessToken: refreshData.session.access_token,
-            refreshToken: refreshData.session.refresh_token!,
-          };
+          if (refreshedUser) {
+            user = refreshedUser;
+            newTokens = {
+              accessToken: refreshData.session.access_token,
+              refreshToken: refreshData.session.refresh_token!,
+            };
+          }
+        } else if (refreshError) {
+          authLog("❌ Token refresh failed:", refreshError.message);
+          if (isNetworkError(refreshError)) {
+            sawNetworkError = true;
+          }
         }
-      } else {
-        authLog("❌ Token refresh failed:", refreshError?.message);
+      } catch (err: any) {
+        if (isNetworkError(err)) {
+          sawNetworkError = true;
+        } else {
+          authLog("❌ Token refresh threw:", err?.message);
+        }
       }
     }
 
     if (!user) {
+      // ✅ Distinguish "we couldn't verify" from "auth failed"
+      if (sawNetworkError) {
+        authLog("🌐 Supabase unreachable — returning unavailable");
+        return { user: null, unavailable: true };
+      }
       authLog("🔴 No valid user found");
       return { user: null };
     }
 
+    // ─── 3. Fetch subscription fields from the users table ───
     const { data: userData, error: dbError } = await supabaseAdmin
       .from("users")
       .select("subscription_tier, subscription_expires_at")
@@ -149,6 +230,12 @@ export async function isAuthenticatedWithRefresh(
       .single();
 
     if (dbError) {
+      // Network failure fetching the profile — do NOT treat as unauthenticated.
+      if (isNetworkError(dbError)) {
+        authLog("🌐 User-profile fetch unreachable — returning unavailable");
+        return { user: null, unavailable: true };
+      }
+
       authError("🔴 Error fetching user data:", dbError);
       const basicUser: AuthenticatedUser = {
         id: user.id,
@@ -184,6 +271,11 @@ export async function isAuthenticatedWithRefresh(
 
     return { user: authenticatedUser, newTokens };
   } catch (error) {
+    // ✅ If the outer catch fires due to a network issue, mark unavailable.
+    if (isNetworkError(error)) {
+      authError("🌐 Auth threw network error — returning unavailable");
+      return { user: null, unavailable: true };
+    }
     authError("🔴 Auth error:", error);
     return { user: null };
   }
@@ -232,7 +324,25 @@ export function createAuthResponse(data: any, second?: any) {
 }
 
 export async function requireAuth(req: NextRequest) {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
+
+  // ✅ Supabase unreachable → 503 with retryable: true.
+  //    Callers should NOT log the user out on this.
+  if (unavailable) {
+    return {
+      authenticated: false as const,
+      response: NextResponse.json(
+        {
+          error: "Service temporarily unavailable",
+          message:
+            "We can't verify your session right now. Please try again in a moment.",
+          retryable: true,
+        },
+        { status: 503 },
+      ),
+    };
+  }
 
   if (!user) {
     return {
@@ -264,8 +374,20 @@ export async function hasRequiredTier(
   user: AuthenticatedUser | null;
   newTokens?: AuthResult["newTokens"];
   error?: string;
+  unavailable?: boolean; // ✅ NEW
 }> {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
+
+  // ✅ Propagate the unavailable flag so callers can 503 instead of 401.
+  if (unavailable) {
+    return {
+      hasAccess: false,
+      user: null,
+      unavailable: true,
+      error: "Authentication service is temporarily unavailable",
+    };
+  }
 
   if (!user) {
     return { hasAccess: false, user: null, error: "Authentication required" };
@@ -348,8 +470,20 @@ export async function checkFeatureAccess(
   newTokens?: AuthResult["newTokens"];
   limit?: number;
   error?: string;
+  unavailable?: boolean; // ✅ NEW
 }> {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
+
+  // ✅ 503 path — Supabase unreachable.
+  if (unavailable) {
+    return {
+      hasAccess: false,
+      user: null,
+      unavailable: true,
+      error: "Feature service is temporarily unavailable",
+    };
+  }
 
   if (!user) {
     return { hasAccess: false, user: null, error: "Authentication required" };
@@ -419,8 +553,20 @@ export async function checkFeatureAccess(
     }
 
     return { hasAccess: true, user, newTokens };
-  } catch (error) {
+  } catch (error: any) {
     authError("Error in checkFeatureAccess:", error);
+
+    // ✅ Network error during feature lookup → unavailable, not blocked.
+    if (isNetworkError(error)) {
+      return {
+        hasAccess: false,
+        user,
+        newTokens,
+        unavailable: true,
+        error: "Feature service is temporarily unavailable",
+      };
+    }
+
     return {
       hasAccess: false,
       user,

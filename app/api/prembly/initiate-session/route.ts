@@ -1,7 +1,7 @@
 // app/api/prembly/initiate-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const PREMBLY_BACKEND = "https://backend.prembly.com";
 

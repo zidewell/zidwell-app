@@ -4,7 +4,7 @@ import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { processActivation } from "@/lib/activation";
 import { getBank78Token } from "@/lib/bank78";
 

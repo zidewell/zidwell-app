@@ -1,17 +1,14 @@
 // app/api/user/me/route.ts
-<<<<<<< HEAD
-=======
 // ─────────────────────────────────────────────────────────────────────────────
 // Returns the FULL user profile including account_tier + custom fee overrides.
 // ─────────────────────────────────────────────────────────────────────────────
 
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
 import { NextRequest, NextResponse } from "next/server";
 import {
   isAuthenticatedWithRefresh,
   createAuthResponse,
 } from "@/lib/auth-check-api";
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,7 +26,6 @@ export async function GET(req: NextRequest) {
     const { data: profile, error } = await supabase
       .from("users")
       .select(
-<<<<<<< HEAD
         `
         id,
         full_name,
@@ -62,11 +58,11 @@ export async function GET(req: NextRequest) {
         bank_account_number,
         activation_paid,
         activated_at,
-        activation_reference
-      `
-=======
-        "id, full_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, admin_role, city, state, address, date_of_birth, profile_picture, current_login_session, subscription_tier, subscription_expires_at, is_blocked, blocked_at, block_reason, pin_set, account_tier, custom_outflow_percent, custom_outflow_min, custom_fee_note"
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
+        activation_reference,
+        account_tier,
+        custom_outflow_percent,
+        custom_outflow_min,
+        custom_fee_note`
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -107,7 +103,6 @@ export async function GET(req: NextRequest) {
       isBlocked: profile.is_blocked,
       blockedAt: profile.blocked_at,
       blockReason: profile.block_reason,
-<<<<<<< HEAD
       pinSet: profile.pin_set ?? false,
 
       // ─── Verification ───
@@ -126,8 +121,6 @@ export async function GET(req: NextRequest) {
       activationPaid: profile.activation_paid ?? false,
       activatedAt: profile.activated_at,
       activationReference: profile.activation_reference,
-=======
-      pinSet: profile.pin_set,
 
       // ✅ Account tier
       accountTier: (profile.account_tier as string) || "tier_3",
@@ -142,7 +135,6 @@ export async function GET(req: NextRequest) {
           ? Number(profile.custom_outflow_min)
           : null,
       customFeeNote: profile.custom_fee_note ?? null,
->>>>>>> a4efef0ffe30e603af3d012263a99692e78c1740
     };
 
     const response = newTokens

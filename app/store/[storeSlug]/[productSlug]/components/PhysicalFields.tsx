@@ -1,162 +1,42 @@
 // app/store/[storeSlug]/[productSlug]/components/PhysicalFields.tsx
 "use client";
 
-import { memo, useCallback } from "react";
+import { Minus, Plus } from "lucide-react";
 import { Label } from "@/app/components/ui/label";
-import { Minus, Plus, Check } from "lucide-react";
-import { PaymentOption } from "../utils/types";
+import { Badge } from "@/app/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+interface VariantLike {
+  sku?: string;
+  name?: string;
+  price?: number | string;
+  stock?: number | string | null;
+  image?: string | null;
+}
 
 interface Props {
-  variants: any[];
+  variants: VariantLike[];
   selectedVariantSkus: Set<string>;
   variantQuantities: Record<string, number>;
   onToggleVariant: (sku: string) => void;
   onSetQuantity: (sku: string, qty: number) => void;
-  lockedFields: boolean;
-  pagePrice: number;
-  selectedPaymentOption?: PaymentOption;
+  lockedFields?: boolean;
+  pagePrice?: number;
+  selectedPaymentOption?: "full" | "installment";
   installmentCount?: number;
   variantStockMap?: Record<string, number> | null;
 }
 
-interface TileProps {
-  sku: string;
-  name: string;
-  isSelected: boolean;
-  qty: number;
-  perPayment: number;
-  isInstallment: boolean;
-  isSoldOut: boolean;
-  isUnlimited: boolean;
-  remaining: number | null;
-  maxQty: number;
-  lockedFields: boolean;
-  onToggle: (sku: string) => void;
-  onSetQty: (sku: string, qty: number) => void;
+function remainingFor(
+  variantStockMap: Record<string, number> | null | undefined,
+  sku: string,
+): number | null {
+  if (!variantStockMap || !(sku in variantStockMap)) return null;
+  const n = Number(variantStockMap[sku]);
+  if (!Number.isFinite(n)) return 0;
+  if (n === Infinity) return null;
+  return n;
 }
-
-const VariantTile = memo(function VariantTile({
-  sku,
-  name,
-  isSelected,
-  qty,
-  perPayment,
-  isInstallment,
-  isSoldOut,
-  isUnlimited,
-  remaining,
-  maxQty,
-  lockedFields,
-  onToggle,
-  onSetQty,
-}: TileProps) {
-  const handleToggle = useCallback(() => {
-    if (lockedFields || isSoldOut) return;
-    onToggle(sku);
-  }, [lockedFields, isSoldOut, onToggle, sku]);
-
-  const handleDec = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onSetQty(sku, Math.max(1, qty - 1));
-    },
-    [onSetQty, sku, qty]
-  );
-
-  const handleInc = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onSetQty(sku, Math.min(maxQty, qty + 1));
-    },
-    [onSetQty, sku, qty, maxQty]
-  );
-
-  return (
-    <div
-      className={`relative flex flex-col rounded-xl border transition ${
-        isSoldOut
-          ? "border-border opacity-50 cursor-not-allowed"
-          : isSelected
-          ? "border-[#FDC020] bg-[#FDC020]/5"
-          : "border-border hover:border-[#FDC020]/60 cursor-pointer"
-      }`}
-    >
-      {/* Checkbox — decorative only */}
-      {!isSoldOut && !lockedFields && (
-        <span
-          className={`pointer-events-none absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-md border transition ${
-            isSelected
-              ? "border-[#FDC020] bg-[#FDC020]"
-              : "border-border bg-background"
-          }`}
-        >
-          {isSelected && (
-            <Check className="h-3.5 w-3.5 text-[#191919]" strokeWidth={3} />
-          )}
-        </span>
-      )}
-
-      {/* Toggle area */}
-      <button
-        type="button"
-        onClick={handleToggle}
-        disabled={lockedFields || isSoldOut}
-        aria-pressed={isSelected}
-        aria-label={`${isSelected ? "Remove" : "Add"} ${name}`}
-        className="flex flex-1 flex-col items-start p-3 pr-10 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FDC020] focus-visible:ring-offset-1 focus-visible:ring-offset-background rounded-xl disabled:cursor-not-allowed"
-      >
-        <p
-          className={`w-full truncate text-sm font-medium ${
-            isSoldOut ? "line-through text-foreground/40" : ""
-          }`}
-          title={name}
-        >
-          {name}
-        </p>
-        <p className="mt-1 text-sm font-semibold text-foreground/80">
-          ₦{perPayment.toLocaleString()}
-          {isInstallment && (
-            <span className="ml-1 text-xs font-normal text-foreground/40">
-              /pay
-            </span>
-          )}
-        </p>
-        <p className="mt-0.5 text-xs text-foreground/40">
-          {isSoldOut
-            ? "Sold out"
-            : isUnlimited
-            ? "In stock"
-            : `${remaining} left`}
-        </p>
-      </button>
-
-      {/* Quantity stepper — separate from toggle button */}
-      {isSelected && !isSoldOut && (
-        <div className="flex items-center justify-between border-t border-[#FDC020]/20 px-2 py-1.5">
-          <button
-            type="button"
-            disabled={lockedFields || qty <= 1}
-            onClick={handleDec}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            aria-label={`Decrease ${name} quantity`}
-          >
-            <Minus className="h-3 w-3" />
-          </button>
-          <span className="text-xs font-medium tabular-nums">{qty}</span>
-          <button
-            type="button"
-            disabled={lockedFields || qty >= maxQty}
-            onClick={handleInc}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-            aria-label={`Increase ${name} quantity`}
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-});
 
 export function PhysicalFields({
   variants,
@@ -164,106 +44,152 @@ export function PhysicalFields({
   variantQuantities,
   onToggleVariant,
   onSetQuantity,
-  lockedFields,
-  pagePrice,
+  lockedFields = false,
+  pagePrice = 0,
   selectedPaymentOption = "full",
   installmentCount = 1,
   variantStockMap = null,
 }: Props) {
-  const selected = selectedVariantSkus ?? new Set<string>();
-  const quantities = variantQuantities ?? {};
-
-  if (variants.length === 0) return null;
-
-  const isInstallment =
-    selectedPaymentOption === "installment" && installmentCount > 1;
-
-  const remainingFor = (sku: string): number | null => {
-    if (variantStockMap && sku in variantStockMap) {
-      const n = Number(variantStockMap[sku]);
-      if (n === Infinity) return null;
-      return Number.isFinite(n) ? n : 0;
-    }
-    return null;
-  };
-
-  // Detect a saved selection that no longer matches any live variant
-  const hasOrphanedSavedSelection =
-    lockedFields &&
-    selected.size > 0 &&
-    !variants.some((v: any, i: number) => {
-      const sku = v.sku || v.name || `variant-${i}`;
-      return selected.has(sku);
-    });
-
-  const showEmptySavedSelection =
-    lockedFields && selected.size === 0;
+  if (!variants || variants.length === 0) return null;
 
   return (
-    <div className="mt-6">
-      <div className="mb-3 flex items-center justify-between">
-        <Label className="block text-sm font-medium">
-          {lockedFields ? "Your selection" : "Select variants"}
+    <div className="mt-6 space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <Label className="text-sm font-medium">
+          Choose your {variants.length > 1 ? "options" : "option"}
         </Label>
-        {!lockedFields && selected.size > 0 && (
-          <span className="text-xs text-foreground/50">
-            {selected.size} selected
-          </span>
-        )}
+        <span className="text-xs text-foreground/50">
+          {selectedVariantSkus.size} selected
+        </span>
       </div>
 
-      {isInstallment && (
-        <p className="mb-3 text-xs text-foreground/50">
-          Prices shown are per payment ({installmentCount} payments total)
-        </p>
-      )}
+      <div className="space-y-3">
+        {variants.map((v, i) => {
+          const sku = v.sku || v.name || `variant-${i}`;
+          const label = v.name || sku;
+          const unitPrice = Number(v.price) || pagePrice || 0;
+          const isSelected = selectedVariantSkus.has(sku);
+          const remaining = remainingFor(variantStockMap, sku);
+          const isSoldOut = remaining !== null && remaining <= 0;
+          const qty = Math.max(1, variantQuantities[sku] || 1);
+          const maxQty = remaining ?? Infinity;
 
-      {!lockedFields && variants.length > 1 && (
-        <p className="mb-3 text-xs text-foreground/50">
-          Tap a variant to add or remove it. Mix and match freely.
-        </p>
-      )}
-
-      {/* ─── Saved selection no longer available ─── */}
-      {(showEmptySavedSelection || hasOrphanedSavedSelection) && (
-        <p className="mb-3 text-xs text-red-500">
-          Your saved selection is no longer available. Please contact the store.
-        </p>
-      )}
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-        {variants.map((v: any, idx: number) => {
-          const sku = v.sku || v.name || `variant-${idx}`;
-          const isSelected = selected.has(sku);
-          const qty = quantities[sku] || 1;
-
-          const fullPrice = Number(v.price) || pagePrice || 0;
-          const perPayment = isInstallment
-            ? Math.round((fullPrice / installmentCount) * 100) / 100
-            : fullPrice;
-
-          const remaining = remainingFor(sku);
-          const isUnlimited = remaining === null;
-          const isSoldOut = !isUnlimited && remaining <= 0;
-          const maxQty = isUnlimited ? 99 : remaining;
+          const perUnit =
+            selectedPaymentOption === "full"
+              ? unitPrice
+              : unitPrice / Math.max(1, installmentCount);
 
           return (
-            <VariantTile
+            <div
               key={sku}
-              sku={sku}
-              name={v.name || sku}
-              isSelected={isSelected}
-              qty={qty}
-              perPayment={perPayment}
-              isInstallment={isInstallment}
-              isSoldOut={isSoldOut}
-              isUnlimited={isUnlimited}
-              remaining={remaining}
-              maxQty={maxQty}
-              lockedFields={lockedFields}
-              onToggle={onToggleVariant}
-              onSetQty={onSetQuantity}
-            />
+              className={cn(
+                "rounded-2xl border p-4 transition-colors",
+                isSelected
+                  ? "border-[#FDC020] bg-[#FDC020]/5"
+                  : "border-border bg-background hover:border-foreground/30",
+                isSoldOut && "opacity-60",
+              )}
+            >
+              <div className="flex items-start gap-3">
+                {/* Checkbox */}
+                <button
+                  type="button"
+                  onClick={() => !lockedFields && !isSoldOut && onToggleVariant(sku)}
+                  disabled={lockedFields || isSoldOut}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    "mt-1 h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors",
+                    isSelected
+                      ? "border-[#FDC020] bg-[#FDC020]"
+                      : "border-border bg-background",
+                    (lockedFields || isSoldOut) && "cursor-not-allowed",
+                  )}
+                >
+                  {isSelected && (
+                    <svg
+                      viewBox="0 0 12 12"
+                      className="h-3 w-3 text-black"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M2 6.5L4.5 9L10 3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-sm">{label}</span>
+                    {isSoldOut ? (
+                      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+                        Sold out
+                      </Badge>
+                    ) : remaining !== null ? (
+                      <Badge className="bg-muted text-foreground/70 hover:bg-muted">
+                        {remaining} left
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-muted text-foreground/70 hover:bg-muted">
+                        In stock
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-foreground/70">
+                    ₦{perUnit.toLocaleString()}
+                    {selectedPaymentOption === "installment" && (
+                      <span className="text-xs text-foreground/50">
+                        {" "}
+                        per payment
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quantity control (only when selected) */}
+              {isSelected && !isSoldOut && (
+                <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+                  <span className="text-xs text-foreground/60">Quantity</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetQuantity(sku, Math.max(1, qty - 1))
+                      }
+                      disabled={lockedFields || qty <= 1}
+                      className={cn(
+                        "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors",
+                        (lockedFields || qty <= 1) &&
+                          "opacity-50 cursor-not-allowed",
+                      )}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="w-8 text-center text-sm font-semibold">
+                      {qty}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = qty + 1;
+                        if (maxQty !== Infinity && next > maxQty) return;
+                        onSetQuantity(sku, next);
+                      }}
+                      disabled={lockedFields || qty >= maxQty}
+                      className={cn(
+                        "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors",
+                        (lockedFields || qty >= maxQty) &&
+                          "opacity-50 cursor-not-allowed",
+                      )}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

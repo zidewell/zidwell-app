@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 
-// ✅ Fix: NODE_ENV is set by Next.js. NEXT_PUBLIC_NODE_ENV is not.
+// ✅ Use NODE_ENV (set by Next.js), not NEXT_PUBLIC_NODE_ENV (never set).
 const isProduction = process.env.NODE_ENV === "production";
 const SESSION_TIMEOUT = isProduction ? 15 * 60 * 1000 : -1;
 const IDLE_WARNING_TIME = 60 * 1000;

@@ -2,10 +2,14 @@
 import { createClient } from "@supabase/supabase-js";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 import { transporter } from "@/lib/node-mailer";
+import {
+  renderDeliveryBlock,
+  deliveryFromPayment,
+} from "@/lib/delivery-email-block";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -38,7 +42,7 @@ function calculateFees(amount: number) {
 // ============================================================
 async function recordInstallmentAccount(
   payment: any,
-  grossAmount: number
+  grossAmount: number,
 ): Promise<any | null> {
   try {
     const { data: accountResult, error } = await supabase.rpc(
@@ -86,7 +90,7 @@ async function recordInstallmentAccount(
           payment.metadata.selectedStudents.length > 0
             ? payment.metadata.selectedStudents[0]
             : payment.student_name || null,
-      }
+      },
     );
 
     if (error) {
@@ -122,7 +126,7 @@ async function sendBookingConfirmationEmail(
   pageTitle: string,
   bookingDate: string,
   bookingTime: string,
-  customerNote?: string
+  customerNote?: string,
 ) {
   if (!customerEmail || !customerEmail.includes("@")) return;
 
@@ -149,24 +153,23 @@ async function sendBookingConfirmationEmail(
 }
 
 // ============================================================
-// WHATSAPP BUTTON BUILDER
+// WHATSAPP BUTTON
 // ============================================================
 function buildWhatsAppButton(
   rawNumber: string | null | undefined,
-  pageTitle: string
+  pageTitle: string,
 ): string {
   if (!rawNumber) return "";
 
   const digits = String(rawNumber).replace(/\D/g, "");
   if (!digits) return "";
 
-  // If it starts with 0, swap to +234 (Nigeria). Otherwise trust the digits.
   const normalized = digits.startsWith("0")
     ? `234${digits.slice(1)}`
     : digits;
 
   const waUrl = `https://wa.me/${normalized}?text=${encodeURIComponent(
-    `Hi, I just completed my payment for "${pageTitle}" on Zidwell.`
+    `Hi, I just completed my payment for "${pageTitle}" on Zidwell.`,
   )}`;
 
   return `
@@ -182,7 +185,7 @@ function buildWhatsAppButton(
 }
 
 // ============================================================
-// COMPLETION EMAIL
+// COMPLETION EMAIL (with deliveryHtml)
 // ============================================================
 async function sendCompletionEmail({
   customerEmail,
@@ -200,6 +203,7 @@ async function sendCompletionEmail({
   accessLink,
   studentNames,
   whatsappContactNumber,
+  deliveryHtml,
 }: {
   customerEmail: string;
   customerName: string;
@@ -216,6 +220,7 @@ async function sendCompletionEmail({
   accessLink?: string | null;
   studentNames?: string[] | null;
   whatsappContactNumber?: string | null;
+  deliveryHtml?: string | null;
 }): Promise<void> {
   if (!customerEmail || !customerEmail.includes("@")) return;
 
@@ -266,16 +271,16 @@ async function sendCompletionEmail({
   const deliveryLinks: string[] = [];
   if (downloadUrl) {
     deliveryLinks.push(
-      `<p style="margin: 0 0 8px;"><a href="${downloadUrl}">Download your product</a></p>`
+      `<p style="margin: 0 0 8px;"><a href="${downloadUrl}">Download your product</a></p>`,
     );
   }
   if (accessLink) {
     deliveryLinks.push(
-      `<p style="margin: 0;"><a href="${accessLink}">Access your purchase</a></p>`
+      `<p style="margin: 0;"><a href="${accessLink}">Access your purchase</a></p>`,
     );
   }
 
-  const deliveryBlock =
+  const digitalDeliveryBlock =
     pageType === "digital" && deliveryLinks.length > 0
       ? `
         <div style="margin: 24px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
@@ -329,9 +334,11 @@ async function sendCompletionEmail({
 
           ${summaryBlock}
 
+          ${deliveryHtml || ""}
+
           ${studentBlock}
 
-          ${deliveryBlock}
+          ${digitalDeliveryBlock}
 
           ${whatsappBlock}
 
@@ -359,7 +366,7 @@ async function sendCompletionEmail({
 // ============================================================
 export async function processCardPaymentWebhook(
   payload: any,
-  params: { nombaTransactionId: string; orderReference: string; payment: any }
+  params: { nombaTransactionId: string; orderReference: string; payment: any },
 ): Promise<
   | { success: true; message: string; payment_id: string }
   | { error: string; status?: number }
@@ -411,14 +418,14 @@ export async function processCardPaymentWebhook(
     if (isInstallment || pageType === "school") {
       accountResult = await recordInstallmentAccount(
         payment,
-        feeBreakdown.gross
+        feeBreakdown.gross,
       );
 
       if (accountResult?.account_id) {
         const { data: freshAccount } = await supabase
           .from("payment_page_installment_account")
           .select(
-            "id, total_amount, total_paid, remaining_amount, installments_paid, installment_count, status"
+            "id, total_amount, total_paid, remaining_amount, installments_paid, installment_count, status",
           )
           .eq("id", accountResult.account_id)
           .maybeSingle();
@@ -440,16 +447,16 @@ export async function processCardPaymentWebhook(
     if (isInstallment) {
       if (planCompleted) {
         console.log(
-          `🎉 Plan COMPLETED for account ${account?.id} on page ${payment.payment_page_id}`
+          `🎉 Plan COMPLETED for account ${account?.id} on page ${payment.payment_page_id}`,
         );
       } else {
         console.log(
-          `📊 Plan still active for account ${account?.id} — paid ₦${account?.total_paid} of ₦${account?.total_amount}`
+          `📊 Plan still active for account ${account?.id} — paid ₦${account?.total_paid} of ₦${account?.total_amount}`,
         );
       }
     } else {
       console.log(
-        `✅ One-time payment completed on page ${payment.payment_page_id}`
+        `✅ One-time payment completed on page ${payment.payment_page_id}`,
       );
     }
 
@@ -462,7 +469,7 @@ export async function processCardPaymentWebhook(
         p_source: "payment_page",
         p_source_id: payment.payment_page_id,
         p_description: `Payment from ${payment.customer_name}`,
-      }
+      },
     );
 
     if (walletError) {
@@ -499,6 +506,8 @@ export async function processCardPaymentWebhook(
       plan_completed: planCompleted,
       entity_ids: payment.metadata?.entityIds || ["default"],
       received_at: new Date().toISOString(),
+      delivery_fee: payment.delivery_fee ?? 0,
+      fulfillment_method: payment.fulfillment_method ?? null,
     };
 
     await supabase.from("transactions").insert({
@@ -544,6 +553,20 @@ export async function processCardPaymentWebhook(
       .eq("id", payment.user_id)
       .single();
 
+    // ─── 8b. Load the store to resolve pickup details for email ───
+    const { data: store } = await supabase
+      .from("online_stores")
+      .select(
+        "id, name, local_pickup_address, local_pickup_notes, delivery_notes",
+      )
+      .eq("id", payment.payment_pages?.store_id)
+      .maybeSingle();
+
+    // ─── 8c. Build the delivery HTML once — reused for customer + merchant + PDF ───
+    const deliveryHtml = renderDeliveryBlock(
+      deliveryFromPayment(payment, store),
+    );
+
     // ─── 9. Customer emails ───
     if (payment.customer_email) {
       await sendPaymentPageReceiptWithPDF(
@@ -563,7 +586,9 @@ export async function processCardPaymentWebhook(
           net_amount: feeBreakdown.netAmount,
           fee_percentage: 3.4,
           is_installment: isInstallment,
-        }
+          deliveryHtml,
+          delivery_fee: payment.delivery_fee ?? 0,
+        },
       ).catch((err) => console.error("Receipt failed:", err));
 
       if (
@@ -577,7 +602,7 @@ export async function processCardPaymentWebhook(
           payment.payment_pages?.title || "Your Service",
           payment.metadata.bookingDate,
           payment.metadata.bookingTime || "",
-          payment.metadata.customerNote
+          payment.metadata.customerNote,
         );
       }
 
@@ -597,14 +622,13 @@ export async function processCardPaymentWebhook(
           pageType === "school"
             ? Array.isArray(payment.metadata?.selectedStudents)
               ? payment.metadata.selectedStudents.filter(
-                  (n: any) => typeof n === "string" && n.length > 0
+                  (n: any) => typeof n === "string" && n.length > 0,
                 )
               : payment.student_name
-              ? [payment.student_name]
-              : []
+                ? [payment.student_name]
+                : []
             : [];
 
-        // ✅ WhatsApp contact — pulled from page metadata, only if enabled
         const pageMeta = payment.payment_pages?.metadata || {};
         const whatsappContactNumber =
           pageMeta.whatsappContactEnabled === true &&
@@ -641,6 +665,7 @@ export async function processCardPaymentWebhook(
             : null,
           studentNames: paidStudentNames,
           whatsappContactNumber,
+          deliveryHtml,
         }).catch((err) => console.error("Completion email failed:", err));
       }
     }
@@ -648,11 +673,6 @@ export async function processCardPaymentWebhook(
     // ─── 10. Merchant notification ───
     if (creator?.email) {
       try {
-        const shippingLine =
-          planCompleted && payment.metadata?.shippingAddress
-            ? `<p>Ship to: ${payment.metadata.shippingAddress.street}, ${payment.metadata.shippingAddress.city}, ${payment.metadata.shippingAddress.state}</p>`
-            : "";
-
         const bookingLine =
           planCompleted && payment.metadata?.bookingDate
             ? `<p>Booking: ${payment.metadata.bookingDate} at ${payment.metadata.bookingTime || ""}</p>`
@@ -685,6 +705,11 @@ export async function processCardPaymentWebhook(
               <h2>Payment received</h2>
               <p>You received a payment for <strong>${payment.payment_pages?.title}</strong>.</p>
               <p>Amount: ₦${feeBreakdown.gross.toLocaleString()}</p>
+              ${
+                payment.delivery_fee && Number(payment.delivery_fee) > 0
+                  ? `<p>Includes delivery fee: ₦${Number(payment.delivery_fee).toLocaleString()}</p>`
+                  : ""
+              }
               <p>Net: ₦${feeBreakdown.netAmount.toLocaleString()}</p>
               <p>Customer: ${payment.customer_name}</p>
               ${
@@ -699,7 +724,7 @@ export async function processCardPaymentWebhook(
                   ? `<p>Quantity: ${payment.metadata.quantity}</p>`
                   : ""
               }
-              ${shippingLine}
+              ${deliveryHtml}
               ${bookingLine}
               ${donorLine}
               ${completedLine}

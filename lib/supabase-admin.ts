@@ -1,4 +1,4 @@
-// lib/suabase-admin.ts
+// lib/supabase-admin.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase admin client + user details cache + tier helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,6 +273,24 @@ export function hasSufficientTier(
   }
 
   return userTierIndex >= requiredTierIndex && isSubscriptionActive(user);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Verification helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Canonical check for BVN verification.
+ *
+ * Returns true ONLY when `bvn_verification === "verified"`.
+ * Every other value — null, undefined, "pending", "rejected", or any
+ * unexpected string — is treated as unverified.
+ *
+ * Do not loosen this check. It gates fund transfers and storefront
+ * creation in a fintech application; it must fail closed.
+ */
+export function isBvnVerified(user: UserDetails | null | undefined): boolean {
+  return user?.bvn_verification === "verified";
 }
 
 // ─── Cache sweep (hot-reload safe) ───

@@ -1,5 +1,5 @@
 // lib/activation.ts
-import { getSupabaseAdmin } from "@/lib/suabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const ACTIVATION_FEE = 1000;         // ₦1,000
 export const ACTIVATION_MIN_FUNDING = 2000; // ₦2,000

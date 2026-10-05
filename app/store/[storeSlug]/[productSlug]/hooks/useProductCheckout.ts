@@ -15,12 +15,16 @@ import {
   loadBuyerIdentity,
   clearBuyerIdentity,
 } from "@/lib/buyer-identity";
-import {
-  PaymentPage,
-  StoreData,
-  PaymentOption,
-} from "../utils/types";
+import { DeliveryAddress } from "@/lib/delivery-utils";
+import { PaymentPage, StoreData, PaymentOption } from "../utils/types";
 import { QUANTITY_PAGE_TYPES } from "../utils/helpers";
+
+// ✅ NEW — exported so DeliveryFields.tsx can consume it
+export interface FulfillmentSelection {
+  method: "delivery" | "pickup";
+  address: DeliveryAddress | null;
+  fee: number;
+}
 
 interface UseProductCheckoutProps {
   page: PaymentPage;
@@ -40,7 +44,7 @@ export function useProductCheckout({
   // ─── STATE ───
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedEntityIds, setSelectedEntityIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [selectedPaymentOption, setSelectedPaymentOption] =
     useState<PaymentOption>("full");
@@ -60,12 +64,20 @@ export function useProductCheckout({
 
   // ✅ Multi-variant selection
   const [selectedVariantSkus, setSelectedVariantSkus] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [variantQuantities, setVariantQuantities] = useState<
     Record<string, number>
   >({});
 
+  // ✅ NEW — fulfillment selection (delivery/pickup)
+  const [fulfillment, setFulfillment] = useState<FulfillmentSelection>({
+    method: "delivery",
+    address: null,
+    fee: 0,
+  });
+
+  // Legacy shipping state (kept for back-compat when rehydrating old plans)
   const [shippingAddress, setShippingAddress] = useState({
     street: "",
     city: "",
@@ -89,10 +101,7 @@ export function useProductCheckout({
   const [schoolPaidStudents, setSchoolPaidStudents] = useState<
     Record<string, number> | null
   >(() => {
-    if (
-      initialPaidStudents &&
-      Object.keys(initialPaidStudents).length > 0
-    ) {
+    if (initialPaidStudents && Object.keys(initialPaidStudents).length > 0) {
       return initialPaidStudents;
     }
     return {};
@@ -131,29 +140,27 @@ export function useProductCheckout({
   const productStock =
     page?.metadata?.stock != null ? Number(page.metadata.stock) : null;
 
-  const allowMultiple =
-    page?.metadata?.allowMultiple === false ? false : true;
-
+  const allowMultiple = page?.metadata?.allowMultiple === false ? false : true;
   const canPickQuantity = showQuantity && allowMultiple;
 
   const linkConfig = useMemo(
     () => page?.metadata?.linkConfig || {},
-    [page?.metadata]
+    [page?.metadata],
   );
 
   const customFields = useMemo(
     () => (isPaymentLink ? linkConfig.customFields || [] : []),
-    [isPaymentLink, linkConfig]
+    [isPaymentLink, linkConfig],
   );
 
   const variants = useMemo(
     () => (isPhysical ? page?.metadata?.variants || [] : []),
-    [isPhysical, page?.metadata]
+    [isPhysical, page?.metadata],
   );
 
   const feeBreakdown = useMemo(
     () => page?.metadata?.feeBreakdown || [],
-    [page?.metadata]
+    [page?.metadata],
   );
 
   const schoolRequiredFields = useMemo(
@@ -161,7 +168,7 @@ export function useProductCheckout({
       isSchoolPage && Array.isArray(page?.metadata?.requiredFields)
         ? page.metadata.requiredFields
         : [],
-    [isSchoolPage, page?.metadata]
+    [isSchoolPage, page?.metadata],
   );
 
   const requireDonorName = page?.metadata?.requireDonorName !== false;
@@ -169,7 +176,7 @@ export function useProductCheckout({
   const allowDonorMessage = page?.metadata?.allowDonorMessage !== false;
   const minimumDonation = Number(page?.metadata?.minimumDonation) || 100;
   const suggestedAmounts: number[] = Array.isArray(
-    page?.metadata?.suggestedAmounts
+    page?.metadata?.suggestedAmounts,
   )
     ? page.metadata.suggestedAmounts
     : [];
@@ -180,6 +187,10 @@ export function useProductCheckout({
   const customerNoteEnabled =
     isServices && page?.metadata?.customerNoteEnabled !== false;
   const emailDelivery = isDigital && page?.metadata?.emailDelivery !== false;
+
+  // ✅ Store-level delivery config
+  const storeDeliveryEnabled = !!(store as any)?.delivery_enabled;
+  const storePickupEnabled = !!(store as any)?.local_pickup_enabled;
 
   const successMessage = isPaymentLink
     ? linkConfig.successMessage || "Payment successful."
@@ -196,8 +207,7 @@ export function useProductCheckout({
     "customers" | "merchant(me)" | "split between both parties"
   >(() => {
     const raw = page?.metadata?.feePayer;
-    if (raw === "customers" || raw === "split between both parties")
-      return raw;
+    if (raw === "customers" || raw === "split between both parties") return raw;
     return "merchant(me)";
   }, [page?.metadata?.feePayer]);
 
@@ -208,7 +218,7 @@ export function useProductCheckout({
     return 1;
   }, [feePayer]);
 
-  // ─── INSTALLMENT PLAN (multi-variant + qty aware) ───
+  // ─── INSTALLMENT PLAN ───
   const installmentPlan = useMemo(() => {
     if (
       page?.priceType !== "installment" ||
@@ -267,10 +277,9 @@ export function useProductCheckout({
       Number(existingAccount.remaining_amount) <= 0 ||
       existingAccount.status === "completed");
 
-  const showActivePlanCard =
-    existingAccount != null && !isAccountFullyPaid;
+  const showActivePlanCard = existingAccount != null && !isAccountFullyPaid;
 
-  // ─── BASE PRICE (sum of unit prices, unchanged) ───
+  // ─── BASE PRICE ───
   const basePrice = useMemo(() => {
     if (isPhysical && selectedVariantSkus.size > 0) {
       let sum = 0;
@@ -417,7 +426,7 @@ export function useProductCheckout({
             selection: existingAccount.selection || null,
           }
         : null,
-      isSchoolPage ? schoolPaidStudents : null
+      isSchoolPage ? schoolPaidStudents : null,
     );
   }, [
     page?.pageType,
@@ -463,9 +472,9 @@ export function useProductCheckout({
       try {
         const res = await fetch(
           `/api/payment-page/public/variant-stock?pageSlug=${encodeURIComponent(
-            page.slug
+            page.slug,
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         if (!res.ok) return;
         const data = await res.json();
@@ -483,7 +492,7 @@ export function useProductCheckout({
     };
   }, [isPhysical, variants.length, page.slug]);
 
-  // ─── TOTAL AMOUNT ───
+  // ─── TOTAL AMOUNT (PRODUCT ONLY) ───
   const { total: currentTotalAmount } = useMemo(() => {
     if (isDonation) {
       const amt = Number(donorAmount) || 0;
@@ -503,11 +512,10 @@ export function useProductCheckout({
       return computeChargeAmount(
         entities,
         Array.from(selectedEntityIds),
-        selectedPaymentOption
+        selectedPaymentOption,
       );
     }
 
-    // ✅ Physical multi-variant — sum of (unitPrice × qty) per line
     if (isPhysical && variants.length > 0 && selectedVariantSkus.size > 0) {
       let total = 0;
 
@@ -538,13 +546,11 @@ export function useProductCheckout({
       const perInstallment =
         planInstallmentCount > 0 ? planTotal / planInstallmentCount : planTotal;
       const perUnitInstallment =
-        accountQuantity > 0
-          ? perInstallment / accountQuantity
-          : perInstallment;
+        accountQuantity > 0 ? perInstallment / accountQuantity : perInstallment;
 
       const nextPayment = Math.min(
         perUnitInstallment * quantity,
-        Number(existingAccount.remaining_amount)
+        Number(existingAccount.remaining_amount),
       );
 
       return {
@@ -568,7 +574,7 @@ export function useProductCheckout({
     const result = computeChargeAmount(
       entities,
       entityIds,
-      selectedPaymentOption
+      selectedPaymentOption,
     );
     if (showQuantity && quantity > 1) {
       return {
@@ -599,14 +605,23 @@ export function useProductCheckout({
     canDoInstallments,
   ]);
 
-  // ─── BUYER PAYABLE ───
+  // ✅ NEW — delivery fee derived from fulfillment choice
+  const deliveryFee = useMemo(() => {
+    if (!requiresShipping) return 0;
+    if (fulfillment.method !== "delivery") return 0;
+    return Number(fulfillment.address?.delivery_fee ?? fulfillment.fee ?? 0);
+  }, [requiresShipping, fulfillment]);
+
+  // ✅ CHANGED — buyer payable now includes delivery
   const buyerPayableAmount = useMemo(() => {
     if (isDonation) return currentTotalAmount;
     if (currentTotalAmount <= 0) return currentTotalAmount;
-    return Math.round(currentTotalAmount * buyerFeeMultiplier * 100) / 100;
-  }, [currentTotalAmount, buyerFeeMultiplier, isDonation]);
+    const withFee =
+      Math.round(currentTotalAmount * buyerFeeMultiplier * 100) / 100;
+    return Math.round((withFee + deliveryFee) * 100) / 100;
+  }, [currentTotalAmount, buyerFeeMultiplier, isDonation, deliveryFee]);
 
-  // ─── DISPLAY PRICE (sum of line totals for physical) ───
+  // ─── DISPLAY PRICE ───
   const displayPrice = useMemo(() => {
     if (isDonation) return 0;
 
@@ -627,7 +642,6 @@ export function useProductCheckout({
 
     if (isPhysical && variants.length > 0) {
       if (selectedVariantSkus.size === 0) return 0;
-      // Sum the per-line totals so the big price matches the checkout total
       let sum = 0;
       let any = false;
       for (const sku of selectedVariantSkus) {
@@ -659,18 +673,34 @@ export function useProductCheckout({
   const buyerDisplayPrice = useMemo(() => {
     if (isDonation) return 0;
     if (displayPrice <= 0) return displayPrice;
-    return Math.round(displayPrice * buyerFeeMultiplier * 100) / 100;
-  }, [displayPrice, buyerFeeMultiplier, isDonation]);
+    const withFee = Math.round(displayPrice * buyerFeeMultiplier * 100) / 100;
+    return Math.round((withFee + deliveryFee) * 100) / 100;
+  }, [displayPrice, buyerFeeMultiplier, isDonation, deliveryFee]);
 
   const paidCount = entities.filter((e) => e.isFullyPaid).length;
   const partialCount = entities.filter((e) => e.isPartiallyPaid).length;
   const unpaidCount = entities.filter(
-    (e) => !e.isFullyPaid && !e.isPartiallyPaid
+    (e) => !e.isFullyPaid && !e.isPartiallyPaid,
   ).length;
 
   const isOutOfStock =
     (productStock !== null && productStock <= 0) ||
     (isPhysical && variants.length > 0 && isSelectedVariantOOS);
+
+  // ✅ NEW — fulfillment readiness gate
+  const isFulfillmentReady = useMemo(() => {
+    if (!requiresShipping) return true;
+    if (!storeDeliveryEnabled && !storePickupEnabled) return false;
+    if (fulfillment.method === "pickup") return storePickupEnabled;
+    if (!storeDeliveryEnabled) return false;
+    return !!fulfillment.address?.id;
+  }, [
+    requiresShipping,
+    storeDeliveryEnabled,
+    storePickupEnabled,
+    fulfillment.method,
+    fulfillment.address,
+  ]);
 
   const isPayButtonDisabled = useCallback(() => {
     if (processingCardPayment || submissionLock) return true;
@@ -682,6 +712,7 @@ export function useProductCheckout({
     if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS)
       return true;
     if (isDonation && Number(donorAmount) < minimumDonation) return true;
+    if (!isFulfillmentReady) return true;
     return false;
   }, [
     processingCardPayment,
@@ -696,11 +727,11 @@ export function useProductCheckout({
     isSelectedVariantOOS,
     donorAmount,
     minimumDonation,
+    isFulfillmentReady,
   ]);
 
   const getDisabledReason = useCallback(() => {
-    if (processingCardPayment || submissionLock)
-      return "Processing payment...";
+    if (processingCardPayment || submissionLock) return "Processing payment...";
     if (isOutOfStock) {
       if (isPhysical && selectedVariantSkus.size > 0 && isSelectedVariantOOS) {
         return "One or more selected variants are out of stock";
@@ -725,6 +756,18 @@ export function useProductCheckout({
         return "Select at least one variant";
       return "Select items to continue";
     }
+    if (!isFulfillmentReady) {
+      if (!storeDeliveryEnabled && !storePickupEnabled) {
+        return "This store has not configured delivery options. Please contact the seller.";
+      }
+      if (fulfillment.method === "delivery" && !fulfillment.address) {
+        return "Please select a delivery location";
+      }
+      if (fulfillment.method === "pickup" && !storePickupEnabled) {
+        return "Pickup is not available for this store";
+      }
+      return "Please complete your delivery selection";
+    }
     return "";
   }, [
     processingCardPayment,
@@ -741,6 +784,11 @@ export function useProductCheckout({
     isSchoolPage,
     entities,
     variants.length,
+    isFulfillmentReady,
+    storeDeliveryEnabled,
+    storePickupEnabled,
+    fulfillment.method,
+    fulfillment.address,
   ]);
 
   const productImages = useMemo(() => {
@@ -763,19 +811,17 @@ export function useProductCheckout({
         return next;
       });
     },
-    [lockedFields]
+    [lockedFields],
   );
 
   // ─── VARIANT HANDLERS ───
   const handleToggleVariant = useCallback(
     (sku: string) => {
       if (lockedFields) return;
-  
       setSelectedVariantSkus((prev) => {
         const next = new Set(prev);
         if (next.has(sku)) {
           next.delete(sku);
-          // Clean up the qty entry in the same tick
           setVariantQuantities((q) => {
             if (!(sku in q)) return q;
             const copy = { ...q };
@@ -792,15 +838,24 @@ export function useProductCheckout({
         return next;
       });
     },
-    [lockedFields]
+    [lockedFields],
   );
+
   const handleSetVariantQuantity = useCallback(
     (sku: string, qty: number) => {
       if (lockedFields) return;
       const safe = Math.max(1, Math.floor(qty));
       setVariantQuantities((prev) => ({ ...prev, [sku]: safe }));
     },
-    [lockedFields]
+    [lockedFields],
+  );
+
+  // ✅ NEW — fulfillment change handler
+  const handleFulfillmentChange = useCallback(
+    (selection: FulfillmentSelection) => {
+      setFulfillment(selection);
+    },
+    [],
   );
 
   const openInfoModal = useCallback(() => {
@@ -816,6 +871,10 @@ export function useProductCheckout({
       alert("One or more selected variants are out of stock. Please adjust.");
       return;
     }
+    if (!isFulfillmentReady) {
+      alert(getDisabledReason() || "Please complete your delivery selection");
+      return;
+    }
     setErrors({});
     setShowInfoModal(true);
   }, [
@@ -824,6 +883,8 @@ export function useProductCheckout({
     variants.length,
     selectedVariantSkus,
     isSelectedVariantOOS,
+    isFulfillmentReady,
+    getDisabledReason,
   ]);
 
   const validateCustomerInfo = useCallback((): Record<string, string> => {
@@ -854,13 +915,20 @@ export function useProductCheckout({
         if (!amt || amt <= 0) errs.customAmount = "Please enter an amount";
       }
     }
-    if (requiresShipping && !lockedFields) {
-      if (!shippingAddress.street.trim())
-        errs.shippingStreet = "Street address is required";
-      if (!shippingAddress.city.trim()) errs.shippingCity = "City is required";
-      if (!shippingAddress.state.trim())
-        errs.shippingState = "State is required";
+
+    // ✅ CHANGED — no more client shipping validation. Fulfillment only.
+    if (requiresShipping && !isFulfillmentReady) {
+      if (!storeDeliveryEnabled && !storePickupEnabled) {
+        errs.fulfillment = "This store has not configured delivery options";
+      } else if (fulfillment.method === "delivery" && !fulfillment.address) {
+        errs.fulfillment = "Please select a delivery location";
+      } else if (fulfillment.method === "pickup" && !storePickupEnabled) {
+        errs.fulfillment = "Pickup is not available";
+      } else {
+        errs.fulfillment = "Please complete your delivery selection";
+      }
     }
+
     if (bookingEnabled && !lockedFields) {
       if (!bookingDate) errs.bookingDate = "Please select a date";
       if (!bookingTime) errs.bookingTime = "Please select a time";
@@ -879,8 +947,12 @@ export function useProductCheckout({
     customFieldValues,
     linkConfig.amountMode,
     requiresShipping,
+    isFulfillmentReady,
+    storeDeliveryEnabled,
+    storePickupEnabled,
+    fulfillment.method,
+    fulfillment.address,
     lockedFields,
-    shippingAddress,
     bookingEnabled,
     bookingDate,
     bookingTime,
@@ -914,9 +986,9 @@ export function useProductCheckout({
     try {
       const res = await fetch(
         `/api/payment-page/public/variant-stock?pageSlug=${encodeURIComponent(
-          page.slug
+          page.slug,
         )}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -943,6 +1015,18 @@ export function useProductCheckout({
       return;
     }
 
+    if (!isFulfillmentReady) {
+      await Swal.fire({
+        icon: "warning",
+        title: "Delivery selection required",
+        text:
+          getDisabledReason() ||
+          "Please complete your delivery selection before continuing.",
+        confirmButtonColor: "#FDC020",
+      });
+      return;
+    }
+
     const totalAmount = buyerPayableAmount;
     if (totalAmount <= 0) {
       alert("Please select items to continue");
@@ -966,7 +1050,7 @@ export function useProductCheckout({
         } else {
           studentNamesForMetadata = entities
             .filter(
-              (e) => e.isFullyPaid || e.isPartiallyPaid || e.paidAmount > 0
+              (e) => e.isFullyPaid || e.isPartiallyPaid || e.paidAmount > 0,
             )
             .map((e) => e.name);
         }
@@ -996,12 +1080,15 @@ export function useProductCheckout({
       buyerFeeAmount:
         Math.round((buyerPayableAmount - currentTotalAmount) * 100) / 100,
       feePayer,
+      deliveryFee,
+      fulfillmentMethod: requiresShipping ? fulfillment.method : "digital",
     };
 
     if (isDonation) {
       metadata.donorMessage = allowDonorMessage ? donorMessage : null;
       metadata.isDonation = true;
     }
+
     if (isPhysical) {
       metadata.variantLines = selectedVariantLines.map((line) => ({
         sku: line.sku,
@@ -1018,16 +1105,21 @@ export function useProductCheckout({
 
       metadata.quantity = selectedVariantLines.reduce(
         (sum, l) => sum + l.quantity,
-        0
+        0,
       );
 
-      if (requiresShipping) metadata.shippingAddress = shippingAddress;
+      if (requiresShipping) {
+        metadata.fulfillmentMethod = fulfillment.method;
+        metadata.deliveryAddressId = fulfillment.address?.id ?? null;
+      }
     }
+
     if (isDigital) {
       metadata.emailDelivery = emailDelivery;
       metadata.downloadUrl = page?.metadata?.downloadUrl || null;
       metadata.accessLink = page?.metadata?.accessLink || null;
     }
+
     if (isServices) {
       if (bookingEnabled) {
         metadata.bookingDate = bookingDate;
@@ -1037,10 +1129,12 @@ export function useProductCheckout({
         metadata.customerNote = customerNote;
       }
     }
+
     if (isPaymentLink) {
       metadata.customFields = customFieldValues;
       metadata.referenceCode = linkConfig.referenceCode;
     }
+
     if (isSchoolPage && Object.keys(schoolFields).length > 0) {
       metadata.schoolFields = schoolFields;
     }
@@ -1091,9 +1185,13 @@ export function useProductCheckout({
           customerName: customerName || "Customer",
           customerEmail,
           customerPhone,
-          amount: totalAmount,
+          amount: currentTotalAmount,
           metadata,
           returnUrl: redirectUrl,
+          fulfillmentMethod: requiresShipping ? fulfillment.method : null,
+          deliveryAddressId: requiresShipping
+            ? fulfillment.address?.id ?? null
+            : null,
         }),
       });
 
@@ -1141,7 +1239,7 @@ export function useProductCheckout({
             checkoutWindowRef.current.closed;
 
           const statusResponse = await fetch(
-            `/api/payment-page/status?reference=${data.orderReference}`
+            `/api/payment-page/status?reference=${data.orderReference}`,
           );
           const statusData = await statusResponse.json();
 
@@ -1178,7 +1276,7 @@ export function useProductCheckout({
                       email: identity.email || undefined,
                       phone: identity.phone || undefined,
                     }),
-                  }
+                  },
                 );
                 const accData = await accRes.json();
                 if (accData.found && accData.account) {
@@ -1200,13 +1298,13 @@ export function useProductCheckout({
                       email: identity.email || undefined,
                       phone: identity.phone || undefined,
                     }),
-                  }
+                  },
                 );
                 const paidData = await paidRes.json();
                 const map: Record<string, number> = {};
                 if (paidData?.success && paidData.students) {
                   for (const [name, info] of Object.entries(
-                    paidData.students as any
+                    paidData.students as any,
                   )) {
                     map[name] = Number((info as any).paidAmount) || 0;
                   }
@@ -1226,7 +1324,7 @@ export function useProductCheckout({
                       email: identity.email || undefined,
                       phone: identity.phone || undefined,
                     }),
-                  }
+                  },
                 );
                 const accData = await accRes.json();
                 if (accData.found && accData.account) {
@@ -1246,7 +1344,7 @@ export function useProductCheckout({
               statusData.payment?.metadata
                 ?.installment_account_remaining != null &&
               Number(
-                statusData.payment.metadata.installment_account_remaining
+                statusData.payment.metadata.installment_account_remaining,
               ) <= 0;
 
             const shouldRedirect =
@@ -1266,10 +1364,10 @@ export function useProductCheckout({
                         ? `
                           <hr style="border:none;border-top:1px solid #eee;margin:12px 0;" />
                           <p style="font-size:14px;">Paid so far: <strong>₦${Number(
-                            freshAccount.total_paid
+                            freshAccount.total_paid,
                           ).toLocaleString()}</strong></p>
                           <p style="font-size:14px;">Remaining: <strong>₦${Number(
-                            freshAccount.remaining_amount
+                            freshAccount.remaining_amount,
                           ).toLocaleString()}</strong></p>
                           <p style="color:#666;font-size:13px;margin-top:8px;">
                             You can continue paying from this page whenever you're ready.
@@ -1426,7 +1524,6 @@ export function useProductCheckout({
     selectedVariantSkus,
     selectedVariantLines,
     requiresShipping,
-    shippingAddress,
     isDigital,
     emailDelivery,
     isServices,
@@ -1451,6 +1548,10 @@ export function useProductCheckout({
     refreshVariantStock,
     buyerPayableAmount,
     feePayer,
+    isFulfillmentReady,
+    getDisabledReason,
+    fulfillment,
+    deliveryFee,
   ]);
 
   const validateAndProceed = useCallback(() => {
@@ -1474,10 +1575,7 @@ export function useProductCheckout({
         pollTimeoutRef.current = null;
       }
       try {
-        if (
-          checkoutWindowRef.current &&
-          !checkoutWindowRef.current.closed
-        ) {
+        if (checkoutWindowRef.current && !checkoutWindowRef.current.closed) {
           checkoutWindowRef.current.close();
         }
       } catch {
@@ -1519,7 +1617,6 @@ export function useProductCheckout({
         setSelectedEntityIds(new Set(sel.selectedStudents));
       }
 
-      // ✅ Multi-variant rehydration with back-compat
       if (Array.isArray(sel.variantLines) && sel.variantLines.length > 0) {
         const skus = new Set<string>();
         const qtys: Record<string, number> = {};
@@ -1552,7 +1649,7 @@ export function useProductCheckout({
 
       setLockedFields(lock);
     },
-    [canDoInstallments]
+    [canDoInstallments],
   );
 
   // ─── RETURNING BUYER LOOKUP ───
@@ -1570,7 +1667,7 @@ export function useProductCheckout({
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ accountId: planIdFromUrl }),
-            }
+            },
           );
           const data = await res.json();
           if (cancelled) return;
@@ -1608,7 +1705,7 @@ export function useProductCheckout({
               email: identity.email || undefined,
               phone: identity.phone || undefined,
             }),
-          }
+          },
         );
         const data = await res.json();
         if (cancelled) return;
@@ -1659,6 +1756,7 @@ export function useProductCheckout({
       country: "Nigeria",
       zipCode: "",
     });
+    setFulfillment({ method: "delivery", address: null, fee: 0 });
     setBookingDate("");
     setBookingTime("");
     setCustomerNote("");
@@ -1687,6 +1785,7 @@ export function useProductCheckout({
       country: "Nigeria",
       zipCode: "",
     });
+    setFulfillment({ method: "delivery", address: null, fee: 0 });
     setBookingDate("");
     setBookingTime("");
     setCustomerNote("");
@@ -1736,14 +1835,12 @@ export function useProductCheckout({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ pageSlug: page.slug, email, phone }),
-          }
+          },
         );
         const paidData = await paidRes.json();
 
         if (!paidData.found) {
-          setLookupError(
-            "No payments found with that email or phone number."
-          );
+          setLookupError("No payments found with that email or phone number.");
           return;
         }
 
@@ -1773,7 +1870,7 @@ export function useProductCheckout({
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ pageSlug: page.slug, email, phone }),
-            }
+            },
           );
           const accData = await accRes.json();
           if (accData?.found && accData?.account) {
@@ -1795,7 +1892,7 @@ export function useProductCheckout({
               email: isEmail ? input.toLowerCase() : undefined,
               phone: isEmail ? undefined : input,
             }),
-          }
+          },
         );
         const data = await res.json();
 
@@ -1826,7 +1923,6 @@ export function useProductCheckout({
   return {
     router,
 
-    // State
     currentImage,
     setCurrentImage,
     selectedEntityIds,
@@ -1854,7 +1950,6 @@ export function useProductCheckout({
     donorMessage,
     setDonorMessage,
 
-    // ✅ Multi-variant
     selectedVariantSkus,
     setSelectedVariantSkus,
     variantQuantities,
@@ -1862,6 +1957,15 @@ export function useProductCheckout({
     selectedVariantLines,
     handleToggleVariant,
     handleSetVariantQuantity,
+
+    // ✅ NEW — fulfillment state and helpers
+    fulfillment,
+    setFulfillment,
+    handleFulfillmentChange,
+    deliveryFee,
+    storeDeliveryEnabled,
+    storePickupEnabled,
+    isFulfillmentReady,
 
     shippingAddress,
     setShippingAddress,
@@ -1895,7 +1999,6 @@ export function useProductCheckout({
     setLookupError,
     lockedFields,
 
-    // Derived
     pageType,
     isPaymentLink,
     isSchoolPage,
@@ -1946,7 +2049,6 @@ export function useProductCheckout({
     buyerPayableAmount,
     buyerDisplayPrice,
 
-    // Handlers
     handleEntityClick,
     openInfoModal,
     validateCustomerInfo,

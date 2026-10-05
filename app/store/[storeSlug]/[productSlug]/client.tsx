@@ -15,6 +15,7 @@ import { ActivePlanCard } from "./components/ActivePlanCard";
 import { CompletedPlanCard } from "./components/CompletedPlanCard";
 import { SchoolFields } from "./components/SchoolFields";
 import { PhysicalFields } from "./components/PhysicalFields";
+import { DeliveryFields } from "./components/DeliveryFields";
 import { DonationFields } from "./components/DonationFields";
 import { CheckoutButton } from "./components/CheckoutButton";
 import { InfoModal } from "./components/InfoModal";
@@ -25,17 +26,15 @@ export default function StoreProductClient(props: StoreProductClientProps) {
   const c = useProductCheckout(props);
   const { page, store, moreProducts = [] } = props;
 
-  // ─── Derived values (defensive) ───
   const selectedVariantSkus = c.selectedVariantSkus ?? new Set<string>();
   const variantQuantities = c.variantQuantities ?? {};
   const selectedVariantLines = c.selectedVariantLines ?? [];
 
   const totalPhysicalUnits = selectedVariantLines.reduce(
     (sum, l) => sum + (l.quantity || 0),
-    0
+    0,
   );
 
-  // ─── WhatsApp — store-level number with legacy fallback ───
   const storeWhatsappNumber =
     (store as any)?.whatsapp_number ||
     page.metadata?.whatsappContactNumber ||
@@ -72,8 +71,8 @@ export default function StoreProductClient(props: StoreProductClientProps) {
           c.isPhysical && selectedVariantLines.length > 0
             ? totalPhysicalUnits
             : c.canPickQuantity
-            ? c.quantity
-            : c.selectedEntityIds.size
+              ? c.quantity
+              : c.selectedEntityIds.size
         }
       />
 
@@ -104,7 +103,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             isOutOfStock={c.isOutOfStock}
           />
 
-          {/* Continue plan button */}
           {c.isSchoolPage && !c.isPlanComplete && (
             <button
               type="button"
@@ -129,7 +127,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </button>
             )}
 
-          {/* Welcome-back school banner */}
           {c.isSchoolPage &&
             c.myPaidStudents &&
             Object.keys(c.myPaidStudents).length > 0 && (
@@ -150,7 +147,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </div>
             )}
 
-          {/* Completed plan */}
           {c.existingAccount && (c.isPlanComplete || c.isAccountFullyPaid) && (
             <CompletedPlanCard
               existingAccount={c.existingAccount}
@@ -161,7 +157,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Active plan */}
           {c.showActivePlanCard && (
             <ActivePlanCard
               existingAccount={c.existingAccount}
@@ -172,7 +167,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Quantity — hidden for physical products */}
           {c.canPickQuantity &&
             !c.isPhysical &&
             !c.isOutOfStock &&
@@ -185,7 +179,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               />
             )}
 
-          {/* Out of stock notice */}
           {c.showQuantity && c.isOutOfStock && !c.isPhysical && (
             <div className="mt-6 flex items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
               <p className="text-sm font-medium">
@@ -194,7 +187,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Price */}
           {!c.isDonation && !c.isPlanComplete && (
             <div className="mt-5">
               {c.isPhysical &&
@@ -231,7 +223,20 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Payment option toggle */}
+          {c.requiresShipping && c.deliveryFee > 0 && !c.isPlanComplete && (
+            <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <span className="text-xs text-foreground/70">
+                Delivery fee
+                {c.fulfillment.method === "delivery" && c.fulfillment.address
+                  ? ` · ${c.fulfillment.address.label}`
+                  : ""}
+              </span>
+              <span className="text-sm font-medium">
+                ₦{c.deliveryFee.toLocaleString()}
+              </span>
+            </div>
+          )}
+
           {c.canDoInstallments && !c.existingAccount && !c.isPlanComplete && (
             <PaymentOptionToggle
               value={c.selectedPaymentOption}
@@ -240,7 +245,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Installment breakdown — base, no fee */}
           {c.canDoInstallments &&
             c.installmentPlan &&
             !c.existingAccount &&
@@ -256,7 +260,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </p>
             )}
 
-          {/* Donation */}
           {c.isDonation && !c.isPlanComplete && (
             <DonationFields
               suggestedAmounts={c.suggestedAmounts}
@@ -267,7 +270,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Physical variants — multi-select */}
           {c.isPhysical && !c.isPlanComplete && (
             <PhysicalFields
               variants={c.variants}
@@ -283,7 +285,21 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Digital notice */}
+          {c.requiresShipping && !c.isPlanComplete && (
+            <DeliveryFields
+              storeId={store.id}
+              deliveryEnabled={c.storeDeliveryEnabled}
+              pickupEnabled={c.storePickupEnabled}
+              pickupAddress={(store as any).local_pickup_address ?? null}
+              pickupNotes={(store as any).local_pickup_notes ?? null}
+              deliveryNotes={(store as any).delivery_notes ?? null}
+              value={c.fulfillment}
+              onChange={c.handleFulfillmentChange}
+              disabled={c.lockedFields}
+              error={c.errors.fulfillment}
+            />
+          )}
+
           {c.isDigital && !c.isPlanComplete && (
             <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs text-foreground/70">
@@ -294,16 +310,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Shipping notice */}
-          {c.requiresShipping && !c.isPlanComplete && (
-            <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-xs text-foreground/70">
-                Delivery address required at checkout
-              </p>
-            </div>
-          )}
-
-          {/* School fields */}
           {c.isSchoolPage && (
             <SchoolFields
               entities={c.entities}
@@ -319,7 +325,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             />
           )}
 
-          {/* Fee breakdown */}
           {c.isSchoolPage && c.feeBreakdown.length > 0 && (
             <div className="mt-6 border-t border-border pt-4">
               <h3 className="mb-3 text-sm font-semibold">Fee breakdown</h3>
@@ -334,7 +339,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Locked fields notice */}
           {c.lockedFields && !c.isPlanComplete && !c.isSchoolPage && (
             <div className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
               <p className="flex-1 text-xs text-foreground/70">
@@ -350,7 +354,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Checkout */}
           {!c.isPlanComplete && (
             <div className="mt-6 border-t border-border pt-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -373,7 +376,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 {showWhatsappButton && (
                   <a
                     href={`https://wa.me/${whatsappDigits}?text=${encodeURIComponent(
-                      `Hi, I'm interested in ${page.title}`
+                      `Hi, I'm interested in ${page.title}`,
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -388,10 +391,8 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             </div>
           )}
 
-          {/* Description */}
           {page.description && <DescriptionBlock html={page.description} />}
 
-          {/* Secured badge */}
           <div className="mt-4 flex items-center justify-center gap-2 text-xs text-foreground/40">
             <Shield className="h-3.5 w-3.5" />
             Secured checkout
@@ -399,7 +400,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         </div>
       </section>
 
-      {/* ─── More from this store ─── */}
       <MoreFromStore
         products={moreProducts}
         storeSlug={store.slug}
@@ -407,7 +407,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         currentProductId={page.id}
       />
 
-      {/* Modals */}
       {c.showInfoModal && (
         <InfoModal
           isDonation={c.isDonation}
@@ -423,6 +422,8 @@ export default function StoreProductClient(props: StoreProductClientProps) {
           requiresShipping={c.requiresShipping}
           shippingAddress={c.shippingAddress}
           setShippingAddress={c.setShippingAddress}
+          fulfillment={c.fulfillment}
+          deliveryFee={c.deliveryFee}
           bookingEnabled={c.bookingEnabled}
           bookingDate={c.bookingDate}
           setBookingDate={c.setBookingDate}
@@ -453,7 +454,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
           baseAmount={c.currentTotalAmount}
           feeAmount={Math.max(
             0,
-            c.buyerPayableAmount - c.currentTotalAmount
+            c.buyerPayableAmount - c.currentTotalAmount - c.deliveryFee,
           )}
           processingCardPayment={c.processingCardPayment}
           submissionLock={c.submissionLock}

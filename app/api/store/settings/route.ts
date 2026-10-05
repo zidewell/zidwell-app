@@ -5,13 +5,42 @@ import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const MAX_NAME = 80;
 const MAX_DESCRIPTION = 5000;
 const MAX_KEYWORDS = 20;
 const MAX_KEYWORD_LEN = 40;
+
+// Columns the GET endpoint returns. Kept in one place so GET + PUT
+// stay in sync and we never forget to add a new column in two spots.
+const STORE_SELECT_COLUMNS = [
+  "id",
+  "name",
+  "slug",
+  "description",
+  "keywords",
+  "logo_url",
+  "cover_url",
+  "cac_number",
+  "country",
+  "state",
+  "city",
+  "street_address",
+  "location_enabled",
+  "latitude",
+  "longitude",
+  "whatsapp_number",
+  "is_active",
+  "activation_paid",
+  // ✅ Delivery columns
+  "delivery_enabled",
+  "local_pickup_enabled",
+  "local_pickup_address",
+  "local_pickup_notes",
+  "delivery_notes",
+].join(", ");
 
 function normalizeKeywords(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
@@ -55,9 +84,7 @@ export async function GET(request: Request) {
 
     const { data: store, error } = await supabase
       .from("online_stores")
-      .select(
-        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude, is_active, activation_paid, whatsapp_number"
-      )
+      .select(STORE_SELECT_COLUMNS)
       .eq("owner_id", user.id)
       .maybeSingle();
 
@@ -70,7 +97,7 @@ export async function GET(request: Request) {
     console.error("Store settings GET error:", err);
     return NextResponse.json(
       { error: err.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -99,18 +126,19 @@ export async function PUT(request: Request) {
     // ─── Validate + collect allowed updates only ───
     const updates: Record<string, any> = {};
 
+    // ── Store info ──
     if (typeof body.name === "string") {
       const name = body.name.trim();
       if (name.length < 2) {
         return NextResponse.json(
           { error: "Store name must be at least 2 characters" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       if (name.length > MAX_NAME) {
         return NextResponse.json(
           { error: `Store name must be at most ${MAX_NAME} characters` },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.name = name;
@@ -120,7 +148,7 @@ export async function PUT(request: Request) {
       if (body.description.length > MAX_DESCRIPTION) {
         return NextResponse.json(
           { error: "Description is too long" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.description = body.description;
@@ -134,6 +162,7 @@ export async function PUT(request: Request) {
       updates.logo_url = body.logoUrl;
     }
 
+    // ── Location ──
     if (typeof body.country === "string" && body.country.trim()) {
       updates.country = body.country.trim();
     }
@@ -141,7 +170,7 @@ export async function PUT(request: Request) {
       if (!body.state.trim()) {
         return NextResponse.json(
           { error: "State is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.state = body.state.trim();
@@ -150,7 +179,7 @@ export async function PUT(request: Request) {
       if (!body.city.trim()) {
         return NextResponse.json(
           { error: "City is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.city = body.city.trim();
@@ -159,7 +188,7 @@ export async function PUT(request: Request) {
       if (!body.streetAddress.trim()) {
         return NextResponse.json(
           { error: "Street address is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.street_address = body.streetAddress.trim();
@@ -176,7 +205,7 @@ export async function PUT(request: Request) {
       updates.longitude = body.longitude;
     }
 
-    // ─── WhatsApp number ───
+    // ── WhatsApp number ──
     try {
       const normalized = normalizeWhatsappNumber(body.whatsappNumber);
       if (normalized !== undefined) {
@@ -185,14 +214,49 @@ export async function PUT(request: Request) {
     } catch (e: any) {
       return NextResponse.json(
         { error: e.message || "Invalid WhatsApp number" },
-        { status: 400 }
+        { status: 400 },
       );
+    }
+
+    // ── ✅ Delivery settings ──
+    if (typeof body.deliveryEnabled === "boolean") {
+      updates.delivery_enabled = body.deliveryEnabled;
+    }
+    if (typeof body.localPickupEnabled === "boolean") {
+      updates.local_pickup_enabled = body.localPickupEnabled;
+    }
+    if (
+      typeof body.localPickupAddress === "string" ||
+      body.localPickupAddress === null
+    ) {
+      const v =
+        typeof body.localPickupAddress === "string"
+          ? body.localPickupAddress.trim()
+          : null;
+      updates.local_pickup_address = v || null;
+    }
+    if (
+      typeof body.localPickupNotes === "string" ||
+      body.localPickupNotes === null
+    ) {
+      const v =
+        typeof body.localPickupNotes === "string"
+          ? body.localPickupNotes.trim()
+          : null;
+      updates.local_pickup_notes = v || null;
+    }
+    if (typeof body.deliveryNotes === "string" || body.deliveryNotes === null) {
+      const v =
+        typeof body.deliveryNotes === "string"
+          ? body.deliveryNotes.trim()
+          : null;
+      updates.delivery_notes = v || null;
     }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -201,16 +265,14 @@ export async function PUT(request: Request) {
       .from("online_stores")
       .update(updates)
       .eq("owner_id", user.id)
-      .select(
-        "id, name, slug, description, keywords, logo_url, country, state, city, street_address, location_enabled, latitude, longitude, whatsapp_number"
-      )
+      .select(STORE_SELECT_COLUMNS)
       .single();
 
     if (updateError) {
       console.error("Store settings PUT error:", updateError);
       return NextResponse.json(
         { error: updateError.message || "Failed to update store" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -219,7 +281,7 @@ export async function PUT(request: Request) {
     console.error("Store settings PUT error:", err);
     return NextResponse.json(
       { error: err.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
