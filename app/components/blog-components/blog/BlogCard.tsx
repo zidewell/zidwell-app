@@ -10,6 +10,34 @@ import { useEffect, useState } from "react";
 const DEFAULT_IMAGE =
   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
 
+// ✅ Strip HTML tags and decode common entities
+const stripHtml = (html: string): string => {
+  if (!html) return "";
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+// ✅ Clean excerpt helper
+const getCleanExcerpt = (excerpt?: string, content?: string): string => {
+  const cleaned = stripHtml(excerpt || "");
+  if (cleaned) return cleaned;
+  const fallback = stripHtml(content || "");
+  return fallback.length > 160
+    ? fallback.substring(0, 160).trim() + "..."
+    : fallback;
+};
+
 interface BlogCardProps {
   post: BlogPost;
   variant?: "default" | "featured" | "compact";
@@ -79,7 +107,8 @@ const BlogCard = ({ post, variant = "default" }: BlogCardProps) => {
   const authorAvatar = post.author?.avatar;
   const authorName = post.author?.name || "Unknown Author";
   const readTime = post.readTime || "5";
-  const excerpt = post.excerpt || "";
+  // ✅ Sanitize excerpt, fallback to content
+  const excerpt = getCleanExcerpt(post.excerpt, (post as any).content);
   const categories = post.categories || [];
   const title = post.title || "Untitled Post";
   const slug = post.slug || "";
