@@ -304,7 +304,7 @@ async function sendWithdrawalEmail(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// generateTransferReceipt — unchanged
+// generateTransferReceipt — fee removed from user-facing receipt
 // ─────────────────────────────────────────────────────────────────────────────
 function generateTransferReceipt(data: any): string {
   const amountDisplay = Number(data.amount).toLocaleString("en-NG", {
@@ -319,13 +319,6 @@ function generateTransferReceipt(data: any): string {
     hour: '2-digit',
     minute: '2-digit'
   });
-
-  const feeDisplay = data.fee && data.fee > 0
-    ? `₦${Number(data.fee).toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}`
-    : "";
 
   const escapeHtml = (str: string) => {
     if (!str) return '';
@@ -480,26 +473,6 @@ function generateTransferReceipt(data: any): string {
             <div class="detail-title">Narration</div>
           </div>
           <div class="narration-text">${escapeHtml(data.narration)}</div>
-        </div>
-      </div>
-    </div>
-    ` : ''}
-    ${data.fee && data.fee > 0 ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Fee</div>
-          </div>
-          <div class="right">${feeDisplay}</div>
         </div>
       </div>
     </div>
