@@ -543,6 +543,7 @@ const LoginForm = () => {
 
       // ─── Fire-and-forget side effects ───
       void (async () => {
+           sessionStorage.removeItem("lastActivity")
         try {
           await fetch("/api/activity/last-login", {
             method: "POST",
