@@ -1,10 +1,17 @@
 // app/api/auth/extend-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-
-const SESSION_TIMEOUT = 15 * 60 * 1000;
+import {
+  SESSION_TIMEOUT_MS,
+  SESSION_TIMEOUT_DISABLED,
+} from "@/lib/session-config";
 
 export async function POST(req: NextRequest) {
+  // Dev without TEST_MODE → no-op.
+  if (SESSION_TIMEOUT_DISABLED) {
+    return NextResponse.json({ success: true, skipped: true });
+  }
+
   try {
     const sessionId = req.cookies.get("sb-session-id")?.value;
     if (!sessionId) {
@@ -15,6 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select("id, current_session_expires_at")
@@ -38,7 +46,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const newExpiresAt = new Date(Date.now() + SESSION_TIMEOUT).toISOString();
+    // Timeout comes from lib/session-config.ts — no local constant.
+    const newExpiresAt = new Date(
+      Date.now() + SESSION_TIMEOUT_MS,
+    ).toISOString();
+
     await supabase
       .from("users")
       .update({ current_session_expires_at: newExpiresAt })

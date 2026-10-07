@@ -16,6 +16,7 @@ import {
   generateSessionId,
   type DeviceInfo,
 } from "@/lib/security";
+import { SESSION_TIMEOUT_MS } from "@/lib/session-config";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
@@ -337,8 +338,7 @@ export async function POST(request: NextRequest) {
 
     // ─── SESSION TOKEN ───
     const sessionToken = generateSessionId();
-    const sessionExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
+    const sessionExpiresAt = new Date(Date.now() + SESSION_TIMEOUT_MS);
     // ─── PARALLELIZE INDEPENDENT CALLS ───
     // Security analysis, session write, business lookup, and store lookup
     // are independent — run them together instead of sequentially.
