@@ -113,6 +113,7 @@ const publicPaths = [
   "/privacy",
   "/terms",
   "/blog",
+   "/auth/session-timeout",
 ];
 
 const sortedPremiumRoutes = [...premiumRoutes].sort(

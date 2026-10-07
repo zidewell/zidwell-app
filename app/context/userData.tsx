@@ -116,7 +116,7 @@ interface UserContextType {
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
-  handleSessionExpired: () => Promise<void>;
+  handleSessionExpired: (redirectTo?: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -555,47 +555,43 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [pathname]);
 
   // ─── Centralized, idempotent session-expiration handler ───
-  const handleSessionExpired = useCallback(async () => {
-    // Idempotency guard: multiple concurrent 401s must trigger only one logout.
-    if (sessionExpiredRef.current) return;
-    sessionExpiredRef.current = true;
-
-    try {
-      await fetch("/api/logout", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-      }).catch((err) => {
-        console.error("Logout API failed:", err);
-      });
-    } catch (e) {
-      console.error("Logout API threw:", e);
-    }
-
-    clearClientCookies();
-    clearClientStorage();
-
-    setUser(null);
-    setUserData(null);
-    setShouldFetchData(false);
-    setBalance(null);
-    setNotifications([]);
-    setUnreadCount(0);
-    setLifetimeBalance(0);
-    setTotalOutflow(0);
-    setTotalTransactions(0);
-    setSubscription(null);
-    subscriptionCache.clear();
-    notificationCache.clear();
-
-    router.push("/auth/login");
-
-    // Allow future expirations (e.g. user logs in again) after a short delay.
-    setTimeout(() => {
-      sessionExpiredRef.current = false;
-    }, 2000);
-  }, [router]);
-
+  const handleSessionExpired = useCallback(
+    async (redirectTo: string = "/auth/login") => {
+      if (sessionExpiredRef.current) return;
+      sessionExpiredRef.current = true;
+  
+      try {
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }).catch(() => {});
+      } catch {}
+  
+      clearClientCookies();
+      clearClientStorage();
+  
+      setUser(null);
+      setUserData(null);
+      setShouldFetchData(false);
+      setBalance(null);
+      setNotifications([]);
+      setUnreadCount(0);
+      setLifetimeBalance(0);
+      setTotalOutflow(0);
+      setTotalTransactions(0);
+      setSubscription(null);
+      subscriptionCache.clear();
+      notificationCache.clear();
+  
+      router.replace(redirectTo);
+  
+      setTimeout(() => {
+        sessionExpiredRef.current = false;
+      }, 2000);
+    },
+    [router],
+  );
   // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     try {
