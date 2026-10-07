@@ -78,38 +78,6 @@ export default function SessionTimeoutPage() {
           </CardContent>
         </Card>
 
-        <Card className="w-full mt-5 shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary) overflow-hidden">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-(--bg-secondary) flex items-center justify-center shrink-0">
-                <Zap
-                  className="w-5 h-5 text-(--color-accent-yellow)"
-                  strokeWidth={1.9}
-                />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-(--text-primary)">
-                  Funds Transfer API
-                </h2>
-              </div>
-            </div>
-
-            <p className="text-sm text-(--text-secondary) leading-relaxed mb-5">
-              Integrate with our transfer API to experience blazing-fast,
-              reliable and secure instant electronic transfer of funds across
-              all banks in Nigeria.
-            </p>
-
-            <Button
-              variant="outline"
-              onClick={() => router.push("/docs/api/transfers")}
-              className="w-full squircle-md border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) transition-colors"
-            >
-              Click here to get started
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </CardContent>
-        </Card>
 
         <div className="mt-6 text-center">
           <Link

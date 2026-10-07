@@ -570,7 +570,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   
       clearClientCookies();
       clearClientStorage();
-  
+   sessionStorage.removeItem("lastActivity");
       setUser(null);
       setUserData(null);
       setShouldFetchData(false);

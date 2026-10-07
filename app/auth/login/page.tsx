@@ -504,6 +504,7 @@ const LoginForm = () => {
       }
 
       void (async () => {
+           sessionStorage.removeItem("lastActivity")
         try {
           await fetch("/api/activity/last-login", {
             method: "POST",
