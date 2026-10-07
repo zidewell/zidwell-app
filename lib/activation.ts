@@ -1,8 +1,8 @@
 // lib/activation.ts
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-export const ACTIVATION_FEE = 1000;         // ₦1,000
-export const ACTIVATION_MIN_FUNDING = 2000; // ₦2,000
+export const ACTIVATION_FEE = 1000;
+export const ACTIVATION_MIN_FUNDING = 2000;
 
 export interface ActivationResult {
   ok: boolean;
@@ -12,15 +12,20 @@ export interface ActivationResult {
   feeCharged?: number;
 }
 
+const debug = (label: string, data?: any) =>
+  console.log(`[activation] ${label}`, data ?? "");
+
 /**
  * Fee-only activation.
- * Called AFTER `processVirtualAccountDeposit` has already credited the wallet.
  *
- *   - User already activated?         → no-op
- *   - Wallet balance < ₦2,000?        → no-op
- *   - Otherwise:                      → debit ₦1,000, mark activated
+ * Runs AFTER a wallet deposit has been credited. Only debits the
+ * ₦1,000 activation fee if the balance has reached ₦2,000+.
  *
- * Idempotent. Safe to call multiple times for the same deposit.
+ *   - Already activated?  → no-op
+ *   - Balance < ₦2,000?   → no-op
+ *   - Otherwise:          → debit ₦1,000, mark activated
+ *
+ * Idempotent. Safe to call multiple times for the same user.
  */
 export async function processActivation(params: {
   userId: string;
@@ -32,7 +37,12 @@ export async function processActivation(params: {
 }): Promise<ActivationResult> {
   const supabase = getSupabaseAdmin() as any;
 
-  // 1. Load current state — wallet is ALREADY credited by the deposit service
+  debug("Processing activation for", {
+    userId: params.userId,
+    inflowAmount: params.inflowAmount,
+  });
+
+  // ─── 1. Load user ───
   const { data: user, error } = await supabase
     .from("users")
     .select("id, wallet_balance, activation_paid")
@@ -40,11 +50,13 @@ export async function processActivation(params: {
     .single();
 
   if (error || !user) {
+    debug("User not found", error);
     return { ok: false, reason: "User not found" };
   }
 
-  // 2. Already activated → no-op
+  // ─── 2. Already activated ───
   if (user.activation_paid) {
+    debug("Already activated — no-op");
     return {
       ok: true,
       activated: true,
@@ -53,9 +65,13 @@ export async function processActivation(params: {
     };
   }
 
-  // 3. Below minimum → no-op
+  // ─── 3. Below minimum ───
   const currentBalance = Number(user.wallet_balance || 0);
   if (currentBalance < ACTIVATION_MIN_FUNDING) {
+    debug("Below activation minimum", {
+      currentBalance,
+      minimum: ACTIVATION_MIN_FUNDING,
+    });
     return {
       ok: true,
       activated: false,
@@ -64,9 +80,15 @@ export async function processActivation(params: {
     };
   }
 
-  // 4. Debit the fee
+  // ─── 4. Debit the fee ───
   const newBalance = currentBalance - ACTIVATION_FEE;
   const activationRef = `activation_fee_${params.userId}_${Date.now()}`;
+
+  debug("Debiting activation fee", {
+    currentBalance,
+    newBalance,
+    fee: ACTIVATION_FEE,
+  });
 
   const { error: updateErr } = await supabase
     .from("users")
@@ -79,10 +101,31 @@ export async function processActivation(params: {
     .eq("id", params.userId);
 
   if (updateErr) {
+    console.error("[activation] User update failed:", updateErr.message);
+
+    // Rollback: restore balance + deactivate
+    try {
+      await supabase
+        .from("users")
+        .update({
+          wallet_balance: currentBalance,
+          activation_paid: false,
+          activated_at: null,
+          activation_reference: null,
+        })
+        .eq("id", params.userId);
+      debug("Rolled back activation flag");
+    } catch (rollbackErr: any) {
+      console.error(
+        "[activation] Rollback failed:",
+        rollbackErr.message
+      );
+    }
+
     return { ok: false, reason: "Failed to update wallet" };
   }
 
-  // 5. Log the fee (funding was logged by the deposit service)
+  // ─── 5. Log the fee ───
   try {
     await supabase.from("transactions").insert({
       user_id: params.userId,
@@ -106,9 +149,16 @@ export async function processActivation(params: {
         activation_paid_at: new Date().toISOString(),
       },
     });
-  } catch (err: any) {
-    console.error("[activation] Failed to log fee:", err.message);
+    debug("Fee logged");
+  } catch (logErr: any) {
+    // Non-fatal — the user is activated; the log is for audit only
+    console.warn(
+      "[activation] Failed to log fee (non-fatal):",
+      logErr.message
+    );
   }
+
+  debug("Activation successful", { newBalance });
 
   return {
     ok: true,

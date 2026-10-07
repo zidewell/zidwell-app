@@ -24,6 +24,10 @@ import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import { cn } from "@/lib/utils";
 
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+
 type Step = 1 | 2 | 3 | "provisioning" | "success";
 
 interface AccountDetails {
@@ -45,6 +49,44 @@ interface Props {
   premblyResult?: PremblyRedirectResult | null;
 }
 
+interface ApiError {
+  error: string;
+  code?: string;
+  retryable?: boolean;
+  step?: "identity" | "pin" | "cac";
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+const debug = (label: string, data?: any) => {
+  console.log(`[IdentityFlow] ${label}`, data ?? "");
+};
+
+/**
+ * The API routes now throw `new Error(JSON.stringify(data))` when
+ * returning a non-OK response. This parses that back into a usable
+ * error object.
+ */
+function parseApiError(err: any): ApiError {
+  if (err?.message) {
+    try {
+      const parsed = JSON.parse(err.message);
+      if (parsed?.error) return parsed as ApiError;
+    } catch {
+      // Not JSON — fall through to raw message
+    }
+    return { error: err.message };
+  }
+  if (typeof err === "string") return { error: err };
+  return { error: "Something went wrong. Please try again." };
+}
+
+// ─────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────
+
 const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
@@ -56,22 +98,27 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
 
   const [step, setStep] = useState<Step>(1);
 
+  // ─── Step 1: Identity ───
   const [identityLoading, setIdentityLoading] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
 
+  // ─── Step 2: PIN ───
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
 
+  // ─── Step 3: CAC ───
   const [rcNumber, setRcNumber] = useState("");
   const [cacLoading, setCacLoading] = useState(false);
   const [cacError, setCacError] = useState<string | null>(null);
   const [cacAttempts, setCacAttempts] = useState(0);
 
+  // ─── Provisioning / Success ───
   const [account, setAccount] = useState<AccountDetails | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // ─── Network / retry state ───
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
 
@@ -79,7 +126,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
 
   const processedResultRef = useRef(false);
 
-  // ─── Clean URL query params ───
+  // ═══════════════════════════════════════════════════════════
+  // Clean URL query params (after Prembly redirect)
+  // ═══════════════════════════════════════════════════════════
   const cleanUrl = () => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
@@ -90,7 +139,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
     window.history.replaceState({}, "", url.toString());
   };
 
-  // ─── Clear local progress ───
+  // ═══════════════════════════════════════════════════════════
+  // Clear local session storage on success
+  // ═══════════════════════════════════════════════════════════
   const clearLocalProgress = () => {
     if (typeof window === "undefined") return;
     sessionStorage.removeItem("prembly_session_id");
@@ -98,53 +149,57 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // GUARD: already-verified users get redirected immediately
+  // GUARD: Already-verified users get redirected immediately
   // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     if (!userData) return;
 
     const isFullyVerified =
       userData.bvnVerification === "verified" &&
-      userData.bank78Verified === true;
+      (userData.bank78Verified === true ||
+        userData.verificationCompleted === true);
 
     if (isFullyVerified) {
+      debug("User already verified — redirecting to dashboard");
       router.replace("/dashboard");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
   // ═══════════════════════════════════════════════════════════
-  // RESUME: skip completed steps on mount
+  // RESUME: Skip completed steps on mount
   // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     if (!userData) return;
-    if (processedResultRef.current && premblyResult) return; // prembly handling in flight
-    if (step !== 1) return; // only auto-skip when we're on step 1
+    if (processedResultRef.current && premblyResult) return;
+    if (step !== 1) return;
 
     const identityDone = userData.bvnVerification === "verified";
     const pinDone = userData.pinSet === true;
-    const accountDone = userData.bank78Verified === true;
+    const accountDone =
+      userData.bank78Verified === true ||
+      userData.verificationCompleted === true;
 
-    // Fully done — the guard above handles this, but just in case
     if (identityDone && accountDone) {
       router.replace("/dashboard");
       return;
     }
 
-    if (!identityDone) return; // start at step 1
+    if (!identityDone) return;
 
     if (!pinDone) {
+      debug("Resuming at PIN step");
       setStep(2);
       return;
     }
 
-    // PIN done but no account yet → either CAC (business registered) or provisioning
     if (isRegisteredBusiness) {
+      debug("Resuming at CAC step");
       setStep(3);
       return;
     }
 
-    // Personal → resume provisioning
+    debug("Resuming provisioning");
     runProvisioning();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
@@ -173,7 +228,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   }, [step, router]);
 
   // ═══════════════════════════════════════════════════════════
-  // CORE: save identity result
+  // CORE: Save identity result
   // ═══════════════════════════════════════════════════════════
   async function handlePremblyResult(response: any) {
     setIdentityError(null);
@@ -205,7 +260,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to save identity verification");
+        throw new Error(JSON.stringify(data));
       }
 
       setUserData({
@@ -224,14 +279,22 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
           "Connection lost. Check your internet and try again."
         );
         setRetryAction(() => () => handlePremblyResult(response));
-      } else {
-        setIdentityError(err.message || "Something went wrong. Please retry.");
+        return;
       }
+
+      const apiErr = parseApiError(err);
+
+      if (apiErr.step === "identity") {
+        setIdentityError(apiErr.error);
+        return;
+      }
+
+      setIdentityError(apiErr.error);
     }
   }
 
   // ═══════════════════════════════════════════════════════════
-  // HANDLE Prembly redirect back from SDK
+  // HANDLE: Prembly redirect back from SDK
   // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     if (!premblyResult || processedResultRef.current) return;
@@ -275,7 +338,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   }, [premblyResult]);
 
   // ═══════════════════════════════════════════════════════════
-  // Start identity verification
+  // START: Identity verification
   // ═══════════════════════════════════════════════════════════
   const handleStartIdentity = async () => {
     setIdentityLoading(true);
@@ -285,6 +348,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
     try {
       const returnUrl = `${window.location.origin}/verification`;
       await startPremblyVerification(returnUrl);
+      // Page navigates away — nothing below runs.
     } catch (err: any) {
       setIdentityLoading(false);
       if (isNetworkError(err)) {
@@ -297,7 +361,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // Save PIN
+  // SAVE: PIN
   // ═══════════════════════════════════════════════════════════
   const handleSavePin = async () => {
     setPinError(null);
@@ -323,7 +387,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Failed to save PIN");
+      if (!res.ok) throw new Error(JSON.stringify(data));
 
       setUserData({ ...userData, pinSet: true });
       setPinLoading(false);
@@ -338,14 +402,15 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       if (isNetworkError(err)) {
         setNetworkError("Connection lost. Check your internet and try again.");
         setRetryAction(() => handleSavePin);
-      } else {
-        setPinError(err.message);
+        return;
       }
+      const apiErr = parseApiError(err);
+      setPinError(apiErr.error);
     }
   };
 
   // ═══════════════════════════════════════════════════════════
-  // Verify CAC
+  // VERIFY: CAC
   // ═══════════════════════════════════════════════════════════
   const handleVerifyCAC = async () => {
     setCacError(null);
@@ -370,7 +435,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "CAC verification failed");
+      if (!res.ok) throw new Error(JSON.stringify(data));
 
       setCacLoading(false);
       await runProvisioning();
@@ -383,6 +448,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         return;
       }
 
+      const apiErr = parseApiError(err);
       const newAttempts = cacAttempts + 1;
       setCacAttempts(newAttempts);
 
@@ -390,19 +456,23 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         Swal.fire({
           icon: "warning",
           title: "CAC Verification Failed",
-          text: "We couldn't verify your CAC after 3 attempts. Please contact support.",
+          text:
+            apiErr.error ||
+            "We couldn't verify your CAC after 3 attempts. Please contact support.",
           confirmButtonColor: "#FDC020",
         });
-        setCacError("Verification failed after 3 attempts. Contact support.");
+        setCacError(
+          apiErr.error || "Verification failed after 3 attempts."
+        );
         return;
       }
 
-      setCacError(`${err.message} (Attempt ${newAttempts}/3)`);
+      setCacError(`${apiErr.error} (Attempt ${newAttempts}/3)`);
     }
   };
 
   // ═══════════════════════════════════════════════════════════
-  // Provision account
+  // PROVISION: Account creation
   // ═══════════════════════════════════════════════════════════
   const runProvisioning = async () => {
     setStep("provisioning");
@@ -419,7 +489,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Account creation failed");
+      if (!res.ok) throw new Error(JSON.stringify(data));
 
       setAccount({
         accountNumber: data.account.accountNumber,
@@ -429,13 +499,13 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         accountType: data.accountType,
       });
 
+      // Sync all state so the dashboard knows the user is verified
       setUserData({
         ...userData,
         ...(data.updates || {}),
         verificationCompleted: true,
         identityVerified: true,
         bvnVerification: "verified",
-        bank78Verified: true,
         bankName: data.account.bankName,
         bankAccountName: data.account.accountName,
         bankAccountNumber: data.account.accountNumber,
@@ -449,44 +519,92 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
           "Connection lost while creating your account. Your progress is safe — tap retry to continue."
         );
         setRetryAction(() => runProvisioning);
-        // Stay on provisioning screen so user sees the retry button
         setStep("provisioning");
+        return;
+      }
+
+      const apiErr = parseApiError(err);
+
+      // Route back to the right step if the server says so
+      if (apiErr.step === "pin") {
+        setStep(2);
+        setPinError(apiErr.error);
+        return;
+      }
+      if (apiErr.step === "identity") {
+        setStep(1);
+        setIdentityError(apiErr.error);
+        return;
+      }
+      if (apiErr.step === "cac") {
+        setStep(3);
+        setCacError(apiErr.error);
         return;
       }
 
       Swal.fire({
         icon: "error",
         title: "Account Creation Failed",
-        text: err.message || "Please try again in a moment.",
+        text: apiErr.error || "Please try again in a moment.",
         confirmButtonColor: "#FDC020",
       });
+
       setStep(isRegisteredBusiness ? 3 : 2);
     }
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // Confetti
+  // ═══════════════════════════════════════════════════════════
   const triggerConfetti = () => {
     const end = Date.now() + 1500;
     const colors = ["#00B64F", "#FDC020", "#191919", "#FFFFFF"];
     const frame = () => {
-      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors });
-      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors });
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors,
+      });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // Copy account number
+  // ═══════════════════════════════════════════════════════════
   const handleCopy = async () => {
     if (!account) return;
-    await navigator.clipboard.writeText(account.accountNumber);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(account.accountNumber);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback — do nothing
+    }
   };
 
+  // ═══════════════════════════════════════════════════════════
+  // Derived state
+  // ═══════════════════════════════════════════════════════════
   const stepNumber = typeof step === "number" ? step : totalSteps;
   const pct = (stepNumber / totalSteps) * 100;
 
+  // ═══════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════
   return (
     <div className="space-y-10">
+      {/* ─── Progress bar ─── */}
       {typeof step === "number" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
@@ -506,7 +624,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── Network error banner ─── */}
+      {/* ─── Network error banner (persistent, retryable) ─── */}
       {networkError && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30">
           <WifiOff className="h-5 w-5 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
@@ -530,7 +648,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── STEP 1 — Identity ─── */}
+      {/* ═══════════════════════════════════════════════════════
+          STEP 1 — Identity
+          ═══════════════════════════════════════════════════════ */}
       {step === 1 && (
         <div className="space-y-8">
           <div className="space-y-3">
@@ -553,8 +673,8 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                   Secure identity check
                 </h3>
                 <p className="text-sm text-(--text-secondary) mt-1">
-                  Choose BVN, NIN, Passport, Driver&apos;s License, or Voter&apos;s
-                  card. Takes about 60 seconds.
+                  Choose BVN, NIN, Passport, Driver&apos;s License, or
+                  Voter&apos;s card. Takes about 60 seconds.
                 </p>
               </div>
             </div>
@@ -594,7 +714,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── STEP 2 — PIN ─── */}
+      {/* ═══════════════════════════════════════════════════════
+          STEP 2 — PIN
+          ═══════════════════════════════════════════════════════ */}
       {step === 2 && (
         <div className="space-y-8">
           <div className="space-y-3">
@@ -624,7 +746,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-(--text-primary)">Transaction PIN</Label>
+                <Label className="text-(--text-primary)">
+                  Transaction PIN
+                </Label>
                 <Input
                   type="password"
                   inputMode="numeric"
@@ -684,7 +808,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── STEP 3 — CAC ─── */}
+      {/* ═══════════════════════════════════════════════════════
+          STEP 3 — CAC (registered business only)
+          ═══════════════════════════════════════════════════════ */}
       {step === 3 && (
         <div className="space-y-8">
           <div className="space-y-3">
@@ -750,7 +876,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── PROVISIONING ─── */}
+      {/* ═══════════════════════════════════════════════════════
+          PROVISIONING
+          ═══════════════════════════════════════════════════════ */}
       {step === "provisioning" && (
         <div className="text-center space-y-6 py-16">
           <div className="mx-auto h-16 w-16 rounded-full bg-(--color-accent-yellow)/20 flex items-center justify-center">
@@ -767,7 +895,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── SUCCESS ─── */}
+      {/* ═══════════════════════════════════════════════════════
+          SUCCESS
+          ═══════════════════════════════════════════════════════ */}
       {step === "success" && account && (
         <div className="space-y-8 text-center">
           <div className="mx-auto h-20 w-20 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">

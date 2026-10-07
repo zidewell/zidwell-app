@@ -30,10 +30,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 
 // ─── Timing constants ───
-// Slow networks (Nigeria → distant Supabase regions) can take 15–20s per
-// round trip. Give the request plenty of headroom.
 const LOGIN_TIMEOUT_MS = 60_000;
-// Show a "still working" hint after this many ms.
 const SLOW_HINT_AFTER_MS = 8_000;
 
 interface DeviceInfo {
@@ -110,12 +107,6 @@ const fixDoubleEncodedUrl = (url: string): string => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────
-// SAFE SWAL WRAPPER
-// Under Turbopack + certain sweetalert2 builds, Swal.fire() can resolve
-// to a non-promise value, which breaks `.then()` / `.catch()` chaining.
-// This wrapper guarantees a real Promise is always returned.
-// ─────────────────────────────────────────────────────────────────────
 function safeSwalFire(options: any): Promise<any> {
   try {
     const result = (Swal as any).fire(options);
@@ -129,9 +120,6 @@ function safeSwalFire(options: any): Promise<any> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Non-blocking toast helper
-// ─────────────────────────────────────────────────────────────────────
 function toast(
   icon: "success" | "warning" | "info" | "error",
   title: string,
@@ -161,8 +149,6 @@ const LoginForm = () => {
   const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
 
-  // ✅ Synchronous double-submit guard. `loading` state is async and can be
-  //    defeated by a fast double-click; this ref cannot.
   const submittingRef = useRef(false);
   const slowHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -180,14 +166,12 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Clean up the slow-hint timer if the component unmounts mid-login.
   useEffect(() => {
     return () => {
       if (slowHintTimerRef.current) clearTimeout(slowHintTimerRef.current);
     };
   }, []);
 
-  // ✅ Save user data (with store fields) to localStorage for optimistic UI
   const saveUserDataToLocalStorage = (profile: any) => {
     try {
       const userDataToSave = {
@@ -247,7 +231,6 @@ const LoginForm = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ✅ Synchronous double-submit guard
     if (submittingRef.current) return;
     if (loading) return;
 
@@ -264,8 +247,6 @@ const LoginForm = () => {
     setSlowHint(false);
     setErrors({});
 
-    // ✅ Show the "still working…" hint if the request takes >8s.
-    //    Essential on slow networks — a silent spinner feels broken.
     slowHintTimerRef.current = setTimeout(() => {
       setSlowHint(true);
     }, SLOW_HINT_AFTER_MS);
@@ -277,8 +258,6 @@ const LoginForm = () => {
     );
 
     try {
-      // ✅ Non-blocking modal. No `didOpen`/`showLoading` — those can get
-      //    stuck if a later Swal.close() races the open.
       safeSwalFire({
         title: "Signing in…",
         text: "Verifying your credentials",
@@ -306,7 +285,6 @@ const LoginForm = () => {
       }
       setSlowHint(false);
 
-      // ─── Parse JSON safely (server might return HTML on a crash) ───
       let result: any = null;
       try {
         result = await res.json();
@@ -317,11 +295,6 @@ const LoginForm = () => {
         };
       }
 
-      // ═══════════════════════════════════════════════════════════════════
-      // ERROR BRANCHES
-      // ═══════════════════════════════════════════════════════════════════
-
-      // ─── 503 / 502 / 504 → Supabase or server unreachable ───
       if (res.status === 503 || res.status === 502 || res.status === 504) {
         Swal.close();
         await safeSwalFire({
@@ -346,7 +319,6 @@ const LoginForm = () => {
       }
 
       if (!res.ok) {
-        // ─── 429 → rate-limited ───
         if (res.status === 429) {
           Swal.close();
           const retryAfter = result?.retryAfter
@@ -375,7 +347,6 @@ const LoginForm = () => {
           return;
         }
 
-        // ─── 404 / user not found ───
         if (
           res.status === 404 ||
           result?.userNotFound ||
@@ -408,7 +379,6 @@ const LoginForm = () => {
           return;
         }
 
-        // ─── 403 / blocked account ───
         if (res.status === 403 && result?.blocked) {
           Swal.close();
           await safeSwalFire({
@@ -433,7 +403,6 @@ const LoginForm = () => {
           return;
         }
 
-        // ─── 403 / email not verified ───
         if (res.status === 403 && result?.requiresVerification) {
           Swal.close();
           const { value: action } = await safeSwalFire({
@@ -468,7 +437,6 @@ const LoginForm = () => {
           return;
         }
 
-        // ─── 401 / wrong password ───
         if (res.status === 401) {
           Swal.close();
           await safeSwalFire({
@@ -490,19 +458,14 @@ const LoginForm = () => {
           return;
         }
 
-        // ─── Anything else: show the server's message ───
         throw new Error(result?.error || "Login failed. Please try again.");
       }
 
-      // ═══════════════════════════════════════════════════════════════════
-      // SUCCESS PATH
-      // ═══════════════════════════════════════════════════════════════════
       const { profile, isVerified } = result;
       if (!profile) {
         throw new Error("Login succeeded but no profile was returned.");
       }
 
-      // Persist to localStorage with augmented store fields
       saveUserDataToLocalStorage(profile);
       setUserData(profile);
 
@@ -522,7 +485,6 @@ const LoginForm = () => {
 
       Swal.close();
 
-      // ─── Suspicious login toast (non-blocking) ───
       if (result.security?.isSuspicious) {
         toast(
           "warning",
@@ -541,7 +503,6 @@ const LoginForm = () => {
         );
       }
 
-      // ─── Fire-and-forget side effects ───
       void (async () => {
         try {
           await fetch("/api/activity/last-login", {
@@ -566,23 +527,17 @@ const LoginForm = () => {
         }
       })();
 
-      // ─── Navigate ───
       let targetUrl = callbackUrl;
       if (fromLogin === "true" && scrollToPricing === "true") {
         targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
 
-      // In production use window.location.replace to force a fresh request
-      // so the proxy re-validates with the new cookies. In dev, use the
-      // client router for faster iteration.
       if (process.env.NODE_ENV === "production") {
         window.location.replace(targetUrl);
       } else {
         router.replace(targetUrl);
       }
-      // Do NOT setLoading(false) here — component unmounts on navigation.
     } catch (err: any) {
-      // ─── Clear timers ───
       clearTimeout(timeoutId);
       if (slowHintTimerRef.current) {
         clearTimeout(slowHintTimerRef.current);
@@ -591,7 +546,6 @@ const LoginForm = () => {
       setSlowHint(false);
       Swal.close();
 
-      // ─── Classify the error ───
       const isAbort = err?.name === "AbortError";
       const isNetwork =
         err?.message === "Failed to fetch" ||
@@ -648,8 +602,9 @@ const LoginForm = () => {
 
   return (
     <div className="lg:flex lg:justify-between bg-(--bg-primary) min-h-screen fade-in">
+      {/* ─── Left panel: form ─── */}
       <div
-        className="lg:w-[50%] min-h-screen md:h-full flex justify-center md:items-start items-center px-6 md:py-8 fade-in bg-cover bg-center relative"
+        className="lg:w-[50%] min-h-screen flex flex-col justify-center items-center px-6 py-8 fade-in bg-cover bg-center relative"
         style={
           isMobile
             ? {
@@ -669,7 +624,7 @@ const LoginForm = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
 
-        <Card className="w-full max-w-md h-full shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary)">
+        <Card className="w-full max-w-md shadow-soft squircle-lg border border-(--border-color) bg-(--bg-primary) my-auto max-h-[calc(100vh-4rem)] overflow-y-auto">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
               <Image
@@ -688,7 +643,7 @@ const LoginForm = () => {
               Sign in to your Zidwell Wallet
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* ─── Slow network hint ─── */}
               {slowHint && loading && (
@@ -849,7 +804,10 @@ const LoginForm = () => {
           </CardContent>
         </Card>
       </div>
-      <Carousel />
+
+      <div className="hidden lg:flex lg:w-[50%] h-screen items-center justify-center bg-(--bg-secondary)">
+        <Carousel />
+      </div>
     </div>
   );
 };

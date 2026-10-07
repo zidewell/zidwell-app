@@ -10,26 +10,47 @@ import type { Database } from "@/types/supabase";
 
 type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
 
+const debug = (label: string, data?: any) =>
+  console.log(`[/verify/identity] ${label}`, data ?? "");
+
 export async function POST(req: NextRequest) {
+  debug("=== Identity verification request received ===");
+
   try {
     // ─── 1. Authenticate ───
     const { user, newTokens } = await isAuthenticatedWithRefresh(req);
     if (!user) {
+      debug("Auth failed — no valid session");
       return NextResponse.json(
-        { error: "Unauthorized", message: "No valid session found" },
+        {
+          error:
+            "Your session has expired. Please log in again and retry verification.",
+          code: "SESSION_EXPIRED",
+        },
         { status: 401 }
       );
     }
 
     const userId = user.id;
+    debug("Authenticated", { userId });
 
-    // ─── 2. Read payload ───
+    // ─── 2. Parse payload ───
     const body = await req.json().catch(() => ({}));
     const premblyResponse = body?.premblyResponse;
 
+    debug("Prembly payload received", {
+      code: premblyResponse?.code,
+      status: premblyResponse?.status,
+      sessionId: premblyResponse?.session_id,
+    });
+
     if (!premblyResponse) {
       return NextResponse.json(
-        { error: "premblyResponse is required" },
+        {
+          error:
+            "We didn't receive your verification result. Please try the identity step again.",
+          code: "MISSING_PAYLOAD",
+        },
         { status: 400 }
       );
     }
@@ -38,17 +59,48 @@ export async function POST(req: NextRequest) {
       premblyResponse.code === "00" && premblyResponse.status === "success";
 
     if (!isSuccess) {
+      debug("Prembly returned non-success", {
+        code: premblyResponse.code,
+        status: premblyResponse.status,
+        message: premblyResponse.message,
+      });
+
+      // Translate Prembly cancel / fail codes into user-friendly messages
+      if (premblyResponse.code === "E02") {
+        return NextResponse.json(
+          {
+            error:
+              "You cancelled the verification. You can retry whenever you're ready.",
+            code: "VERIFICATION_CANCELLED",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (premblyResponse.code === "E01") {
+        return NextResponse.json(
+          {
+            error:
+              premblyResponse.message ||
+              "Verification failed. Please double-check your details and try again.",
+            code: "VERIFICATION_FAILED",
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         {
           error:
             premblyResponse.message ||
-            "Identity verification was not successful",
+            "We couldn't complete your verification. Please try again.",
+          code: "VERIFICATION_FAILED",
         },
         { status: 400 }
       );
     }
 
-    // ─── 3. Resolve channel / reference / data ───
+    // ─── 3. Resolve identity fields ───
     let channel: string = (premblyResponse.channel || "").toUpperCase();
     let reference: string | null =
       premblyResponse?.verification?.reference || null;
@@ -61,47 +113,95 @@ export async function POST(req: NextRequest) {
     extractedBvn = sdkIds.bvn;
     extractedNin = sdkIds.nin;
 
+    debug("Stage 1 (SDK) extraction", {
+      bvn: extractedBvn || "(not found)",
+      nin: extractedNin || "(not found)",
+    });
+
     // Stage 2 — enrich from session fetch
     const sessionId = premblyResponse?.session_id;
     let sessionResult: Awaited<ReturnType<typeof getPremblySession>> | null =
       null;
 
     if (!extractedBvn && !extractedNin && sessionId) {
-      sessionResult = await getPremblySession(sessionId);
+      debug("Fetching full session from Prembly", sessionId);
 
-      if (sessionResult.ok && sessionResult.session) {
+      try {
+        sessionResult = await getPremblySession(sessionId);
+      } catch (sessionErr: any) {
+        console.error(
+          "[/verify/identity] Session fetch threw:",
+          sessionErr.message
+        );
+        sessionResult = null;
+      }
+
+      if (sessionResult?.ok && sessionResult.session) {
         const s = sessionResult.session;
 
-        // ─── CHANNEL from metadata (BVN or NIN) ───
+        // Channel from metadata
         const metaChannel =
           s?.metadata?.sdk_verification_details?.data?.channel ||
           s?.verification_data?.last_verification_channel ||
           "";
         channel = channel || (metaChannel || "").toUpperCase();
 
-        // ─── REFERENCE ───
+        // Reference
         reference =
           reference ||
           s?.verification?.reference ||
           s.session_id ||
           null;
 
-        // ─── VERIFIED DATA (fallback to session's verification_data) ───
+        // Verified data
         if (Object.keys(verifiedData || {}).length === 0) {
           verifiedData = s.verification_data || s.data || {};
         }
 
-        // ─── Extract BVN/NIN from session ───
+        // Extract IDs
         const sessionIds = extractIdentityNumbers(s);
         extractedBvn = extractedBvn || sessionIds.bvn;
         extractedNin = extractedNin || sessionIds.nin;
+
+        debug("Stage 2 (session) extraction", {
+          bvn: extractedBvn || "(not found)",
+          nin: extractedNin || "(not found)",
+          metaChannel,
+        });
+      } else {
+        debug("Session fetch failed or returned no session", {
+          ok: sessionResult?.ok,
+          error: sessionResult?.error,
+        });
       }
+    } else if (!sessionId) {
+      debug("No session_id in payload — skipping session fetch");
     }
 
     channel = channel || "BVN";
     reference = reference || sessionId || null;
 
-    // ─── 4. Load user row ───
+    debug("Final resolved values", {
+      channel,
+      reference,
+      hasBvn: !!extractedBvn,
+      hasNin: !!extractedNin,
+    });
+
+    // ─── 4. Require at least one verified ID ───
+    if (!extractedBvn && !extractedNin) {
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't read your identity from the verification. Please re-enter your BVN or NIN and try again.",
+          code: "NO_IDENTITY_CAPTURED",
+          step: "identity",
+        },
+        { status: 400 }
+      );
+    }
+
+    // ─── 5. Load user row ───
     const supabase = getSupabaseAdmin();
 
     const { data: existingUser, error: userError } = await supabase
@@ -111,10 +211,18 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (userError || !existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      debug("User lookup failed", userError);
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't load your profile. Please refresh the page and try again.",
+          code: "USER_NOT_FOUND",
+        },
+        { status: 404 }
+      );
     }
 
-    // ─── 5. Build merged bvn_data payload ───
+    // ─── 6. Build update ───
     const mergedBvnData = {
       ...((existingUser.bvn_data as any) || {}),
       ...(verifiedData || {}),
@@ -122,7 +230,6 @@ export async function POST(req: NextRequest) {
       ...(extractedNin ? { nin: extractedNin } : {}),
     };
 
-    // ─── 6. Build DB update ───
     const existingLogs: any[] = Array.isArray(existingUser.verification_logs)
       ? existingUser.verification_logs
       : [];
@@ -159,6 +266,12 @@ export async function POST(req: NextRequest) {
       update.bvn_verification = "verified";
     }
 
+    debug("Updating user record", {
+      channel,
+      hasBvn: !!extractedBvn,
+      hasNin: !!extractedNin,
+    });
+
     // ─── 7. Persist ───
     const { error: updateError } = await supabase
       .from("users")
@@ -166,12 +279,22 @@ export async function POST(req: NextRequest) {
       .eq("id", userId);
 
     if (updateError) {
-      console.error("[/api/verify/identity] Update error:", updateError);
+      console.error(
+        "[/verify/identity] DB update failed:",
+        updateError.message
+      );
       return NextResponse.json(
-        { error: "Failed to save identity verification" },
+        {
+          error:
+            "We couldn't save your verification. Please try again in a moment.",
+          code: "DB_UPDATE_FAILED",
+          retryable: true,
+        },
         { status: 500 }
       );
     }
+
+    debug("Identity verified and saved", { userId, channel });
 
     // ─── 8. Respond ───
     const responseBody = {
@@ -188,9 +311,18 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(responseBody);
   } catch (err: any) {
-    console.error("[/api/verify/identity] Exception:", err.message);
+    console.error("[/verify/identity] Unhandled exception:", {
+      message: err.message,
+      stack: err.stack,
+    });
+
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      {
+        error:
+          "Something unexpected happened during verification. Your progress is safe — please try again.",
+        code: "UNEXPECTED_ERROR",
+        retryable: true,
+      },
       { status: 500 }
     );
   }

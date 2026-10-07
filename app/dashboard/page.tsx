@@ -175,7 +175,7 @@ function DashboardPage() {
     setActivationChecking(true);
 
     try {
-      const res = await fetch("/api/activate", {
+      const res = await fetch("/api/activate-account", {
         method: "POST",
         credentials: "include",
       });
