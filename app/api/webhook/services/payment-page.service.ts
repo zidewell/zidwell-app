@@ -633,15 +633,9 @@ export async function processPaymentPageVirtualAccount(
     },
   });
 
-  // Build delivery HTML once
-  const { data: store } = await supabase
-    .from("online_stores")
-    .select("id, name, local_pickup_address, local_pickup_notes")
-    .eq("id", paymentPage.store_id || paymentPage.metadata?.store_id)
-    .maybeSingle();
-
+  // ✅ Build fulfillment HTML — new single-arg signature
   const deliveryHtml = renderFulfillmentBlock(
-    fulfillmentFromPayment(paymentResult, store),
+    fulfillmentFromPayment(paymentResult),
   );
 
   if (customerEmail) {
