@@ -63,9 +63,9 @@ export function useProductCheckout({
     Record<string, number>
   >({});
 
-  // Fulfillment (delivery or pickup)
+  // ✅ Fulfillment — nothing preselected
   const [fulfillment, setFulfillment] = useState<FulfillmentSelection>({
-    method: "delivery",
+    method: null,
     address: null,
     pickup: null,
     fee: 0,
@@ -691,6 +691,9 @@ export function useProductCheckout({
     if (!requiresShipping) return true;
     if (!storeDeliveryEnabled && !storePickupEnabled) return false;
 
+    // ✅ No method chosen → not ready
+    if (!fulfillment.method) return false;
+
     if (fulfillment.method === "pickup") {
       return storePickupEnabled && !!fulfillment.pickup?.id;
     }
@@ -699,8 +702,11 @@ export function useProductCheckout({
 
     const a = fulfillment.address;
     if (!a) return false;
-    // Only address fields — name/phone come from the info modal
-    return !!(a.street_address?.trim() && a.city?.trim() && a.state?.trim());
+    return !!(
+      a.street_address?.trim() &&
+      a.city?.trim() &&
+      a.state?.trim()
+    );
   }, [
     requiresShipping,
     storeDeliveryEnabled,
@@ -768,13 +774,14 @@ export function useProductCheckout({
       if (!storeDeliveryEnabled && !storePickupEnabled) {
         return "This store has not configured pickup or delivery. Please contact the seller.";
       }
+      if (!fulfillment.method) {
+        return "Please choose pickup or delivery";
+      }
       if (fulfillment.method === "pickup") {
         return "Please choose a pickup location";
       }
       const a = fulfillment.address;
       if (!a) return "Please enter your delivery address";
-      if (!a.full_name?.trim()) return "Please enter your full name";
-      if (!a.phone?.trim()) return "Please enter your phone number";
       if (!a.street_address?.trim()) return "Please enter your street address";
       if (!a.city?.trim()) return "Please enter your city";
       if (!a.state?.trim()) return "Please select your state";
@@ -927,23 +934,27 @@ export function useProductCheckout({
         if (!amt || amt <= 0) errs.customAmount = "Please enter an amount";
       }
     }
+
     if (requiresShipping && !isFulfillmentReady) {
       if (!storeDeliveryEnabled && !storePickupEnabled) {
         errs.fulfillment = "This store has not configured pickup or delivery";
+      } else if (!fulfillment.method) {
+        errs.fulfillment = "Please choose pickup or delivery";
       } else if (fulfillment.method === "pickup") {
         if (!fulfillment.pickup?.id) {
           errs.fulfillment = "Please choose a pickup location";
         }
       } else if (fulfillment.method === "delivery") {
-        // Name + phone come from the info modal, not the address form
         if (!customerName.trim()) errs.name = "Full name is required";
         if (!customerPhone.trim()) errs.phone = "Phone number is required";
 
         const a = fulfillment.address;
         if (!a?.street_address?.trim())
           errs.fulfillment = "Please enter your street address";
-        else if (!a?.city?.trim()) errs.fulfillment = "Please enter your city";
-        else if (!a?.state?.trim()) errs.fulfillment = "Please select your state";
+        else if (!a?.city?.trim())
+          errs.fulfillment = "Please enter your city";
+        else if (!a?.state?.trim())
+          errs.fulfillment = "Please select your state";
         else errs.fulfillment = "Please complete your delivery address";
       }
     }
@@ -959,6 +970,7 @@ export function useProductCheckout({
     requireDonorName,
     customerName,
     customerEmail,
+    customerPhone,
     donorAmount,
     minimumDonation,
     isPaymentLink,
@@ -1132,9 +1144,7 @@ export function useProductCheckout({
         metadata.fulfillmentMethod = fulfillment.method;
 
         if (fulfillment.method === "delivery" && fulfillment.address) {
-          // ✅ Merge the customer's identity (from info modal) into the
-          // delivery address. The address form only asks for address fields;
-          // name/phone live in the info modal as the single source of truth.
+          // ✅ Merge customer name + phone from info modal into the snapshot
           metadata.deliveryAddress = {
             ...fulfillment.address,
             full_name: (customerName || "").trim(),
@@ -1147,7 +1157,7 @@ export function useProductCheckout({
         metadata.pickupLocation =
           fulfillment.method === "pickup" ? fulfillment.pickup : null;
       }
-    } // ✅ FIX: close if (isPhysical)
+    }
 
     if (isDigital) {
       metadata.emailDelivery = emailDelivery;
@@ -1223,9 +1233,12 @@ export function useProductCheckout({
           amount: currentTotalAmount,
           metadata,
           returnUrl: redirectUrl,
-          fulfillmentMethod: requiresShipping ? fulfillment.method : null,
+          fulfillmentMethod:
+            requiresShipping && fulfillment.method ? fulfillment.method : null,
           deliveryAddress:
-            requiresShipping && fulfillment.method === "delivery"
+            requiresShipping &&
+            fulfillment.method === "delivery" &&
+            fulfillment.address
               ? {
                   ...fulfillment.address,
                   full_name: (customerName || "").trim(),
@@ -1258,8 +1271,7 @@ export function useProductCheckout({
                 ? "Just sold out"
                 : "Not enough stock",
             text:
-              data?.error ||
-              "This variant just sold out. Please pick another.",
+              data?.error || "This variant just sold out. Please pick another.",
             confirmButtonColor: "#FDC020",
           });
           return;
@@ -1801,7 +1813,7 @@ export function useProductCheckout({
       zipCode: "",
     });
     setFulfillment({
-      method: "delivery",
+      method: null,
       address: null,
       pickup: null,
       fee: 0,
@@ -1835,7 +1847,7 @@ export function useProductCheckout({
       zipCode: "",
     });
     setFulfillment({
-      method: "delivery",
+      method: null,
       address: null,
       pickup: null,
       fee: 0,

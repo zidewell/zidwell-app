@@ -42,21 +42,11 @@ export interface PickupLocationSnapshot {
 }
 
 export interface FulfillmentSelection {
-  method: "delivery" | "pickup";
+  // ✅ null = no method chosen yet
+  method: "delivery" | "pickup" | null;
   address: CustomerDeliveryAddress | null;
   pickup: PickupLocationSnapshot | null;
   fee: number;
-}
-
-export interface StorePickupConfig {
-  pickup_enabled: boolean;
-}
-
-export interface StoreDeliveryConfig {
-  delivery_enabled: boolean;
-  delivery_fee: number;
-  delivery_free_threshold: number;
-  delivery_notes: string | null;
 }
 
 export function requiresDelivery(

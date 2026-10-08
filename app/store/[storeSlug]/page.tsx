@@ -6,7 +6,6 @@ import {
   Package,
   MapPin,
   Store as StoreIcon,
-  Eye,
   Navigation,
 } from "lucide-react";
 import {
@@ -20,7 +19,7 @@ export const revalidate = 60;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 interface StorePageProps {
@@ -44,6 +43,35 @@ function toNumberOrNull(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+// ✅ Compute the price to display on a product card.
+// Uses the lowest variant price for products that have variants.
+function getCardPrice(page: any): { price: number; isFrom: boolean } {
+  const basePrice = Number(page.price) || 0;
+
+  let metadata = page.metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = null;
+    }
+  }
+
+  const variants = Array.isArray(metadata?.variants) ? metadata.variants : [];
+  if (variants.length === 0) return { price: basePrice, isFrom: false };
+
+  let lowest: number | null = null;
+  for (const v of variants) {
+    const p = Number(v?.price);
+    if (Number.isFinite(p) && p > 0) {
+      if (lowest === null || p < lowest) lowest = p;
+    }
+  }
+
+  if (lowest === null) return { price: basePrice, isFrom: false };
+  return { price: lowest, isFrom: true };
 }
 
 export async function generateMetadata({ params }: StorePageProps) {
@@ -110,10 +138,6 @@ export default async function PublicStorePage({ params }: StorePageProps) {
 
   const validPages = pages || [];
 
-  // ─── Store view tracking ───
-  // Only increments online_stores.total_views.
-  // Product page views are tracked separately in useProductCheckout.ts
-  // when the buyer opens an individual product.
   void supabase
     .rpc("increment_store_views", { p_store_id: store.id })
     .then(({ error }) => {
@@ -127,7 +151,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
   const hasCoordinates = lat !== null && lng !== null;
 
   const hasAddress = Boolean(
-    store.street_address || store.city || store.state || store.country
+    store.street_address || store.city || store.state || store.country,
   );
 
   const addressLine = [
@@ -144,7 +168,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
     : encodeURIComponent(
         [store.street_address, store.city, store.state, store.country]
           .filter(Boolean)
-          .join(", ")
+          .join(", "),
       );
 
   const mapEmbedSrc = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
@@ -164,7 +188,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
     products: validPages.map((p) => ({
       title: p.title,
       slug: p.slug,
-      price: Number(p.price) || 0,
+      price: getCardPrice(p).price,
       price_type: p.price_type,
       product_images: p.product_images,
       cover_image: p.cover_image,
@@ -229,11 +253,11 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                           .replace(/<p>/g, '<p class="mb-2">')
                           .replace(
                             /<ol>/g,
-                            '<ol class="list-decimal pl-5 space-y-1 my-2">'
+                            '<ol class="list-decimal pl-5 space-y-1 my-2">',
                           )
                           .replace(
                             /<ul>/g,
-                            '<ul class="list-disc pl-5 space-y-1 my-2">'
+                            '<ul class="list-disc pl-5 space-y-1 my-2">',
                           )
                           .replace(/<li>/g, '<li class="mb-1">'),
                       }}
@@ -254,8 +278,6 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                       {store.city}, {store.state}
                     </span>
                   )}
-
-                
                 </div>
               </div>
             </div>
@@ -278,6 +300,8 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                 {validPages.map((page) => {
                   const productStoreSlug = page.metadata?.storeSlug || storeSlug;
                   const safeProductDesc = sanitizeHtml(page.description || "");
+                  const { price, isFrom } = getCardPrice(page);
+
                   return (
                     <Link
                       key={page.id}
@@ -325,7 +349,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                             dangerouslySetInnerHTML={{
                               __html: safeProductDesc.replace(
                                 /<p>/g,
-                                '<p class="mb-1">'
+                                '<p class="mb-1">',
                               ),
                             }}
                           />
@@ -333,7 +357,12 @@ export default async function PublicStorePage({ params }: StorePageProps) {
 
                         <div className="mt-auto flex items-baseline justify-between pt-3">
                           <p className="text-sm font-bold text-(--color-accent-yellow) sm:text-base">
-                            ₦{Number(page.price || 0).toLocaleString()}
+                            {isFrom && (
+                              <span className="mr-1 text-[10px] font-medium text-(--text-secondary)">
+                                From
+                              </span>
+                            )}
+                            ₦{price.toLocaleString()}
                           </p>
                           {page.price_type === "installment" &&
                             page.installment_count && (

@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     supabase
       .from("payment_pages")
       .select(
-        "title, description, product_images, cover_image, price, price_type, slug, page_type",
+        "title, description, product_images, cover_image, price, price_type, slug, page_type, metadata",
       )
       .eq("slug", productSlug)
       .eq("is_published", true)
@@ -78,11 +78,33 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     }
   }
 
+  // ✅ Compute lowest variant price for metadata
+  let metadata = (product as any).metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = null;
+    }
+  }
+  const variants = Array.isArray(metadata?.variants) ? metadata.variants : [];
+  let lowestVariantPrice: number | null = null;
+  for (const v of variants) {
+    const p = Number(v?.price);
+    if (Number.isFinite(p) && p > 0) {
+      if (lowestVariantPrice === null || p < lowestVariantPrice) {
+        lowestVariantPrice = p;
+      }
+    }
+  }
+  const displayPrice =
+    lowestVariantPrice ?? (Number(product.price) || 0);
+
   return generateProductMetadata({
     title: product.title,
     slug: product.slug,
     description: product.description,
-    price: Number(product.price) || 0,
+    price: displayPrice,
     productImages: images,
     coverImage: product.cover_image,
     storeName: store.name,
@@ -235,6 +257,25 @@ export default async function StoreProductPage({
     }
   }
 
+  // ✅ Compute the "display price" for physical products with variants:
+  // use the LOWEST variant price, so the product page shows "From ₦X".
+  let displayPrice = Number(page.price) || 0;
+  if (page.page_type === "physical") {
+    const variants = Array.isArray(parsedMetadata?.variants)
+      ? parsedMetadata.variants
+      : [];
+    if (variants.length > 0) {
+      let lowest: number | null = null;
+      for (const v of variants) {
+        const p = Number(v?.price);
+        if (Number.isFinite(p) && p > 0) {
+          if (lowest === null || p < lowest) lowest = p;
+        }
+      }
+      if (lowest !== null) displayPrice = lowest;
+    }
+  }
+
   const cleanPage = {
     id: page.id,
     title: page.title,
@@ -244,7 +285,7 @@ export default async function StoreProductPage({
     logo: page.logo || null,
     productImages: productImages,
     priceType: page.price_type || "fixed",
-    price: Number(page.price) || 0,
+    price: displayPrice, // ✅ lowest variant price for physical products
     installmentCount: page.installment_count || undefined,
     feeMode: page.fee_mode || "bearer",
     pageType: page.page_type || "physical",
@@ -278,7 +319,7 @@ export default async function StoreProductPage({
     title: page.title,
     slug: page.slug,
     description: page.description,
-    price: Number(page.price) || 0,
+    price: displayPrice, // ✅ lowest variant price
     priceType: page.price_type,
     productImages: productImages,
     coverImage: coverImage,

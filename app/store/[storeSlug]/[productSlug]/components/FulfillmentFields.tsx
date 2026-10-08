@@ -6,11 +6,7 @@ import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Store, Truck, ChevronDown } from "lucide-react";
-import type {
-  FulfillmentSelection,
-  PickupLocation,
-  PickupLocationSnapshot,
-} from "@/lib/delivery-utils";
+import type { FulfillmentSelection, PickupLocation } from "@/lib/delivery-utils";
 import { sortPickupLocations } from "@/lib/delivery-utils";
 
 const NIGERIAN_STATES = [
@@ -55,7 +51,6 @@ export function FulfillmentFields({
   const [touched, setTouched] = useState(false);
   const [locations, setLocations] = useState<PickupLocation[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
-  // ✅ FIX: track whether the customer has explicitly expanded the details
   const [expanded, setExpanded] = useState(false);
 
   const onChangeRef = useRef(onChange);
@@ -63,21 +58,23 @@ export function FulfillmentFields({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Fetch pickup locations once
   useEffect(() => {
     if (!pickupEnabled) return;
-    // ✅ Guard: don't fetch until storeId is a real string
     if (!storeId || storeId === "undefined" || storeId.trim() === "") {
       setLocations([]);
       setLocationsLoading(false);
       return;
     }
-  
+
     let cancelled = false;
     setLocationsLoading(true);
     (async () => {
       try {
         const res = await fetch(
-          `/api/payment-page/public/pickup-locations?storeId=${encodeURIComponent(storeId)}`,
+          `/api/payment-page/public/pickup-locations?storeId=${encodeURIComponent(
+            storeId,
+          )}`,
           { cache: "no-store" },
         );
         if (!res.ok) throw new Error("Failed to load pickup locations");
@@ -94,21 +91,22 @@ export function FulfillmentFields({
       cancelled = true;
     };
   }, [storeId, pickupEnabled]);
-  const effectiveFee =
-    value.method === "delivery" &&
-    !(deliveryFreeThreshold > 0 && cartSubtotal >= deliveryFreeThreshold)
-      ? deliveryFee
-      : 0;
 
-  // ✅ FIX: recompute fee only when the fee inputs change
+  // ✅ Preview fee — always shown on the Delivery tab
+  const previewFee =
+    deliveryFreeThreshold > 0 && cartSubtotal >= deliveryFreeThreshold
+      ? 0
+      : Number(deliveryFee) || 0;
+
+  // ✅ Effective fee for the current selection
+  const effectiveFee = value.method === "delivery" ? previewFee : 0;
+
+  // Sync fee
   useEffect(() => {
     const currentFee = Number(value.fee ?? 0);
-    if (value.method === "delivery") {
-      if (currentFee !== effectiveFee) {
-        onChangeRef.current({ ...value, fee: effectiveFee });
-      }
-    } else if (currentFee !== 0) {
-      onChangeRef.current({ ...value, fee: 0 });
+    const targetFee = value.method === "delivery" ? previewFee : 0;
+    if (currentFee !== targetFee) {
+      onChangeRef.current({ ...value, fee: targetFee });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.method, cartSubtotal, deliveryFee, deliveryFreeThreshold]);
@@ -143,8 +141,7 @@ export function FulfillmentFields({
 
   const choosePickup = () => {
     if (disabled) return;
-    const def =
-      locations.find((l) => l.is_default) ?? locations[0] ?? null;
+    const def = locations.find((l) => l.is_default) ?? locations[0] ?? null;
     onChange({
       method: "pickup",
       address: null,
@@ -167,19 +164,19 @@ export function FulfillmentFields({
     onChange({
       method: "delivery",
       address: value.address ?? {
-        full_name: "",     // ← fill from modal later
-        phone: "",         // ← fill from modal later
+        full_name: defaultName,
+        phone: defaultPhone,
         street_address: "",
         city: "",
         state: "",
         notes: "",
       },
       pickup: null,
-      fee: effectiveFee,
+      fee: previewFee,
     });
     setExpanded(true);
   };
-  // ─── Neither enabled ───
+
   if (!pickupEnabled && !deliveryEnabled) {
     return (
       <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -189,14 +186,12 @@ export function FulfillmentFields({
     );
   }
 
-  // ─── Only one method available: still show a toggle, but lock the other ───
   return (
     <div className="mt-5 space-y-3">
       <Label className="text-sm font-medium text-gray-700">
         How would you like to receive your order?
       </Label>
 
-      {/* Segmented toggle — always visible */}
       <div className="grid grid-cols-2 gap-2">
         <FulfillmentTab
           active={value.method === "pickup"}
@@ -216,8 +211,8 @@ export function FulfillmentFields({
           subtitle={
             !deliveryEnabled
               ? "Not available"
-              : effectiveFee > 0
-                ? `₦${effectiveFee.toLocaleString()}`
+              : previewFee > 0
+                ? `₦${previewFee.toLocaleString()}`
                 : deliveryFee > 0
                   ? "Free"
                   : "—"
@@ -225,7 +220,7 @@ export function FulfillmentFields({
           subtitleTone={
             !deliveryEnabled
               ? "muted"
-              : effectiveFee > 0
+              : previewFee > 0
                 ? "default"
                 : deliveryFee > 0
                   ? "green"
@@ -236,7 +231,6 @@ export function FulfillmentFields({
         />
       </div>
 
-      {/* ✅ Details below: only visible after the customer chooses */}
       {expanded && value.method === "pickup" && pickupEnabled && (
         <div className="space-y-2 pt-1">
           <PickupLocationPicker
@@ -259,7 +253,7 @@ export function FulfillmentFields({
             onBlur={() => setTouched(true)}
           />
           <FeeLine
-            fee={effectiveFee}
+            fee={previewFee}
             freeThreshold={deliveryFreeThreshold}
             cartSubtotal={cartSubtotal}
           />
@@ -273,10 +267,6 @@ export function FulfillmentFields({
     </div>
   );
 }
-
-// ────────────────────────────────────────────────
-// Sub-components
-// ────────────────────────────────────────────────
 
 function FulfillmentTab({
   active,
@@ -345,7 +335,6 @@ function FulfillmentTab({
         {subtitle}
       </span>
 
-      {/* Chevron hint that details expand below */}
       {active && enabled && (
         <ChevronDown className="absolute right-2 top-2 h-3.5 w-3.5 text-[#FDC020]" />
       )}
