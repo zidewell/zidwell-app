@@ -26,7 +26,7 @@ export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) 
         </a>
 
         {/* Fake search bar (Jumia style) */}
-        <div className="hidden flex-1 sm:block">
+        {/*<div className="hidden flex-1 sm:block">
           <div className="flex h-9 items-center rounded-md border border-gray-300 bg-gray-50 px-3">
             <Search className="h-4 w-4 text-gray-400" />
             <input
@@ -35,7 +35,7 @@ export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) 
               className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
             />
           </div>
-        </div>
+        </div>*/}
 
         {/* Store link */}
         <a

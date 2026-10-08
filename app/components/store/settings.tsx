@@ -16,6 +16,9 @@ import {
   MessageCircle,
   Truck,
   Store,
+  Plus,
+  Trash2,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -28,8 +31,9 @@ import {
   TabsTrigger,
 } from "@/app/components/ui/tabs";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
+import { PickupLocationModal } from "./PickupLocationModal";
+import type { PickupLocation } from "@/lib/delivery-utils";
 
-// ─── Types ───
 interface StoreSettingsShape {
   name: string;
   slug: string;
@@ -45,14 +49,10 @@ interface StoreSettingsShape {
   longitude: number | null;
   whatsappNumber: string;
 
-  // Pickup
   localPickupEnabled: boolean;
-  localPickupAddress: string;
-  localPickupNotes: string;
 
-  // Delivery
   deliveryEnabled: boolean;
-  deliveryFee: string; // keep as string for input control
+  deliveryFee: string;
   deliveryFreeThreshold: string;
   deliveryNotes: string;
 }
@@ -73,8 +73,6 @@ const DEFAULT_STORE: StoreSettingsShape = {
   whatsappNumber: "",
 
   localPickupEnabled: false,
-  localPickupAddress: "",
-  localPickupNotes: "",
 
   deliveryEnabled: false,
   deliveryFee: "0",
@@ -142,10 +140,7 @@ function Field({
 }) {
   return (
     <div>
-      <Label
-        htmlFor={htmlFor}
-        className="block text-sm font-bold text-foreground"
-      >
+      <Label htmlFor={htmlFor} className="block text-sm font-bold text-foreground">
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
@@ -197,14 +192,6 @@ function Toggle({
   );
 }
 
-const NIGERIAN_STATES = [
-  "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
-  "Cross River","Delta","Ebonyi","Edo","Ekiti","Enugu","FCT","Gombe","Imo",
-  "Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Lagos","Nasarawa",
-  "Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto","Taraba",
-  "Yobe","Zamfara",
-];
-
 export function StoreSettings() {
   const { store: ctxStore, updateStore } = useStore();
 
@@ -223,6 +210,16 @@ export function StoreSettings() {
 
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Pickup locations
+  const [storeId, setStoreId] = useState<string | null>(null);
+  const [locations, setLocations] = useState<PickupLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<PickupLocation | null>(
+    null,
+  );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -252,8 +249,6 @@ export function StoreSettings() {
           whatsappNumber: s.whatsapp_number || "",
 
           localPickupEnabled: s.local_pickup_enabled === true,
-          localPickupAddress: s.local_pickup_address || "",
-          localPickupNotes: s.local_pickup_notes || "",
 
           deliveryEnabled: s.delivery_enabled === true,
           deliveryFee: String(s.delivery_fee ?? "0"),
@@ -264,6 +259,7 @@ export function StoreSettings() {
         if (!cancelled) {
           setForm(shape);
           setOriginal(shape);
+          setStoreId(s.id);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -277,6 +273,28 @@ export function StoreSettings() {
       cancelled = true;
     };
   }, []);
+
+  const loadLocations = useCallback(async () => {
+    if (!storeId) return;
+    setLocationsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/store/pickup-locations?storeId=${storeId}`,
+        { cache: "no-store" },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load locations");
+      setLocations(data.locations ?? []);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load pickup locations");
+    } finally {
+      setLocationsLoading(false);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (storeId) loadLocations();
+  }, [storeId, loadLocations]);
 
   const isDirty = useMemo(() => {
     if (!original) return false;
@@ -293,8 +311,6 @@ export function StoreSettings() {
       original.longitude !== form.longitude ||
       original.whatsappNumber !== form.whatsappNumber ||
       original.localPickupEnabled !== form.localPickupEnabled ||
-      original.localPickupAddress !== form.localPickupAddress ||
-      original.localPickupNotes !== form.localPickupNotes ||
       original.deliveryEnabled !== form.deliveryEnabled ||
       original.deliveryFee !== form.deliveryFee ||
       original.deliveryFreeThreshold !== form.deliveryFreeThreshold ||
@@ -468,6 +484,52 @@ export function StoreSettings() {
     [requestLocation],
   );
 
+  const openAddLocation = () => {
+    setEditingLocation(null);
+    setPickupModalOpen(true);
+  };
+
+  const openEditLocation = (loc: PickupLocation) => {
+    setEditingLocation(loc);
+    setPickupModalOpen(true);
+  };
+
+  const handleDeleteLocation = async (loc: PickupLocation) => {
+    setDeletingId(loc.id);
+    try {
+      const res = await fetch(`/api/store/pickup-locations/${loc.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete");
+      toast.success(`Deleted "${loc.label}"`);
+      await loadLocations();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete location");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSetDefault = async (loc: PickupLocation) => {
+    try {
+      const res = await fetch(
+        `/api/store/pickup-locations/${loc.id}/set-default`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: loc.id }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to set default");
+      toast.success(`"${loc.label}" is now the default`);
+      await loadLocations();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to set default");
+    }
+  };
+
   const validate = useCallback((): boolean => {
     const errs: Record<string, string> = {};
 
@@ -486,23 +548,13 @@ export function StoreSettings() {
       }
     }
 
-    // Fulfillment validation
-    if (!form.localPickupEnabled && !form.deliveryEnabled) {
-      errs.fulfillment =
-        "Enable at least one fulfillment method (pickup or delivery)";
-    }
-    if (form.localPickupEnabled && !form.localPickupAddress.trim()) {
-      errs.pickupAddress = "Pickup address is required";
-    }
     if (form.deliveryEnabled) {
       const fee = Number(form.deliveryFee);
-      if (!Number.isFinite(fee) || fee < 0) {
+      if (!Number.isFinite(fee) || fee < 0)
         errs.deliveryFee = "Delivery fee must be a valid number";
-      }
       const threshold = Number(form.deliveryFreeThreshold);
-      if (!Number.isFinite(threshold) || threshold < 0) {
+      if (!Number.isFinite(threshold) || threshold < 0)
         errs.deliveryFreeThreshold = "Threshold must be a valid number";
-      }
     }
 
     setErrors(errs);
@@ -546,8 +598,6 @@ export function StoreSettings() {
           whatsappNumber: form.whatsappNumber.trim() || null,
 
           localPickupEnabled: form.localPickupEnabled,
-          localPickupAddress: form.localPickupAddress.trim() || null,
-          localPickupNotes: form.localPickupNotes.trim() || null,
 
           deliveryEnabled: form.deliveryEnabled,
           deliveryFee: Number(form.deliveryFee) || 0,
@@ -588,8 +638,6 @@ export function StoreSettings() {
         whatsappNumber: data.store.whatsapp_number || "",
 
         localPickupEnabled: data.store.local_pickup_enabled === true,
-        localPickupAddress: data.store.local_pickup_address || "",
-        localPickupNotes: data.store.local_pickup_notes || "",
 
         deliveryEnabled: data.store.delivery_enabled === true,
         deliveryFee: String(data.store.delivery_fee ?? "0"),
@@ -617,6 +665,7 @@ export function StoreSettings() {
   }
 
   const keywordsInput = form.keywords.join(", ");
+  const activePickupCount = locations.filter((l) => l.is_active).length;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -740,10 +789,7 @@ export function StoreSettings() {
                 />
               </Field>
 
-              <Field
-                label="Store URL"
-                hint="This can't be changed after activation."
-              >
+              <Field label="Store URL" hint="Can't be changed after activation.">
                 <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
                   <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
                     zidwell.com/store/
@@ -1005,12 +1051,6 @@ export function StoreSettings() {
             />
 
             <div className="mt-8 space-y-6">
-              {errors.fulfillment && (
-                <p className="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-3">
-                  ⚠️ {errors.fulfillment}
-                </p>
-              )}
-
               {/* ── Pickup ── */}
               <div className="rounded-[1.5rem] border border-border overflow-hidden">
                 <div className="flex items-start justify-between gap-3 p-5 bg-muted/20">
@@ -1022,7 +1062,7 @@ export function StoreSettings() {
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Let customers pick up from your location.
+                      Let customers pick up from one of your locations.
                     </p>
                   </div>
                   <Toggle
@@ -1033,45 +1073,131 @@ export function StoreSettings() {
                 </div>
 
                 {form.localPickupEnabled && (
-                  <div className="p-5 space-y-4 border-t border-border">
-                    <Field
-                      label="Pickup Address"
-                      hint="Where customers should come to collect orders."
-                      required
-                      error={errors.pickupAddress}
-                    >
-                      <textarea
-                        value={form.localPickupAddress}
-                        onChange={(e) =>
-                          setField("localPickupAddress", e.target.value)
-                        }
-                        rows={2}
-                        disabled={saving}
-                        placeholder="e.g., 25 Commissioner Road, Kano, Kano State"
-                        className={cn(
-                          "w-full px-4 py-3 text-sm font-medium rounded-2xl border bg-background resize-none",
-                          errors.pickupAddress
-                            ? "border-destructive"
-                            : "border-border",
-                        )}
-                      />
-                    </Field>
+                  <div className="p-5 border-t border-border space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-sm text-foreground">
+                          Pickup Locations
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Customers will choose one at checkout.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openAddLocation}
+                        disabled={saving || !storeId}
+                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="size-4" />
+                        Add Location
+                      </button>
+                    </div>
 
-                    <Field
-                      label="Pickup Notes (optional)"
-                      hint="Hours, entry instructions, who to ask for."
-                    >
-                      <textarea
-                        value={form.localPickupNotes}
-                        onChange={(e) =>
-                          setField("localPickupNotes", e.target.value)
-                        }
-                        rows={2}
-                        disabled={saving}
-                        placeholder="e.g., Open Mon–Sat 9am–6pm. Ask for John at reception."
-                        className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background resize-none"
-                      />
-                    </Field>
+                    {locationsLoading ? (
+                      <div className="space-y-3">
+                        <div className="h-24 rounded-2xl bg-muted animate-pulse" />
+                      </div>
+                    ) : locations.length === 0 ? (
+                      <div className="rounded-2xl border-2 border-dashed border-border py-10 text-center">
+                        <Store className="mx-auto size-8 text-muted-foreground/40" />
+                        <p className="mt-3 text-sm font-medium text-foreground">
+                          No pickup locations yet
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Add one so customers can choose where to pick up.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {locations.map((loc) => (
+                          <div
+                            key={loc.id}
+                            className={cn(
+                              "rounded-2xl border p-4 flex items-start justify-between gap-4",
+                              loc.is_active
+                                ? "border-border bg-background"
+                                : "border-border bg-muted/20 opacity-70",
+                            )}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="font-bold text-sm text-foreground">
+                                  {loc.label}
+                                </span>
+                                {loc.is_default && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                                    <Star className="size-3" /> Default
+                                  </span>
+                                )}
+                                {!loc.is_active && (
+                                  <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                                    Inactive
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 break-words">
+                                {loc.address}
+                              </p>
+                              {loc.notes && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {loc.notes}
+                                </p>
+                              )}
+                              {loc.phone && (
+                                <p className="text-xs font-medium text-foreground/70 mt-1">
+                                  📞 {loc.phone}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => openEditLocation(loc)}
+                                disabled={saving}
+                                className="text-xs font-bold text-foreground underline underline-offset-2 hover:no-underline disabled:opacity-50"
+                              >
+                                Edit
+                              </button>
+                              {!loc.is_default && loc.is_active && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSetDefault(loc)}
+                                  disabled={saving}
+                                  className="text-xs font-bold text-foreground/70 hover:text-foreground disabled:opacity-50"
+                                >
+                                  Set Default
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLocation(loc)}
+                                disabled={saving || deletingId === loc.id}
+                                className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:opacity-80 disabled:opacity-50"
+                              >
+                                {deletingId === loc.id ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3" />
+                                )}
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {form.localPickupEnabled &&
+                      !locationsLoading &&
+                      locations.length === 0 && (
+                        <p className="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-3">
+                          ⚠️ Pickup is enabled but you haven't added any
+                          locations. Customers won't be able to choose pickup at
+                          checkout until you add at least one.
+                        </p>
+                      )}
                   </div>
                 )}
               </div>
@@ -1158,7 +1284,7 @@ export function StoreSettings() {
                         onChange={(e) =>
                           setField("deliveryNotes", e.target.value)
                         }
-                        rows={4}
+                        rows={2}
                         disabled={saving}
                         placeholder="e.g., We deliver within 3–5 business days across Nigeria."
                         className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background resize-none"
@@ -1172,7 +1298,7 @@ export function StoreSettings() {
         </TabsContent>
       </Tabs>
 
-      {/* ─── Save bar ─── */}
+      {/* Save bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[2rem] border border-border bg-card p-6">
         <p className="text-sm text-muted-foreground">
           {isDirty ? "You have unsaved changes." : "All changes are saved."}
@@ -1199,6 +1325,16 @@ export function StoreSettings() {
           )}
         </button>
       </div>
+
+      {pickupModalOpen && storeId && (
+        <PickupLocationModal
+          open={pickupModalOpen}
+          onClose={() => setPickupModalOpen(false)}
+          onSaved={loadLocations}
+          storeId={storeId}
+          location={editingLocation}
+        />
+      )}
     </div>
   );
 }

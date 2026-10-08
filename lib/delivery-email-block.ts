@@ -2,18 +2,7 @@
 
 export interface FulfillmentEmailInput {
   method: "delivery" | "pickup" | "digital" | null | undefined;
-  delivery?: {
-    full_name?: string | null;
-    phone?: string | null;
-    street_address?: string | null;
-    city?: string | null;
-    state?: string | null;
-    notes?: string | null;
-  } | null;
-  pickup?: {
-    address?: string | null;
-    notes?: string | null;
-  } | null;
+  snapshot?: any | null;
   fee?: number | null;
 }
 
@@ -25,21 +14,22 @@ export function renderFulfillmentBlock(
   if (!d || !d.method || d.method === "digital") return "";
 
   if (d.method === "pickup") {
-    const addr = s(d.pickup?.address);
-    const notes = s(d.pickup?.notes);
-    if (!addr && !notes) return "";
+    const p = d.snapshot ?? {};
+    if (!p.label && !p.address) return "";
     return `
       <div style="margin: 24px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
         <p style="margin: 0 0 8px; font-weight: 600; font-size: 14px;">Pickup details</p>
-        ${addr ? `<p style="margin: 0 0 4px; font-size: 14px;"><strong>Pick up at:</strong> ${addr}</p>` : ""}
-        ${notes ? `<p style="margin: 8px 0 0; color: #666; font-size: 13px;">${notes}</p>` : ""}
+        ${p.label ? `<p style="margin: 0 0 4px; font-size: 14px;"><strong>${s(p.label)}</strong></p>` : ""}
+        ${p.address ? `<p style="margin: 0 0 4px; font-size: 14px;">${s(p.address)}</p>` : ""}
+        ${p.notes ? `<p style="margin: 4px 0 0; font-size: 13px; color: #666;">${s(p.notes)}</p>` : ""}
+        ${p.phone ? `<p style="margin: 4px 0 0; font-size: 13px; color: #666;">📞 ${s(p.phone)}</p>` : ""}
       </div>
     `;
   }
 
   if (d.method === "delivery") {
-    const a = d.delivery;
-    if (!a) return "";
+    const a = d.snapshot ?? {};
+    if (!a.full_name && !a.street_address) return "";
     const fee = Number(d.fee ?? 0);
     return `
       <div style="margin: 24px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
@@ -55,17 +45,10 @@ export function renderFulfillmentBlock(
   return "";
 }
 
-export function fulfillmentFromPayment(payment: any, store?: any) {
+export function fulfillmentFromPayment(payment: any) {
   return {
     method: payment?.fulfillment_method ?? null,
-    delivery: payment?.delivery_address_snapshot ?? null,
-    pickup:
-      payment?.fulfillment_method === "pickup" && store
-        ? {
-            address: store.local_pickup_address ?? null,
-            notes: store.local_pickup_notes ?? null,
-          }
-        : null,
+    snapshot: payment?.delivery_address_snapshot ?? null,
     fee: payment?.delivery_fee ?? 0,
   };
 }

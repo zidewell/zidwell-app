@@ -177,25 +177,25 @@ export function InfoModal({
         </div>
 
         <div className="space-y-4">
-          {(!isDonation || requireDonorName) && (
-            <div>
-              <Label className="mb-1.5 block text-sm font-medium">
-                Full name *
-              </Label>
-              <Input
-                value={customerName}
-                onChange={(e) => {
-                  setCustomerName(e.target.value);
-                  if (errors.name) setErrors({ ...errors, name: "" });
-                }}
-                className={errors.name ? "border-red-500" : ""}
-                placeholder="Enter your name"
-              />
-              {errors.name && (
-                <p className="mt-1 text-xs text-red-500">{errors.name}</p>
-              )}
-            </div>
-          )}
+        {(!isDonation || requireDonorName) && (
+          <div>
+            <Label className="mb-1.5 block text-sm font-medium">
+              Full name *
+            </Label>
+            <Input
+              value={customerName}
+              onChange={(e) => {
+                setCustomerName(e.target.value);
+                if (errors.name) setErrors({ ...errors, name: "" });
+              }}
+              className={errors.name ? "border-red-500" : ""}
+              placeholder="Enter your name"
+            />
+            {errors.name && (
+              <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+            )}
+          </div>
+        )}
 
           <div>
             <Label className="mb-1.5 block text-sm font-medium">
@@ -218,74 +218,33 @@ export function InfoModal({
 
           <div>
             <Label className="mb-1.5 block text-sm font-medium">
-              Phone number
+              Phone number {requiresShipping && fulfillment?.method === "delivery" ? "*" : ""}
             </Label>
             <Input
               type="tel"
               value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
+              onChange={(e) => {
+                setCustomerPhone(e.target.value);
+                if (errors.phone) setErrors({ ...errors, phone: "" });
+              }}
+              className={errors.phone ? "border-red-500" : ""}
               placeholder="08012345678"
             />
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-500">{errors.phone}</p>
+            )}
           </div>
 
           {requiresShipping && fulfillment && (
-            <div className="border-t border-border pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  {fulfillment.method === "delivery" ? (
-                    <>
-                      <Truck className="h-4 w-4 text-foreground/60" />
-                      Delivery address
-                    </>
-                  ) : (
-                    <>
-                      <Store className="h-4 w-4 text-foreground/60" />
-                      Pickup
-                    </>
-                  )}
-                </p>
-                <span className="rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
-                  {fulfillment.method === "delivery" ? "Delivery" : "Pickup"}
+            <div className="rounded-lg border border-border bg-muted/20 p-3">
+              <p className="text-xs font-medium text-foreground/80">
+                {fulfillment.method === "delivery" ? "Delivering to:" : "Picking up from:"}{" "}
+                <span className="font-normal">
+                  {fulfillment.method === "delivery" && fulfillment.address
+                    ? `${fulfillment.address.street_address}, ${fulfillment.address.city}, ${fulfillment.address.state}`
+                    : fulfillment.pickup?.label || "Pickup location"}
                 </span>
-              </div>
-          
-              {fulfillment.method === "delivery" && fulfillment.address && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        {fulfillment.address.full_name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-foreground/70">
-                        {fulfillment.address.phone}
-                      </p>
-                      <p className="mt-1 text-xs text-foreground/60">
-                        {fulfillment.address.street_address},{" "}
-                        {fulfillment.address.city}, {fulfillment.address.state}
-                      </p>
-                      {fulfillment.address.notes && (
-                        <p className="mt-1 text-xs text-foreground/50">
-                          {fulfillment.address.notes}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-          
-              {fulfillment.method === "pickup" && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <p className="text-sm font-medium">Pick up from the seller</p>
-                  <p className="mt-1 text-xs text-foreground/60">
-                    The seller will confirm pickup details with you.
-                  </p>
-                </div>
-              )}
-          
-              {errors.fulfillment && (
-                <p className="mt-2 text-xs text-red-500">{errors.fulfillment}</p>
-              )}
+              </p>
             </div>
           )}
           

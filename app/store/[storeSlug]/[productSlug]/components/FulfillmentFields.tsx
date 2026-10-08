@@ -1,4 +1,3 @@
-// app/store/[storeSlug]/[productSlug]/components/FulfillmentFields.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -6,7 +5,13 @@ import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { FulfillmentSelection } from "@/lib/delivery-utils";
+import { Store, Truck, ChevronDown } from "lucide-react";
+import type {
+  FulfillmentSelection,
+  PickupLocation,
+  PickupLocationSnapshot,
+} from "@/lib/delivery-utils";
+import { sortPickupLocations } from "@/lib/delivery-utils";
 
 const NIGERIAN_STATES = [
   "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
@@ -17,10 +22,9 @@ const NIGERIAN_STATES = [
 ];
 
 interface Props {
+  storeId: string;
   pickupEnabled: boolean;
   deliveryEnabled: boolean;
-  pickupAddress?: string | null;
-  pickupNotes?: string | null;
   deliveryFee: number;
   deliveryFreeThreshold: number;
   deliveryNotes?: string | null;
@@ -34,10 +38,9 @@ interface Props {
 }
 
 export function FulfillmentFields({
+  storeId,
   pickupEnabled,
   deliveryEnabled,
-  pickupAddress,
-  pickupNotes,
   deliveryFee,
   deliveryFreeThreshold,
   deliveryNotes,
@@ -50,55 +53,54 @@ export function FulfillmentFields({
   defaultPhone = "",
 }: Props) {
   const [touched, setTouched] = useState(false);
+  const [locations, setLocations] = useState<PickupLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  // ✅ FIX: track whether the customer has explicitly expanded the details
+  const [expanded, setExpanded] = useState(false);
 
-  // ✅ FIX 1: Keep a ref to the latest onChange so effects don't
-  // accidentally use a stale callback. Also track whether we've
-  // already initialized, so the auto-select effect runs exactly once.
-  const initializedRef = useRef(false);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Compute the effective delivery fee preview
+  useEffect(() => {
+    if (!pickupEnabled) return;
+    // ✅ Guard: don't fetch until storeId is a real string
+    if (!storeId || storeId === "undefined" || storeId.trim() === "") {
+      setLocations([]);
+      setLocationsLoading(false);
+      return;
+    }
+  
+    let cancelled = false;
+    setLocationsLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/payment-page/public/pickup-locations?storeId=${encodeURIComponent(storeId)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) throw new Error("Failed to load pickup locations");
+        const data = await res.json();
+        if (cancelled) return;
+        setLocations(sortPickupLocations(data.locations ?? []));
+      } catch (err) {
+        console.error("Pickup locations load failed:", err);
+      } finally {
+        if (!cancelled) setLocationsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [storeId, pickupEnabled]);
   const effectiveFee =
     value.method === "delivery" &&
     !(deliveryFreeThreshold > 0 && cartSubtotal >= deliveryFreeThreshold)
       ? deliveryFee
       : 0;
 
-  // ✅ FIX 2: Auto-select only runs once, using the ref to avoid
-  // a stale closure. No dependency on `value` to prevent resets.
-  useEffect(() => {
-    if (initializedRef.current) return;
-    if (!pickupEnabled && !deliveryEnabled) return;
-
-    const preferred =
-      pickupEnabled && !deliveryEnabled ? "pickup" : "delivery";
-
-    onChangeRef.current({
-      method: preferred,
-      address:
-        preferred === "delivery"
-          ? {
-              full_name: defaultName,
-              phone: defaultPhone,
-              street_address: "",
-              city: "",
-              state: "",
-              notes: "",
-            }
-          : null,
-      fee: preferred === "delivery" ? effectiveFee : 0,
-    });
-
-    initializedRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickupEnabled, deliveryEnabled]);
-
-  // ✅ FIX 3: Recompute fee only when the fee-relevant inputs actually
-  // change. Guard against re-writing the same value (which triggers a
-  // re-render loop that resets the <select>).
+  // ✅ FIX: recompute fee only when the fee inputs change
   useEffect(() => {
     const currentFee = Number(value.fee ?? 0);
     if (value.method === "delivery") {
@@ -111,157 +113,144 @@ export function FulfillmentFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.method, cartSubtotal, deliveryFee, deliveryFreeThreshold]);
 
-  // ✅ FIX 4: setAddress never overwrites other fields. Uses a stable
-  // updater that reads from the current `value` prop.
   const setAddress = (
     key: keyof NonNullable<FulfillmentSelection["address"]>,
     v: string,
   ) => {
-    const current =
-      value.address ?? {
-        full_name: "",
-        phone: "",
+    const current = value.address ?? {
+      full_name: "",
+      phone: "",
+      street_address: "",
+      city: "",
+      state: "",
+      notes: "",
+    };
+    onChange({ ...value, address: { ...current, [key]: v } });
+  };
+
+  const selectPickup = (loc: PickupLocation) => {
+    onChange({
+      ...value,
+      pickup: {
+        id: loc.id,
+        label: loc.label,
+        address: loc.address,
+        notes: loc.notes,
+        phone: loc.phone,
+      },
+    });
+  };
+
+  const choosePickup = () => {
+    if (disabled) return;
+    const def =
+      locations.find((l) => l.is_default) ?? locations[0] ?? null;
+    onChange({
+      method: "pickup",
+      address: null,
+      pickup: def
+        ? {
+            id: def.id,
+            label: def.label,
+            address: def.address,
+            notes: def.notes,
+            phone: def.phone,
+          }
+        : null,
+      fee: 0,
+    });
+    setExpanded(true);
+  };
+
+  const chooseDelivery = () => {
+    if (disabled) return;
+    onChange({
+      method: "delivery",
+      address: value.address ?? {
+        full_name: "",     // ← fill from modal later
+        phone: "",         // ← fill from modal later
         street_address: "",
         city: "",
         state: "",
         notes: "",
-      };
-    onChange({
-      ...value,
-      address: { ...current, [key]: v },
+      },
+      pickup: null,
+      fee: effectiveFee,
     });
+    setExpanded(true);
   };
-
+  // ─── Neither enabled ───
   if (!pickupEnabled && !deliveryEnabled) {
     return (
-      <div className="mt-6 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
         This store hasn't enabled pickup or delivery. Please contact the
         seller.
       </div>
     );
   }
 
-  // ─── Pickup only ───
-  if (pickupEnabled && !deliveryEnabled) {
-    return (
-      <div className="mt-6 space-y-2">
-        <Label className="text-sm font-medium">Pickup</Label>
-        <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          <p className="font-medium">Pick up at</p>
-          {pickupAddress ? (
-            <p className="mt-1 text-foreground/80">{pickupAddress}</p>
-          ) : (
-            <p className="mt-1 text-foreground/60 italic">
-              Address not provided — contact the seller.
-            </p>
-          )}
-          {pickupNotes && (
-            <p className="mt-2 text-xs text-foreground/60">{pickupNotes}</p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Delivery only ───
-  if (!pickupEnabled && deliveryEnabled) {
-    return (
-      <div className="mt-6 space-y-3">
-        <Label className="text-sm font-medium">Delivery address</Label>
-        <DeliveryAddressForm
-          address={value.address}
-          onChange={setAddress}
-          disabled={disabled}
-          touched={touched}
-          onBlur={() => setTouched(true)}
-        />
-        <FeeLine
-          fee={effectiveFee}
-          freeThreshold={deliveryFreeThreshold}
-          cartSubtotal={cartSubtotal}
-        />
-        {deliveryNotes && (
-          <p className="text-xs text-foreground/60">{deliveryNotes}</p>
-        )}
-        {error && <p className="text-xs text-red-600">{error}</p>}
-      </div>
-    );
-  }
-
-  // ─── Both ───
+  // ─── Only one method available: still show a toggle, but lock the other ───
   return (
-    <div className="mt-6 space-y-4">
-      <Label className="text-sm font-medium">
+    <div className="mt-5 space-y-3">
+      <Label className="text-sm font-medium text-gray-700">
         How would you like to receive your order?
       </Label>
 
-      <RadioGroup
-        value={value.method}
-        onValueChange={(v) => {
-          const m = v as "delivery" | "pickup";
-          if (m === "pickup") {
-            onChange({ method: "pickup", address: null, fee: 0 });
-          } else {
-            onChange({
-              method: "delivery",
-              address: value.address ?? {
-                full_name: defaultName,
-                phone: defaultPhone,
-                street_address: "",
-                city: "",
-                state: "",
-                notes: "",
-              },
-              fee: effectiveFee,
-            });
+      {/* Segmented toggle — always visible */}
+      <div className="grid grid-cols-2 gap-2">
+        <FulfillmentTab
+          active={value.method === "pickup"}
+          enabled={pickupEnabled}
+          icon={Store}
+          title="Pickup"
+          subtitle="Free"
+          onClick={choosePickup}
+          disabled={disabled || !pickupEnabled}
+        />
+
+        <FulfillmentTab
+          active={value.method === "delivery"}
+          enabled={deliveryEnabled}
+          icon={Truck}
+          title="Delivery"
+          subtitle={
+            !deliveryEnabled
+              ? "Not available"
+              : effectiveFee > 0
+                ? `₦${effectiveFee.toLocaleString()}`
+                : deliveryFee > 0
+                  ? "Free"
+                  : "—"
           }
-        }}
-        disabled={disabled}
-      >
-        <div className="flex items-center space-x-2 rounded-md border p-3">
-          <RadioGroupItem value="pickup" id="fm-pickup" disabled={disabled} />
-          <Label htmlFor="fm-pickup" className="cursor-pointer">
-            Pickup — free
-          </Label>
-        </div>
-        <div className="flex items-center space-x-2 rounded-md border p-3">
-          <RadioGroupItem
-            value="delivery"
-            id="fm-delivery"
+          subtitleTone={
+            !deliveryEnabled
+              ? "muted"
+              : effectiveFee > 0
+                ? "default"
+                : deliveryFee > 0
+                  ? "green"
+                  : "muted"
+          }
+          onClick={chooseDelivery}
+          disabled={disabled || !deliveryEnabled}
+        />
+      </div>
+
+      {/* ✅ Details below: only visible after the customer chooses */}
+      {expanded && value.method === "pickup" && pickupEnabled && (
+        <div className="space-y-2 pt-1">
+          <PickupLocationPicker
+            locations={locations}
+            loading={locationsLoading}
+            selectedId={value.pickup?.id ?? null}
+            onChange={selectPickup}
             disabled={disabled}
           />
-          <Label htmlFor="fm-delivery" className="cursor-pointer">
-            Delivery
-            {effectiveFee > 0 && (
-              <span className="ml-1 text-foreground/60">
-                — ₦{effectiveFee.toLocaleString()}
-              </span>
-            )}
-            {effectiveFee === 0 && deliveryFee > 0 && (
-              <span className="ml-1 text-green-600">— free</span>
-            )}
-          </Label>
-        </div>
-      </RadioGroup>
-
-      {value.method === "pickup" && (
-        <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          <p className="font-medium">Pick up at</p>
-          {pickupAddress ? (
-            <p className="mt-1 text-foreground/80">{pickupAddress}</p>
-          ) : (
-            <p className="mt-1 text-foreground/60 italic">
-              Address not provided — contact the seller.
-            </p>
-          )}
-          {pickupNotes && (
-            <p className="mt-2 text-xs text-foreground/60">{pickupNotes}</p>
-          )}
         </div>
       )}
 
-      {value.method === "delivery" && (
-        <div className="pl-4 space-y-3">
+      {expanded && value.method === "delivery" && deliveryEnabled && (
+        <div className="space-y-3 pt-1">
           <DeliveryAddressForm
             address={value.address}
             onChange={setAddress}
@@ -275,13 +264,201 @@ export function FulfillmentFields({
             cartSubtotal={cartSubtotal}
           />
           {deliveryNotes && (
-            <p className="text-xs text-foreground/60">{deliveryNotes}</p>
+            <p className="text-xs text-gray-500">{deliveryNotes}</p>
           )}
         </div>
       )}
 
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────
+// Sub-components
+// ────────────────────────────────────────────────
+
+function FulfillmentTab({
+  active,
+  enabled,
+  icon: Icon,
+  title,
+  subtitle,
+  subtitleTone = "default",
+  onClick,
+  disabled,
+}: {
+  active: boolean;
+  enabled: boolean;
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  subtitleTone?: "default" | "green" | "muted";
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "relative flex flex-col items-start gap-1 rounded-lg border-2 px-3 py-3 text-left transition-all",
+        active && enabled
+          ? "border-[#FDC020] bg-[#FDC020]/5 shadow-sm"
+          : enabled
+            ? "border-gray-200 bg-white hover:border-gray-300"
+            : "border-gray-100 bg-gray-50 opacity-60",
+        disabled && "cursor-not-allowed",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
+            active && enabled
+              ? "bg-[#FDC020] text-[#191919]"
+              : "bg-gray-100 text-gray-500",
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        <span
+          className={cn(
+            "text-sm font-semibold",
+            enabled ? "text-gray-900" : "text-gray-400",
+          )}
+        >
+          {title}
+        </span>
+      </div>
+      <span
+        className={cn(
+          "ml-8 text-xs font-medium",
+          subtitleTone === "green"
+            ? "text-green-600"
+            : subtitleTone === "muted"
+              ? "text-gray-400"
+              : "text-gray-500",
+        )}
+      >
+        {subtitle}
+      </span>
+
+      {/* Chevron hint that details expand below */}
+      {active && enabled && (
+        <ChevronDown className="absolute right-2 top-2 h-3.5 w-3.5 text-[#FDC020]" />
+      )}
+    </button>
+  );
+}
+
+function PickupLocationPicker({
+  locations,
+  loading,
+  selectedId,
+  onChange,
+  disabled,
+}: {
+  locations: PickupLocation[];
+  loading: boolean;
+  selectedId: string | null;
+  onChange: (loc: PickupLocation) => void;
+  disabled?: boolean;
+}) {
+  if (loading) {
+    return (
+      <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
+        Loading pickup locations…
+      </p>
+    );
+  }
+  if (locations.length === 0) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        No pickup locations are available. Please contact the seller.
+      </div>
+    );
+  }
+
+  if (locations.length === 1) {
+    const loc = locations[0];
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-gray-900">
+            {loc.label}
+          </span>
+          {loc.is_default && (
+            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919]">
+              Default
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-gray-600">{loc.address}</p>
+        {loc.notes && (
+          <p className="mt-1 text-xs text-gray-500">{loc.notes}</p>
+        )}
+        {loc.phone && (
+          <p className="mt-1 text-xs font-medium text-gray-700">
+            📞 {loc.phone}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <RadioGroup
+      value={selectedId ?? ""}
+      onValueChange={(id) => {
+        const loc = locations.find((l) => l.id === id);
+        if (loc) onChange(loc);
+      }}
+      disabled={disabled}
+      className="space-y-2"
+    >
+      {locations.map((loc) => (
+        <label
+          key={loc.id}
+          htmlFor={`pickup-${loc.id}`}
+          className={cn(
+            "flex cursor-pointer items-start space-x-3 rounded-lg border-2 p-3 transition-all",
+            selectedId === loc.id
+              ? "border-[#FDC020] bg-[#FDC020]/5"
+              : "border-gray-200 bg-white hover:border-gray-300",
+          )}
+        >
+          <RadioGroupItem
+            value={loc.id}
+            id={`pickup-${loc.id}`}
+            className="mt-1"
+            disabled={disabled}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900">
+                {loc.label}
+              </span>
+              {loc.is_default && (
+                <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919]">
+                  Default
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray-600">{loc.address}</p>
+            {loc.notes && (
+              <p className="mt-1 text-xs text-gray-500">{loc.notes}</p>
+            )}
+            {loc.phone && (
+              <p className="mt-1 text-xs font-medium text-gray-700">
+                📞 {loc.phone}
+              </p>
+            )}
+          </div>
+        </label>
+      ))}
+    </RadioGroup>
   );
 }
 
@@ -310,51 +487,12 @@ function DeliveryAddressForm({
     notes: "",
   };
 
-  const showErr = (key: string, value: string) => {
-    if (!touched) return false;
-    return !value.trim();
-  };
+  const showErr = (value: string) => touched && !value.trim();
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs text-foreground/70 mb-1 block">
-            Full name *
-          </Label>
-          <Input
-            value={addr.full_name}
-            onChange={(e) => onChange("full_name", e.target.value)}
-            onBlur={onBlur}
-            disabled={disabled}
-            placeholder="John Doe"
-            className={cn(
-              "rounded-xl",
-              showErr("full_name", addr.full_name) && "border-destructive",
-            )}
-          />
-        </div>
-        <div>
-          <Label className="text-xs text-foreground/70 mb-1 block">
-            Phone *
-          </Label>
-          <Input
-            value={addr.phone}
-            onChange={(e) => onChange("phone", e.target.value)}
-            onBlur={onBlur}
-            disabled={disabled}
-            placeholder="08012345678"
-            inputMode="tel"
-            className={cn(
-              "rounded-xl",
-              showErr("phone", addr.phone) && "border-destructive",
-            )}
-          />
-        </div>
-      </div>
-
+    <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
       <div>
-        <Label className="text-xs text-foreground/70 mb-1 block">
+        <Label className="mb-1 block text-xs font-medium text-gray-600">
           Street address *
         </Label>
         <Input
@@ -364,16 +502,17 @@ function DeliveryAddressForm({
           disabled={disabled}
           placeholder="12 Broad Street, Flat 3"
           className={cn(
-            "rounded-xl",
-            showErr("street_address", addr.street_address) &&
-              "border-destructive",
+            "rounded-lg",
+            showErr(addr.street_address) && "border-red-400",
           )}
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label className="text-xs text-foreground/70 mb-1 block">City *</Label>
+          <Label className="mb-1 block text-xs font-medium text-gray-600">
+            City *
+          </Label>
           <Input
             value={addr.city}
             onChange={(e) => onChange("city", e.target.value)}
@@ -381,26 +520,22 @@ function DeliveryAddressForm({
             disabled={disabled}
             placeholder="Lagos"
             className={cn(
-              "rounded-xl",
-              showErr("city", addr.city) && "border-destructive",
+              "rounded-lg",
+              showErr(addr.city) && "border-red-400",
             )}
           />
         </div>
         <div>
-          <Label className="text-xs text-foreground/70 mb-1 block">
+          <Label className="mb-1 block text-xs font-medium text-gray-600">
             State *
           </Label>
-          {/* ✅ FIX 5: Native <select> driven purely by value + onChange.
-              No `onBlur` that could reset the value. */}
           <select
             value={addr.state || ""}
             onChange={(e) => onChange("state", e.target.value)}
             disabled={disabled}
             className={cn(
-              "w-full h-10 px-3 rounded-xl border bg-background text-sm",
-              showErr("state", addr.state)
-                ? "border-destructive"
-                : "border-border",
+              "h-10 w-full rounded-lg border bg-white px-3 text-sm",
+              showErr(addr.state) ? "border-red-400" : "border-gray-200",
             )}
           >
             <option value="">Select state</option>
@@ -414,7 +549,7 @@ function DeliveryAddressForm({
       </div>
 
       <div>
-        <Label className="text-xs text-foreground/70 mb-1 block">
+        <Label className="mb-1 block text-xs font-medium text-gray-600">
           Delivery notes (optional)
         </Label>
         <Input
@@ -423,7 +558,7 @@ function DeliveryAddressForm({
           onBlur={onBlur}
           disabled={disabled}
           placeholder="e.g., Near the blue gate. Call on arrival."
-          className="rounded-xl"
+          className="rounded-lg"
         />
       </div>
     </div>
@@ -441,16 +576,18 @@ function FeeLine({
 }) {
   if (fee > 0) {
     return (
-      <div className="flex justify-between text-sm">
-        <span className="text-foreground/60">Delivery fee</span>
-        <span className="font-medium">₦{fee.toLocaleString()}</span>
+      <div className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+        <span className="text-gray-600">Delivery fee</span>
+        <span className="font-medium text-gray-900">
+          ₦{fee.toLocaleString()}
+        </span>
       </div>
     );
   }
   if (freeThreshold > 0 && cartSubtotal >= freeThreshold) {
     return (
-      <div className="flex justify-between text-sm">
-        <span className="text-foreground/60">Delivery fee</span>
+      <div className="flex justify-between rounded-lg bg-green-50 px-3 py-2 text-sm">
+        <span className="text-gray-600">Delivery fee</span>
         <span className="font-medium text-green-600">Free</span>
       </div>
     );

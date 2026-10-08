@@ -22,18 +22,34 @@ export interface CustomerDeliveryAddress {
   notes?: string | null;
 }
 
+export interface PickupLocation {
+  id: string;
+  store_id: string;
+  label: string;
+  address: string;
+  notes: string | null;
+  phone: string | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface PickupLocationSnapshot {
+  id: string;
+  label: string;
+  address: string;
+  notes: string | null;
+  phone: string | null;
+}
+
 export interface FulfillmentSelection {
   method: "delivery" | "pickup";
-  // For delivery: customer-typed address
   address: CustomerDeliveryAddress | null;
-  // Fee resolved by client preview (server re-verifies)
+  pickup: PickupLocationSnapshot | null;
   fee: number;
 }
 
 export interface StorePickupConfig {
   pickup_enabled: boolean;
-  pickup_address: string | null;
-  pickup_notes: string | null;
 }
 
 export interface StoreDeliveryConfig {
@@ -70,7 +86,6 @@ export function resolveFulfillmentMethod(params: {
   if (pickupEnabled) return "pickup";
   if (deliveryEnabled) return "delivery";
 
-  // Neither configured — caller must handle as an error
   return "delivery";
 }
 
@@ -110,4 +125,25 @@ export function validateCustomerAddress(
   if (!addr.city?.trim()) missing.push("city");
   if (!addr.state?.trim()) missing.push("state");
   return { valid: missing.length === 0, missing };
+}
+
+export function snapshotPickupLocation(
+  loc: PickupLocation,
+): PickupLocationSnapshot {
+  return {
+    id: loc.id,
+    label: loc.label,
+    address: loc.address,
+    notes: loc.notes,
+    phone: loc.phone,
+  };
+}
+
+export function sortPickupLocations(
+  locations: PickupLocation[],
+): PickupLocation[] {
+  return [...locations].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
 }

@@ -362,10 +362,9 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             {/* ─── Fulfillment (delivery/pickup) ─── */}
             {c.requiresShipping && !c.isPlanComplete && (
               <FulfillmentFields
+                storeId={store.id}
                 pickupEnabled={c.storePickupEnabled}
                 deliveryEnabled={c.storeDeliveryEnabled}
-                pickupAddress={c.storePickupAddress}
-                pickupNotes={c.storePickupNotes}
                 deliveryFee={c.storeDeliveryFee}
                 deliveryFreeThreshold={c.storeDeliveryFreeThreshold}
                 deliveryNotes={c.storeDeliveryNotes}

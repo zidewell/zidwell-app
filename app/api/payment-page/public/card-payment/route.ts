@@ -95,7 +95,8 @@ export async function POST(request: Request) {
       returnUrl,
       fulfillmentMethod = null,
       deliveryAddress = null,
-    } = body;
+      pickupLocationId = null,
+    } = body
 
     if (!pageSlug || !customerName || !customerEmail) {
       return NextResponse.json(
@@ -224,13 +225,11 @@ export async function POST(request: Request) {
         productType: page.product_type,
         chosenMethod: fulfillmentMethod,
         deliveryAddress: deliveryAddress ?? null,
+        pickupLocationId: pickupLocationId ?? null,
         cartSubtotal: finalAmount,
       });
     } catch (err: any) {
-      console.error(
-        "[card-payment] Fulfillment resolution failed:",
-        err?.message,
-      );
+      console.error("[card-payment] Fulfillment resolution failed:", err?.message);
       return NextResponse.json(
         {
           error: err?.message || "Fulfillment not available",
@@ -239,8 +238,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-
-    // Fees are charged on product price only; delivery fee is added on top.
+    
     const deliveryFee = Number(resolvedFulfillment.fee || 0);
     const baseAmount = finalAmount;
     const chargeAmount = baseAmount + deliveryFee;
@@ -304,10 +302,12 @@ export async function POST(request: Request) {
             currentInstallment,
           )
         : null,
-      // ✅ Fulfillment snapshot
-      delivery_fee: deliveryFee,
-      delivery_address_snapshot: resolvedFulfillment.delivery,
-      fulfillment_method: resolvedFulfillment.method,
+        delivery_fee: deliveryFee,
+        delivery_address_snapshot:
+          resolvedFulfillment.method === "pickup"
+            ? resolvedFulfillment.pickup
+            : resolvedFulfillment.delivery,
+        fulfillment_method: resolvedFulfillment.method,
       metadata: {
         ...metadata,
         storeSlug,

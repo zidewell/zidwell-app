@@ -3,7 +3,10 @@ import {
   calculateDeliveryFee,
   resolveFulfillmentMethod,
   validateCustomerAddress,
+  snapshotPickupLocation,
   CustomerDeliveryAddress,
+  PickupLocation,
+  PickupLocationSnapshot,
   FulfillmentMethod,
 } from "@/lib/delivery-utils";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -12,7 +15,7 @@ export interface ResolvedFulfillment {
   method: FulfillmentMethod;
   fee: number;
   delivery: CustomerDeliveryAddress | null;
-  pickup: { address: string | null; notes: string | null } | null;
+  pickup: PickupLocationSnapshot | null;
 }
 
 export async function resolveFulfillmentForCheckout(params: {
@@ -21,6 +24,7 @@ export async function resolveFulfillmentForCheckout(params: {
   productType?: string | null;
   chosenMethod?: FulfillmentMethod | null;
   deliveryAddress?: CustomerDeliveryAddress | null;
+  pickupLocationId?: string | null;
   cartSubtotal: number;
 }): Promise<ResolvedFulfillment> {
   const {
@@ -29,12 +33,12 @@ export async function resolveFulfillmentForCheckout(params: {
     productType,
     chosenMethod,
     deliveryAddress,
+    pickupLocationId,
     cartSubtotal,
   } = params;
 
   const supabase = getSupabaseAdmin() as any;
 
-  // Non-physical pages → digital, no fulfillment required
   if (!storeId) {
     const method = resolveFulfillmentMethod({
       pageType,
@@ -54,7 +58,7 @@ export async function resolveFulfillmentForCheckout(params: {
   const { data: store, error } = await supabase
     .from("online_stores")
     .select(
-      "id, local_pickup_enabled, local_pickup_address, local_pickup_notes, delivery_enabled, delivery_fee, delivery_free_threshold, delivery_notes",
+      "id, local_pickup_enabled, delivery_enabled, delivery_fee, delivery_free_threshold, delivery_notes",
     )
     .eq("id", storeId)
     .maybeSingle();
@@ -83,19 +87,55 @@ export async function resolveFulfillmentForCheckout(params: {
     if (!store.local_pickup_enabled) {
       throw new Error("Pickup is not enabled for this store");
     }
-    if (!store.local_pickup_address?.trim()) {
+
+    let location: PickupLocation | null = null;
+
+    if (pickupLocationId) {
+      const { data: loc } = await supabase
+        .from("store_pickup_locations")
+        .select("*")
+        .eq("id", pickupLocationId)
+        .eq("store_id", storeId)
+        .eq("is_active", true)
+        .maybeSingle();
+      location = loc ?? null;
+    }
+
+    if (!location) {
+      // Fall back to default, then first active
+      const { data: def } = await supabase
+        .from("store_pickup_locations")
+        .select("*")
+        .eq("store_id", storeId)
+        .eq("is_active", true)
+        .eq("is_default", true)
+        .maybeSingle();
+
+      if (def) location = def;
+      else {
+        const { data: first } = await supabase
+          .from("store_pickup_locations")
+          .select("*")
+          .eq("store_id", storeId)
+          .eq("is_active", true)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        location = first ?? null;
+      }
+    }
+
+    if (!location) {
       throw new Error(
-        "This store hasn't set up a pickup address yet. Contact the seller.",
+        "This store hasn't set up any pickup locations yet. Contact the seller.",
       );
     }
+
     return {
-      method,
+      method: "pickup",
       fee: 0,
       delivery: null,
-      pickup: {
-        address: store.local_pickup_address,
-        notes: store.local_pickup_notes,
-      },
+      pickup: snapshotPickupLocation(location),
     };
   }
 
