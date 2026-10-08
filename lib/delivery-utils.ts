@@ -1,3 +1,5 @@
+// app/lib/delivery-utils.ts
+
 export type PageType =
   | "physical"
   | "digital"
@@ -9,32 +11,37 @@ export type PageType =
   | "event"
   | "other";
 
-export interface DeliveryAddress {
-  id: string;
-  store_id: string;
-  label: string;
-  contact_name: string;
-  contact_phone: string;
+export type FulfillmentMethod = "delivery" | "pickup" | "digital";
+
+export interface CustomerDeliveryAddress {
+  full_name: string;
+  phone: string;
   street_address: string;
   city: string;
   state: string;
-  country: string;
-  delivery_fee: number;
-  estimated_days: number;
-  is_default: boolean;
-  is_active: boolean;
-  notes: string | null;
+  notes?: string | null;
 }
 
-export interface DeliverySettings {
+export interface FulfillmentSelection {
+  method: "delivery" | "pickup";
+  // For delivery: customer-typed address
+  address: CustomerDeliveryAddress | null;
+  // Fee resolved by client preview (server re-verifies)
+  fee: number;
+}
+
+export interface StorePickupConfig {
+  pickup_enabled: boolean;
+  pickup_address: string | null;
+  pickup_notes: string | null;
+}
+
+export interface StoreDeliveryConfig {
   delivery_enabled: boolean;
-  local_pickup_enabled: boolean;
-  local_pickup_address: string | null;
-  local_pickup_notes: string | null;
+  delivery_fee: number;
+  delivery_free_threshold: number;
   delivery_notes: string | null;
 }
-
-export type FulfillmentMethod = "delivery" | "pickup" | "digital";
 
 export function requiresDelivery(
   pageType?: PageType | string | null,
@@ -48,11 +55,11 @@ export function requiresDelivery(
 export function resolveFulfillmentMethod(params: {
   pageType?: string | null;
   productType?: string | null;
-  deliveryEnabled: boolean;
   pickupEnabled: boolean;
+  deliveryEnabled: boolean;
   chosenMethod?: FulfillmentMethod | null;
 }): FulfillmentMethod {
-  const { pageType, productType, deliveryEnabled, pickupEnabled, chosenMethod } =
+  const { pageType, productType, pickupEnabled, deliveryEnabled, chosenMethod } =
     params;
 
   if (!requiresDelivery(pageType, productType)) return "digital";
@@ -60,44 +67,47 @@ export function resolveFulfillmentMethod(params: {
   if (chosenMethod === "pickup" && pickupEnabled) return "pickup";
   if (chosenMethod === "delivery" && deliveryEnabled) return "delivery";
 
-  if (deliveryEnabled) return "delivery";
   if (pickupEnabled) return "pickup";
+  if (deliveryEnabled) return "delivery";
 
+  // Neither configured — caller must handle as an error
   return "delivery";
 }
 
 export function calculateDeliveryFee(params: {
   deliveryEnabled: boolean;
-  pickupEnabled: boolean;
   method: FulfillmentMethod;
-  address?: Pick<DeliveryAddress, "delivery_fee"> | null;
+  baseFee: number;
+  freeThreshold: number;
+  cartSubtotal: number;
 }): number {
-  const { deliveryEnabled, method, address } = params;
-  if (method === "digital") return 0;
-  if (method === "pickup") return 0;
+  const { deliveryEnabled, method, baseFee, freeThreshold, cartSubtotal } =
+    params;
+
+  if (method !== "delivery") return 0;
   if (!deliveryEnabled) return 0;
-  if (!address) return 0;
-  return Number(address.delivery_fee ?? 0);
+
+  const fee = Number(baseFee) || 0;
+  const threshold = Number(freeThreshold) || 0;
+
+  if (threshold > 0 && cartSubtotal >= threshold) return 0;
+  return fee;
 }
 
-export function snapshotAddress(addr: DeliveryAddress) {
-  return {
-    id: addr.id,
-    label: addr.label,
-    contact_name: addr.contact_name,
-    contact_phone: addr.contact_phone,
-    street_address: addr.street_address,
-    city: addr.city,
-    state: addr.state,
-    country: addr.country,
-    delivery_fee: addr.delivery_fee,
-    estimated_days: addr.estimated_days,
-  };
-}
-
-export function sortAddresses(addresses: DeliveryAddress[]): DeliveryAddress[] {
-  return [...addresses].sort((a, b) => {
-    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
-    return a.label.localeCompare(b.label);
-  });
+export function validateCustomerAddress(
+  addr: CustomerDeliveryAddress | null | undefined,
+): { valid: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (!addr) {
+    return {
+      valid: false,
+      missing: ["full_name", "phone", "street_address", "city", "state"],
+    };
+  }
+  if (!addr.full_name?.trim()) missing.push("full_name");
+  if (!addr.phone?.trim()) missing.push("phone");
+  if (!addr.street_address?.trim()) missing.push("street_address");
+  if (!addr.city?.trim()) missing.push("city");
+  if (!addr.state?.trim()) missing.push("state");
+  return { valid: missing.length === 0, missing };
 }

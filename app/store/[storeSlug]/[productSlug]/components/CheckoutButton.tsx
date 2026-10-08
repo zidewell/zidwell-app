@@ -3,11 +3,6 @@
 
 import { CreditCard, Loader2, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import {
-  PRIMARY_BG,
-  PRIMARY_BG_HOVER,
-  PRIMARY_TEXT,
-} from "../utils/helpers";
 
 interface Props {
   onClick: () => void;
@@ -41,10 +36,10 @@ export function CheckoutButton({
       <Button
         onClick={onClick}
         disabled={disabled}
-        className={`h-11 w-full rounded-2xl px-5 text-sm font-semibold transition ${
+        className={`h-11 w-full rounded-lg px-5 text-sm font-semibold transition ${
           disabled
-            ? "bg-muted text-foreground/40 cursor-not-allowed"
-            : `${PRIMARY_BG} ${PRIMARY_TEXT} ${PRIMARY_BG_HOVER}`
+            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+            : "bg-[#FDC020] text-gray-900 hover:bg-[#e6a800]"
         }`}
       >
         {processing ? (
@@ -61,8 +56,8 @@ export function CheckoutButton({
             {isDonation
               ? `Donate ₦${(Number(donorAmount) || 0).toLocaleString()}`
               : showQuantity && quantity > 1
-              ? `Pay ₦${currentTotalAmount.toLocaleString()} for ${quantity} items`
-              : `Pay ₦${currentTotalAmount.toLocaleString()}`}
+                ? `Pay ₦${currentTotalAmount.toLocaleString()}`
+                : `Pay ₦${currentTotalAmount.toLocaleString()}`}
           </>
         )}
       </Button>
@@ -71,7 +66,7 @@ export function CheckoutButton({
         <button
           type="button"
           onClick={onCancel}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-foreground/60 transition-colors hover:text-foreground"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-medium text-gray-500 transition-colors hover:text-gray-900"
         >
           <X className="h-3.5 w-3.5" />
           Cancel checkout
@@ -79,7 +74,7 @@ export function CheckoutButton({
       )}
 
       {disabled && !processing && (
-        <p className="mt-2 text-center text-xs text-foreground/50">
+        <p className="mt-2 text-center text-xs text-gray-400 sm:text-left">
           {disabledReason}
         </p>
       )}

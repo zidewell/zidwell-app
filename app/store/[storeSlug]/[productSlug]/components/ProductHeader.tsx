@@ -1,9 +1,8 @@
 // app/store/[storeSlug]/[productSlug]/components/ProductHeader.tsx
 "use client";
 
-import { ShoppingCart, Store as StoreIcon } from "lucide-react";
+import { Store as StoreIcon, Search } from "lucide-react";
 import { StoreData } from "../utils/types";
-import { PRIMARY_BG, PRIMARY_TEXT } from "../utils/helpers";
 
 interface Props {
   store: StoreData;
@@ -13,48 +12,41 @@ interface Props {
 
 export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) {
   return (
-    <header className="mx-auto flex h-20 max-w-[1320px] items-center justify-between px-5 lg:px-10">
-      <a
-        href={`/store/${store.slug}`}
-        aria-label={`Back to ${store.name}`}
-        className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-      >
-        <span className="text-sm font-semibold tracking-widest uppercase text-foreground">
-          {storeNameUpper}
-        </span>
-      </a>
-
-      <nav className="flex items-center gap-2 sm:gap-3">
+    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
+      <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-4 px-4 lg:px-6">
+        {/* Logo / store name */}
         <a
           href={`/store/${store.slug}`}
-          className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-xs font-medium text-foreground/70 transition hover:border-[#FDC020] hover:text-foreground"
+          aria-label={`Back to ${store.name}`}
+          className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
+        >
+          <span className="text-base font-bold tracking-tight text-[#FDC020]">
+            {storeNameUpper}
+          </span>
+        </a>
+
+        {/* Fake search bar (Jumia style) */}
+        <div className="hidden flex-1 sm:block">
+          <div className="flex h-9 items-center rounded-md border border-gray-300 bg-gray-50 px-3">
+            <Search className="h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder={`Search in ${store.name}...`}
+              className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+            />
+          </div>
+        </div>
+
+        {/* Store link */}
+        <a
+          href={`/store/${store.slug}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-[#FDC020] hover:text-[#FDC020]"
           aria-label={`Go to ${store.name}`}
         >
           <StoreIcon className="h-3.5 w-3.5" />
-          <span>Go to store</span>
+          <span className="hidden sm:inline">Go to store</span>
         </a>
-
-        <a
-          href={`/store/${store.slug}`}
-          className="inline-flex sm:hidden items-center justify-center rounded-full border border-border p-2.5 text-foreground/70 transition hover:border-[#FDC020] hover:text-foreground"
-          aria-label={`Go to ${store.name}`}
-        >
-          <StoreIcon className="h-4 w-4" />
-        </a>
-
-        {/* <button
-          className="relative rounded-full border border-border p-2.5"
-          type="button"
-          aria-label="Shopping cart"
-        >
-          <ShoppingCart size={18} className="text-foreground/60" />
-          <span
-            className={`absolute -right-1 -top-1 flex min-w-4 h-4 items-center justify-center rounded-full ${PRIMARY_BG} text-[10px] font-semibold ${PRIMARY_TEXT} px-1`}
-          >
-            {cartBadgeCount}
-          </span>
-        </button> */}
-      </nav>
+      </div>
     </header>
   );
 }

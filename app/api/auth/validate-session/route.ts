@@ -2,14 +2,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-// Always return 200. The client reads `data.valid`.
+// Always returns 200. The client reads `data.valid`.
 export async function GET(req: NextRequest) {
   try {
     const accessToken = req.cookies.get("sb-access-token")?.value;
     const sessionId = req.cookies.get("sb-session-id")?.value;
 
     if (!accessToken || !sessionId) {
-      return NextResponse.json({ valid: false }, { status: 200 });
+      return NextResponse.json(
+        {
+          valid: false,
+          reason: !accessToken
+            ? "missing_access_token"
+            : "missing_session_id",
+        },
+        { status: 200 },
+      );
     }
 
     const supabase = getSupabaseAdmin();
@@ -19,7 +27,10 @@ export async function GET(req: NextRequest) {
     } = await supabase.auth.getUser(accessToken);
 
     if (error || !user) {
-      return NextResponse.json({ valid: false }, { status: 200 });
+      return NextResponse.json(
+        { valid: false, reason: "invalid_access_token" },
+        { status: 200 },
+      );
     }
 
     const { data: userData } = await supabase
@@ -28,9 +39,16 @@ export async function GET(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!userData || userData.current_session_id !== sessionId) {
+    if (!userData) {
       return NextResponse.json(
-        { valid: false, reason: "Session invalidated" },
+        { valid: false, reason: "user_not_found" },
+        { status: 200 },
+      );
+    }
+
+    if (userData.current_session_id !== sessionId) {
+      return NextResponse.json(
+        { valid: false, reason: "session_id_mismatch" },
         { status: 200 },
       );
     }
@@ -39,7 +57,7 @@ export async function GET(req: NextRequest) {
       const expiresAt = new Date(userData.current_session_expires_at).getTime();
       if (Date.now() > expiresAt) {
         return NextResponse.json(
-          { valid: false, reason: "Session expired due to inactivity" },
+          { valid: false, reason: "session_expired_in_db" },
           { status: 200 },
         );
       }
@@ -48,6 +66,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ valid: true });
   } catch (error) {
     console.error("Session validation error:", error);
-    return NextResponse.json({ valid: false }, { status: 200 });
+    return NextResponse.json(
+      { valid: false, reason: "validation_error" },
+      { status: 200 },
+    );
   }
 }

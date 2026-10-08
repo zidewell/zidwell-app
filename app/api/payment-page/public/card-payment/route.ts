@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import { computeNextDueDate } from "@/lib/installment-utils";
-import { resolveDeliveryForCheckout } from "@/app/api/_lib/delivery-resolver";
+import { resolveFulfillmentForCheckout } from "@/app/api/_lib/delivery-resolver";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       metadata,
       returnUrl,
       fulfillmentMethod = null,
-      deliveryAddressId = null,
+      deliveryAddress = null,
     } = body;
 
     if (!pageSlug || !customerName || !customerEmail) {
@@ -214,33 +214,34 @@ export async function POST(request: Request) {
     }
 
     // ──────────────────────────────────────────────────────────────
-    // RESOLVE DELIVERY (server-authoritative)
+    // RESOLVE FULFILLMENT (server-authoritative)
     // ──────────────────────────────────────────────────────────────
-    let resolvedDelivery;
+    let resolvedFulfillment;
     try {
-      resolvedDelivery = await resolveDeliveryForCheckout({
+      resolvedFulfillment = await resolveFulfillmentForCheckout({
         storeId: page.store_id ?? null,
         pageType: page.page_type,
         productType: page.product_type,
-        deliveryAddressId,
         chosenMethod: fulfillmentMethod,
+        deliveryAddress: deliveryAddress ?? null,
+        cartSubtotal: finalAmount,
       });
     } catch (err: any) {
       console.error(
-        "[card-payment] Delivery resolution failed:",
+        "[card-payment] Fulfillment resolution failed:",
         err?.message,
       );
       return NextResponse.json(
         {
-          error: err?.message || "Delivery not available",
-          code: "DELIVERY_RESOLUTION_FAILED",
+          error: err?.message || "Fulfillment not available",
+          code: "FULFILLMENT_RESOLUTION_FAILED",
         },
         { status: 400 },
       );
     }
 
-    // Fees charged on product price only, delivery added on top
-    const deliveryFee = Number(resolvedDelivery.fee || 0);
+    // Fees are charged on product price only; delivery fee is added on top.
+    const deliveryFee = Number(resolvedFulfillment.fee || 0);
     const baseAmount = finalAmount;
     const chargeAmount = baseAmount + deliveryFee;
 
@@ -303,11 +304,10 @@ export async function POST(request: Request) {
             currentInstallment,
           )
         : null,
-      // ✅ Delivery snapshot
-      delivery_address_id: resolvedDelivery.address?.id ?? null,
+      // ✅ Fulfillment snapshot
       delivery_fee: deliveryFee,
-      delivery_address_snapshot: resolvedDelivery.snapshot,
-      fulfillment_method: resolvedDelivery.method,
+      delivery_address_snapshot: resolvedFulfillment.delivery,
+      fulfillment_method: resolvedFulfillment.method,
       metadata: {
         ...metadata,
         storeSlug,
@@ -316,7 +316,7 @@ export async function POST(request: Request) {
         fee_percentage: 3.4,
         entity_ids: metadata?.entityIds || ["default"],
         delivery_fee: deliveryFee,
-        fulfillment_method: resolvedDelivery.method,
+        fulfillment_method: resolvedFulfillment.method,
         installment_plan: isInstallment
           ? {
               totalAmount: metadata?.totalAmount || chargeAmount,
@@ -349,9 +349,9 @@ export async function POST(request: Request) {
         Number(metadata?.quantity) || 1,
       );
 
-      if (resolvedDelivery.snapshot) {
-        paymentData.metadata.shippingAddress = resolvedDelivery.snapshot;
-      } else if (resolvedDelivery.method === "pickup") {
+      if (resolvedFulfillment.delivery) {
+        paymentData.metadata.shippingAddress = resolvedFulfillment.delivery;
+      } else if (resolvedFulfillment.method === "pickup") {
         paymentData.metadata.shippingAddress = null;
         paymentData.metadata.pickupSelected = true;
       }
@@ -431,8 +431,8 @@ export async function POST(request: Request) {
           entityIds: metadata?.entityIds || ["default"],
           selectedVariantSku: metadata?.selectedVariantSku || null,
           deliveryFee,
-          fulfillmentMethod: resolvedDelivery.method,
-          deliveryAddressId: resolvedDelivery.address?.id ?? null,
+          fulfillmentMethod: resolvedFulfillment.method,
+          hasDeliveryAddress: !!resolvedFulfillment.delivery,
         },
       },
       tokenizeCard: false,
@@ -468,7 +468,7 @@ export async function POST(request: Request) {
       amount: chargeAmount,
       productAmount: baseAmount,
       deliveryFee,
-      fulfillmentMethod: resolvedDelivery.method,
+      fulfillmentMethod: resolvedFulfillment.method,
       redirectUrl: successRedirectUrl,
       storeSlug,
       fees: feeBreakdown,

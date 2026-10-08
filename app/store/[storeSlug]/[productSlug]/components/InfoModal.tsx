@@ -31,7 +31,7 @@ import {
   PRIMARY_BG_HOVER,
   PRIMARY_TEXT,
 } from "../utils/helpers";
-import type { FulfillmentSelection } from "../hooks/useProductCheckout";
+import type { FulfillmentSelection } from "@/lib/delivery-utils"; 
 
 interface Props {
   isDonation: boolean;
@@ -228,91 +228,67 @@ export function InfoModal({
             />
           </div>
 
-          {requiresShipping && showFulfillmentBlock && (
+          {requiresShipping && fulfillment && (
             <div className="border-t border-border pt-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="flex items-center gap-2 text-sm font-medium">
-                  {showDeliveryBlock ? (
+                  {fulfillment.method === "delivery" ? (
                     <>
                       <Truck className="h-4 w-4 text-foreground/60" />
-                      Delivery details
+                      Delivery address
                     </>
                   ) : (
                     <>
                       <Store className="h-4 w-4 text-foreground/60" />
-                      Pickup details
+                      Pickup
                     </>
                   )}
                 </p>
                 <span className="rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
-                  {showDeliveryBlock ? "Delivery" : "Pickup"}
+                  {fulfillment.method === "delivery" ? "Delivery" : "Pickup"}
                 </span>
               </div>
-
-              {showDeliveryBlock && fulfillment!.address && (
+          
+              {fulfillment.method === "delivery" && fulfillment.address && (
                 <div className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="flex items-start gap-2">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">
-                        {fulfillment!.address.label}
+                        {fulfillment.address.full_name}
                       </p>
-                      {fulfillment!.address.contact_name && (
-                        <p className="mt-0.5 text-xs text-foreground/70">
-                          {fulfillment!.address.contact_name}
-                          {fulfillment!.address.contact_phone
-                            ? ` · ${fulfillment!.address.contact_phone}`
-                            : ""}
-                        </p>
-                      )}
+                      <p className="mt-0.5 text-xs text-foreground/70">
+                        {fulfillment.address.phone}
+                      </p>
                       <p className="mt-1 text-xs text-foreground/60">
-                        {fulfillment!.address.street_address},{" "}
-                        {fulfillment!.address.city},{" "}
-                        {fulfillment!.address.state}
+                        {fulfillment.address.street_address},{" "}
+                        {fulfillment.address.city}, {fulfillment.address.state}
                       </p>
-                      {fulfillment!.address.estimated_days > 0 && (
+                      {fulfillment.address.notes && (
                         <p className="mt-1 text-xs text-foreground/50">
-                          Estimated delivery: ~
-                          {fulfillment!.address.estimated_days} day(s)
+                          {fulfillment.address.notes}
                         </p>
                       )}
                     </div>
                   </div>
                 </div>
               )}
-
-              {showDeliveryBlock && !fulfillment!.address && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <p className="text-xs text-red-700">
-                    No delivery address selected. Please go back and choose one.
+          
+              {fulfillment.method === "pickup" && (
+                <div className="rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-sm font-medium">Pick up from the seller</p>
+                  <p className="mt-1 text-xs text-foreground/60">
+                    The seller will confirm pickup details with you.
                   </p>
                 </div>
               )}
-
-              {showPickupBlock && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-start gap-2">
-                    <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        You'll pick up your order from the seller
-                      </p>
-                      <p className="mt-1 text-xs text-foreground/60">
-                        The seller will contact you with pickup instructions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showFulfillmentError && (
-                <p className="mt-2 text-xs text-red-500">
-                  {errors.fulfillment}
-                </p>
+          
+              {errors.fulfillment && (
+                <p className="mt-2 text-xs text-red-500">{errors.fulfillment}</p>
               )}
             </div>
           )}
-
+          
           {bookingEnabled && (
             <div className="border-t border-border pt-5">
               <div className="mb-4 flex items-center gap-2">

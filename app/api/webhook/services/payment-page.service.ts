@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 import {
-  renderDeliveryBlock,
-  deliveryFromPayment,
+  renderFulfillmentBlock,
+  fulfillmentFromPayment,
 } from "@/lib/delivery-email-block";
 
 const supabase = createClient(
@@ -636,14 +636,12 @@ export async function processPaymentPageVirtualAccount(
   // Build delivery HTML once
   const { data: store } = await supabase
     .from("online_stores")
-    .select(
-      "id, name, local_pickup_address, local_pickup_notes, delivery_notes",
-    )
+    .select("id, name, local_pickup_address, local_pickup_notes")
     .eq("id", paymentPage.store_id || paymentPage.metadata?.store_id)
     .maybeSingle();
 
-  const deliveryHtml = renderDeliveryBlock(
-    deliveryFromPayment(paymentResult, store),
+  const deliveryHtml = renderFulfillmentBlock(
+    fulfillmentFromPayment(paymentResult, store),
   );
 
   if (customerEmail) {

@@ -15,16 +15,9 @@ import {
   loadBuyerIdentity,
   clearBuyerIdentity,
 } from "@/lib/buyer-identity";
-import { DeliveryAddress } from "@/lib/delivery-utils";
+import type { FulfillmentSelection } from "@/lib/delivery-utils";
 import { PaymentPage, StoreData, PaymentOption } from "../utils/types";
 import { QUANTITY_PAGE_TYPES } from "../utils/helpers";
-
-// ✅ NEW — exported so DeliveryFields.tsx can consume it
-export interface FulfillmentSelection {
-  method: "delivery" | "pickup";
-  address: DeliveryAddress | null;
-  fee: number;
-}
 
 interface UseProductCheckoutProps {
   page: PaymentPage;
@@ -62,7 +55,7 @@ export function useProductCheckout({
   const [donorAmount, setDonorAmount] = useState("");
   const [donorMessage, setDonorMessage] = useState("");
 
-  // ✅ Multi-variant selection
+  // Multi-variant selection
   const [selectedVariantSkus, setSelectedVariantSkus] = useState<Set<string>>(
     new Set(),
   );
@@ -70,7 +63,7 @@ export function useProductCheckout({
     Record<string, number>
   >({});
 
-  // ✅ NEW — fulfillment selection (delivery/pickup)
+  // Fulfillment (delivery or pickup)
   const [fulfillment, setFulfillment] = useState<FulfillmentSelection>({
     method: "delivery",
     address: null,
@@ -188,9 +181,16 @@ export function useProductCheckout({
     isServices && page?.metadata?.customerNoteEnabled !== false;
   const emailDelivery = isDigital && page?.metadata?.emailDelivery !== false;
 
-  // ✅ Store-level delivery config
+  // Store-level fulfillment config
   const storeDeliveryEnabled = !!(store as any)?.delivery_enabled;
   const storePickupEnabled = !!(store as any)?.local_pickup_enabled;
+  const storeDeliveryFee = Number((store as any)?.delivery_fee ?? 0);
+  const storeDeliveryFreeThreshold = Number(
+    (store as any)?.delivery_free_threshold ?? 0,
+  );
+  const storeDeliveryNotes = (store as any)?.delivery_notes ?? null;
+  const storePickupAddress = (store as any)?.local_pickup_address ?? null;
+  const storePickupNotes = (store as any)?.local_pickup_notes ?? null;
 
   const successMessage = isPaymentLink
     ? linkConfig.successMessage || "Payment successful."
@@ -605,14 +605,14 @@ export function useProductCheckout({
     canDoInstallments,
   ]);
 
-  // ✅ NEW — delivery fee derived from fulfillment choice
+  // ─── DELIVERY FEE ───
   const deliveryFee = useMemo(() => {
     if (!requiresShipping) return 0;
     if (fulfillment.method !== "delivery") return 0;
-    return Number(fulfillment.address?.delivery_fee ?? fulfillment.fee ?? 0);
+    return Number(fulfillment.fee ?? 0);
   }, [requiresShipping, fulfillment]);
 
-  // ✅ CHANGED — buyer payable now includes delivery
+  // ─── BUYER PAYABLE ───
   const buyerPayableAmount = useMemo(() => {
     if (isDonation) return currentTotalAmount;
     if (currentTotalAmount <= 0) return currentTotalAmount;
@@ -687,13 +687,26 @@ export function useProductCheckout({
     (productStock !== null && productStock <= 0) ||
     (isPhysical && variants.length > 0 && isSelectedVariantOOS);
 
-  // ✅ NEW — fulfillment readiness gate
+  // ─── FULFILLMENT READY ───
   const isFulfillmentReady = useMemo(() => {
     if (!requiresShipping) return true;
     if (!storeDeliveryEnabled && !storePickupEnabled) return false;
-    if (fulfillment.method === "pickup") return storePickupEnabled;
+
+    if (fulfillment.method === "pickup") {
+      return storePickupEnabled;
+    }
+
     if (!storeDeliveryEnabled) return false;
-    return !!fulfillment.address?.id;
+
+    const a = fulfillment.address;
+    if (!a) return false;
+    return !!(
+      a.full_name?.trim() &&
+      a.phone?.trim() &&
+      a.street_address?.trim() &&
+      a.city?.trim() &&
+      a.state?.trim()
+    );
   }, [
     requiresShipping,
     storeDeliveryEnabled,
@@ -758,15 +771,21 @@ export function useProductCheckout({
     }
     if (!isFulfillmentReady) {
       if (!storeDeliveryEnabled && !storePickupEnabled) {
-        return "This store has not configured delivery options. Please contact the seller.";
+        return "This store has not configured pickup or delivery. Please contact the seller.";
       }
-      if (fulfillment.method === "delivery" && !fulfillment.address) {
-        return "Please select a delivery location";
+      if (fulfillment.method === "delivery") {
+        const a = fulfillment.address;
+        if (!a) return "Please enter your delivery address";
+        if (!a.full_name?.trim()) return "Please enter your full name";
+        if (!a.phone?.trim()) return "Please enter your phone number";
+        if (!a.street_address?.trim()) return "Please enter your street address";
+        if (!a.city?.trim()) return "Please enter your city";
+        if (!a.state?.trim()) return "Please select your state";
       }
       if (fulfillment.method === "pickup" && !storePickupEnabled) {
         return "Pickup is not available for this store";
       }
-      return "Please complete your delivery selection";
+      return "Please complete your delivery details";
     }
     return "";
   }, [
@@ -850,7 +869,7 @@ export function useProductCheckout({
     [lockedFields],
   );
 
-  // ✅ NEW — fulfillment change handler
+  // ─── FULFILLMENT HANDLER ───
   const handleFulfillmentChange = useCallback(
     (selection: FulfillmentSelection) => {
       setFulfillment(selection);
@@ -872,7 +891,7 @@ export function useProductCheckout({
       return;
     }
     if (!isFulfillmentReady) {
-      alert(getDisabledReason() || "Please complete your delivery selection");
+      alert(getDisabledReason() || "Please complete your delivery details");
       return;
     }
     setErrors({});
@@ -916,16 +935,27 @@ export function useProductCheckout({
       }
     }
 
-    // ✅ CHANGED — no more client shipping validation. Fulfillment only.
+    // Fulfillment validation
     if (requiresShipping && !isFulfillmentReady) {
       if (!storeDeliveryEnabled && !storePickupEnabled) {
-        errs.fulfillment = "This store has not configured delivery options";
-      } else if (fulfillment.method === "delivery" && !fulfillment.address) {
-        errs.fulfillment = "Please select a delivery location";
+        errs.fulfillment = "This store has not configured pickup or delivery";
+      } else if (fulfillment.method === "delivery") {
+        const a = fulfillment.address;
+        if (!a?.full_name?.trim())
+          errs.fulfillment = "Please enter your full name";
+        else if (!a?.phone?.trim())
+          errs.fulfillment = "Please enter your phone number";
+        else if (!a?.street_address?.trim())
+          errs.fulfillment = "Please enter your street address";
+        else if (!a?.city?.trim())
+          errs.fulfillment = "Please enter your city";
+        else if (!a?.state?.trim())
+          errs.fulfillment = "Please select your state";
+        else errs.fulfillment = "Please complete your delivery address";
       } else if (fulfillment.method === "pickup" && !storePickupEnabled) {
         errs.fulfillment = "Pickup is not available";
       } else {
-        errs.fulfillment = "Please complete your delivery selection";
+        errs.fulfillment = "Please complete your delivery details";
       }
     }
 
@@ -1018,10 +1048,10 @@ export function useProductCheckout({
     if (!isFulfillmentReady) {
       await Swal.fire({
         icon: "warning",
-        title: "Delivery selection required",
+        title: "Delivery details required",
         text:
           getDisabledReason() ||
-          "Please complete your delivery selection before continuing.",
+          "Please complete your delivery details before continuing.",
         confirmButtonColor: "#FDC020",
       });
       return;
@@ -1110,7 +1140,8 @@ export function useProductCheckout({
 
       if (requiresShipping) {
         metadata.fulfillmentMethod = fulfillment.method;
-        metadata.deliveryAddressId = fulfillment.address?.id ?? null;
+        metadata.deliveryAddress =
+          fulfillment.method === "delivery" ? fulfillment.address : null;
       }
     }
 
@@ -1189,9 +1220,10 @@ export function useProductCheckout({
           metadata,
           returnUrl: redirectUrl,
           fulfillmentMethod: requiresShipping ? fulfillment.method : null,
-          deliveryAddressId: requiresShipping
-            ? fulfillment.address?.id ?? null
-            : null,
+          deliveryAddress:
+            requiresShipping && fulfillment.method === "delivery"
+              ? fulfillment.address
+              : null,
         }),
       });
 
@@ -1958,13 +1990,17 @@ export function useProductCheckout({
     handleToggleVariant,
     handleSetVariantQuantity,
 
-    // ✅ NEW — fulfillment state and helpers
     fulfillment,
     setFulfillment,
     handleFulfillmentChange,
     deliveryFee,
     storeDeliveryEnabled,
     storePickupEnabled,
+    storeDeliveryFee,
+    storeDeliveryFreeThreshold,
+    storeDeliveryNotes,
+    storePickupAddress,
+    storePickupNotes,
     isFulfillmentReady,
 
     shippingAddress,

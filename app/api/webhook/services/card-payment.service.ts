@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 import { transporter } from "@/lib/node-mailer";
 import {
-  renderDeliveryBlock,
-  deliveryFromPayment,
+  renderFulfillmentBlock,
+  fulfillmentFromPayment,
 } from "@/lib/delivery-email-block";
 
 const supabase = createClient(
@@ -556,15 +556,13 @@ export async function processCardPaymentWebhook(
     // ─── 8b. Load the store to resolve pickup details for email ───
     const { data: store } = await supabase
       .from("online_stores")
-      .select(
-        "id, name, local_pickup_address, local_pickup_notes, delivery_notes",
-      )
+      .select("id, name, local_pickup_address, local_pickup_notes")
       .eq("id", payment.payment_pages?.store_id)
       .maybeSingle();
 
     // ─── 8c. Build the delivery HTML once — reused for customer + merchant + PDF ───
-    const deliveryHtml = renderDeliveryBlock(
-      deliveryFromPayment(payment, store),
+    const deliveryHtml = renderFulfillmentBlock(
+      fulfillmentFromPayment(payment, store),
     );
 
     // ─── 9. Customer emails ───

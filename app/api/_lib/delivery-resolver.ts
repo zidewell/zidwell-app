@@ -2,99 +2,96 @@
 import {
   calculateDeliveryFee,
   resolveFulfillmentMethod,
-  snapshotAddress,
+  validateCustomerAddress,
+  CustomerDeliveryAddress,
   FulfillmentMethod,
-  DeliveryAddress,
 } from "@/lib/delivery-utils";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-export interface ResolvedDelivery {
+export interface ResolvedFulfillment {
   method: FulfillmentMethod;
   fee: number;
-  address: DeliveryAddress | null;
-  snapshot: ReturnType<typeof snapshotAddress> | null;
+  delivery: CustomerDeliveryAddress | null;
   pickup: { address: string | null; notes: string | null } | null;
 }
 
-export async function resolveDeliveryForCheckout(params: {
+export async function resolveFulfillmentForCheckout(params: {
   storeId: string | null | undefined;
   pageType?: string | null;
   productType?: string | null;
-  deliveryAddressId?: string | null;
   chosenMethod?: FulfillmentMethod | null;
-}): Promise<ResolvedDelivery> {
-  const { storeId, pageType, productType, deliveryAddressId, chosenMethod } =
-    params;
+  deliveryAddress?: CustomerDeliveryAddress | null;
+  cartSubtotal: number;
+}): Promise<ResolvedFulfillment> {
+  const {
+    storeId,
+    pageType,
+    productType,
+    chosenMethod,
+    deliveryAddress,
+    cartSubtotal,
+  } = params;
 
-  // Cast to `any` to avoid deep inference errors on the generated DB types
   const supabase = getSupabaseAdmin() as any;
 
-  // ─── Guard: no store id at all → not a physical product ───
+  // Non-physical pages → digital, no fulfillment required
   if (!storeId) {
-    // If the page doesn't require delivery anyway, this is fine.
-    // Digital / service / school / donation pages can legitimately have no store.
     const method = resolveFulfillmentMethod({
       pageType,
       productType,
-      deliveryEnabled: false,
       pickupEnabled: false,
+      deliveryEnabled: false,
       chosenMethod: null,
     });
-
     if (method === "digital") {
-      return { method, fee: 0, address: null, snapshot: null, pickup: null };
+      return { method, fee: 0, delivery: null, pickup: null };
     }
-
     throw new Error(
-      "Delivery resolution failed: this product is not linked to a store. Contact the seller.",
+      "This product is not linked to a store. Please contact the seller.",
     );
   }
 
-  // ─── Load the store ───
   const { data: store, error } = await supabase
     .from("online_stores")
     .select(
-      "id, delivery_enabled, local_pickup_enabled, local_pickup_address, local_pickup_notes",
+      "id, local_pickup_enabled, local_pickup_address, local_pickup_notes, delivery_enabled, delivery_fee, delivery_free_threshold, delivery_notes",
     )
     .eq("id", storeId)
     .maybeSingle();
 
   if (error) {
-    console.error("[delivery-resolver] Supabase error:", error);
-    throw new Error(
-      `Delivery resolution failed: ${error.message || "database error"}`,
-    );
+    console.error("[fulfillment-resolver] Supabase error:", error);
+    throw new Error(`Fulfillment lookup failed: ${error.message}`);
   }
-
   if (!store) {
-    throw new Error(
-      `Delivery resolution failed: store ${storeId} does not exist. Contact the seller.`,
-    );
+    throw new Error(`Store ${storeId} does not exist. Contact the seller.`);
   }
 
   const method = resolveFulfillmentMethod({
     pageType,
     productType,
-    deliveryEnabled: !!store.delivery_enabled,
     pickupEnabled: !!store.local_pickup_enabled,
+    deliveryEnabled: !!store.delivery_enabled,
     chosenMethod,
   });
 
-  // ─── Digital page: no delivery needed ───
   if (method === "digital") {
-    return { method, fee: 0, address: null, snapshot: null, pickup: null };
+    return { method, fee: 0, delivery: null, pickup: null };
   }
 
-  // ─── Pickup ───
   if (method === "pickup") {
     if (!store.local_pickup_enabled) {
       throw new Error("Pickup is not enabled for this store");
     }
+    if (!store.local_pickup_address?.trim()) {
+      throw new Error(
+        "This store hasn't set up a pickup address yet. Contact the seller.",
+      );
+    }
     return {
       method,
       fee: 0,
-      address: null,
-      snapshot: null,
+      delivery: null,
       pickup: {
         address: store.local_pickup_address,
         notes: store.local_pickup_notes,
@@ -102,71 +99,30 @@ export async function resolveDeliveryForCheckout(params: {
     };
   }
 
-  // ─── Delivery ───
+  // method === "delivery"
   if (!store.delivery_enabled) {
+    throw new Error("Delivery is not enabled for this store");
+  }
+
+  const validation = validateCustomerAddress(deliveryAddress);
+  if (!validation.valid) {
     throw new Error(
-      "Delivery is not enabled for this store. Enable it in Store Settings → Delivery.",
-    );
-  }
-
-  let addressId = deliveryAddressId;
-
-  if (!addressId) {
-    const { data: defaultAddr } = await supabase
-      .from("store_delivery_addresses")
-      .select("id")
-      .eq("store_id", storeId)
-      .eq("is_active", true)
-      .eq("is_default", true)
-      .maybeSingle();
-    addressId = defaultAddr?.id ?? null;
-  }
-
-  // If no default, fall back to the first active address
-  if (!addressId) {
-    const { data: firstActive } = await supabase
-      .from("store_delivery_addresses")
-      .select("id")
-      .eq("store_id", storeId)
-      .eq("is_active", true)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    addressId = firstActive?.id ?? null;
-  }
-
-  if (!addressId) {
-    throw new Error(
-      "No delivery address is configured for this store. Add one in Store Settings → Delivery.",
-    );
-  }
-
-  const { data: address, error: addrErr } = await supabase
-    .from("store_delivery_addresses")
-    .select("*")
-    .eq("id", addressId)
-    .eq("store_id", storeId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (addrErr || !address) {
-    throw new Error(
-      "The selected delivery address is no longer available. Please pick another.",
+      `Delivery address is incomplete (missing: ${validation.missing.join(", ")})`,
     );
   }
 
   const fee = calculateDeliveryFee({
-    deliveryEnabled: !!store.delivery_enabled,
-    pickupEnabled: !!store.local_pickup_enabled,
+    deliveryEnabled: true,
     method: "delivery",
-    address,
+    baseFee: Number(store.delivery_fee) || 0,
+    freeThreshold: Number(store.delivery_free_threshold) || 0,
+    cartSubtotal: Number(cartSubtotal) || 0,
   });
 
   return {
     method: "delivery",
     fee,
-    address,
-    snapshot: snapshotAddress(address),
+    delivery: deliveryAddress!,
     pickup: null,
   };
 }
