@@ -1,5 +1,4 @@
 // app/api/webhook/services/payment-page.service.ts
-
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
