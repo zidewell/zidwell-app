@@ -2,11 +2,8 @@
 
 "use client";
 
-<<<<<<< HEAD
-import { Suspense, useEffect, useState } from "react";
-=======
+
 import { useEffect, useState, Suspense } from "react";
->>>>>>> 69384089cec12da1af24cf33013a939c8b919976
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -36,8 +33,7 @@ interface PaymentDetails {
   redirectUrl?: string;
 }
 
-<<<<<<< HEAD
-=======
+
 interface PaymentMetadata {
   customFields?: Record<string, any>;
   selectedStudents?: string[];
@@ -46,8 +42,6 @@ interface PaymentMetadata {
   pageType?: string;
   [key: string]: any;
 }
-
->>>>>>> 69384089cec12da1af24cf33013a939c8b919976
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -446,26 +440,7 @@ function PaymentSuccessContent() {
   );
 }
 
-<<<<<<< HEAD
-function PaymentSuccessFallback() {
-  return (
-    <div className="min-h-screen bg-[#0e0e0e] flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e1bf46] mx-auto"></div>
-        <p className="text-gray-400 mt-4">Loading payment details...</p>
-      </div>
-    </div>
-  );
-}
 
-export default function PaymentSuccessPage() {
-  return (
-    <Suspense fallback={<PaymentSuccessFallback />}>
-      <PaymentSuccessContent />
-    </Suspense>
-  );
-}
-=======
 // Main page export with Suspense
 export default function PaymentSuccessPage() {
   return (
@@ -483,4 +458,4 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
->>>>>>> 69384089cec12da1af24cf33013a939c8b919976
+

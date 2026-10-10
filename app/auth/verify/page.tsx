@@ -1,13 +1,44 @@
 // app/auth/verify/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import confetti from "canvas-confetti";
 
-export default function VerifyPage() {
+// Loading spinner component (reused for both Suspense fallback and verification state)
+function LoadingSpinner({ text = "Loading..." }: { text?: string }) {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "var(--bg-primary)",
+    }}>
+      <div style={{ textAlign: "center" }}>
+        <Loader2 size={48} style={{
+          animation: "spin 1s linear infinite",
+          color: "var(--color-accent-yellow)",
+          margin: "0 auto",
+        }} />
+        <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>
+          {text}
+        </p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams — must be wrapped in Suspense
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -33,18 +64,14 @@ export default function VerifyPage() {
         const response = await fetch(
           `/api/auth/verify?token=${token}&email=${encodeURIComponent(email)}`
         );
-        
+
         const data = await response.json();
         console.log("📡 Verification API response:", { status: response.status, data });
 
-        // ✅ Check if email is already verified
         if (response.status === 400 && data.error === "Email already verified") {
-          // Email was already verified - treat as success
           setStatus("success");
           setMessage("Your email is already verified!");
           setIsAlreadyVerified(true);
-          
-          // 🎉 Trigger confetti anyway
           triggerConfetti();
           return;
         }
@@ -52,8 +79,6 @@ export default function VerifyPage() {
         if (response.ok && data.success) {
           setStatus("success");
           setMessage("Your email has been verified successfully!");
-          
-          // 🎉 Trigger confetti
           triggerConfetti();
         } else {
           setStatus("error");
@@ -99,37 +124,10 @@ export default function VerifyPage() {
         origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
       });
     }, 250);
-
-    return () => clearInterval(interval);
   };
 
   if (status === "loading") {
-    return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--bg-primary)",
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <Loader2 size={48} style={{ 
-            animation: "spin 1s linear infinite",
-            color: "var(--color-accent-yellow)",
-            margin: "0 auto",
-          }} />
-          <p style={{ marginTop: "1rem", color: "var(--text-secondary)" }}>
-            Verifying your email...
-          </p>
-          <style jsx>{`
-            @keyframes spin {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner text="Verifying your email..." />;
   }
 
   return (
@@ -174,12 +172,12 @@ export default function VerifyPage() {
               {isAlreadyVerified ? "Already Verified! 🎉" : "Email Verified! 🎉"}
             </h1>
             <p style={{ color: "var(--text-secondary)", marginBottom: "1.5rem" }}>
-              {isAlreadyVerified 
+              {isAlreadyVerified
                 ? "Your email was already verified. You can now log in to your account."
                 : message
               }
             </p>
-            
+
             <div style={{
               background: "var(--bg-secondary)",
               borderRadius: "0.5rem",
@@ -243,15 +241,15 @@ export default function VerifyPage() {
               {message}
             </p>
             {errorDetail && (
-              <p style={{ 
-                color: "var(--text-secondary)", 
+              <p style={{
+                color: "var(--text-secondary)",
                 fontSize: "0.75rem",
                 marginBottom: "1.5rem",
               }}>
                 {errorDetail}
               </p>
             )}
-            
+
             <div style={{
               background: "rgba(251, 191, 36, 0.1)",
               borderRadius: "0.5rem",
@@ -288,5 +286,14 @@ export default function VerifyPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Default export wraps the hook-using component in Suspense
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner text="Loading..." />}>
+      <VerifyContent />
+    </Suspense>
   );
 }
