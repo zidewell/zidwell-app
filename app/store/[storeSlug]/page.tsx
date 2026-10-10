@@ -13,7 +13,8 @@ import {
   generateStoreFrontSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
-import Footer from "@/app/components/home-component/Footer";
+import SimpleFooter from "./[productSlug]/components/Footer";
+
 
 export const revalidate = 60;
 
@@ -463,7 +464,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
           </section>
         )}
       </div>
-      <Footer />
+      <SimpleFooter />
     </>
   );
 }
