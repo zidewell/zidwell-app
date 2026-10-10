@@ -45,7 +45,8 @@ export function Nav() {
         const el = document.getElementById(href);
         if (el) {
           const yOffset = -96;
-          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+          const y =
+            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
           window.scrollTo({ top: y, behavior: "smooth" });
         }
       } else {
@@ -66,16 +67,24 @@ export function Nav() {
   return (
     <header
       className={`sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/60 transition-all duration-300 ${
-        hasScrolled ? "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.08)]" : ""
+        hasScrolled
+          ? "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.08)]"
+          : ""
       }`}
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 group">
-          <span className="h-7 w-7 rounded-xl bg-ink flex items-center justify-center">
-            <span className="h-2.5 w-2.5 rounded-sm bg-gold" />
+          <Image
+            src="/logo.png"
+            alt="Zidwell Logo"
+            width={49}
+            height={40}
+            className="w-10 object-contain transition-transform group-hover:scale-105"
+          />
+          <span className="text-xl font-bold tracking-tight text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] uppercase">
+            Zidwell
           </span>
-          <span className="font-display font-semibold tracking-tight text-foreground">Zidwell</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -194,12 +203,16 @@ export function Nav() {
 
             {/* Mobile Theme Toggle */}
             <div className="flex items-center gap-2 pt-4 border-t border-border/60">
-              <span className="text-sm text-muted-foreground font-['Be_Vietnam_Pro',system-ui,sans-serif]">Theme:</span>
+              <span className="text-sm text-muted-foreground font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+                Theme:
+              </span>
               <div className="flex items-center gap-1 p-1 bg-surface rounded-xl">
                 <button
                   onClick={toggleTheme}
                   className={`p-2 rounded-lg transition-all ${
-                    !dark ? "bg-gold text-ink" : "text-muted-foreground hover:bg-surface transition"
+                    !dark
+                      ? "bg-gold text-ink"
+                      : "text-muted-foreground hover:bg-surface transition"
                   }`}
                 >
                   <Sun size={16} />
@@ -207,7 +220,9 @@ export function Nav() {
                 <button
                   onClick={toggleTheme}
                   className={`p-2 rounded-lg transition-all ${
-                    dark ? "bg-gold text-ink" : "text-muted-foreground hover:bg-surface transition"
+                    dark
+                      ? "bg-gold text-ink"
+                      : "text-muted-foreground hover:bg-surface transition"
                   }`}
                 >
                   <Moon size={16} />

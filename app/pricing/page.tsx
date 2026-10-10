@@ -1,120 +1,104 @@
+// app/pricing/page.tsx
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import {
-  Check,
-  Sparkles,
-  Loader2,
-  ArrowLeft,
-} from "lucide-react";
+import { Check, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/home-component/Footer"; 
+import Footer from "../components/home-component/Footer";
 import { Button } from "../components/ui/button";
 import { Nav } from "../components/home-component/Nav";
 
-
 const plans = [
   {
-    name: "Free",
-    tier: "free",
-    tagline: "Start Managing Your Money",
-    price: "₦0",
-    altPrice: "$0",
-    suffix: "/month",
-    note: "For individuals and early-stage freelancers.",
+    name: "Starter",
+    tier: "starter",
+    tagline: "Start Putting Structure Around Your Business",
+    price: "₦99,900",
+    altPrice: "$69",
+    suffix: "/year",
+    yearlyAmount: 99900,
+    note: "For solo founders and early-stage businesses.",
     region: "global",
     features: [
-      "Manual bookkeeping — Global",
-      "Auto-bookkeeping (Wallet users, Nigeria)",
-      "Payment Links & Sales pages (Nigeria)",
-      "Free business bank account (Nigeria)",
-      "Up to 5 invoices — Global",
-      "Up to 5 receipts — Global",
-      "Basic financial overview",
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "Online storefront",
+      "Document Vault",
     ],
-    cta: "Start Free",
+    cta: "Start Your Free Trial",
     featured: false,
-    amount: 0,
+    amount: 99900,
   },
-
   {
     name: "SME",
     tier: "sme",
     tagline: "Run Your Business Properly",
-    price: "₦29,900",
-    altPrice: "$21.99",
-    suffix: "/month",
-    yearlyPrice: "₦299,000/year (save ₦59,800)",
-    yearlyAmount: 299000,
-    note: "For growing small businesses.",
+    price: "₦199,900",
+    altPrice: "$139",
+    suffix: "/year",
+    yearlyAmount: 199900,
+    note: "For growing small businesses with a small team.",
     region: "global",
     features: [
-      "Everything in Solopreneur, plus:",
-      "Upload bank statements (PDF / Excel / CSV)",
-      "Connect up to 3 bank accounts — Nigeria",
-      "Auto-bookkeeping from connected accounts — Nigeria",
-      "Unlimited invoices & receipts",
-      "Vault — store financial documents safely",
-      "Tax calculator",
-      "Financial statements (view): P&L · Cashflow · Balance Sheet",
-      "1 extra team member",
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "One Extra User",
     ],
-    cta: "Go SME",
+    addons: [
+      "Payroll",
+      "HMO",
+      "Tax Filing Support",
+      "Virtual office/mailing address",
+    ],
+    cta: "Start Your Free Trial",
     featured: true,
-    amount: 29900,
+    amount: 199900,
   },
   {
     name: "Enterprise",
     tier: "enterprise",
-    tagline: "Team Business Management",
-    price: "₦100,000",
-    altPrice: "$75",
-    suffix: "/month",
-    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
-    yearlyAmount: 1000000,
-    note: "For teams that need structure.",
-    region: "global",
-    features: [
-      "Everything in SME, plus:",
-      "Multi-user access (full team)",
-      "Role-based permissions",
-      "Approvals for payments, invoices, receipts, transfers",
-      "Connect up to 5 bank accounts — Nigeria",
-      "Downloadable financial reports",
-      "10 contracts",
-      "Dedicated onboarding support",
-    ],
-    cta: "Go Enterprise",
-    featured: false,
-    amount: 100000,
-  },
-  {
-    name: "Corporation",
-    tier: "corporation",
     tagline: "Full Business Finance System",
-    price: "₦300,000",
-    altPrice: "$220",
-    suffix: "/month",
-    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
-    yearlyAmount: 3000000,
-    note: "For large organizations and structured companies.",
+    price: "₦599,900",
+    altPrice: "$419",
+    suffix: "/year",
+    yearlyAmount: 599900,
+    note: "For organizations with teams and multiple operators.",
     region: "global",
     features: [
-      "Everything in Enterprise, plus:",
-      "Unlimited contracts",
-      "Department-based access (HR, Finance, Ops…)",
-      "Connect unlimited bank accounts — Nigeria",
-      "Simple payroll system",
-      "Advanced financial reporting",
-      "Custom financial structure setup",
-      "Priority onboarding & dedicated account manager",
+      "Business bank account",
+      "Increased transaction limits",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Connect Your Bank Accounts",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "Three Extra Users",
+      "Dedicated support team",
     ],
-    cta: "Talk to Sales",
+    addons: [
+      "Payroll",
+      "HMO",
+      "Tax Filing Support",
+      "Virtual office/mailing address",
+    ],
+    cta: "Start Your Free Trial",
     featured: false,
-    amount: 300000,
+    amount: 599900,
   },
 ];
 
@@ -125,7 +109,7 @@ function PricingPage() {
   const { userData } = useUserContextData();
 
   const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
-    "monthly",
+    "yearly",
   );
   const [processingTier, setProcessingTier] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -153,7 +137,6 @@ function PricingPage() {
     }
   }, [upgradeParam]);
 
-  // Handle callback after login
   useEffect(() => {
     const upgradePlan = searchParams?.get("upgrade");
     const billingParam = searchParams?.get("billing");
@@ -164,7 +147,7 @@ function PricingPage() {
       }
 
       const plan = plans.find((p) => p.tier === upgradePlan);
-      if (plan && plan.tier !== "free" && plan.tier !== "corporation") {
+      if (plan && plan.tier !== "free" && plan.tier !== "console") {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
         handleSubscribe(plan);
@@ -178,9 +161,9 @@ function PricingPage() {
       return;
     }
 
-    if (plan.tier === "corporation") {
+    if (plan.tier === "console") {
       window.location.href =
-        "mailto:sales@zidwell.com?subject=Corporation%20Plan%20Inquiry";
+        "mailto:sales@zidwell.com?subject=Console%20Plan%20Inquiry";
       return;
     }
 
@@ -194,10 +177,7 @@ function PricingPage() {
     setError(null);
 
     try {
-      const amount =
-        selectedBilling === "yearly" && plan.yearlyAmount
-          ? plan.yearlyAmount
-          : plan.amount;
+      const amount = plan.amount;
 
       const response = await fetch("/api/subscription/checkout", {
         method: "POST",
@@ -234,7 +214,6 @@ function PricingPage() {
       <Nav />
       <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
         <div className="container mx-auto px-4">
-          {/* Success Message */}
           {showSuccess && (
             <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
               <p className="font-bold">✓ Payment successful!</p>
@@ -242,7 +221,6 @@ function PricingPage() {
             </div>
           )}
 
-          {/* Error Message */}
           {error && (
             <div className="fixed top-4 right-4 z-50 bg-[#EF4444] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
               <p className="font-bold">✗ Error</p>
@@ -250,18 +228,17 @@ function PricingPage() {
             </div>
           )}
 
-          {/* Section Header */}
           <div className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
               Simple plans that{" "}
-              <span className="text-[var(--color-accent-yellow)]">grow</span> with you
+              <span className="text-[var(--color-accent-yellow)]">grow</span>{" "}
+              with you
             </h2>
             <p className="text-lg text-(--text-secondary)">
-              Choose the plan that matches your business goals. Each plan is a
-              clear upgrade in capability, not just more limits.
+              Our Business Toolkit gives you more tools to organize and operate
+              your business from anywhere, as it grows.
             </p>
 
-            {/* Back Button */}
             <div className="mt-4">
               <button
                 onClick={() => router.back()}
@@ -272,7 +249,6 @@ function PricingPage() {
               </button>
             </div>
 
-            {/* Current Plan Display */}
             {subscription && subscription.tier !== "free" && (
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
                 <span className="text-sm text-(--text-primary)">
@@ -281,38 +257,9 @@ function PricingPage() {
                 <SubscriptionBadge />
               </div>
             )}
-
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center mt-8">
-              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-(--border-color)">
-                <button
-                  onClick={() => setSelectedBilling("monthly")}
-                  disabled={processingTier !== null}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedBilling === "monthly"
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-(--text-primary) hover:text-(--text-primary)/80"
-                  } disabled:opacity-50`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setSelectedBilling("yearly")}
-                  disabled={processingTier !== null}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedBilling === "yearly"
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-(--text-primary) hover:text-(--text-primary)/80"
-                  } disabled:opacity-50`}
-                >
-                  Yearly <span className="text-xs ml-1">Save up to 20%</span>
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* Pricing Grid */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {plans.map((plan) => {
               const currentPlan = isCurrentPlan(plan.tier);
               const isUpgrade = upgradeParam === plan.tier;
@@ -327,7 +274,11 @@ function PricingPage() {
                     isFeatured
                       ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
                       : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
-                  } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
+                  } ${
+                    isUpgrade
+                      ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50"
+                      : ""
+                  }`}
                 >
                   {isFeatured && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-(--text-primary) text-xs font-bold flex items-center gap-1 rounded-full">
@@ -345,7 +296,9 @@ function PricingPage() {
                   <div className="mb-6">
                     <h3
                       className={`text-xl font-bold mb-2 ${
-                        isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
+                        isFeatured
+                          ? "text-[var(--color-ink)]"
+                          : "text-(--text-primary)"
                       }`}
                     >
                       {plan.name}
@@ -353,33 +306,38 @@ function PricingPage() {
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-3xl font-black ${
-                          isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
+                          isFeatured
+                            ? "text-[var(--color-ink)]"
+                            : "text-(--text-primary)"
                         }`}
                       >
-                        {selectedBilling === "yearly" && plan.yearlyAmount
-                          ? `₦${plan.yearlyAmount.toLocaleString()}`
-                          : plan.price}
+                        {plan.price}
                       </span>
                       <span
                         className={`text-sm ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
+                          isFeatured
+                            ? "text-[var(--color-ink)]/70"
+                            : "text-(--text-secondary)"
                         }`}
                       >
-                        {selectedBilling === "yearly" ? "/year" : plan.suffix}
+                        {plan.suffix}
                       </span>
                     </div>
-                    {selectedBilling === "yearly" && plan.yearlyPrice && (
-                      <p
-                        className={`text-xs mt-1 ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
-                        }`}
-                      >
-                        {plan.yearlyPrice}
-                      </p>
-                    )}
+                    <p
+                      className={`text-xs mt-1 ${
+                        isFeatured
+                          ? "text-[var(--color-ink)]/70"
+                          : "text-(--text-secondary)"
+                      }`}
+                    >
+                      or {plan.altPrice}
+                      {plan.suffix}
+                    </p>
                     <p
                       className={`text-sm mt-3 ${
-                        isFeatured ? "text-[var(--color-ink)]/80" : "text-(--text-secondary)"
+                        isFeatured
+                          ? "text-[var(--color-ink)]/80"
+                          : "text-(--text-secondary)"
                       }`}
                     >
                       {plan.note}
@@ -388,24 +346,64 @@ function PricingPage() {
 
                   <ul className="space-y-2 mb-8 grow">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        {!feature.startsWith("Everything in") && (
-                          <Check
-                            className={`w-4 h-4 shrink-0 mt-0.5 ${
-                              isFeatured ? "text-[var(--color-ink)]" : "text-[var(--color-accent-yellow)]"
-                            }`}
-                          />
-                        )}
+                      <li
+                        key={feature}
+                        className="flex items-start gap-2 text-sm"
+                      >
+                        <Check
+                          className={`w-4 h-4 shrink-0 mt-0.5 ${
+                            isFeatured
+                              ? "text-[var(--color-ink)]"
+                              : "text-[var(--color-accent-yellow)]"
+                          }`}
+                        />
                         <span
-                          className={`${
-                            isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
-                          } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
+                          className={
+                            isFeatured
+                              ? "text-[var(--color-ink)]"
+                              : "text-(--text-primary)"
+                          }
                         >
                           {feature}
                         </span>
                       </li>
                     ))}
                   </ul>
+
+                  {"addons" in plan && plan.addons && plan.addons.length > 0 && (
+                    <div
+                      className={`mb-6 pt-4 border-t ${
+                        isFeatured
+                          ? "border-[var(--color-ink)]/20"
+                          : "border-(--border-color)"
+                      }`}
+                    >
+                      <p
+                        className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${
+                          isFeatured
+                            ? "text-[var(--color-ink)]/70"
+                            : "text-(--text-secondary)"
+                        }`}
+                      >
+                        Add-ons (additional fee)
+                      </p>
+                      <ul className="space-y-1.5">
+                        {plan.addons.map((a: string) => (
+                          <li
+                            key={a}
+                            className={`flex items-start gap-2 text-xs ${
+                              isFeatured
+                                ? "text-[var(--color-ink)]/80"
+                                : "text-(--text-secondary)"
+                            }`}
+                          >
+                            <span className="mt-1.5 h-1 w-1 rounded-full bg-[var(--color-accent-yellow)] shrink-0" />
+                            <span>{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
 
                   <Button
                     variant={isFeatured ? "outline" : "default"}

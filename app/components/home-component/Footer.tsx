@@ -1,6 +1,7 @@
+// app/components/home-component/Footer.tsx
 // components/Footer.tsx
 
-"use client"
+"use client";
 import {
   Mail,
   Phone,
@@ -16,9 +17,8 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
   const footerLinks = {
     product: [
-      { label: "Features", href: "/#features" },
-      { label: "Pricing", href: "/#pricing" },
-      { label: "ZidCoin", href: "/#zidcoin" },
+      { label: "Features", href: "/#tools" },
+      { label: "Pricing", href: "/pricing" },
       { label: "FAQ", href: "/#faq" },
     ],
     company: [{ label: "About Us", href: "/" }],
@@ -68,15 +68,24 @@ const Footer = () => {
               </Link>
             </div>
 
+            <p className="text-sm font-semibold text-(--text-primary) mb-2">
+              The Business Owner&apos;s Toolkit.
+            </p>
+
+            <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
+              Manage your money. Organize your business. Sell online. Build
+              with structure.
+            </p>
+
             <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
               Zidwell operates as a financial technology company and does not
               provide banking services or hold depositor funds. All financial
               transactions facilitated by Zidwell are conducted in partnership
               with licensed financial institutions. Zidwell does not engage in
-              traditional banking activities. By accessing or using Zidwell&apos;s
-              website and services, you acknowledge and agree that Zidwell is
-              not a bank, and all financial services are provided through
-              third-party partners.
+              traditional banking activities. By accessing or using
+              Zidwell&apos;s website and services, you acknowledge and agree
+              that Zidwell is not a bank, and all financial services are
+              provided through third-party partners.
             </p>
 
             <div className="flex flex-wrap gap-2 sm:gap-3">

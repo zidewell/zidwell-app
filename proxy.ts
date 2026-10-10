@@ -16,34 +16,42 @@ import { canAccessPaymentPage } from "@/lib/constants";
 
 export const TIER_HIERARCHY = [
   "free",
+  "starter",
   "sme",
   "enterprise",
-  "corporation",
+  "console",
 ] as const;
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
-  { path: "/dashboard/bookkeeping", requiredTier: "sme" },
+  // Starter and above
+  { path: "/dashboard/bookkeeping", requiredTier: "starter" },
+  { path: "/dashboard/vault", requiredTier: "starter" },
+  { path: "/dashboard/financial-statements", requiredTier: "starter" },
+
+  // SME and above
   { path: "/dashboard/bank-statements", requiredTier: "sme" },
-  { path: "/dashboard/vault", requiredTier: "sme" },
   { path: "/dashboard/tax-calculator", requiredTier: "sme" },
-  { path: "/dashboard/financial-statements", requiredTier: "sme" },
   { path: "/dashboard/connected-accounts", requiredTier: "sme" },
-  { path: "/dashboard/team", requiredTier: "enterprise" },
+  { path: "/dashboard/team", requiredTier: "sme" },
+  { path: "/dashboard/tax-filing", requiredTier: "sme" },
+
+  // Enterprise and above
   { path: "/dashboard/roles", requiredTier: "enterprise" },
   { path: "/dashboard/approvals", requiredTier: "enterprise" },
   { path: "/dashboard/reports", requiredTier: "enterprise" },
   { path: "/dashboard/contracts", requiredTier: "enterprise" },
-  { path: "/dashboard/departments", requiredTier: "corporation" },
-  { path: "/dashboard/payroll", requiredTier: "corporation" },
-  { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
-  { path: "/dashboard/custom-structure", requiredTier: "corporation" },
-  { path: "/dashboard/account-manager", requiredTier: "corporation" },
-  { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
   { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
   { path: "/dashboard/cfo-guidance", requiredTier: "enterprise" },
+
+  // Console (custom)
+  { path: "/dashboard/departments", requiredTier: "console" },
+  { path: "/dashboard/payroll", requiredTier: "console" },
+  { path: "/dashboard/advanced-reporting", requiredTier: "console" },
+  { path: "/dashboard/custom-structure", requiredTier: "console" },
+  { path: "/dashboard/account-manager", requiredTier: "console" },
 ];
 
 const bvnRequiredRoutes = new Set([

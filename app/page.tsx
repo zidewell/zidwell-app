@@ -1,59 +1,46 @@
 // app/page.tsx
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
 import Loader from "@/app/components/Loader";
-import { AISection } from "./components/home-component/AISection";
-import { BonusTools } from "./components/home-component/BonusTools";
-import { BuiltForReal } from "./components/home-component/BuiltForReal";
-import { Categories } from "./components/home-component/Categories";
-import { ConnectedAccounts } from "./components/home-component/ConnectedAccounts";
-import { ConsoleSection } from "./components/home-component/ConsoleSection";
 import { CoreTools } from "./components/home-component/CoreTools";
-import { DashboardSection } from "./components/home-component/DashboardSection";
-import { EveryBusiness } from "./components/home-component/EveryBusiness";
 import { FAQ } from "./components/home-component/FAQ";
-import { FinalCTA } from "./components/home-component/FinalCTA";
+import { FinalCTA } from "./components/home-component/FinalCTANew";
 import Footer from "./components/home-component/Footer";
-import { HealthSection } from "./components/home-component/HealthSection";
 import { Hero } from "./components/home-component/Hero";
 import { HowItWorks } from "./components/home-component/HowItWorksNew";
 import { Intro } from "./components/home-component/Intro";
-import { MoneyFlowSection } from "./components/home-component/MoneyFlowSection";
 import { Nav } from "./components/home-component/Nav";
 import { PlansSection } from "./components/home-component/PlansSection";
 import { SocialBar } from "./components/home-component/SocialBar";
-import { StatementsSection } from "./components/home-component/StatementsSection";
-import { TeamControl } from "./components/home-component/TeamControl";
 import { Testimonials } from "./components/home-component/Testimonials";
 import { TrustBar } from "./components/home-component/TrustBar";
-import { WhyZidwell } from "./components/home-component/WhyZidwell";
-import { Ziddy } from "./components/home-component/Ziddy";
 
-
- const metadata = {
-  title: "Zidwell | All-in-One Finance & Business Management Platform for Nigerian SMEs",
+const metadata = {
+  title:
+    "Zidwell | The Business Owner's Toolkit — Manage, Organize & Grow Your Business",
   description:
-    "Zidwell helps Nigerian businesses with invoicing, receipts, contracts, accounting, tax filing, and financial management. All-in-one platform for SMEs, freelancers, and entrepreneurs.",
+    "Zidwell is the Business Owner's Toolkit: a business bank account, automatic bookkeeping, invoices, receipts, contracts, online storefront, document vault and tax tools — all in one place. 7-day free trial.",
   keywords: [
-    "invoice generator Nigeria",
-    "online invoice maker Nigeria",
-    "business accounting Nigeria",
+    "business owner toolkit",
+    "business bank account Nigeria",
+    "automatic bookkeeping",
+    "invoice tool Nigeria",
+    "receipt tool Nigeria",
+    "digital contracts",
+    "online storefront Nigeria",
+    "document vault",
+    "tax calculator Nigeria",
     "SME finance platform",
-    "Nigerian business tools",
-    "digital receipt Nigeria",
-    "contract creator Nigeria",
-    "business tax filing Nigeria",
-    "fintech platform Nigeria",
+    "Zidwell",
   ],
   alternates: {
     canonical: "https://zidwell.com",
   },
   openGraph: {
-    title: "Zidwell | Finance & Business Tools for Nigerian SMEs",
+    title: "Zidwell | The Business Owner's Toolkit",
     description:
-      "Create invoices, receipts, contracts, manage finances, and grow your business with Zidwell. All-in-one platform for Nigerian entrepreneurs.",
+      "One bundle. One annual payment. One week free trial. Manage your money, organize your business, sell online, and build with structure.",
     url: "https://zidwell.com",
     siteName: "Zidwell",
     locale: "en_NG",
@@ -63,7 +50,7 @@ import { Ziddy } from "./components/home-component/Ziddy";
         url: "https://zidwell.com/images/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Zidwell - Business Finance & Management Platform",
+        alt: "Zidwell — The Business Owner's Toolkit",
       },
     ],
   },
@@ -71,9 +58,9 @@ import { Ziddy } from "./components/home-component/Ziddy";
     card: "summary_large_image",
     site: "@zidwellapp",
     creator: "@zidwellapp",
-    title: "Zidwell | Business Finance Platform Nigeria",
+    title: "Zidwell | The Business Owner's Toolkit",
     description:
-      "Invoicing, contracts, receipts, accounting & financial tools for Nigerian businesses. Start free today.",
+      "Business bank account, bookkeeping, invoices, receipts, contracts, storefront & more — in one toolkit. Start your 7-day free trial.",
     images: ["https://zidwell.com/images/twitter-card.jpg"],
   },
 };
@@ -89,6 +76,36 @@ const animations = [
   "flip-right",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Section order — the new narrative
+//
+//   1. Nav
+//   2. Hero               — "Tools That Help You Build & Run Your Business Empire"
+//   3. Intro              — "Without Structure, Your Business Can't Grow"
+//   4. TrustBar           — quick trust signal
+//   5. SocialBar          — global reach + multi-currency
+//   6. CoreTools          — "One Toolkit. Less Business Chaos."
+//   7. HowItWorks         — "Simple 4-Steps to Start"
+//   8. Testimonials       — "Businesses Are Building with Zidwell"
+//   9. PlansSection       — Starter / SME / Enterprise
+//  10. FAQ                — Questions, answered
+//  11. FinalCTA           — "Your Business Needs Structure to Grow"
+//  12. Footer
+// ─────────────────────────────────────────────────────────────────────────────
+const SECTIONS = [
+  { id: "nav", name: "Nav" },
+  { id: "hero", name: "Hero" },
+  { id: "intro", name: "Intro" },
+  { id: "trustBar", name: "TrustBar" },
+  { id: "socialBar", name: "SocialBar" },
+  { id: "coreTools", name: "CoreTools" },
+  { id: "howItWorks", name: "HowItWorks" },
+  { id: "testimonials", name: "Testimonials" },
+  { id: "plansSection", name: "PlansSection" },
+  { id: "faq", name: "FAQ" },
+  { id: "finalCTA", name: "FinalCTA" },
+] as const;
+
 function LandingContent() {
   const [aosLoaded, setAosLoaded] = useState(false);
 
@@ -102,43 +119,16 @@ function LandingContent() {
     });
   }, []);
 
-  const componentSettings = useMemo(() => {
-    const components = [
-      { id: "nav", name: "Nav" },
-      { id: "hero", name: "Hero" },
-      { id: "intro", name: "Intro" },
-      { id: "trustBar", name: "TrustBar" },
-      { id: "socialBar", name: "SocialBar" },
-      { id: "howItWorks", name: "HowItWorks" },
-      { id: "coreTools", name: "CoreTools" },
-      { id: "whyZidwell", name: "WhyZidwell" },
-      { id: "consoleSection", name: "ConsoleSection" },
-      { id: "everyBusiness", name: "EveryBusiness" },
-      { id: "testimonials", name: "Testimonials" },
-      { id: "faq", name: "FAQ" },
-      { id: "ziddy", name: "Ziddy" },
-      { id: "connectedAccounts", name: "ConnectedAccounts" },
-      { id: "moneyFlowSection", name: "MoneyFlowSection" },
-      { id: "statementsSection", name: "StatementsSection" },
-      { id: "bonusTools", name: "BonusTools" },
-      { id: "teamControl", name: "TeamControl" },
-      { id: "categories", name: "Categories" },
-      { id: "builtForReal", name: "BuiltForReal" },
-      { id: "dashboardSection", name: "DashboardSection" },
-      { id: "healthSection", name: "HealthSection" },
-      { id: "plansSection", name: "PlansSection" },
-      { id: "aiSection", name: "AISection" },
-      { id: "finalCTA", name: "FinalCTA" },
-      { id: "finalCTAVariant", name: "FinalCTANew" },
-    ];
-
-    return components.map((component) => ({
-      ...component,
+  // Pre-compute animation settings once per mount so React doesn't
+  // re-randomize them on every render.
+  const [componentSettings] = useState(() =>
+    SECTIONS.map((section) => ({
+      ...section,
       animation: animations[Math.floor(Math.random() * animations.length)],
       delay: Math.floor(Math.random() * 300),
       duration: 600 + Math.floor(Math.random() * 600),
-    }));
-  }, []);
+    })),
+  );
 
   return (
     <div className="min-h-screen bg-(--bg-primary) text-(--text-primary)">
@@ -154,27 +144,12 @@ function LandingContent() {
           {component.id === "intro" && <Intro />}
           {component.id === "trustBar" && <TrustBar />}
           {component.id === "socialBar" && <SocialBar />}
-          {component.id === "howItWorks" && <HowItWorks />}
           {component.id === "coreTools" && <CoreTools />}
-          {component.id === "whyZidwell" && <WhyZidwell />}
-          {component.id === "consoleSection" && <ConsoleSection />}
-          {component.id === "everyBusiness" && <EveryBusiness />}
+          {component.id === "howItWorks" && <HowItWorks />}
           {component.id === "testimonials" && <Testimonials />}
-          {component.id === "faq" && <FAQ />}
-          {component.id === "ziddy" && <Ziddy />}
-          {component.id === "connectedAccounts" && <ConnectedAccounts />}
-          {component.id === "moneyFlowSection" && <MoneyFlowSection />}
-          {component.id === "statementsSection" && <StatementsSection />}
-          {component.id === "bonusTools" && <BonusTools />}
-          {component.id === "teamControl" && <TeamControl />}
-          {component.id === "categories" && <Categories />}
-          {component.id === "builtForReal" && <BuiltForReal />}
-          {component.id === "dashboardSection" && <DashboardSection />}
-          {component.id === "healthSection" && <HealthSection />}
           {component.id === "plansSection" && <PlansSection />}
-          {component.id === "aiSection" && <AISection />}
+          {component.id === "faq" && <FAQ />}
           {component.id === "finalCTA" && <FinalCTA />}
-          {/* {component.id === "finalCTAVariant" && <FinalCTAVariant />} */}
         </div>
       ))}
       <Footer />
@@ -184,11 +159,7 @@ function LandingContent() {
 
 export default function Landing() {
   return (
-    <Suspense
-      fallback={
-        <Loader/>
-      }
-    >
+    <Suspense fallback={<Loader />}>
       <LandingContent />
     </Suspense>
   );
