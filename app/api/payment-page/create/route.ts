@@ -1,24 +1,101 @@
+// app/api/payment-page/create/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
-import { 
-  isBVNVerified, 
-  getUserBVNFromNomba, 
-  createPaymentPageVirtualAccount 
-} from "@/lib/nomba-virtual-account";
+import { normalizeVariants } from "@/lib/payment-page/normalize";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function uploadImageToStorage(userId: string, base64Image: string, type: string): Promise<string | null> {
+const RESERVED_PAGE_SLUGS = new Set([
+  "api", "admin", "auth", "dashboard", "new", "create", "edit", "delete",
+  "manage", "link", "settings", "profile", "account", "login", "signup",
+  "register", "checkout", "cart", "order", "orders", "zidwell", "official",
+  "system", "root",
+]);
+
+const MIN_SLUG_LENGTH = 3;
+const MAX_SLUG_LENGTH = 50;
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+
+function cleanSlug(raw: string): string {
+  return raw
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/\s/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function validateSlugOrFail(
+  rawSlug: string,
+  userId: string
+): Promise<string | null> {
+  const slug = cleanSlug(rawSlug);
+
+  if (slug.length < MIN_SLUG_LENGTH) {
+    return `URL must be at least ${MIN_SLUG_LENGTH} characters`;
+  }
+  if (slug.length > MAX_SLUG_LENGTH) {
+    return `URL is too long. Maximum ${MAX_SLUG_LENGTH} characters.`;
+  }
+  if (!SLUG_REGEX.test(slug)) {
+    return "URL must start and end with a letter or number, and contain only lowercase letters, numbers, and hyphens.";
+  }
+  if (RESERVED_PAGE_SLUGS.has(slug)) {
+    return `"${slug}" is reserved by Zidwell. Please choose a different URL.`;
+  }
+
+  const { data: existingPage, error: slugCheckError } = await supabase
+    .from("payment_pages")
+    .select("id, user_id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (slugCheckError && slugCheckError.code !== "PGRST116") {
+    console.error("Slug uniqueness check failed:", slugCheckError);
+    return "Failed to validate URL. Please try again.";
+  }
+
+  if (existingPage) {
+    if (existingPage.user_id === userId) {
+      return "You already have a payment page with this URL. Please choose a different one.";
+    }
+    return "This URL is already taken. Please choose a different one.";
+  }
+
+  const { data: existingStore, error: storeCheckError } = await supabase
+    .from("online_stores")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (storeCheckError && storeCheckError.code !== "PGRST116") {
+    console.error("Store slug check failed:", storeCheckError);
+    return "Failed to validate URL. Please try again.";
+  }
+
+  if (existingStore) {
+    return "This URL is already used by a store. Please choose a different one.";
+  }
+
+  return null;
+}
+
+async function uploadImageToStorage(
+  userId: string,
+  base64Image: string,
+  type: string
+): Promise<string | null> {
   if (!base64Image) return null;
-  if (base64Image.startsWith('http://') || base64Image.startsWith('https://')) {
+  if (base64Image.startsWith("http://") || base64Image.startsWith("https://")) {
     return base64Image;
   }
-  if (!base64Image.startsWith('data:image')) return null;
-  
+  if (!base64Image.startsWith("data:image")) return null;
+
   try {
     const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
     const imageBuffer = Buffer.from(base64Data, "base64");
@@ -54,7 +131,7 @@ async function uploadImageToStorage(userId: string, base64Image: string, type: s
 export async function POST(request: Request) {
   try {
     const { user, newTokens } = await isAuthenticatedWithRefresh(request as any);
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "Please login to create a payment page", logout: true },
@@ -63,24 +140,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { 
-      title, 
-      slug, 
-      description, 
-      coverImage, 
-      logo, 
-      productImages,
-      priceType, 
-      price, 
-      installmentCount, 
-      feeMode,
-      pageType,
-      metadata 
+    const {
+      title, slug, description, coverImage, logo, productImages,
+      priceType, price, installmentCount, feeMode, pageType, metadata,
     } = body;
 
     console.log("📝 Creating page:", { title, pageType, slug });
 
-    // Validate required fields
     if (!title || !pageType || !slug) {
       return NextResponse.json(
         { error: "Title, page type, and slug are required" },
@@ -88,10 +154,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate page type specific requirements
     if (pageType === "link") {
-      // For link pages with fixed amount, price is required
-      if (metadata?.linkConfig?.amountMode === "fixed" && (!price || price <= 0)) {
+      if (
+        metadata?.linkConfig?.amountMode === "fixed" &&
+        (!price || price <= 0)
+      ) {
         return NextResponse.json(
           { error: "Amount is required for fixed amount payment link" },
           { status: 400 }
@@ -117,59 +184,60 @@ export async function POST(request: Request) {
       }
     }
 
-    // BVN Verification - REQUIRED FOR ALL PAGE TYPES
-    console.log("🔍 Checking BVN verification for user:", user.id);
-    const hasVerifiedBVN = await isBVNVerified(user.id);
-    if (!hasVerifiedBVN) {
+    const { data: store, error: storeError } = await supabase
+      .from("online_stores")
+      .select("id, is_active, activation_paid")
+      .eq("owner_id", user.id)
+      .maybeSingle();
+
+    if (storeError || !store) {
       return NextResponse.json(
-        { 
-          error: "BVN verification required before creating payment pages",
-          requiresBvnVerification: true,
-        },
+        { error: "You need to create and activate a store first" },
         { status: 400 }
       );
     }
 
-    // Get user's BVN - REQUIRED FOR ALL PAGE TYPES
-    console.log("🔍 Fetching user BVN...");
-    const userBVN = await getUserBVNFromNomba(user.id);
-    if (!userBVN) {
+    if (!store.is_active || !store.activation_paid) {
       return NextResponse.json(
-        { error: "Unable to retrieve your BVN. Please contact support." },
+        { error: "Your store must be activated before creating payment pages" },
         { status: 400 }
       );
     }
-    console.log("✅ BVN retrieved:", userBVN.substring(0, 4) + "****");
 
-    // Upload images
+    const cleanedSlug = cleanSlug(slug);
+    const slugError = await validateSlugOrFail(cleanedSlug, user.id);
+
+    if (slugError) {
+      console.warn(`❌ Slug validation failed: "${slug}" → ${slugError}`);
+      return NextResponse.json({ error: slugError }, { status: 409 });
+    }
+
     let uploadedCoverImage = null;
     if (coverImage) {
       uploadedCoverImage = await uploadImageToStorage(user.id, coverImage, "covers");
     }
-    
+
     let uploadedLogo = null;
-    if (logo && logo.startsWith('data:image')) {
+    if (logo && logo.startsWith("data:image")) {
       uploadedLogo = await uploadImageToStorage(user.id, logo, "logos");
-    } else if (logo && (logo.startsWith('http://') || logo.startsWith('https://'))) {
+    } else if (logo && (logo.startsWith("http://") || logo.startsWith("https://"))) {
       uploadedLogo = logo;
     }
-    
+
     const uploadedProductImages: string[] = [];
     if (productImages && productImages.length > 0) {
       for (const img of productImages) {
-        if (img.startsWith('data:image')) {
+        if (img.startsWith("data:image")) {
           const uploadedUrl = await uploadImageToStorage(user.id, img, "products");
           if (uploadedUrl) uploadedProductImages.push(uploadedUrl);
-        } else if (img.startsWith('http://') || img.startsWith('https://')) {
+        } else if (img.startsWith("http://") || img.startsWith("https://")) {
           uploadedProductImages.push(img);
         }
       }
     }
 
-    // Prepare metadata
     const finalMetadata: any = { ...metadata };
 
-    // For link pages, store the entire link configuration in metadata
     if (pageType === "link" && metadata?.linkConfig) {
       finalMetadata.pageType = "link";
       finalMetadata.linkConfig = {
@@ -178,13 +246,23 @@ export async function POST(request: Request) {
       };
     }
 
-    // Calculate final price
-    let finalPrice = price || 0;
-    if (pageType === "school" && finalMetadata.feeBreakdown?.length > 0) {
-      finalPrice = finalMetadata.feeBreakdown.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
+    // ✅ NORMALIZE VARIANT STOCK + PRICE
+    if (
+      pageType === "physical" &&
+      Array.isArray(finalMetadata.variants) &&
+      finalMetadata.variants.length > 0
+    ) {
+      finalMetadata.variants = normalizeVariants(finalMetadata.variants);
     }
 
-    // Determine final price_type
+    let finalPrice = price || 0;
+    if (pageType === "school" && finalMetadata.feeBreakdown?.length > 0) {
+      finalPrice = finalMetadata.feeBreakdown.reduce(
+        (sum: number, item: any) => sum + (item.amount || 0),
+        0
+      );
+    }
+
     let finalPriceType = priceType;
     if (pageType === "link" && metadata?.linkConfig?.amountMode === "variable") {
       finalPriceType = "open";
@@ -193,59 +271,40 @@ export async function POST(request: Request) {
       finalPriceType = "open";
     }
 
-    // ============================================
-    // CREATE VIRTUAL ACCOUNT FOR ALL PAGE TYPES
-    // ============================================
-    console.log("🏦 Creating virtual account for page type:", pageType);
-    
-    const tempPageId = crypto.randomUUID();
-    const className = pageType === "school" && metadata?.className ? metadata.className : undefined;
-    
-    const virtualAccount = await createPaymentPageVirtualAccount(
-      tempPageId,
-      title,
-      userBVN,
-      className
-    );
-    
-    if (!virtualAccount) {
-      console.error("❌ Failed to create virtual account");
-      return NextResponse.json(
-        { error: "Failed to create payment account. Please try again." },
-        { status: 500 }
-      );
+    if (
+      finalPriceType === "installment" &&
+      installmentCount &&
+      Number(installmentCount) > 1 &&
+      pageType !== "donation" &&
+      finalPriceType !== "open"
+    ) {
+      const totalAmount = Number(finalPrice) || 0;
+      const count = Number(installmentCount);
+      const perInstallment = totalAmount / count;
+
+      finalMetadata.installmentCount = count;
+      finalMetadata.installmentAmount = Math.round(perInstallment * 100) / 100;
+      finalMetadata.installmentPeriod = metadata?.installmentPeriod || "monthly";
+      finalMetadata.totalAmount = totalAmount;
+      finalMetadata.installmentState = {};
     }
-    
-    console.log(`✅ Virtual account created: ${virtualAccount.accountNumber}`);
 
-    // Add virtual account to metadata
-    finalMetadata.virtual_account = {
-      accountNumber: virtualAccount.accountNumber,
-      bankName: virtualAccount.bankName,
-      accountName: virtualAccount.accountName,
-      bankAccountName: virtualAccount.bankAccountName,
-      accountRef: virtualAccount.accountRef,
-      createdAt: new Date().toISOString(),
-      isActive: true,
-      type: "payment_page",
-    };
-
-    // Insert payment page
     console.log("💾 Saving payment page to database...");
-    
+
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
       .insert({
         user_id: user.id,
         title,
-        slug,
+        slug: cleanedSlug,
         description: description || "",
         cover_image: uploadedCoverImage,
         logo: uploadedLogo,
         product_images: uploadedProductImages,
         price_type: finalPriceType,
         price: finalPrice,
-        installment_count: installmentCount,
+        installment_count:
+          finalPriceType === "installment" ? Number(installmentCount) : null,
         fee_mode: feeMode || "bearer",
         page_type: pageType,
         metadata: finalMetadata,
@@ -261,58 +320,45 @@ export async function POST(request: Request) {
 
     if (pageError) {
       console.error("❌ Error creating page:", pageError);
-      return NextResponse.json(
-        { error: pageError.message },
-        { status: 500 }
-      );
+
+      if (
+        pageError.code === "23505" ||
+        pageError.message?.includes("duplicate key") ||
+        pageError.message?.includes("unique constraint")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "This URL was just taken. Please choose a different one and try again.",
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json({ error: pageError.message }, { status: 500 });
     }
 
     console.log(`✅ Payment page created: ${page.id}`);
-
-    // Update virtual account reference
-    const updatedVirtualAccount = {
-      ...finalMetadata.virtual_account,
-      paymentPageId: page.id,
-      accountRef: `PPL-${page.id.replace(/-/g, '').substring(0, 20)}`,
-    };
-    
-    await supabase
-      .from("payment_pages")
-      .update({
-        metadata: {
-          ...finalMetadata,
-          virtual_account: updatedVirtualAccount,
-        }
-      })
-      .eq("id", page.id);
-
-    console.log("🎉 Payment page creation complete!");
 
     const responseData = {
       success: true,
       message: "Payment page created successfully!",
       slug: page.slug,
-      virtualAccount: {
-        accountNumber: virtualAccount.accountNumber,
-        bankName: virtualAccount.bankName,
-        accountName: virtualAccount.accountName,
-      },
       page: {
         id: page.id,
         title: page.title,
         slug: page.slug,
         pageType: page.page_type,
         coverImage: page.cover_image,
-      }
+        priceType: page.price_type,
+        price: page.price,
+        installmentCount: page.installment_count,
+        metadata: page.metadata,
+      },
     };
 
-    if (newTokens) {
-      const response = NextResponse.json(responseData);
-      return response;
-    }
-    
+    if (newTokens) return NextResponse.json(responseData);
     return NextResponse.json(responseData);
-    
   } catch (error: any) {
     console.error("Create page error:", error);
     return NextResponse.json(

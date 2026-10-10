@@ -18,8 +18,8 @@ export const DashboardError = ({ onRetry }: DashboardErrorProps) => {
                 <div className="p-4 rounded-full bg-rose-100 dark:bg-rose-950/30">
                   <AlertCircle className="w-8 h-8 text-rose-500" />
                 </div>
-                <h3 className="text-xl font-semibold font-[var(--font-space-grotesk)]">Failed to Load Dashboard</h3>
-                <p className="text-[var(--text-secondary)] text-sm">
+                <h3 className="text-xl font-semibold font-(--font-space-grotesk)">Failed to Load Dashboard</h3>
+                <p className="text-(--text-secondary) text-sm">
                   There was an error loading the dashboard data. Please try refreshing the page.
                 </p>
                 <button

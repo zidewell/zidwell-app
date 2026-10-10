@@ -13,7 +13,12 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-export type SubscriptionTier = 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+export type SubscriptionTier =
+  | "free"
+  | "solopreneur"
+  | "sme"
+  | "enterprise"
+  | "corporation";
 
 export interface SupabaseUser {
   id: string;
@@ -36,7 +41,7 @@ export interface SupabaseUser {
 
 export interface SubscriptionInfo {
   tier: SubscriptionTier;
-  status: 'active' | 'expired' | 'cancelled' | 'pending';
+  status: "active" | "expired" | "cancelled" | "pending";
   expiresAt: Date | null;
   features: Record<string, any>;
 }
@@ -59,6 +64,7 @@ interface UserContextType {
   totalOutflow: number;
   totalTransactions: number;
   setUserData: Dispatch<SetStateAction<any | null>>;
+  refreshUserProfile: () => Promise<void>;
   loading: boolean;
   isDarkMode: boolean;
   setIsDarkMode: Dispatch<SetStateAction<boolean>>;
@@ -76,37 +82,46 @@ interface UserContextType {
   subscription: SubscriptionInfo | null;
   subscriptionLoading: boolean;
   refreshSubscription: () => Promise<void>;
-  checkFeatureAccess: (featureKey: string, currentCount?: number) => Promise<{
+  checkFeatureAccess: (
+    featureKey: string,
+    currentCount?: number,
+  ) => Promise<{
     hasAccess: boolean;
     limit?: number;
     message?: string;
     requiredTier?: SubscriptionTier;
   }>;
-  subscribe: (tier: SubscriptionTier, paymentMethod: string, amount: number, paymentReference: string, isYearly?: boolean) => Promise<any>;
+  subscribe: (
+    tier: SubscriptionTier,
+    paymentMethod: string,
+    amount: number,
+    paymentReference: string,
+    isYearly?: boolean,
+  ) => Promise<any>;
   cancelSubscription: () => Promise<any>;
   getUpgradeBenefits: (targetTier: SubscriptionTier) => string[];
   canAccessFeature: (featureKey: string, currentCount?: number) => boolean;
+  handleSessionExpired: (redirectTo?: string) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 // Static public pages
 const STATIC_PUBLIC_PAGES = [
-  '/',
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/auth',
-  '/auth/callback',
-  '/auth/login',
-  '/auth/register',
-  '/pricing',
-  '/pay'
+  "/",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/terms",
+  "/auth",
+  "/auth/callback",
+  "/auth/login",
+  "/auth/register",
+  "/pricing",
+  "/pay",
 ];
 
 // Regex patterns for dynamic public routes
@@ -121,6 +136,8 @@ const PUBLIC_PAGE_PATTERNS = [
   /^\/share\/[^\/]+$/,
   /^\/preview\/[^\/]+$/,
   /^\/public\/[^\/]+$/,
+  /^\/store\/[^\/]+$/,
+  /^\/store\/[^\/]+\/[^\/]+$/,
   /^\/blog(\/.*)?$/,
   /^\/news(\/.*)?$/,
   /^\/article(\/.*)?$/,
@@ -139,7 +156,7 @@ class NotificationCache {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl
+      ttl,
     });
   }
 
@@ -185,7 +202,7 @@ class SubscriptionCache {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: this.DEFAULT_TTL
+      ttl: this.DEFAULT_TTL,
     });
   }
 
@@ -215,54 +232,55 @@ const subscriptionCache = new SubscriptionCache();
 
 // Feature to tier mapping
 const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
-  // Free features
-  'manual_bookkeeping': 'free',
-  'auto_bookkeeping': 'free',
-  'payment_links': 'free',
-  'business_bank_account': 'free',
-  'basic_financial_overview': 'free',
-  'invoices_5': 'free',
-  'receipts_5': 'free',
-  
-  // Solopreneur features
-  'invoices_10': 'solopreneur',
-  'unlimited_receipts': 'solopreneur',
-  'branded_invoices': 'solopreneur',
-  'expense_tracking': 'solopreneur',
-  'financial_insights': 'solopreneur',
-  
-  // SME features
-  'bank_statement_upload': 'sme',
-  'connect_3_bank_accounts': 'sme',
-  'unlimited_invoices': 'sme',
-  'unlimited_receipts_sme': 'sme',
-  'vault': 'sme',
-  'tax_calculator': 'sme',
-  'financial_statements': 'sme',
-  'team_member_1': 'sme',
-  
-  // Enterprise features
-  'multi_user_access': 'enterprise',
-  'role_permissions': 'enterprise',
-  'approval_system': 'enterprise',
-  'connect_5_bank_accounts': 'enterprise',
-  'downloadable_reports': 'enterprise',
-  'contracts_10': 'enterprise',
-  'dedicated_onboarding': 'enterprise',
-  
-  // Corporation features
-  'unlimited_contracts': 'corporation',
-  'department_access': 'corporation',
-  'unlimited_bank_accounts': 'corporation',
-  'payroll_system': 'corporation',
-  'advanced_reporting': 'corporation',
-  'custom_financial_structure': 'corporation',
-  'priority_onboarding': 'corporation',
-  'dedicated_account_manager': 'corporation',
+  manual_bookkeeping: "free",
+  auto_bookkeeping: "free",
+  payment_links: "free",
+  business_bank_account: "free",
+  basic_financial_overview: "free",
+  invoices_5: "free",
+  receipts_5: "free",
+
+  invoices_10: "solopreneur",
+  unlimited_receipts: "solopreneur",
+  branded_invoices: "solopreneur",
+  expense_tracking: "solopreneur",
+  financial_insights: "solopreneur",
+
+  bank_statement_upload: "sme",
+  connect_3_bank_accounts: "sme",
+  unlimited_invoices: "sme",
+  unlimited_receipts_sme: "sme",
+  vault: "sme",
+  tax_calculator: "sme",
+  financial_statements: "sme",
+  team_member_1: "sme",
+
+  multi_user_access: "enterprise",
+  role_permissions: "enterprise",
+  approval_system: "enterprise",
+  connect_5_bank_accounts: "enterprise",
+  downloadable_reports: "enterprise",
+  contracts_10: "enterprise",
+  dedicated_onboarding: "enterprise",
+
+  unlimited_contracts: "corporation",
+  department_access: "corporation",
+  unlimited_bank_accounts: "corporation",
+  payroll_system: "corporation",
+  advanced_reporting: "corporation",
+  custom_financial_structure: "corporation",
+  priority_onboarding: "corporation",
+  dedicated_account_manager: "corporation",
 };
 
 // Tier hierarchy (lowest to highest)
-const TIER_HIERARCHY: SubscriptionTier[] = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
+const TIER_HIERARCHY: SubscriptionTier[] = [
+  "free",
+  "solopreneur",
+  "sme",
+  "enterprise",
+  "corporation",
+];
 
 // Plan limits configuration
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
@@ -281,7 +299,7 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
   solopreneur: {
     invoices: 10,
-    receipts: 'unlimited',
+    receipts: "unlimited",
     contracts: 0,
     teamMembers: 0,
     bankAccounts: 0,
@@ -293,8 +311,8 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     financialInsights: true,
   },
   sme: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
     contracts: 0,
     teamMembers: 1,
     bankAccounts: 3,
@@ -307,10 +325,10 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     financialStatements: true,
   },
   enterprise: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
     contracts: 10,
-    teamMembers: 'unlimited',
+    teamMembers: "unlimited",
     bankAccounts: 5,
     transferFee: 50,
     manualBookkeeping: true,
@@ -322,11 +340,11 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     dedicatedOnboarding: true,
   },
   corporation: {
-    invoices: 'unlimited',
-    receipts: 'unlimited',
-    contracts: 'unlimited',
-    teamMembers: 'unlimited',
-    bankAccounts: 'unlimited',
+    invoices: "unlimited",
+    receipts: "unlimited",
+    contracts: "unlimited",
+    teamMembers: "unlimited",
+    bankAccounts: "unlimited",
     transferFee: 50,
     manualBookkeeping: true,
     autoBookkeeping: true,
@@ -437,76 +455,134 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
   ],
 };
 
+// ─── Cookie / storage helpers ───
+const CLIENT_CLEARABLE_COOKIES = [
+  "sb-client-session",
+  "sb-login-time",
+  "verified",
+  "sb-user-data",
+  "payment_processed",
+];
+
+function clearClientCookies() {
+  if (typeof document === "undefined") return;
+
+  CLIENT_CLEARABLE_COOKIES.forEach((name) => {
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+  });
+}
+
+function clearClientStorage() {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem("userData");
+    localStorage.removeItem("zidwell_store_data");
+    localStorage.removeItem("zidwell_store_timestamp");
+    sessionStorage.removeItem("userData");
+    sessionStorage.removeItem("pendingStoreCheckout");
+    localStorage.removeItem("pendingStoreCheckout");
+  } catch (e) {
+    console.error("Failed to clear storage:", e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UserProvider
+// ═══════════════════════════════════════════════════════════════════════════
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [userData, setUserData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false); // Default: light mode
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [shouldFetchData, setShouldFetchData] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
   const [lifetimeBalance, setLifetimeBalance] = useState(0);
   const [totalOutflow, setTotalOutflow] = useState(0);
   const [totalTransactions, setTotalTransactions] = useState(0);
-  
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [notificationsLoading, setNotificationsLoading] = useState(false);
-  const [paymentProcessed, setPaymentProcessed] = useState(false);
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [notificationsLoading] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(
+    null,
+  );
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [sessionRestored, setSessionRestored] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
-  const sessionRestoreInProgress = useRef(false);
 
-  // Check if current page is public
+  // ─── Idempotency guard for session-expiry handling ───
+  const sessionExpiredRef = useRef(false);
+
+  // ─── Check if current page is public ───
   const isPublicPage = useCallback(() => {
     if (!pathname) return false;
-    
-    if (STATIC_PUBLIC_PAGES.some(page => pathname === page)) {
+
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname === page)) {
       return true;
     }
 
-    if (STATIC_PUBLIC_PAGES.some(page => pathname.startsWith(page + '/'))) {
+    if (STATIC_PUBLIC_PAGES.some((page) => pathname.startsWith(page + "/"))) {
       return true;
     }
 
-    if (PUBLIC_PAGE_PATTERNS.some(pattern => pattern.test(pathname))) {
+    if (PUBLIC_PAGE_PATTERNS.some((pattern) => pattern.test(pathname))) {
       return true;
     }
 
     return false;
   }, [pathname]);
 
-  // Clear session cookies
-  const clearSessionCookies = useCallback(() => {
-    document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-client-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "sb-login-time=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  }, []);
-
-  // Restore session from cookies
+  // ─── Centralized, idempotent session-expiration handler ───
+  const handleSessionExpired = useCallback(
+    async (redirectTo: string = "/auth/login") => {
+      if (sessionExpiredRef.current) return;
+      sessionExpiredRef.current = true;
+  
+      try {
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        }).catch(() => {});
+      } catch {}
+  
+      clearClientCookies();
+      clearClientStorage();
+   sessionStorage.removeItem("lastActivity");
+      setUser(null);
+      setUserData(null);
+      setShouldFetchData(false);
+      setBalance(null);
+      setNotifications([]);
+      setUnreadCount(0);
+      setLifetimeBalance(0);
+      setTotalOutflow(0);
+      setTotalTransactions(0);
+      setSubscription(null);
+      subscriptionCache.clear();
+      notificationCache.clear();
+  
+      router.replace(redirectTo);
+  
+      setTimeout(() => {
+        sessionExpiredRef.current = false;
+      }, 2000);
+    },
+    [router],
+  );
+  // ─── Restore session from cookies (via /api/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
-    if (sessionRestoreInProgress.current) return null;
-    
-    sessionRestoreInProgress.current = true;
-    
     try {
-      const hasSessionCookie = document.cookie.includes('sb-client-session=true');
-      
-      if (!hasSessionCookie) {
-        return null;
-      }
-
-      const response = await fetch('/api/me', {
-        credentials: 'include',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
+      const response = await fetch("/api/user/me", {
+        credentials: "include",
+        headers: { "Cache-Control": "no-cache" },
       });
 
       if (response.ok) {
@@ -514,102 +590,185 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         if (userProfile && userProfile.id) {
           return userProfile;
         }
-      } else if (response.status === 401) {
-        // Session expired, clear cookies
-        clearSessionCookies();
       }
-      
+
+      // 401 here does NOT mean the user is logged out — it means the
+      // server couldn't validate the token *this time*. The proxy refreshes
+      // tokens on the next navigation. Do NOT clear localStorage here.
+      if (response.status === 401) {
+        console.warn(
+          "⚠️ /api/me returned 401 — keeping cached data, will retry",
+        );
+        return null;
+      }
+
+      // Other statuses (500, 503) — also do not log out.
+      console.warn(
+        "⚠️ /api/me returned",
+        response.status,
+        "— keeping cached data",
+      );
       return null;
     } catch (error) {
-      console.error('Failed to restore session:', error);
+      console.error(
+        "Network error during /api/me — keeping cached data:",
+        error,
+      );
       return null;
-    } finally {
-      sessionRestoreInProgress.current = false;
     }
-  }, [clearSessionCookies]);
+  }, []);
 
-  // Initialize user from localStorage or session
-  const initializeUser = useCallback(async () => {
+  // ─── Refresh user profile (re-uses /api/me + localStorage cache) ───
+  const refreshUserProfile = useCallback(async () => {
+    if (!userData?.id) return;
+
     try {
-      // First check localStorage
-      const storedUser = localStorage.getItem("userData");
-      
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setUserData(parsedUser);
-        setShouldFetchData(!isPublicPage());
-        setLoading(false);
-        setInitialCheckDone(true);
+      const response = await fetch("/api/user/me", {
+        credentials: "include",
+        headers: { "Cache-Control": "no-cache" },
+      });
+
+      if (response.ok) {
+        const fresh = await response.json();
+
+        if (fresh && fresh.id) {
+          setUser(fresh);
+          setUserData(fresh);
+
+          try {
+            localStorage.setItem("userData", JSON.stringify(fresh));
+          } catch {
+            /* quota — non-fatal */
+          }
+
+          // Bust subscription cache so tier flips are picked up
+          subscriptionCache.delete(`subscription_${fresh.id}`);
+        }
         return;
       }
 
-      // No stored user, try to restore from session
-      const restoredUser = await restoreSessionFromCookies();
-      
-      if (restoredUser) {
-        setUser(restoredUser);
-        setUserData(restoredUser);
-        localStorage.setItem("userData", JSON.stringify(restoredUser));
+      // 401 / transient failure → keep cached data, do NOT log out
+      if (response.status === 401) {
+        console.warn("⚠️ refreshUserProfile got 401 — keeping cached data");
+        return;
+      }
+
+      console.warn(
+        "⚠️ refreshUserProfile got status",
+        response.status,
+        "— keeping cached data",
+      );
+    } catch (error) {
+      console.error("refreshUserProfile network error:", error);
+      // swallow — UI stays on cached data
+    }
+  }, [userData?.id]);
+
+  // ─── Initialize user — runs exactly ONCE on mount ───
+  const initializeUser = useCallback(async () => {
+    try {
+      // 1. Read cached user (display only — not auth proof)
+      const storedUser =
+        typeof window !== "undefined"
+          ? localStorage.getItem("userData")
+          : null;
+
+      let cached: any = null;
+      if (storedUser) {
+        try {
+          cached = JSON.parse(storedUser);
+        } catch (e) {
+          // Only remove if the stored JSON is actually corrupt
+          console.error("Corrupt userData in localStorage — removing");
+          localStorage.removeItem("userData");
+        }
+      }
+
+      // 2. Optimistically hydrate from cache so the UI doesn't flash
+      if (cached && cached.id) {
+        setUser(cached);
+        setUserData(cached);
         setShouldFetchData(!isPublicPage());
-        setSessionRestored(true);
-      } else {
+      }
+
+      // 3. Verify with the server
+      const verified = await restoreSessionFromCookies();
+
+      if (verified) {
+        setUser(verified);
+        setUserData(verified);
+        try {
+          localStorage.setItem("userData", JSON.stringify(verified));
+        } catch {
+          /* quota — non-fatal */
+        }
+        setShouldFetchData(!isPublicPage());
+      } else if (!cached || !cached.id) {
+        // No cached user AND no verified user → user is genuinely not logged in.
+        setUser(null);
+        setUserData(null);
         setShouldFetchData(false);
       }
-      
+      // If we HAD a cached user and /api/me failed transiently,
+      // keep the cached user in state. The proxy will sort out auth.
     } catch (error) {
-      console.error("Failed to initialize user:", error);
-      localStorage.removeItem("userData");
-      clearSessionCookies();
+      console.error("initializeUser threw:", error);
+      // Never wipe localStorage from here.
     } finally {
       setLoading(false);
       setInitialCheckDone(true);
+      setSessionRestored(true);
     }
-  }, [isPublicPage, restoreSessionFromCookies, clearSessionCookies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ← intentionally empty: runs once on mount
 
-  // Run initialization on mount
+  // Run initialization on mount — once only
   useEffect(() => {
     initializeUser();
-  }, [initializeUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Theme initialization - LIGHT MODE DEFAULT
+  // ─── Theme initialization - LIGHT MODE DEFAULT ───
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
-    
+
     if (storedTheme === "dark") {
-      // User previously chose dark mode
       setIsDarkMode(true);
       document.documentElement.classList.add("dark");
     } else {
-      // Default to light mode
       setIsDarkMode(false);
       document.documentElement.classList.remove("dark");
-      // Only set localStorage if not set to keep light as default
       if (!storedTheme) {
         localStorage.setItem("theme", "light");
       }
     }
   }, []);
 
-  // Watch for payment processed cookie
+  // ─── Watch for payment processed cookie ───
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hasPaymentCookie = document.cookie.includes('payment_processed=true');
+    if (typeof window !== "undefined") {
+      const hasPaymentCookie = document.cookie.includes(
+        "payment_processed=true",
+      );
       if (hasPaymentCookie) {
-        setPaymentProcessed(true);
-        document.cookie = 'payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        document.cookie =
+          "payment_processed=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       }
     }
   }, []);
 
-  // Watch for pathname changes
+  // ─── React to pathname / auth state changes ───
+  // NOTE: isPublicPage is intentionally omitted from deps — it's recreated
+  // on every pathname change and would cause this effect to over-fire.
   useEffect(() => {
     if (!initialCheckDone) return;
 
     const isPublic = isPublicPage();
-    setShouldFetchData(!isPublic);
-    
-    if (isPublic) {
+    const hasUser = !!userData?.id;
+
+    setShouldFetchData(!isPublic && hasUser);
+
+    if (isPublic || !hasUser) {
       setBalance(null);
       setNotifications([]);
       setUnreadCount(0);
@@ -618,35 +777,47 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setTotalTransactions(0);
       setSubscription(null);
     }
-  }, [pathname, initialCheckDone, isPublicPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, initialCheckDone, userData?.id]);
 
-  // Clear notification cache
+  // ─── Clear notification cache ───
   const clearNotificationCache = useCallback(() => {
     notificationCache.clear();
   }, []);
 
   // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
-  const fetchNotifications = useCallback(async (filter: string = 'all', limit: number = 50) => {
-    console.log('📢 Notifications API disabled - fetchNotifications called but skipped');
-    return;
-  }, []);
+  const fetchNotifications = useCallback(
+    async (filter: string = "all", limit: number = 50) => {
+      console.log(
+        "📢 Notifications API disabled - fetchNotifications called but skipped",
+      );
+      return;
+    },
+    [],
+  );
 
   const fetchUnreadCount = useCallback(async () => {
-    console.log('📢 Notifications API disabled - fetchUnreadCount called but skipped');
+    console.log(
+      "📢 Notifications API disabled - fetchUnreadCount called but skipped",
+    );
     return;
   }, []);
 
   const markAsRead = useCallback(async (notificationId: string) => {
-    console.log('📢 Notifications API disabled - markAsRead called but skipped');
+    console.log(
+      "📢 Notifications API disabled - markAsRead called but skipped",
+    );
     return;
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    console.log('📢 Notifications API disabled - markAllAsRead called but skipped');
+    console.log(
+      "📢 Notifications API disabled - markAllAsRead called but skipped",
+    );
     return;
   }, []);
 
-  // Fetch subscription data
+  // ─── Fetch subscription data ───
   const fetchSubscription = useCallback(async () => {
     if (!shouldFetchData || !userData?.id) {
       setSubscription(null);
@@ -655,7 +826,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const cacheKey = `subscription_${userData.id}`;
     const cached = subscriptionCache.get(cacheKey);
-    
+
     if (cached) {
       setSubscription(cached);
       return;
@@ -664,41 +835,51 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     setSubscriptionLoading(true);
     try {
       const response = await fetch(`/api/subscription`, {
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
+
+      // 401 → proxy will handle it on the next navigation.
+      // Do NOT trigger logout from here — it races the proxy's refresh.
+      if (response.status === 401) {
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.subscription) {
           const subscriptionData = {
             ...data.subscription,
-            expiresAt: data.subscription.expiresAt ? new Date(data.subscription.expiresAt) : null
+            expiresAt: data.subscription.expiresAt
+              ? new Date(data.subscription.expiresAt)
+              : null,
           };
           setSubscription(subscriptionData);
           subscriptionCache.set(cacheKey, subscriptionData);
-          
+
           setUserData((prev: any) => ({
             ...prev,
             subscription_tier: subscriptionData.tier,
-            subscription_expires_at: subscriptionData.expiresAt?.toISOString(),
+            subscription_expires_at:
+              subscriptionData.expiresAt?.toISOString(),
           }));
         }
       } else {
         const defaultSubscription: SubscriptionInfo = {
-          tier: 'free',
-          status: 'active',
+          tier: "free",
+          status: "active",
           expiresAt: null,
           features: {},
         };
         setSubscription(defaultSubscription);
       }
     } catch (error) {
-      console.error('❌ Error fetching subscription:', error);
+      console.error("❌ Error fetching subscription:", error);
       setSubscription({
-        tier: 'free',
-        status: 'active',
+        tier: "free",
+        status: "active",
         expiresAt: null,
         features: {},
       });
@@ -707,7 +888,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [shouldFetchData, userData?.id]);
 
-  // Refresh subscription
+  // ─── Refresh subscription ───
   const refreshSubscription = useCallback(async () => {
     if (userData?.id) {
       subscriptionCache.delete(`subscription_${userData.id}`);
@@ -715,156 +896,183 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, fetchSubscription]);
 
-  // Check feature access
-  const checkFeatureAccess = useCallback(async (
-    featureKey: string, 
-    currentCount?: number
-  ): Promise<{ hasAccess: boolean; limit?: number; message?: string; requiredTier?: SubscriptionTier }> => {
-    if (!subscription) {
-      return { 
-        hasAccess: false, 
-        message: "Unable to verify subscription",
-        requiredTier: FEATURE_TIER_MAP[featureKey] || 'free'
-      };
-    }
-
-    const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
-    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
-
-    if (userTierIndex < requiredTierIndex) {
-      return {
-        hasAccess: false,
-        message: `This feature requires the ${requiredTier} plan or higher`,
-        requiredTier,
-      };
-    }
-
-    if (!feature) {
-      return {
-        hasAccess: false,
-        message: `This feature is not available in your ${subscription.tier} plan`,
-        requiredTier,
-      };
-    }
-
-    if (feature.value === 'true') {
-      return { hasAccess: true };
-    }
-
-    if (feature.value === 'unlimited') {
-      return { hasAccess: true };
-    }
-
-    if (feature.limit && currentCount !== undefined) {
-      const limit = feature.limit;
-      if (currentCount >= limit) {
+  // ─── Check feature access ───
+  const checkFeatureAccess = useCallback(
+    async (
+      featureKey: string,
+      currentCount?: number,
+    ): Promise<{
+      hasAccess: boolean;
+      limit?: number;
+      message?: string;
+      requiredTier?: SubscriptionTier;
+    }> => {
+      if (!subscription) {
         return {
           hasAccess: false,
-          limit,
-          message: `You've reached your ${featureKey.replace(/_/g, ' ')} limit of ${limit} for the ${subscription.tier} plan`,
+          message: "Unable to verify subscription",
+          requiredTier: FEATURE_TIER_MAP[featureKey] || "free",
+        };
+      }
+
+      const feature = subscription.features[featureKey];
+      const requiredTier = FEATURE_TIER_MAP[featureKey] || "free";
+      const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+      const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
+
+      if (userTierIndex < requiredTierIndex) {
+        return {
+          hasAccess: false,
+          message: `This feature requires the ${requiredTier} plan or higher`,
           requiredTier,
         };
       }
-      return { hasAccess: true, limit };
-    }
 
-    return { hasAccess: true };
-  }, [subscription]);
-
-  // Check feature access synchronously
-  const canAccessFeature = useCallback((featureKey: string, currentCount?: number): boolean => {
-    if (!subscription) return false;
-
-    const feature = subscription.features[featureKey];
-    const requiredTier = FEATURE_TIER_MAP[featureKey] || 'free';
-    const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
-    const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
-
-    if (userTierIndex < requiredTierIndex) {
-      return false;
-    }
-
-    if (!feature) {
-      return false;
-    }
-
-    if (feature.value === 'true' || feature.value === 'unlimited') {
-      return true;
-    }
-
-    if (feature.limit && currentCount !== undefined) {
-      return currentCount < feature.limit;
-    }
-
-    return true;
-  }, [subscription]);
-
-  // Subscribe to a paid tier
-  const subscribe = useCallback(async (
-    tier: SubscriptionTier,
-    paymentMethod: string,
-    amount: number,
-    paymentReference: string,
-    isYearly: boolean = false
-  ) => {
-    if (!userData?.id) {
-      return { success: false, error: 'User not authenticated' };
-    }
-
-    try {
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'subscribe',
-          tier,
-          paymentMethod,
-          amount,
-          paymentReference,
-          isYearly,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        subscriptionCache.delete(`subscription_${userData.id}`);
-        await fetchSubscription();
-        
-        setUserData((prev: any) => ({
-          ...prev,
-          subscription_tier: tier,
-          subscription_expires_at: data.subscription?.expires_at,
-        }));
+      if (!feature) {
+        return {
+          hasAccess: false,
+          message: `This feature is not available in your ${subscription.tier} plan`,
+          requiredTier,
+        };
       }
 
-      return data;
-    } catch (error: any) {
-      console.error('❌ Error subscribing:', error);
-      return { success: false, error: error.message };
-    }
-  }, [userData?.id, fetchSubscription]);
+      if (feature.value === "true") {
+        return { hasAccess: true };
+      }
 
-  // Cancel subscription
+      if (feature.value === "unlimited") {
+        return { hasAccess: true };
+      }
+
+      if (feature.limit && currentCount !== undefined) {
+        const limit = feature.limit;
+        if (currentCount >= limit) {
+          return {
+            hasAccess: false,
+            limit,
+            message: `You've reached your ${featureKey.replace(
+              /_/g,
+              " ",
+            )} limit of ${limit} for the ${subscription.tier} plan`,
+            requiredTier,
+          };
+        }
+        return { hasAccess: true, limit };
+      }
+
+      return { hasAccess: true };
+    },
+    [subscription],
+  );
+
+  // ─── Check feature access synchronously ───
+  const canAccessFeature = useCallback(
+    (featureKey: string, currentCount?: number): boolean => {
+      if (!subscription) return false;
+
+      const feature = subscription.features[featureKey];
+      const requiredTier = FEATURE_TIER_MAP[featureKey] || "free";
+      const userTierIndex = TIER_HIERARCHY.indexOf(subscription.tier);
+      const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
+
+      if (userTierIndex < requiredTierIndex) {
+        return false;
+      }
+
+      if (!feature) {
+        return false;
+      }
+
+      if (feature.value === "true" || feature.value === "unlimited") {
+        return true;
+      }
+
+      if (feature.limit && currentCount !== undefined) {
+        return currentCount < feature.limit;
+      }
+
+      return true;
+    },
+    [subscription],
+  );
+
+  // ─── Subscribe to a paid tier ───
+  const subscribe = useCallback(
+    async (
+      tier: SubscriptionTier,
+      paymentMethod: string,
+      amount: number,
+      paymentReference: string,
+      isYearly: boolean = false,
+    ) => {
+      if (!userData?.id) {
+        return { success: false, error: "User not authenticated" };
+      }
+
+      try {
+        const response = await fetch("/api/subscription", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "subscribe",
+            tier,
+            paymentMethod,
+            amount,
+            paymentReference,
+            isYearly,
+          }),
+        });
+
+        if (response.status === 401) {
+          return { success: false, error: "Session expired" };
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+          subscriptionCache.delete(`subscription_${userData.id}`);
+          await fetchSubscription();
+
+          setUserData((prev: any) => ({
+            ...prev,
+            subscription_tier: tier,
+            subscription_expires_at: data.subscription?.expires_at,
+          }));
+        }
+
+        return data;
+      } catch (error: any) {
+        console.error("❌ Error subscribing:", error);
+        return { success: false, error: error.message };
+      }
+    },
+    [userData?.id, fetchSubscription],
+  );
+
+  // ─── Cancel subscription ───
   const cancelSubscription = useCallback(async () => {
     if (!userData?.id) {
-      return { success: false, error: 'User not authenticated' };
+      return { success: false, error: "User not authenticated" };
     }
 
     try {
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
+      const response = await fetch("/api/subscription", {
+        method: "POST",
+        credentials: "include",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: 'cancel',
+          action: "cancel",
         }),
       });
+
+      if (response.status === 401) {
+        return { success: false, error: "Session expired" };
+      }
 
       const data = await response.json();
 
@@ -875,25 +1083,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
       return data;
     } catch (error: any) {
-      console.error('❌ Error cancelling subscription:', error);
+      console.error("❌ Error cancelling subscription:", error);
       return { success: false, error: error.message };
     }
   }, [userData?.id, fetchSubscription]);
 
-  // Get upgrade benefits
-  const getUpgradeBenefits = useCallback((targetTier: SubscriptionTier): string[] => {
-    const currentTier = subscription?.tier || 'free';
-    const key = `${currentTier}_to_${targetTier}`;
-    return UPGRADE_BENEFITS[key] || [];
-  }, [subscription?.tier]);
+  // ─── Get upgrade benefits ───
+  const getUpgradeBenefits = useCallback(
+    (targetTier: SubscriptionTier): string[] => {
+      const currentTier = subscription?.tier || "free";
+      const key = `${currentTier}_to_${targetTier}`;
+      return UPGRADE_BENEFITS[key] || [];
+    },
+    [subscription?.tier],
+  );
 
-  // Get plan limits
+  // ─── Get plan limits ───
   const getPlanLimits = useCallback(() => {
-    const tier = subscription?.tier || 'free';
+    const tier = subscription?.tier || "free";
     return PLAN_LIMITS[tier];
   }, [subscription?.tier]);
 
-  // Fetch balance
+  // ─── Fetch balance ───
   useEffect(() => {
     const fetchBalance = async () => {
       if (!shouldFetchData || !userData?.id) return;
@@ -901,23 +1112,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       try {
         const res = await fetch("/api/wallet-balance", {
           method: "POST",
-          headers: { 
+          credentials: "include",
+          headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ userId: userData.id }),
         });
+
+        if (res.status === 401) {
+          // proxy will handle on next navigation
+          return;
+        }
 
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const data = await res.json();
 
         if (!data.success) {
-          throw new Error(data.error || 'Failed to fetch balance');
+          throw new Error(data.error || "Failed to fetch balance");
         }
 
         setBalance(data.wallet_balance ?? 0);
       } catch (error) {
-        console.error('❌ Error fetching balance:', error);
+        console.error("❌ Error fetching balance:", error);
         setBalance(userData?.zidcoinBalance ?? 0);
       }
     };
@@ -927,74 +1144,86 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
-  // Fetch transaction stats
+  // ─── Fetch transaction stats ───
   useEffect(() => {
-  const fetchTransactionStats = async () => {
-    if (!shouldFetchData || !userData?.id) return;
+    const fetchTransactionStats = async () => {
+      if (!shouldFetchData || !userData?.id) return;
 
-    const cacheKey = `transaction_stats_${userData.id}`;
-    const cached = notificationCache.get(cacheKey);
-    
-    if (cached) {
-      setLifetimeBalance(cached.lifetimeBalance);
-      setTotalOutflow(cached.totalOutflow);
-      setTotalTransactions(cached.totalTransactions);
-      return;
-    }
+      const cacheKey = `transaction_stats_${userData.id}`;
+      const cached = notificationCache.get(cacheKey);
 
-    try {
-      const res = await fetch("/api/total-inflow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: userData.id }),
-      });
-
-      const data = await res.json();
-      
-      if (data.success) {
-        const stats = {
-          // LIFETIME BALANCE = TOTAL INFLOW (money that has come into the account)
-          lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
-          totalOutflow: data.totalOutflow || 0,
-          totalTransactions: data.totalTransactions || 0,
-          totalInflow: data.totalInflow || 0,
-          netBalance: data.netBalance || 0,
-        };
-        
-        setLifetimeBalance(stats.lifetimeBalance);
-        setTotalOutflow(stats.totalOutflow);
-        setTotalTransactions(stats.totalTransactions);
-        notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
-      } else {
-        console.error('❌ API returned error:', data.error);
+      if (cached) {
+        setLifetimeBalance(cached.lifetimeBalance);
+        setTotalOutflow(cached.totalOutflow);
+        setTotalTransactions(cached.totalTransactions);
+        return;
       }
-    } catch (error) {
-      console.error('❌ Error fetching transaction stats:', error);
-    }
-  };
 
-  if (shouldFetchData && userData?.id) {
-    fetchTransactionStats();
-  }
-}, [userData?.id, shouldFetchData]);
-  // Fetch subscription on change
+      try {
+        const res = await fetch("/api/total-inflow", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.id }),
+        });
+
+        if (res.status === 401) {
+          // proxy will handle on next navigation
+          return;
+        }
+
+        const data = await res.json();
+
+        if (data.success) {
+          const stats = {
+            lifetimeBalance: data.lifetimeBalance || data.totalInflow || 0,
+            totalOutflow: data.totalOutflow || 0,
+            totalTransactions: data.totalTransactions || 0,
+            totalInflow: data.totalInflow || 0,
+            netBalance: data.netBalance || 0,
+          };
+
+          setLifetimeBalance(stats.lifetimeBalance);
+          setTotalOutflow(stats.totalOutflow);
+          setTotalTransactions(stats.totalTransactions);
+          notificationCache.set(cacheKey, stats, 5 * 60 * 1000);
+        } else {
+          console.error("❌ API returned error:", data.error);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching transaction stats:", error);
+      }
+    };
+
+    if (shouldFetchData && userData?.id) {
+      fetchTransactionStats();
+    }
+  }, [userData?.id, shouldFetchData]);
+
+  // ─── Fetch subscription on change ───
   useEffect(() => {
     if (shouldFetchData && userData?.id) {
       fetchSubscription();
     }
   }, [userData?.id, shouldFetchData, fetchSubscription]);
 
-  // Cache cleanup and refresh intervals
+  // ─── Cache cleanup and refresh intervals ───
   useEffect(() => {
     if (!shouldFetchData || !userData?.id) return;
 
-    const cleanupInterval = setInterval(() => {
-      notificationCache.cleanup();
-    }, 5 * 60 * 1000);
+    const cleanupInterval = setInterval(
+      () => {
+        notificationCache.cleanup();
+      },
+      5 * 60 * 1000,
+    );
 
-    const refreshInterval = setInterval(() => {
-      fetchSubscription();
-    }, 5 * 60 * 1000);
+    const refreshInterval = setInterval(
+      () => {
+        fetchSubscription();
+      },
+      5 * 60 * 1000,
+    );
 
     return () => {
       clearInterval(cleanupInterval);
@@ -1019,6 +1248,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         totalOutflow: shouldFetchData ? totalOutflow : 0,
         totalTransactions: shouldFetchData ? totalTransactions : 0,
         setUserData,
+        refreshUserProfile,
         loading,
         isDarkMode,
         setIsDarkMode,
@@ -1041,6 +1271,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         cancelSubscription,
         getUpgradeBenefits,
         canAccessFeature,
+        handleSessionExpired,
       }}
     >
       {children}

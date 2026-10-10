@@ -20,7 +20,7 @@ export default function TransferPage() {
       />
 
       {/* Main content - adjusted for sidebar */}
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         {/* Header with menu button */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 

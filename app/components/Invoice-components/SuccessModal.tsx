@@ -73,7 +73,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-primary)] rounded-xl p-4 sm:p-6 max-w-[95%] sm:max-w-lg md:max-w-4xl w-full mx-auto shadow-pop max-h-[90vh] overflow-y-auto border border-[var(--border-color)] squircle-lg">
+      <div className="bg-(--bg-primary) rounded-xl p-4 sm:p-6 max-w-[95%] sm:max-w-lg md:max-w-4xl w-full mx-auto shadow-pop max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
         {/* Header Section */}
         <div className="text-center mb-4 sm:mb-6">
           <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
@@ -92,10 +92,10 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
             </svg>
           </div>
 
-          <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] mb-1 sm:mb-2">
+          <h3 className="text-lg sm:text-xl font-bold text-(--text-primary) mb-1 sm:mb-2">
             Invoice Created Successfully! 🎉
           </h3>
-          <p className="text-sm sm:text-base text-[var(--text-secondary)]">
+          <p className="text-sm sm:text-base text-(--text-secondary)">
             Your invoice has been generated and is ready to share.
           </p>
         </div>
@@ -103,16 +103,16 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
         {/* Content Section */}
         <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
           {/* Download Option */}
-          <div className="rounded-lg border-2 border-[var(--border-color)] p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
+          <div className="rounded-lg border-2 border-(--border-color) p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center shrink-0">
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-secondary)]" />
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-(--text-secondary)" />
               </div>
               <div className="flex-1 w-full">
-                <h3 className="font-medium text-[var(--text-primary)] text-sm sm:text-base">
+                <h3 className="font-medium text-(--text-primary) text-sm sm:text-base">
                   Download PDF
                 </h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1">
+                <p className="text-xs sm:text-sm text-(--text-secondary) mt-0.5 sm:mt-1">
                   Download invoice as PDF with your signature.
                 </p>
                 {invoiceData && (
@@ -160,11 +160,11 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 
           {/* Share Link Option */}
           {generatedSigningLink && (
-            <div className="rounded-lg border-2 border-[var(--border-color)] p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
+            <div className="rounded-lg border-2 border-(--border-color) p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                 <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center shrink-0">
                   <svg
-                    className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--text-secondary)]"
+                    className="h-4 w-4 sm:h-5 sm:w-5 text-(--text-secondary)"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -178,14 +178,14 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                   </svg>
                 </div>
                 <div className="flex-1 w-full">
-                  <h3 className="font-medium text-[var(--text-primary)] text-sm sm:text-base">
+                  <h3 className="font-medium text-(--text-primary) text-sm sm:text-base">
                     Share Invoice Link
                   </h3>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-0.5 sm:mt-1">
+                  <p className="text-xs sm:text-sm text-(--text-secondary) mt-0.5 sm:mt-1">
                     Send this link to your client to view and pay.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-3">
-                    <div className="flex-1 rounded-lg bg-[var(--bg-secondary)] px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-mono text-[var(--text-secondary)] truncate">
+                    <div className="flex-1 rounded-lg bg-[var(--bg-secondary)] px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-mono text-(--text-secondary) truncate">
                       {generatedSigningLink}
                     </div>
                     <Button
@@ -207,7 +207,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                       )}
                     </Button>
                   </div>
-                  <div className="mt-2 text-xs text-[var(--text-secondary)] text-center sm:text-left">
+                  <div className="mt-2 text-xs text-(--text-secondary) text-center sm:text-left">
                     {allowMultiplePayments
                       ? "Share this link with multiple people - each provides their info and pays"
                       : "Share this invoice link with your client to view details and pay"}
@@ -219,11 +219,11 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-[var(--border-color)]">
+        <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-(--border-color)">
           <Button
             onClick={onClose}
             variant="outline"
-            className="w-full border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md text-sm sm:text-base py-2 sm:py-2.5"
+            className="w-full border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md text-sm sm:text-base py-2 sm:py-2.5"
           >
             Close
           </Button>

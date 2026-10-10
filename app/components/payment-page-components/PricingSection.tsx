@@ -125,7 +125,7 @@ export function PricingSection({
               <span className="text-(--text-secondary)">
                 Transaction Fee (2% capped at ₦2,000):
               </span>
-              <span className="font-medium text-[var(--destructive)]">
+              <span className="font-medium text-destructive">
                 - ₦{feeCalculation.fee.toLocaleString()}
               </span>
             </div>
@@ -176,7 +176,7 @@ export function PricingSection({
               <span className="text-(--text-secondary)">
                 Fee Deducted Per Installment:
               </span>
-              <span className="font-semibold text-[var(--destructive)]">
+              <span className="font-semibold text-destructive">
                 - ₦{getFeePerInstallment().toLocaleString()}
               </span>
             </div>

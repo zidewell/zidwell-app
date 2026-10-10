@@ -45,7 +45,7 @@ export default function KPICard({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             {icon && <div className="text-[var(--text-muted)] group-hover:text-[var(--color-amber)] transition-colors duration-300">{icon}</div>}
-            <div className="text-sm font-medium text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors duration-300">
+            <div className="text-sm font-medium text-[var(--text-muted)] group-hover:text-(--text-primary) transition-colors duration-300">
               {title}
             </div>
           </div>
@@ -53,7 +53,7 @@ export default function KPICard({
         </div>
 
         <div className="mb-1">
-          <div className="text-2xl font-bold font-[var(--font-space-grotesk)] tracking-tight text-[var(--text-primary)] truncate">
+          <div className="text-2xl font-bold font-(--font-space-grotesk) tracking-tight text-(--text-primary) truncate">
             {typeof value === 'number' ? value.toLocaleString() : value}
           </div>
         </div>

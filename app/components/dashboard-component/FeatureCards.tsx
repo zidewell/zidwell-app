@@ -16,31 +16,22 @@ import {
   Clock,
   Lightbulb,
   Tv,
-  Smartphone,
-  Scale,
   FileSpreadsheet,
-  ChartColumnIncreasing,
+  Store,
+  Zap,
+  FolderLock,
+  MapPin,
+  Target,
 } from "lucide-react";
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
+
+import { canAccessPaymentPage } from "@/lib/constants";
 
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
-
-const ALLOWED_PAYMENT_EMAILS = new Set([
-  "characterinternational@gmail.com",
-  "abdullahtimilehin15@gmail.com",
-  "ebrusikefavour@gmail.com",
-  "skillfidelafrica@gmail.com",
-  "abbalolo360@gmail.com",
-]);
-
-const canAccessPaymentPage = (userEmail?: string | null) => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAILS.has(userEmail.toLowerCase());
-};
 
 const getFeatures = (userEmail?: string | null) => {
   const baseFeatures = [
@@ -49,7 +40,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Bookkeeping",
       desc: "Track daily income & expenses",
       icon: BookOpen,
-      color: "bg-(--color-accent-yellow) text-(--color-ink)",
+      gradient: "from-amber-400 to-yellow-500",
+      iconBg: "bg-amber-50 dark:bg-amber-950/30",
+      iconColor: "text-amber-600 dark:text-amber-400",
       link: "/dashboard/services/bookkeeping",
       requiredTier: "growth",
       featureKey: "bookkeeping_access",
@@ -60,7 +53,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Invoice",
       desc: "Create & send invoices",
       icon: FileText,
-      color: "bg-[#3b82f6] text-white",
+      gradient: "from-blue-500 to-indigo-600",
+      iconBg: "bg-blue-50 dark:bg-blue-950/30",
+      iconColor: "text-blue-600 dark:text-blue-400",
       link: "/dashboard/services/create-invoice",
       requiredTier: "free",
       featureKey: "invoices_per_month",
@@ -71,7 +66,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Receipt",
       desc: "Issue digital receipts",
       icon: Receipt,
-      color: "bg-(--color-accent-yellow) text-(--color-ink)",
+      gradient: "from-emerald-500 to-teal-600",
+      iconBg: "bg-emerald-50 dark:bg-emerald-950/30",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
       link: "/dashboard/services/receipt",
       requiredTier: "free",
       featureKey: "receipts_per_month",
@@ -82,7 +79,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Contracts",
       desc: "Manage business contracts",
       icon: FileSignature,
-      color: "bg-[#f5b041] text-[#141414]",
+      gradient: "from-orange-500 to-amber-600",
+      iconBg: "bg-orange-50 dark:bg-orange-950/30",
+      iconColor: "text-orange-600 dark:text-orange-400",
       link: "/dashboard/services/contract",
       requiredTier: "free",
       featureKey: "contracts_per_month",
@@ -93,7 +92,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Tax Manager",
       desc: "File your taxes",
       icon: FileSpreadsheet,
-      color: "bg-(--color-accent-yellow) text-(--color-ink)",
+      gradient: "from-violet-500 to-purple-600",
+      iconBg: "bg-violet-50 dark:bg-violet-950/30",
+      iconColor: "text-violet-600 dark:text-violet-400",
       link: "/dashboard/services/tax-filing",
       requiredTier: "premium",
       featureKey: "tax_support",
@@ -104,7 +105,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Fund Wallet",
       desc: "Top up your wallet",
       icon: Wallet,
-      color: "bg-(--color-accent-yellow) text-(--color-ink)",
+      gradient: "from-green-500 to-emerald-600",
+      iconBg: "bg-green-50 dark:bg-green-950/30",
+      iconColor: "text-green-600 dark:text-green-400",
       link: "/dashboard/fund-account",
       requiredTier: "free",
       featureKey: "wallet_funding",
@@ -115,7 +118,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Transfer",
       desc: "Send money instantly",
       icon: ArrowLeftRight,
-      color: "bg-(--color-accent-yellow) text-(--color-ink)",
+      gradient: "from-sky-500 to-cyan-600",
+      iconBg: "bg-sky-50 dark:bg-sky-950/30",
+      iconColor: "text-sky-600 dark:text-sky-400",
       link: "/dashboard/fund-account/transfer-page",
       requiredTier: "free",
       featureKey: "transfers",
@@ -126,7 +131,9 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Buy Airtime",
       desc: "Recharge any network",
       icon: Phone,
-      color: "bg-[#f5b041] text-[#141414]",
+      gradient: "from-rose-500 to-pink-600",
+      iconBg: "bg-rose-50 dark:bg-rose-950/30",
+      iconColor: "text-rose-600 dark:text-rose-400",
       link: "/dashboard/services/buy-airtime",
       requiredTier: "free",
       featureKey: "airtime",
@@ -137,51 +144,103 @@ const getFeatures = (userEmail?: string | null) => {
       title: "Buy Data",
       desc: "Purchase data bundles",
       icon: Wifi,
-      color: "bg-[#db3a34] text-white",
+      gradient: "from-cyan-500 to-blue-600",
+      iconBg: "bg-cyan-50 dark:bg-cyan-950/30",
+      iconColor: "text-cyan-600 dark:text-cyan-400",
       link: "/dashboard/services/buy-data",
       requiredTier: "free",
       featureKey: "data",
       type: "utility",
     },
-    {
-      id: 10,
-      title: "Buy Light",
-      desc: "Pay electricity bills",
-      icon: Lightbulb,
-      color: "bg-[#f5b041] text-[#141414]",
-      link: "/dashboard/services/buy-power",
-      requiredTier: "free",
-      featureKey: "electricity",
-      type: "utility",
-    },
+    // {
+    //   id: 10,
+    //   title: "Buy Light",
+    //   desc: "Pay electricity bills",
+    //   icon: Lightbulb,
+    //   gradient: "from-yellow-500 to-orange-500",
+    //   iconBg: "bg-yellow-50 dark:bg-yellow-950/30",
+    //   iconColor: "text-yellow-600 dark:text-yellow-400",
+    //   link: "/dashboard/services/buy-power",
+    //   requiredTier: "free",
+    //   featureKey: "electricity",
+    //   type: "utility",
+    // },
     {
       id: 11,
       title: "Cable TV",
       desc: "Pay TV subscription",
       icon: Tv,
-      color: "bg-[#3b82f6] text-white",
+      gradient: "from-indigo-500 to-blue-600",
+      iconBg: "bg-indigo-50 dark:bg-indigo-950/30",
+      iconColor: "text-indigo-600 dark:text-indigo-400",
       link: "/dashboard/services/buy-cable-tv",
       requiredTier: "free",
       featureKey: "cable_tv",
       type: "utility",
     },
+    // -------- Business Suite (Coming Soon placeholders) --------
+    {
+      id: 12,
+      title: "Document Vault",
+      desc: "Securely store & share files",
+      icon: FolderLock,
+      gradient: "from-slate-500 to-gray-700",
+      iconBg: "bg-slate-50 dark:bg-slate-950/30",
+      iconColor: "text-slate-600 dark:text-slate-300",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "document_vault",
+      type: "suite",
+      comingSoon: true,
+    },
+    {
+      id: 13,
+      title: "Virtual Office",
+      desc: "Get a real mailing address",
+      icon: MapPin,
+      gradient: "from-teal-500 to-emerald-600",
+      iconBg: "bg-teal-50 dark:bg-teal-950/30",
+      iconColor: "text-teal-600 dark:text-teal-400",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "virtual_office",
+      type: "suite",
+      comingSoon: true,
+    },
+    {
+      id: 14,
+      title: "Business Plan",
+      desc: "Set goals & stay accountable",
+      icon: Target,
+      gradient: "from-purple-500 to-violet-600",
+      iconBg: "bg-purple-50 dark:bg-purple-950/30",
+      iconColor: "text-purple-600 dark:text-purple-400",
+      link: "#",
+      requiredTier: "growth",
+      featureKey: "business_plan",
+      type: "suite",
+      comingSoon: true,
+    },
   ];
 
   if (canAccessPaymentPage(userEmail)) {
     baseFeatures.push({
-      id: 12,
-      title: "Payment Page",
-      desc: "Accept payments online",
-      icon: CreditCard,
-      color: "bg-[#3b82f6] text-white",
+      id: 1.5,
+      title: "Online Store",
+      desc: "Buy products online",
+      icon: Store,
+      gradient: "from-fuchsia-500 to-purple-600",
+      iconBg: "bg-fuchsia-50 dark:bg-fuchsia-950/30",
+      iconColor: "text-fuchsia-600 dark:text-fuchsia-400",
       link: "/dashboard/services/payment/dashboard",
       requiredTier: "growth",
-      featureKey: "payment_pages",
+      featureKey: "online_store",
       type: "payment",
-    });
+      isNew: true,
+    } as any);
   }
 
-  return baseFeatures.sort((a, b) => a.id - b.id);
+  return baseFeatures.sort((a: any, b: any) => a.id - b.id);
 };
 
 const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
@@ -202,7 +261,11 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
     "/dashboard/services/create-invoice",
   ];
 
-  const handleFeatureClick = (feature: (typeof features)[0]) => {
+  const handleFeatureClick = (feature: any) => {
+    // Coming soon + placeholder links: do nothing
+    if (feature.comingSoon) return;
+    if (feature.link === "#") return;
+
     const isVerified = userData?.bvnVerification === "verified";
     const requiresBVN = bvnRequiredServices.includes(feature.link);
 
@@ -211,13 +274,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
       return;
     }
 
-    if (feature.type === "utility") {
-      router.push(feature.link);
-      onActionComplete?.();
-      return;
-    }
-
-    if (feature.type === "payment") {
+    if (feature.type === "utility" || feature.type === "payment") {
       router.push(feature.link);
       onActionComplete?.();
       return;
@@ -275,16 +332,21 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   const getProgressColor = (percentage: number) => {
     if (percentage >= 90) return "bg-red-500";
     if (percentage >= 70) return "bg-yellow-500";
-    return "bg-(--color-accent-yellow)";
+    return "bg-emerald-500";
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6">
-      {features.map((feature) => {
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+      {features.map((feature: any) => {
         const isUtility = feature.type === "utility";
         const isPayment = feature.type === "payment";
+        const isSuite = feature.type === "suite";
+        const isNew = feature.isNew === true;
+        const comingSoon = feature.comingSoon === true;
         const hasAccess =
-          isUtility || isPayment ? true : canAccessFeature(feature.featureKey);
+          isUtility || isPayment
+            ? true
+            : canAccessFeature(feature.featureKey);
         const remaining = getRemainingCount(feature.featureKey);
         const progress = getProgressPercentage(feature.featureKey);
         const Icon = feature.icon;
@@ -293,112 +355,176 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
         const hasBookkeepingTrial =
           feature.featureKey === "bookkeeping_access" &&
           usage?.bookkeepingTrial?.isActive;
-        const isDisabled =
+
+        // Coming soon items are always "locked" (non-clickable)
+        const isLocked =
+          comingSoon ||
           (requiresBVN && !isVerified) ||
           (!hasAccess && !isUtility && !isPayment && !hasBookkeepingTrial);
+
+        // Show the "Soon" badge for coming soon items instead of "New"
+        const showNewBadge = isNew && !comingSoon && !isLocked;
+        const showSoonBadge = comingSoon;
 
         return (
           <button
             key={feature.id}
             onClick={() => handleFeatureClick(feature)}
             className={`
-              group relative flex flex-col items-center gap-3 p-4 
-              bg-(--bg-primary) border-2 border-(--border-color) rounded-md
-              shadow-[2px_2px_0px_var(--border-color)] 
-              hover:shadow-[6px_6px_0px_var(--border-color)] dark:hover:shadow-[6px_6px_0px_rgba(253,192,32,0.4)] 
-              hover:-translate-x-px hover:-translate-y-px
-              active:shadow-none active:translate-x-0.5 active:translate-y-0.5
-              transition-all duration-150 text-center
-              ${isDisabled ? "opacity-75 cursor-not-allowed" : "cursor-pointer"}
+              group relative flex flex-col items-start gap-3 p-4 sm:p-5
+              bg-white dark:bg-neutral-900
+              border rounded-2xl
+              shadow-sm
+              hover:shadow-md hover:-translate-y-0.5
+              active:translate-y-0 active:shadow-sm
+              transition-all duration-200 ease-out
+              text-left w-full
+              ${
+                comingSoon
+                  ? "border-amber-200/70 dark:border-amber-500/25 ring-1 ring-amber-100/60 dark:ring-amber-500/10 opacity-90 cursor-not-allowed"
+                  : isNew && !isLocked
+                    ? "border-amber-200 dark:border-amber-500/30 ring-1 ring-amber-100 dark:ring-amber-500/10"
+                    : "border-neutral-200/80 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700"
+              }
+              ${isLocked && !comingSoon ? "opacity-60 cursor-not-allowed" : ""}
+              ${!isLocked && !comingSoon ? "cursor-pointer" : ""}
             `}
-            disabled={isDisabled}
+            disabled={isLocked}
           >
-            {requiresBVN && !isVerified && (
-              <div className="absolute top-2 right-2">
-                <Lock className="w-4 h-4 text-red-500" />
-              </div>
-            )}
-            {!hasAccess &&
-              !isUtility &&
-              !isPayment &&
-              !hasBookkeepingTrial &&
-              !requiresBVN && (
-                <div className="absolute top-2 right-2">
-                  <Lock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                </div>
+            {/* Top-right status badge cluster */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              {/* SOON — for coming soon features */}
+              {showSoonBadge && (
+                <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                  Soon
+                </span>
               )}
-            {hasBookkeepingTrial && (
-              <div className="absolute top-2 right-2">
-                <Clock className="w-4 h-4 text-green-500" />
-              </div>
-            )}
 
+              {/* NEW — only for genuine new releases (e.g. Online Store) */}
+              {showNewBadge && (
+                <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                  New
+                </span>
+              )}
+
+              {requiresBVN && !isVerified && !comingSoon && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-[10px] font-semibold">
+                  <Lock className="w-2.5 h-2.5" />
+                  BVN
+                </span>
+              )}
+              {!hasAccess &&
+                !isUtility &&
+                !isPayment &&
+                !hasBookkeepingTrial &&
+                !requiresBVN &&
+                !comingSoon && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[10px] font-semibold">
+                    <Lock className="w-2.5 h-2.5" />
+                    {feature.requiredTier}
+                  </span>
+                )}
+              {hasBookkeepingTrial && !comingSoon && (
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-semibold">
+                  <Clock className="w-2.5 h-2.5" />
+                  {usage.bookkeepingTrial.daysRemaining}d
+                </span>
+              )}
+            </div>
+
+            {/* Icon */}
+            <div
+              className={`
+                relative flex items-center justify-center
+                w-11 h-11 sm:w-12 sm:h-12
+                rounded-xl
+                ${feature.iconBg}
+                ${feature.iconColor}
+                transition-transform duration-200
+                group-hover:scale-105
+              `}
+            >
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+            </div>
+
+            {/* Text content */}
+            <div className="flex flex-col gap-0.5 w-full">
+              <span className="text-sm sm:text-[15px] font-semibold text-neutral-900 dark:text-neutral-100 leading-tight">
+                {feature.title}
+              </span>
+              <span className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 leading-snug line-clamp-2">
+                {feature.desc}
+              </span>
+            </div>
+
+            {/* Usage badge for free tier (only for non-suite, non-coming-soon) */}
             {userTier === "free" &&
               remaining !== null &&
               !isUtility &&
               !isPayment &&
-              !hasBookkeepingTrial && (
-                <div className="absolute top-2 left-2">
+              !hasBookkeepingTrial &&
+              !comingSoon && (
+                <div className="flex items-center justify-between w-full mt-auto pt-1">
                   <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                       remaining <= 1
-                        ? "bg-red-100 text-red-600"
+                        ? "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400"
                         : remaining <= 3
-                          ? "bg-yellow-100 text-yellow-600"
-                          : "bg-green-100 text-green-600"
+                          ? "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400"
+                          : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
                     }`}
                   >
                     {remaining} left
                   </span>
+                  {progress > 0 && (
+                    <div className="w-12 h-1 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${getProgressColor(progress)}`}
+                        style={{ width: `${Math.min(progress, 100)}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
-            {hasBookkeepingTrial && (
-              <div className="absolute top-2 left-2">
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-600">
-                  {usage.bookkeepingTrial.daysRemaining} days trial
-                </span>
-              </div>
-            )}
-
-            <div
-              className={`p-3.5 rounded-md border-2 border-(--border-color) ${feature.color}`}
-            >
-              <Icon className="w-5 h-5" />
-            </div>
-
-            <span className="text-sm font-bold text-(--text-primary) uppercase tracking-wide">
-              {feature.title}
-            </span>
-            <span className="text-xs text-(--text-secondary) leading-tight hidden sm:block font-sans">
-              {feature.desc}
-            </span>
-
-            {requiresBVN && !isVerified && (
-              <span className="text-xs text-red-500 mt-1">BVN required</span>
-            )}
+            {/* Upgrade hint — hidden for coming soon items */}
             {!hasAccess &&
               !isUtility &&
               !isPayment &&
               !hasBookkeepingTrial &&
-              !requiresBVN && (
-                <span className="text-xs text-(--color-accent-yellow) mt-1">
+              !requiresBVN &&
+              !comingSoon && (
+                <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                  <Zap className="w-3 h-3" />
                   Upgrade to {feature.requiredTier}
-                </span>
-              )}
-
-            {userTier === "free" &&
-              progress > 0 &&
-              !isUtility &&
-              !isPayment &&
-              !hasBookkeepingTrial && (
-                <div className="mt-2 w-full h-1 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${getProgressColor(progress)}`}
-                    style={{ width: `${Math.min(progress, 100)}%` }}
-                  />
                 </div>
               )}
+
+            {/* Coming Soon hint */}
+            {comingSoon && (
+              <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                <Clock className="w-3 h-3" />
+                Coming Soon
+              </div>
+            )}
+
+            {/* BVN required hint */}
+            {requiresBVN && !isVerified && !comingSoon && (
+              <div className="flex items-center gap-1 mt-auto pt-1 text-[10px] font-semibold text-red-500 dark:text-red-400">
+                <Lock className="w-3 h-3" />
+                Verify BVN to unlock
+              </div>
+            )}
+
+            {/* Subtle gradient accent on hover */}
+            <div
+              className={`
+                pointer-events-none absolute inset-0 rounded-2xl
+                bg-gradient-to-br ${feature.gradient}
+                opacity-0 group-hover:opacity-[0.03]
+                transition-opacity duration-200
+              `}
+            />
           </button>
         );
       })}

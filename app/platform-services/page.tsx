@@ -3,12 +3,13 @@ import React from "react";
 import { Shield, Smartphone, Tv, Zap } from "lucide-react";
 import BillTableSection from "../components/BillTableSrction";
 import { billPlans } from "../components/bills-data/billProviders";
-import Header from "../components/home-component-old/Header";
+import { Nav } from "../components/home-component/Nav";
+
 
 const page = () => {
   return (
     <>
-      <Header />
+      <Nav />
       <div className="min-h-screen bg-gray-50 py-4 md:py-8 ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}

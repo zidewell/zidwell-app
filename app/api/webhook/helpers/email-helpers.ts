@@ -16,8 +16,7 @@ const supabase = createClient(
 
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-const cheersImageUrl =
-  `${baseUrl}/cheers-transanction.gif` || `${baseUrl}/cheers-transanction.gif`;
+const cheersImageUrl = `${baseUrl}/cheers-transanction.gif`;
 
 function getLogoBase64() {
   try {
@@ -43,6 +42,13 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   return Buffer.from(pdf);
 }
 
+// currency formatter — inline to avoid circular imports
+const formatNaira = (value: number) =>
+  `₦${Number(value || 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 async function sendInvoiceCreatorNotificationEmail(
   creatorEmail: string,
   invoiceId: string,
@@ -55,14 +61,14 @@ async function sendInvoiceCreatorNotificationEmail(
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 Payment Received - ₦${amount.toLocaleString()}`,
+      subject: `💰 Payment Received - ${formatNaira(amount)}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
           <h3 style="color: #22c55e;">✅ Payment Received!</h3>
           <p>You've received a payment for invoice <strong>${invoiceId}</strong>.</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+            <p><strong>Amount:</strong> ${formatNaira(amount)}</p>
             <p><strong>Customer:</strong> ${customerName}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
           </div>
@@ -76,6 +82,15 @@ async function sendInvoiceCreatorNotificationEmail(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VIRTUAL ACCOUNT DEPOSIT EMAIL
+//
+// `inflowFee` is the amount Zidwell charged the user for the inflow.
+// Nomba's fee is absorbed by Zidwell and NOT shown to the user.
+//
+// Backwards-compatible: if `inflowFee` is undefined, defaults to 0
+// (no fee shown, full amount credited).
+// ─────────────────────────────────────────────────────────────────────────────
 async function sendVirtualAccountDepositEmail(
   userId: string,
   amount: number,
@@ -85,7 +100,7 @@ async function sendVirtualAccountDepositEmail(
   accountName: string,
   senderName: string,
   narration?: string,
-  nombaFee?: number,
+  inflowFee: number = 0,
 ) {
   try {
     const { data: user, error } = await supabase
@@ -94,35 +109,88 @@ async function sendVirtualAccountDepositEmail(
       .eq("id", userId)
       .single();
 
-    if (error || !user) return;
+    if (error || !user) {
+      console.error("❌ Cannot find user for deposit email:", userId, error);
+      return;
+    }
 
-    const creditedAmount = amount - (nombaFee || 0);
+    if (!user.email) {
+      console.error("❌ User has no email address:", userId);
+      return;
+    }
+
+    const netCredit = amount - inflowFee;
+    const feeRowHtml =
+      inflowFee > 0
+        ? `
+          <tr>
+            <td style="padding: 6px 0; color: #444;"><strong>Fee:</strong></td>
+            <td style="padding: 6px 0; text-align: right;">${formatNaira(inflowFee)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #444;"><strong>Net Credit:</strong></td>
+            <td style="padding: 6px 0; text-align: right; color: #16a34a; font-weight: 700;">${formatNaira(netCredit)}</td>
+          </tr>
+        `
+        : `
+          <tr>
+            <td style="padding: 6px 0; color: #444;"><strong>Net Credit:</strong></td>
+            <td style="padding: 6px 0; text-align: right; color: #16a34a; font-weight: 700;">${formatNaira(netCredit)}</td>
+          </tr>
+        `;
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: `💰 Account Deposit Received - ₦${amount.toLocaleString()}`,
+      subject: `💰 Account Deposit Received - ${formatNaira(amount)}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Credit alert</h3>
+          <h3 style="color: #22c55e;">✅ Credit Alert</h3>
           <p>Hi ${user.first_name || "there"},</p>
-           <img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount Received:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Sender:</strong> ${senderName}</p>
-            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+          <img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
+          <div style="background: #f8fafc; padding: 15px 20px; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <tr>
+                <td style="padding: 6px 0; color: #444;"><strong>Amount Received:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${formatNaira(amount)}</td>
+              </tr>
+              ${feeRowHtml}
+              <tr>
+                <td style="padding: 6px 0; color: #444;"><strong>Bank:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${bankName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #444;"><strong>Sender:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${senderName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #444;"><strong>Narration:</strong></td>
+                <td style="padding: 6px 0; text-align: right;">${narration || "N/A"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #444;"><strong>Reference:</strong></td>
+                <td style="padding: 6px 0; text-align: right; font-size: 12px;">${transactionId}</td>
+              </tr>
+            </table>
           </div>
+          <p style="margin-top: 15px; color: #16a34a; font-weight: 600;">
+            ${formatNaira(netCredit)} has been credited to your Zidwell wallet.
+          </p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
         </div>
       `,
     });
+
+    console.log(`✅ Deposit email sent to ${user.email}`);
   } catch (error) {
     console.error("Failed to send deposit email:", error);
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// WITHDRAWAL EMAIL — unchanged (already handles fee correctly)
+// ─────────────────────────────────────────────────────────────────────────────
 async function sendWithdrawalEmail(
   userId: string,
   status: "success" | "failed",
@@ -167,8 +235,8 @@ async function sendWithdrawalEmail(
       to: user.email,
       subject:
         status === "success"
-          ? `✅ Transfer Successful - ₦${amount.toLocaleString()}`
-          : `❌ Transfer Failed - ₦${amount.toLocaleString()}`,
+          ? `✅ Transfer Successful - ${formatNaira(amount)}`
+          : `❌ Transfer Failed - ${formatNaira(amount)}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
@@ -177,8 +245,8 @@ async function sendWithdrawalEmail(
           </h3>
           <p>Hi ${user.first_name || "there"},</p>
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            ${fee ? `<p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>` : ""}
+            <p><strong>Amount:</strong> ${formatNaira(amount)}</p>
+            ${fee ? `<p><strong>Fee:</strong> ${formatNaira(fee)}</p>` : ""}
             <p><strong>Recipient:</strong> ${recipientName}</p>
             <p><strong>Account:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>
@@ -193,7 +261,7 @@ async function sendWithdrawalEmail(
 
     if (status === "success" && receiptHtml && transactionId) {
       console.log(`📎 Attempting to attach receipt for transaction ${transactionId}`);
-      
+
       try {
         const logo = getLogoBase64();
         let finalHtml = receiptHtml;
@@ -203,11 +271,11 @@ async function sendWithdrawalEmail(
             `src="${logo}"`
           );
         }
-        
+
         console.log('🔄 Generating PDF with Puppeteer...');
         const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
         console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
-        
+
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
@@ -216,7 +284,7 @@ async function sendWithdrawalEmail(
           }
         ];
         console.log(`✅ PDF receipt attached for transaction ${transactionId}`);
-        
+
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for email:", pdfError);
         console.log(`⚠️ Email sent without PDF attachment`);
@@ -235,26 +303,22 @@ async function sendWithdrawalEmail(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// generateTransferReceipt — fee removed from user-facing receipt
+// ─────────────────────────────────────────────────────────────────────────────
 function generateTransferReceipt(data: any): string {
-  const amountDisplay = `${Number(data.amount).toLocaleString("en-NG", { 
+  const amountDisplay = Number(data.amount).toLocaleString("en-NG", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2 
-  })}`;
-  
-  const formattedDate = new Date(data.date).toLocaleString('en-GB', { 
-    day: 'numeric', 
-    month: 'long', 
+    maximumFractionDigits: 2
+  });
+
+  const formattedDate = new Date(data.date).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'long',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
   });
-
-  const feeDisplay = data.fee && data.fee > 0 
-    ? `₦${Number(data.fee).toLocaleString("en-NG", { 
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2 
-      })}` 
-    : "";
 
   const escapeHtml = (str: string) => {
     if (!str) return '';
@@ -413,26 +477,6 @@ function generateTransferReceipt(data: any): string {
       </div>
     </div>
     ` : ''}
-    ${data.fee && data.fee > 0 ? `
-    <div class="detail-row">
-      <div class="left">
-        <div class="icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-        </div>
-        <div class="narration-wrapper">
-          <div>
-            <div class="detail-title">Fee</div>
-          </div>
-          <div class="right">${feeDisplay}</div>
-        </div>
-      </div>
-    </div>
-    ` : ''}
     <div class="detail-row detail-row-last">
       <div class="left">
         <div class="icon">
@@ -460,7 +504,7 @@ function generateTransferReceipt(data: any): string {
 </html>`;
 }
 
-export { 
+export {
   getLogoBase64,
   generatePdfBufferFromHtml,
   sendInvoiceCreatorNotificationEmail,

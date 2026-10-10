@@ -26,7 +26,7 @@ export const DashboardHeader = ({ range, onRangeChange, onRefresh }: DashboardHe
             <Sparkles className="w-5 h-5 text-[var(--color-amber)]" />
           </div>
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold font-[var(--font-space-grotesk)] tracking-tight bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl font-bold font-(--font-space-grotesk) tracking-tight bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
               Admin Dashboard
             </h2>
             <p className="text-sm text-[var(--text-muted)] flex items-center gap-2">
@@ -58,7 +58,7 @@ export const DashboardHeader = ({ range, onRangeChange, onRefresh }: DashboardHe
 
         <button
           onClick={onRefresh}
-          className="group flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300 hover:shadow-md mt-6 sm:mt-0"
+          className="group flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl text-sm font-medium text-(--text-secondary) hover:text-(--text-primary) transition-all duration-300 hover:shadow-md mt-6 sm:mt-0"
         >
           <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
           <span className="hidden sm:inline">Refresh</span>

@@ -115,7 +115,7 @@ function SearchInput({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-(--text-secondary)">
         {isLoading ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : (
@@ -128,13 +128,13 @@ function SearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pl-9 pr-9 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] squircle-md"
+        className="pl-9 pr-9 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) squircle-md"
         style={{ outline: "none", boxShadow: "none" }}
       />
       {value && (
         <button
           onClick={handleClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
           aria-label="Clear search"
         >
           <X className="w-4 h-4" />
@@ -159,46 +159,46 @@ function SuspendUserModal({ user, isOpen, onClose, onConfirm }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+      <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
-            <UserX className="w-5 h-5 text-[var(--destructive)]" />
+          <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
+            <UserX className="w-5 h-5 text-destructive" />
             Suspend User
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Temporarily suspend {user?.email}'s account access.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Suspension Duration</Label>
+            <Label className="text-(--text-primary)">Suspension Duration</Label>
             <Select value={duration} onValueChange={setDuration}>
-              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+              <SelectTrigger className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                <SelectItem value="1" className="text-[var(--text-primary)]">1 Day</SelectItem>
-                <SelectItem value="3" className="text-[var(--text-primary)]">3 Days</SelectItem>
-                <SelectItem value="7" className="text-[var(--text-primary)]">7 Days</SelectItem>
-                <SelectItem value="14" className="text-[var(--text-primary)]">14 Days</SelectItem>
-                <SelectItem value="30" className="text-[var(--text-primary)]">30 Days</SelectItem>
-                <SelectItem value="permanent" className="text-[var(--destructive)]">Permanent</SelectItem>
+              <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                <SelectItem value="1" className="text-(--text-primary)">1 Day</SelectItem>
+                <SelectItem value="3" className="text-(--text-primary)">3 Days</SelectItem>
+                <SelectItem value="7" className="text-(--text-primary)">7 Days</SelectItem>
+                <SelectItem value="14" className="text-(--text-primary)">14 Days</SelectItem>
+                <SelectItem value="30" className="text-(--text-primary)">30 Days</SelectItem>
+                <SelectItem value="permanent" className="text-destructive">Permanent</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Reason (Optional)</Label>
+            <Label className="text-(--text-primary)">Reason (Optional)</Label>
             <Textarea
               placeholder="Enter reason for suspension..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md min-h-[80px]"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+          <Button variant="outline" onClick={onClose} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
             Cancel
           </Button>
           <Button onClick={handleConfirm} className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md">
@@ -225,46 +225,46 @@ function FlagUserModal({ user, isOpen, onClose, onConfirm }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+      <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+          <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
             <Flag className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Flag User
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Flag {user?.email}'s account as suspicious or high-risk.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Flag Reason</Label>
+            <Label className="text-(--text-primary)">Flag Reason</Label>
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+              <SelectTrigger className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                 <SelectValue placeholder="Select reason..." />
               </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                <SelectItem value="suspicious_activity" className="text-[var(--text-primary)]">Suspicious Activity</SelectItem>
-                <SelectItem value="multiple_failures" className="text-[var(--text-primary)]">Multiple Login Failures</SelectItem>
-                <SelectItem value="unusual_transactions" className="text-[var(--text-primary)]">Unusual Transactions</SelectItem>
-                <SelectItem value="identity_verification" className="text-[var(--text-primary)]">Identity Verification Issue</SelectItem>
-                <SelectItem value="policy_violation" className="text-[var(--text-primary)]">Policy Violation</SelectItem>
-                <SelectItem value="other" className="text-[var(--text-primary)]">Other</SelectItem>
+              <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                <SelectItem value="suspicious_activity" className="text-(--text-primary)">Suspicious Activity</SelectItem>
+                <SelectItem value="multiple_failures" className="text-(--text-primary)">Multiple Login Failures</SelectItem>
+                <SelectItem value="unusual_transactions" className="text-(--text-primary)">Unusual Transactions</SelectItem>
+                <SelectItem value="identity_verification" className="text-(--text-primary)">Identity Verification Issue</SelectItem>
+                <SelectItem value="policy_violation" className="text-(--text-primary)">Policy Violation</SelectItem>
+                <SelectItem value="other" className="text-(--text-primary)">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Internal Notes</Label>
+            <Label className="text-(--text-primary)">Internal Notes</Label>
             <Textarea
               placeholder="Add internal notes about this flag..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md min-h-[80px]"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+          <Button variant="outline" onClick={onClose} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
             Cancel
           </Button>
           <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
@@ -289,30 +289,30 @@ function FreezeWalletModal({ user, isOpen, onClose, onConfirm }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+      <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+          <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
             <Wallet className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Freeze Wallet
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Temporarily freeze {user?.email}'s wallet to prevent transactions.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Reason for Freezing</Label>
+            <Label className="text-(--text-primary)">Reason for Freezing</Label>
             <Textarea
               placeholder="Enter reason for freezing wallet..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md min-h-[80px]"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+          <Button variant="outline" onClick={onClose} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
             Cancel
           </Button>
           <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
@@ -342,42 +342,42 @@ function SetTransactionLimitModal({ user, isOpen, onClose, onConfirm }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+      <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+          <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
             <Shield className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Set Transaction Limits
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Set daily and monthly transaction limits for {user?.email}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Daily Transaction Limit (₦)</Label>
+            <Label className="text-(--text-primary)">Daily Transaction Limit (₦)</Label>
             <Input
               type="number"
               placeholder="Enter daily limit..."
               value={dailyLimit}
               onChange={(e) => setDailyLimit(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Monthly Transaction Limit (₦)</Label>
+            <Label className="text-(--text-primary)">Monthly Transaction Limit (₦)</Label>
             <Input
               type="number"
               placeholder="Enter monthly limit..."
               value={monthlyLimit}
               onChange={(e) => setMonthlyLimit(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+          <Button variant="outline" onClick={onClose} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
             Cancel
           </Button>
           <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
@@ -404,46 +404,46 @@ function RequestDocumentsModal({ user, isOpen, onClose, onConfirm }: any) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+      <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
+          <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
             <FileText className="w-5 h-5 text-[var(--color-accent-yellow)]" />
             Request Additional Documents
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
+          <DialogDescription className="text-(--text-secondary)">
             Request additional verification documents from {user?.email}.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Document Type</Label>
+            <Label className="text-(--text-primary)">Document Type</Label>
             <Select value={documentType} onValueChange={setDocumentType}>
-              <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+              <SelectTrigger className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                 <SelectValue placeholder="Select document type..." />
               </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                <SelectItem value="id_verification" className="text-[var(--text-primary)]">ID Verification</SelectItem>
-                <SelectItem value="proof_of_address" className="text-[var(--text-primary)]">Proof of Address</SelectItem>
-                <SelectItem value="bank_statement" className="text-[var(--text-primary)]">Bank Statement</SelectItem>
-                <SelectItem value="business_registration" className="text-[var(--text-primary)]">Business Registration</SelectItem>
-                <SelectItem value="tax_clearance" className="text-[var(--text-primary)]">Tax Clearance</SelectItem>
-                <SelectItem value="other" className="text-[var(--text-primary)]">Other</SelectItem>
+              <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                <SelectItem value="id_verification" className="text-(--text-primary)">ID Verification</SelectItem>
+                <SelectItem value="proof_of_address" className="text-(--text-primary)">Proof of Address</SelectItem>
+                <SelectItem value="bank_statement" className="text-(--text-primary)">Bank Statement</SelectItem>
+                <SelectItem value="business_registration" className="text-(--text-primary)">Business Registration</SelectItem>
+                <SelectItem value="tax_clearance" className="text-(--text-primary)">Tax Clearance</SelectItem>
+                <SelectItem value="other" className="text-(--text-primary)">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-[var(--text-primary)]">Message to User</Label>
+            <Label className="text-(--text-primary)">Message to User</Label>
             <Textarea
               placeholder="Enter message explaining what documents are needed..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[80px]"
+              className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md min-h-[80px]"
               style={{ outline: "none", boxShadow: "none" }}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+          <Button variant="outline" onClick={onClose} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
             Cancel
           </Button>
           <Button onClick={handleConfirm} className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-md">
@@ -1061,7 +1061,7 @@ export default function UsersPage() {
   const renderStatusCell = (value: string, row: any) => {
     if (row.is_blocked) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-[var(--destructive)]">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-destructive">
           ⛔ Suspended
         </span>
       );
@@ -1095,19 +1095,19 @@ export default function UsersPage() {
       );
     } else if (value === "not_submitted") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-(--text-secondary)">
           ○ Not Started
         </span>
       );
     } else if (value === "rejected") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-[var(--destructive)]">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--destructive)]/20 text-destructive">
           ✗ Rejected
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-(--text-secondary)">
         {value || "Unknown"}
       </span>
     );
@@ -1118,8 +1118,8 @@ export default function UsersPage() {
     let balanceClass = "";
     if (amount > HIGH_BALANCE_THRESHOLD) balanceClass = "font-bold text-purple-600";
     else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0) balanceClass = "text-[var(--color-accent-yellow)]";
-    else if (amount < 0) balanceClass = "font-medium text-[var(--destructive)]";
-    else if (amount === 0) balanceClass = "text-[var(--text-secondary)]";
+    else if (amount < 0) balanceClass = "font-medium text-destructive";
+    else if (amount === 0) balanceClass = "text-(--text-secondary)";
     else balanceClass = "text-[var(--color-lemon-green)]";
 
     return <span className={`font-medium ${balanceClass}`}>₦{amount.toLocaleString()}</span>;
@@ -1128,7 +1128,7 @@ export default function UsersPage() {
   const renderRoleCell = (value: string) => {
     if (!value || value === "user") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+        <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-(--text-secondary)">
           User
         </span>
       );
@@ -1152,7 +1152,7 @@ export default function UsersPage() {
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)]">
+      <span className="inline-flex items-center px-2.5 py-0.5 squircle-sm text-xs font-medium bg-[var(--bg-secondary)] text-(--text-secondary)">
         {value || "User"}
       </span>
     );
@@ -1199,7 +1199,7 @@ export default function UsersPage() {
       label: "Suspend User",
       onClick: handleSuspendUser,
       icon: <UserX className="w-4 h-4" />,
-      className: "text-[var(--destructive)]"
+      className: "text-destructive"
     });
 
     actions.push({
@@ -1220,7 +1220,7 @@ export default function UsersPage() {
         label: "Reject KYC",
         onClick: handleRejectKYC,
         icon: <XCircle className="w-4 h-4" />,
-        className: "text-[var(--destructive)]"
+        className: "text-destructive"
       });
       actions.push({
         label: "Request Documents",
@@ -1271,19 +1271,19 @@ export default function UsersPage() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-full sm:w-[500px] overflow-y-auto bg-[var(--bg-primary)] border-l border-[var(--border-color)]"
+        className="w-full sm:w-[500px] overflow-y-auto bg-(--bg-primary) border-l border-(--border-color)"
       >
         <SheetHeader>
-          <SheetTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)]">
+          <SheetTitle className="font-(--font-space-grotesk) text-(--text-primary)">
             Export Options
           </SheetTitle>
-          <SheetDescription className="text-[var(--text-secondary)]">
+          <SheetDescription className="text-(--text-secondary)">
             Choose what data to export and which fields to include
           </SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-6">
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-[var(--text-primary)]">Export Type</Label>
+            <Label className="text-sm font-semibold text-(--text-primary)">Export Type</Label>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
                 <input
@@ -1293,7 +1293,7 @@ export default function UsersPage() {
                   onChange={() => setExportOptions({ ...exportOptions, exportType: "current" })}
                   className="w-4 h-4 accent-[var(--color-accent-yellow)]"
                 />
-                <Label htmlFor="exportCurrent" className="text-[var(--text-secondary)]">
+                <Label htmlFor="exportCurrent" className="text-(--text-secondary)">
                   Current View ({activeTab === "verified" ? "Verified Users" : "Pending KYC Users"})
                 </Label>
               </div>
@@ -1305,7 +1305,7 @@ export default function UsersPage() {
                   onChange={() => setExportOptions({ ...exportOptions, exportType: "all" })}
                   className="w-4 h-4 accent-[var(--color-accent-yellow)]"
                 />
-                <Label htmlFor="exportAll" className="text-[var(--text-secondary)]">
+                <Label htmlFor="exportAll" className="text-(--text-secondary)">
                   All Users (All Users in System)
                 </Label>
               </div>
@@ -1314,27 +1314,27 @@ export default function UsersPage() {
 
           {exportOptions.exportType === "all" && (
             <div className="space-y-3">
-              <Label className="text-sm font-semibold text-[var(--text-primary)]">User Type</Label>
+              <Label className="text-sm font-semibold text-(--text-primary)">User Type</Label>
               <Select
                 value={exportOptions.userType}
                 onValueChange={(value: "verified" | "pending" | "both") =>
                   setExportOptions({ ...exportOptions, userType: value })
                 }
               >
-                <SelectTrigger className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)]">
+                <SelectTrigger className="border-(--border-color) bg-(--bg-primary) text-(--text-primary)">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                  <SelectItem value="both" className="text-[var(--text-primary)]">All Users (Both Verified & Pending)</SelectItem>
-                  <SelectItem value="verified" className="text-[var(--text-primary)]">Verified Users Only</SelectItem>
-                  <SelectItem value="pending" className="text-[var(--text-primary)]">Pending KYC Users Only</SelectItem>
+                <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                  <SelectItem value="both" className="text-(--text-primary)">All Users (Both Verified & Pending)</SelectItem>
+                  <SelectItem value="verified" className="text-(--text-primary)">Verified Users Only</SelectItem>
+                  <SelectItem value="pending" className="text-(--text-primary)">Pending KYC Users Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           )}
 
           <div className="space-y-3">
-            <Label className="text-sm font-semibold text-[var(--text-primary)]">
+            <Label className="text-sm font-semibold text-(--text-primary)">
               Select Fields to Export
             </Label>
             <div className="grid grid-cols-2 gap-3">
@@ -1354,7 +1354,7 @@ export default function UsersPage() {
                     }
                     className="data-[state=checked]:bg-[var(--color-accent-yellow)] data-[state=checked]:border-[var(--color-accent-yellow)]"
                   />
-                  <Label htmlFor={`field${key}`} className="text-[var(--text-secondary)] text-sm">
+                  <Label htmlFor={`field${key}`} className="text-(--text-secondary) text-sm">
                     {key === "fullName" ? "Full Name" :
                      key === "kycStatus" ? "KYC Status" :
                      key === "registrationDate" ? "Registration Date" :
@@ -1511,7 +1511,7 @@ export default function UsersPage() {
     return (
       <AdminLayout>
         <div className="p-6">
-          <p className="text-[var(--destructive)]">Failed to load users ❌</p>
+          <p className="text-destructive">Failed to load users ❌</p>
         </div>
       </AdminLayout>
     );
@@ -1559,30 +1559,30 @@ export default function UsersPage() {
         />
 
         <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
-          <DialogContent className="bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg max-w-md">
+          <DialogContent className="bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg max-w-md">
             <DialogHeader>
-              <DialogTitle className="font-[var(--font-space-grotesk)] text-[var(--text-primary)] flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-[var(--destructive)]" />
+              <DialogTitle className="font-(--font-space-grotesk) text-(--text-primary) flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-destructive" />
                 Reject KYC
               </DialogTitle>
-              <DialogDescription className="text-[var(--text-secondary)]">
+              <DialogDescription className="text-(--text-secondary)">
                 Please provide a reason for rejecting {selectedUser?.email}'s KYC.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label className="text-[var(--text-primary)]">Rejection Reason</Label>
+                <Label className="text-(--text-primary)">Rejection Reason</Label>
                 <Textarea
                   placeholder="Enter reason for KYC rejection..."
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  className="border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] squircle-md min-h-[100px]"
+                  className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) squircle-md min-h-[100px]"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowRejectModal(false)} className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md">
+              <Button variant="outline" onClick={() => setShowRejectModal(false)} className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md">
                 Cancel
               </Button>
               <Button onClick={handleConfirmReject} className="bg-[var(--destructive)] text-white hover:bg-[var(--destructive)]/90 squircle-md">
@@ -1594,7 +1594,7 @@ export default function UsersPage() {
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h2 className="text-xl md:text-2xl font-semibold font-[var(--font-space-grotesk)] text-[var(--text-primary)]">
+          <h2 className="text-xl md:text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
             Users Management
           </h2>
           <div className="flex gap-2 flex-wrap">
@@ -1602,7 +1602,7 @@ export default function UsersPage() {
             <Button 
               variant="outline" 
               onClick={() => mutate()}
-              className="border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+              className="border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
@@ -1612,23 +1612,23 @@ export default function UsersPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-3 md:gap-4">
-          <div className="bg-[var(--bg-primary)] p-3 md:p-4 border border-[var(--border-color)] shadow-soft squircle-lg">
-            <h3 className="text-xs md:text-sm font-medium text-[var(--text-secondary)]">
+          <div className="bg-(--bg-primary) p-3 md:p-4 border border-(--border-color) shadow-soft squircle-lg">
+            <h3 className="text-xs md:text-sm font-medium text-(--text-secondary)">
               Verified Users
             </h3>
-            <p className="text-xl md:text-2xl font-semibold text-[var(--color-lemon-green)] font-[var(--font-space-grotesk)]">
+            <p className="text-xl md:text-2xl font-semibold text-[var(--color-lemon-green)] font-(--font-space-grotesk)">
               {verifiedCount}
             </p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Completed KYC</p>
+            <p className="text-xs text-(--text-secondary) mt-1">Completed KYC</p>
           </div>
-          <div className="bg-[var(--bg-primary)] p-3 md:p-4 border border-[var(--border-color)] shadow-soft squircle-lg">
-            <h3 className="text-xs md:text-sm font-medium text-[var(--text-secondary)]">
+          <div className="bg-(--bg-primary) p-3 md:p-4 border border-(--border-color) shadow-soft squircle-lg">
+            <h3 className="text-xs md:text-sm font-medium text-(--text-secondary)">
               Pending KYC
             </h3>
-            <p className="text-xl md:text-2xl font-semibold text-[var(--color-accent-yellow)] font-[var(--font-space-grotesk)]">
+            <p className="text-xl md:text-2xl font-semibold text-[var(--color-accent-yellow)] font-(--font-space-grotesk)">
               {pendingCount}
             </p>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Awaiting verification</p>
+            <p className="text-xs text-(--text-secondary) mt-1">Awaiting verification</p>
           </div>
         </div>
 
@@ -1637,13 +1637,13 @@ export default function UsersPage() {
           <TabsList className="grid w-full max-w-md grid-cols-2 bg-[var(--bg-secondary)] p-1 squircle-md">
             <TabsTrigger 
               value="verified" 
-              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-[var(--text-secondary)] squircle-sm transition-all"
+              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-(--text-secondary) squircle-sm transition-all"
             >
               Verified ({verifiedCount})
             </TabsTrigger>
             <TabsTrigger 
               value="pending" 
-              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-[var(--text-secondary)] squircle-sm transition-all"
+              className="text-xs md:text-sm data-[state=active]:bg-[var(--color-accent-yellow)] data-[state=active]:text-[var(--color-ink)] text-(--text-secondary) squircle-sm transition-all"
             >
               Pending KYC ({pendingCount})
             </TabsTrigger>
@@ -1666,13 +1666,13 @@ export default function UsersPage() {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                  <SelectTrigger className="w-full sm:w-1/6 border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                    <SelectItem value="all" className="text-[var(--text-primary)]">All</SelectItem>
-                    <SelectItem value="active" className="text-[var(--text-primary)]">Active</SelectItem>
-                    <SelectItem value="blocked" className="text-[var(--text-primary)]">Suspended</SelectItem>
+                  <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                    <SelectItem value="all" className="text-(--text-primary)">All</SelectItem>
+                    <SelectItem value="active" className="text-(--text-primary)">Active</SelectItem>
+                    <SelectItem value="blocked" className="text-(--text-primary)">Suspended</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select 
@@ -1682,15 +1682,15 @@ export default function UsersPage() {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                  <SelectTrigger className="w-full sm:w-1/6 border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                    <SelectItem value="all" className="text-[var(--text-primary)]">All Roles</SelectItem>
-                    <SelectItem value="user" className="text-[var(--text-primary)]">User</SelectItem>
-                    <SelectItem value="super_admin" className="text-[var(--text-primary)]">Super Admin</SelectItem>
-                    <SelectItem value="operations_admin" className="text-[var(--text-primary)]">Operations Admin</SelectItem>
-                    <SelectItem value="support_admin" className="text-[var(--text-primary)]">Support Admin</SelectItem>
+                  <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                    <SelectItem value="all" className="text-(--text-primary)">All Roles</SelectItem>
+                    <SelectItem value="user" className="text-(--text-primary)">User</SelectItem>
+                    <SelectItem value="super_admin" className="text-(--text-primary)">Super Admin</SelectItem>
+                    <SelectItem value="operations_admin" className="text-(--text-primary)">Operations Admin</SelectItem>
+                    <SelectItem value="support_admin" className="text-(--text-primary)">Support Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1702,15 +1702,15 @@ export default function UsersPage() {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                  <SelectTrigger className="w-full sm:w-1/6 border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                     <SelectValue placeholder="Activity" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                    <SelectItem value="all" className="text-[var(--text-primary)]">All Activity</SelectItem>
-                    <SelectItem value="active" className="text-[var(--text-primary)]">Active (30 days)</SelectItem>
-                    <SelectItem value="today" className="text-[var(--text-primary)]">Today</SelectItem>
-                    <SelectItem value="week" className="text-[var(--text-primary)]">This Week</SelectItem>
-                    <SelectItem value="inactive" className="text-[var(--text-primary)]">Inactive</SelectItem>
+                  <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                    <SelectItem value="all" className="text-(--text-primary)">All Activity</SelectItem>
+                    <SelectItem value="active" className="text-(--text-primary)">Active (30 days)</SelectItem>
+                    <SelectItem value="today" className="text-(--text-primary)">Today</SelectItem>
+                    <SelectItem value="week" className="text-(--text-primary)">This Week</SelectItem>
+                    <SelectItem value="inactive" className="text-(--text-primary)">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select 
@@ -1720,67 +1720,67 @@ export default function UsersPage() {
                     setCurrentPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-full sm:w-1/6 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] squircle-md">
+                  <SelectTrigger className="w-full sm:w-1/6 border-(--border-color) bg-(--bg-primary) text-(--text-primary) squircle-md">
                     <SelectValue placeholder="Balance" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-primary)] border-[var(--border-color)]">
-                    <SelectItem value="all" className="text-[var(--text-primary)]">All Balances</SelectItem>
-                    <SelectItem value="high" className="text-[var(--text-primary)]">High Balance</SelectItem>
-                    <SelectItem value="low" className="text-[var(--text-primary)]">Low Balance</SelectItem>
-                    <SelectItem value="negative" className="text-[var(--text-primary)]">Negative</SelectItem>
-                    <SelectItem value="zero" className="text-[var(--text-primary)]">Zero</SelectItem>
+                  <SelectContent className="bg-(--bg-primary) border-(--border-color)">
+                    <SelectItem value="all" className="text-(--text-primary)">All Balances</SelectItem>
+                    <SelectItem value="high" className="text-(--text-primary)">High Balance</SelectItem>
+                    <SelectItem value="low" className="text-(--text-primary)">Low Balance</SelectItem>
+                    <SelectItem value="negative" className="text-(--text-primary)">Negative</SelectItem>
+                    <SelectItem value="zero" className="text-(--text-primary)">Zero</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
               {debouncedSearchTerm && (
-                <div className="text-sm text-[var(--text-secondary)]">
-                  Found <span className="font-medium text-[var(--text-primary)]">{total}</span> results for "{debouncedSearchTerm}"
+                <div className="text-sm text-(--text-secondary)">
+                  Found <span className="font-medium text-(--text-primary)">{total}</span> results for "{debouncedSearchTerm}"
                 </div>
               )}
               
               {(statusFilter !== "all" || roleFilter !== "all" || activityFilter !== "all" || balanceFilter !== "all") && (
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-[var(--text-secondary)]">Active filters:</span>
+                  <span className="text-sm text-(--text-secondary)">Active filters:</span>
                   {statusFilter !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-(--text-primary)">
                       Status: {statusFilter === "active" ? "Active" : "Suspended"}
                       <button 
                         onClick={() => setStatusFilter("all")}
-                        className="ml-1 hover:text-[var(--destructive)]"
+                        className="ml-1 hover:text-destructive"
                       >
                         ×
                       </button>
                     </span>
                   )}
                   {roleFilter !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-(--text-primary)">
                       Role: {roleFilter}
                       <button 
                         onClick={() => setRoleFilter("all")}
-                        className="ml-1 hover:text-[var(--destructive)]"
+                        className="ml-1 hover:text-destructive"
                       >
                         ×
                       </button>
                     </span>
                   )}
                   {activityFilter !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-(--text-primary)">
                       Activity: {activityFilter}
                       <button 
                         onClick={() => setActivityFilter("all")}
-                        className="ml-1 hover:text-[var(--destructive)]"
+                        className="ml-1 hover:text-destructive"
                       >
                         ×
                       </button>
                     </span>
                   )}
                   {balanceFilter !== "all" && (
-                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                    <span className="inline-flex items-center px-2 py-1 squircle-sm text-xs bg-[var(--bg-secondary)] text-(--text-primary)">
                       Balance: {balanceFilter}
                       <button 
                         onClick={() => setBalanceFilter("all")}
-                        className="ml-1 hover:text-[var(--destructive)]"
+                        className="ml-1 hover:text-destructive"
                       >
                         ×
                       </button>
@@ -1810,8 +1810,8 @@ export default function UsersPage() {
             />
             
             {debouncedSearchTerm && (
-              <div className="text-sm text-[var(--text-secondary)]">
-                Found <span className="font-medium text-[var(--text-primary)]">{total}</span> results for "{debouncedSearchTerm}"
+              <div className="text-sm text-(--text-secondary)">
+                Found <span className="font-medium text-(--text-primary)">{total}</span> results for "{debouncedSearchTerm}"
               </div>
             )}
             
@@ -1835,7 +1835,7 @@ export default function UsersPage() {
                 <PaginationItem>
                   <PaginationPrevious
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"}
                   />
                 </PaginationItem>
                 {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
@@ -1853,7 +1853,7 @@ export default function UsersPage() {
                         className={`${isMobile ? "hidden sm:inline-flex" : "inline-flex"} ${
                           pageNum === currentPage
                             ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                            : "text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                            : "text-(--text-primary) hover:bg-[var(--bg-secondary)]"
                         } squircle-md transition-all`}
                       >
                         {pageNum}
@@ -1864,7 +1864,7 @@ export default function UsersPage() {
                 <PaginationItem>
                   <PaginationNext
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"}
                   />
                 </PaginationItem>
               </PaginationContent>
@@ -1872,7 +1872,7 @@ export default function UsersPage() {
           </div>
         )}
 
-        <div className="text-sm text-[var(--text-secondary)] text-center">
+        <div className="text-sm text-(--text-secondary) text-center">
           Showing {users.length} of {total} users
           {debouncedSearchTerm && ` matching "${debouncedSearchTerm}"`}
         </div>

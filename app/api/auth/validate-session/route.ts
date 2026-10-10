@@ -1,80 +1,74 @@
 // app/api/auth/validate-session/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
-const getSupabaseAdmin = () => createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
+// Always returns 200. The client reads `data.valid`.
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const accessToken = cookieStore.get("sb-access-token")?.value;
+    const accessToken = req.cookies.get("sb-access-token")?.value;
+    const sessionId = req.cookies.get("sb-session-id")?.value;
 
-    if (!accessToken) {
+    if (!accessToken || !sessionId) {
       return NextResponse.json(
-        { valid: false, reason: "missing_session" },
-        { status: 401 }
+        {
+          valid: false,
+          reason: !accessToken
+            ? "missing_access_token"
+            : "missing_session_id",
+        },
+        { status: 200 },
       );
     }
 
     const supabase = getSupabaseAdmin();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(accessToken);
 
     if (error || !user) {
       return NextResponse.json(
-        { valid: false, reason: "invalid_token" },
-        { status: 401 }
+        { valid: false, reason: "invalid_access_token" },
+        { status: 200 },
       );
     }
 
-    // Check if user is blocked by admin
-    const { data: userData, error: dbError } = await supabase
-      .from('users')
-      .select('current_session_expires_at, is_blocked')
-      .eq('id', user.id)
+    const { data: userData } = await supabase
+      .from("users")
+      .select("current_session_id, current_session_expires_at")
+      .eq("id", user.id)
       .single();
 
-    if (dbError || !userData) {
+    if (!userData) {
       return NextResponse.json(
         { valid: false, reason: "user_not_found" },
-        { status: 401 }
+        { status: 200 },
       );
     }
 
-    if (userData.is_blocked) {
+    if (userData.current_session_id !== sessionId) {
       return NextResponse.json(
-        { valid: false, reason: "account_blocked" },
-        { status: 403 }
+        { valid: false, reason: "session_id_mismatch" },
+        { status: 200 },
       );
     }
 
-    // Check expiration
-    if (userData.current_session_expires_at && new Date(userData.current_session_expires_at) < new Date()) {
-      return NextResponse.json(
-        { valid: false, reason: "session_expired" },
-        { status: 401 }
-      );
+    if (userData.current_session_expires_at) {
+      const expiresAt = new Date(userData.current_session_expires_at).getTime();
+      if (Date.now() > expiresAt) {
+        return NextResponse.json(
+          { valid: false, reason: "session_expired_in_db" },
+          { status: 200 },
+        );
+      }
     }
 
-    // BEST PRACTICE: Removed concurrent login check.
-    // Modern users expect to be logged in on phone + laptop + tablet simultaneously.
-    // The Supabase JWT is the source of truth for session validity.
-
-    return NextResponse.json({
-      valid: true,
-      userId: user.id,
-      email: user.email,
-    });
-
+    return NextResponse.json({ valid: true });
   } catch (error) {
     console.error("Session validation error:", error);
     return NextResponse.json(
-      { valid: false, reason: "server_error" },
-      { status: 500 }
+      { valid: false, reason: "validation_error" },
+      { status: 200 },
     );
   }
 }

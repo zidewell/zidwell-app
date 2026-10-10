@@ -1,14 +1,11 @@
-
 "use client";
 
 import CreatePaymentLink from "@/app/components/payment-page-components/CreatePaymentLink";
-
-
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import { useState } from "react";
 
-export default function DataPage() {
+export default function CreateLinkPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -18,7 +15,7 @@ export default function DataPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">

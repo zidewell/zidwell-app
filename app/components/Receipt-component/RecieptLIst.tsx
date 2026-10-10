@@ -124,9 +124,9 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
 
   if (receipts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 text-[var(--text-secondary)]">
+      <div className="flex flex-col items-center justify-center h-64 text-(--text-secondary)">
         <div className="text-lg mb-2">No receipts found</div>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-(--text-secondary)">
           Create your first receipt to get started
         </p>
       </div>
@@ -142,32 +142,32 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
           return (
             <Card
               key={receipt.id}
-              className="hover:shadow-md transition-shadow duration-200 bg-[var(--bg-primary)] border border-[var(--border-color)] squircle-lg"
+              className="hover:shadow-md transition-shadow duration-200 bg-(--bg-primary) border border-(--border-color) squircle-lg"
             >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-lg text-[var(--text-primary)] truncate">
+                      <h3 className="font-semibold text-lg text-(--text-primary) truncate">
                         {receipt.receipt_id}
                       </h3>
                       <Badge className={statusColors[receipt.status]}>
                         {statusLabels[receipt.status]}
                       </Badge>
                     </div>
-                    <p className="text-[var(--text-primary)] font-medium mb-1 truncate">
+                    <p className="text-(--text-primary) font-medium mb-1 truncate">
                       {receipt.client_name || "No client name"}
                     </p>
-                    <p className="text-[var(--text-secondary)] text-sm mb-2 truncate">
+                    <p className="text-(--text-secondary) text-sm mb-2 truncate">
                       {receipt.payment_for || "No description"}
                     </p>
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-(--text-secondary)">
                       <span>Date: {formatDate(receipt.issue_date)}</span>
                       {receipt.signed_at && (
                         <span>Signed: {formatDate(receipt.signed_at)}</span>
                       )}
-                      <span className="font-semibold text-[var(--text-primary)]">
+                      <span className="font-semibold text-(--text-primary)">
                         {formatCurrency(receipt.total)}
                       </span>
                     </div>
@@ -178,7 +178,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                       onClick={() => viewReceipt(receipt)}
                       variant="outline"
                       size="sm"
-                      className="flex items-center gap-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm"
+                      className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-sm"
                     >
                       <Eye className="w-4 h-4" /> View
                     </Button>
@@ -204,7 +204,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                           }
                           variant="outline"
                           size="sm"
-                          className="flex items-center gap-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm"
+                          className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-sm"
                         >
                           <Edit className="w-4 h-4" /> Edit
                         </Button>
@@ -244,7 +244,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                         buttonText="PDF"
                         buttonVariant="outline"
                         buttonSize="sm"
-                        className="flex items-center gap-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-sm"
+                        className="flex items-center gap-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-sm"
                       />
                     )}
                   </div>
@@ -257,29 +257,29 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
 
       {/* View Receipt Modal */}
       <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-pop squircle-lg">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-(--bg-primary) border border-(--border-color) shadow-pop squircle-lg">
           <DialogHeader>
-            <DialogTitle className="flex justify-between items-center text-[var(--text-primary)]">
+            <DialogTitle className="flex justify-between items-center text-(--text-primary)">
               <span>Receipt Details</span>
             </DialogTitle>
-            <DialogDescription className="text-[var(--text-secondary)]">
+            <DialogDescription className="text-(--text-secondary)">
               View receipt information and details
             </DialogDescription>
           </DialogHeader>
 
           {selectedReceipt && (
             <div className="space-y-6">
-              <div className="border-b border-[var(--border-color)] pb-4">
+              <div className="border-b border-(--border-color) pb-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+                    <h2 className="text-2xl font-bold text-(--text-primary)">
                       {selectedReceipt.receipt_id}
                     </h2>
                     <div className="flex items-center gap-2 mt-2">
                       <Badge className={statusColors[selectedReceipt.status]}>
                         {statusLabels[selectedReceipt.status]}
                       </Badge>
-                      <span className="text-sm text-[var(--text-secondary)]">
+                      <span className="text-sm text-(--text-secondary)">
                         Issued: {formatDate(selectedReceipt.issue_date)}
                       </span>
                     </div>
@@ -288,7 +288,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                     <p className="text-2xl font-bold text-[var(--color-accent-yellow)]">
                       {formatCurrency(selectedReceipt.total)}
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Total Amount
                     </p>
                   </div>
@@ -297,18 +297,18 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-[var(--bg-secondary)] p-4 rounded-lg squircle-md">
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+                  <h3 className="font-semibold text-(--text-primary) mb-3">
                     From
                   </h3>
                   <div className="space-y-2">
-                    <p className="text-[var(--text-primary)]">
+                    <p className="text-(--text-primary)">
                       {selectedReceipt.initiator_name}
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       {selectedReceipt.initiator_email}
                     </p>
                     {selectedReceipt.business_name && (
-                      <p className="text-sm text-[var(--text-secondary)]">
+                      <p className="text-sm text-(--text-secondary)">
                         {selectedReceipt.business_name}
                       </p>
                     )}
@@ -316,18 +316,18 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                 </div>
 
                 <div className="bg-[var(--bg-secondary)] p-4 rounded-lg squircle-md">
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+                  <h3 className="font-semibold text-(--text-primary) mb-3">
                     Bill To
                   </h3>
                   <div className="space-y-2">
-                    <p className="text-[var(--text-primary)]">
+                    <p className="text-(--text-primary)">
                       {selectedReceipt.client_name}
                     </p>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       {selectedReceipt.client_email}
                     </p>
                     {selectedReceipt.client_phone && (
-                      <p className="text-sm text-[var(--text-secondary)]">
+                      <p className="text-sm text-(--text-secondary)">
                         {selectedReceipt.client_phone}
                       </p>
                     )}
@@ -336,23 +336,23 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
               </div>
 
               <div className="bg-[var(--bg-secondary)] p-4 rounded-lg squircle-md">
-                <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+                <h3 className="font-semibold text-(--text-primary) mb-3">
                   Payment Details
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Payment For
                     </p>
-                    <p className="font-medium text-[var(--text-primary)]">
+                    <p className="font-medium text-(--text-primary)">
                       {selectedReceipt.payment_for}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-sm text-(--text-secondary)">
                       Payment Method
                     </p>
-                    <p className="font-medium text-[var(--text-primary)]">
+                    <p className="font-medium text-(--text-primary)">
                       {selectedReceipt.payment_method || "N/A"}
                     </p>
                   </div>
@@ -360,7 +360,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
               </div>
 
               <div>
-                <h3 className="font-semibold text-[var(--text-primary)] mb-3">
+                <h3 className="font-semibold text-(--text-primary) mb-3">
                   Receipt Items
                 </h3>
                 {parseReceiptItems(selectedReceipt.receipt_items).length > 0 ? (
@@ -368,36 +368,36 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                     <table className="min-w-full divide-y divide-[var(--border-color)]">
                       <thead>
                         <tr className="bg-[var(--bg-secondary)]">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-(--text-secondary) uppercase tracking-wider">
                             Description
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                          <th className="px-4 py-3 text-center text-xs font-medium text-(--text-secondary) uppercase tracking-wider">
                             Quantity
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-(--text-secondary) uppercase tracking-wider">
                             Unit Price
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-(--text-secondary) uppercase tracking-wider">
                             Total
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-[var(--bg-primary)] divide-y divide-[var(--border-color)]">
+                      <tbody className="bg-(--bg-primary) divide-y divide-[var(--border-color)]">
                         {parseReceiptItems(selectedReceipt.receipt_items).map(
                           (item: any, index: number) => (
                             <tr key={index}>
-                              <td className="px-4 py-3 text-sm text-[var(--text-primary)]">
+                              <td className="px-4 py-3 text-sm text-(--text-primary)">
                                 {item.description || item.item || "N/A"}
                               </td>
-                              <td className="px-4 py-3 text-sm text-center text-[var(--text-primary)]">
+                              <td className="px-4 py-3 text-sm text-center text-(--text-primary)">
                                 {item.quantity}
                               </td>
-                              <td className="px-4 py-3 text-sm text-right text-[var(--text-primary)]">
+                              <td className="px-4 py-3 text-sm text-right text-(--text-primary)">
                                 {formatCurrency(
                                   item.unit_price || item.price || 0,
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-sm text-right text-[var(--text-primary)] font-medium">
+                              <td className="px-4 py-3 text-sm text-right text-(--text-primary) font-medium">
                                 {formatCurrency(
                                   item.total ||
                                     item.quantity *
@@ -411,7 +411,7 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
                     </table>
                   </div>
                 ) : (
-                  <p className="text-[var(--text-secondary)] italic">
+                  <p className="text-(--text-secondary) italic">
                     No items listed
                   </p>
                 )}
@@ -420,13 +420,13 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
               <div className="bg-[var(--bg-secondary)] p-4 rounded-lg max-w-md ml-auto squircle-md">
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-[var(--text-secondary)]">Subtotal</span>
-                    <span className="font-medium text-[var(--text-primary)]">
+                    <span className="text-(--text-secondary)">Subtotal</span>
+                    <span className="font-medium text-(--text-primary)">
                       {formatCurrency(selectedReceipt.subtotal || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between border-t border-[var(--border-color)] pt-2">
-                    <span className="font-semibold text-[var(--text-primary)]">
+                  <div className="flex justify-between border-t border-(--border-color) pt-2">
+                    <span className="font-semibold text-(--text-primary)">
                       Total
                     </span>
                     <span className="font-bold text-[var(--color-accent-yellow)] text-lg">
@@ -438,10 +438,10 @@ const ReceiptList: React.FC<Props> = ({ receipts, loading }) => {
 
               {selectedReceipt.customer_note && (
                 <div className="bg-[var(--bg-secondary)] p-4 rounded-lg squircle-md">
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-2">
+                  <h3 className="font-semibold text-(--text-primary) mb-2">
                     Notes
                   </h3>
-                  <p className="text-[var(--text-secondary)]">
+                  <p className="text-(--text-secondary)">
                     {selectedReceipt.customer_note}
                   </p>
                 </div>

@@ -17,10 +17,10 @@ export function ConnectedAccounts() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
             <p className="text-sm font-medium text-[var(--color-lemon-green)]">Bank-connected · Core feature</p>
-            <h2 className="mt-3 font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-[var(--text-primary)]">All your bank accounts. One clean view.</h2>
-            <p className="mt-4 text-[var(--text-secondary)]">Link every bank you use — personal or business — and every transaction flows into your bookkeeping automatically. This is the heart of Zidwell.</p>
+            <h2 className="mt-3 font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-(--text-primary)">All your bank accounts. One clean view.</h2>
+            <p className="mt-4 text-(--text-secondary)">Link every bank you use — personal or business — and every transaction flows into your bookkeeping automatically. This is the heart of Zidwell.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--bg-primary)] border border-[var(--border-color)] px-4 py-2 text-xs text-[var(--text-secondary)] shadow-soft">
+          <div className="inline-flex items-center gap-2 rounded-full bg-(--bg-primary) border border-(--border-color) px-4 py-2 text-xs text-(--text-secondary) shadow-soft">
             <ShieldCheck className="h-4 w-4 text-[var(--color-lemon-green)]" />
             Secured by Nigeria's Open Banking System
           </div>
@@ -30,7 +30,7 @@ export function ConnectedAccounts() {
           {banks.map((b) => (
             <div
               key={b.name}
-              className="squircle-sm bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft p-5 flex items-center gap-4"
+              className="squircle-sm bg-(--bg-primary) border border-(--border-color) shadow-soft p-5 flex items-center gap-4"
             >
               <span
                 className="h-12 w-12 rounded-2xl flex items-center justify-center font-display font-semibold text-white text-lg"
@@ -39,17 +39,17 @@ export function ConnectedAccounts() {
                 {b.short}
               </span>
               <div className="flex-1">
-                <p className="font-display font-semibold text-[var(--text-primary)]">{b.name}</p>
-                <p className="text-[11px] text-[var(--text-secondary)]">•••• 4821 · Auto-sync</p>
+                <p className="font-display font-semibold text-(--text-primary)">{b.name}</p>
+                <p className="text-[11px] text-(--text-secondary)">•••• 4821 · Auto-sync</p>
               </div>
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-lemon-green)]"><CheckCircle2 className="h-3.5 w-3.5" /> Live</span>
             </div>
           ))}
-          <div className="squircle-sm bg-[var(--bg-primary)] border border-dashed border-[var(--border-color)] p-5 flex items-center gap-4 hover:bg-[var(--bg-secondary)] transition cursor-pointer">
-            <span className="h-12 w-12 rounded-2xl flex items-center justify-center bg-[var(--bg-secondary)] border border-[var(--border-color)]"><Plus className="h-5 w-5 text-[var(--text-secondary)]" /></span>
+          <div className="squircle-sm bg-(--bg-primary) border border-dashed border-(--border-color) p-5 flex items-center gap-4 hover:bg-[var(--bg-secondary)] transition cursor-pointer">
+            <span className="h-12 w-12 rounded-2xl flex items-center justify-center bg-[var(--bg-secondary)] border border-(--border-color)"><Plus className="h-5 w-5 text-(--text-secondary)" /></span>
             <div>
-              <p className="font-display font-semibold text-[var(--text-primary)]">Connect a bank</p>
-              <p className="text-[11px] text-[var(--text-secondary)]">Lite · 1 · Business · 3 · Elite · unlimited</p>
+              <p className="font-display font-semibold text-(--text-primary)">Connect a bank</p>
+              <p className="text-[11px] text-(--text-secondary)">Lite · 1 · Business · 3 · Elite · unlimited</p>
             </div>
           </div>
         </div>

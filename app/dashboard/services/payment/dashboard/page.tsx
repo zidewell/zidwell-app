@@ -1,7 +1,8 @@
 // app/dashboard/services/payment/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -9,286 +10,836 @@ import {
   CreditCard,
   TrendingUp,
   Wallet,
-  ArrowLeft,
+  ArrowUpRight,
+  MoreHorizontal,
+  Pencil,
+  ExternalLink,
+  QrCode,
+  Link2,
+  Trash2,
+  EyeOff,
+  Package,
+  Coins,
   RefreshCw,
+  Waves,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { useStore } from "@/app/hooks/useStore";
-import { useRouter } from "next/navigation";
-import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
-import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
-import Loader from "@/app/components/Loader"; // Import the loader component
+import Loader from "@/app/components/Loader";
+import { useStore } from "@/app/context/StoreContext";
+import { toast } from "sonner";
+import { DateFilter } from "@/app/components/date-filter";
+import type { DateRange } from "react-day-picker";
+import { type PeriodKey } from "@/app/components/date-filter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/app/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { CreateStoreForm } from "@/app/components/store/create-store";
+import { useUserContextData } from "@/app/context/userData";
+import { useStoreWallet } from "@/app/hooks/useStoreWallet";
+import Swal from "sweetalert2";
+import { ZidwellShell } from "@/app/components/zidwell-shell";
 
-const Dashboard = () => {
+// ─── Formatting helpers ───
+function compactNumber(n: number): string {
+  const v = Number(n) || 0;
+  if (Math.abs(v) < 1000) return v.toString();
+  if (Math.abs(v) < 1_000_000)
+    return `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}K`;
+  if (Math.abs(v) < 1_000_000_000)
+    return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (Math.abs(v) < 1_000_000_000_000)
+    return `${(v / 1_000_000_000).toFixed(v % 1_000_000_000 === 0 ? 0 : 1)}B`;
+  return `${(v / 1_000_000_000_000).toFixed(1)}T`;
+}
+
+function formatCurrencyCompact(n: number): string {
+  const v = Number(n) || 0;
+  const full = v.toLocaleString();
+  if (full.length <= 12) return `₦${full}`;
+  return `₦${compactNumber(v)}`;
+}
+
+// Stat Card Component
+function StatCard({
+  label,
+  value,
+  delta,
+  icon: Icon,
+  highlight,
+  deltaPositive = true,
+  empty = false,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+  icon: React.ElementType;
+  highlight?: boolean;
+  deltaPositive?: boolean;
+  empty?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "rounded-[2rem] border border-border p-7 transition-all bg-card shadow-sm min-w-0 overflow-hidden",
+        highlight ? "bg-foreground text-background" : "bg-card",
+        empty && "opacity-50",
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-2xl",
+            highlight ? "bg-primary text-primary-foreground" : "bg-muted",
+          )}
+        >
+          <Icon className="size-5" strokeWidth={2.3} />
+        </span>
+        {!empty && (
+          <span
+            className={cn(
+              "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap",
+              highlight
+                ? "bg-background/15 text-background"
+                : deltaPositive
+                  ? "bg-[#E8F5E9] text-[#2E7D32] dark:bg-[#2E7D32]/20 dark:text-[#66BB6A]"
+                  : "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400",
+            )}
+          >
+            <ArrowUpRight
+              className={cn("size-3.5", !deltaPositive && "rotate-90")}
+            />
+            {delta}
+          </span>
+        )}
+      </div>
+      <p
+        className={cn(
+          "eyebrow mt-8",
+          highlight ? "text-background/60" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className="mt-2 font-display text-[2.1rem] font-bold leading-none tracking-tight tabular-nums break-all"
+        title={empty ? "—" : value}
+      >
+        {empty ? "—" : value}
+      </p>
+    </motion.div>
+  );
+}
+
+// Payment Page Card Component
+function PaymentPageCard({
+  page,
+  index,
+  storeSlug,
+  onRefresh,
+}: {
+  page: any;
+  index: number;
+  storeSlug?: string;
+  onRefresh: () => void;
+}) {
   const router = useRouter();
-  const { pages, loading, fetchPages, refreshPages } = useStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { updatePage } = useStore();
 
-  useEffect(() => {
-    console.log("Dashboard mounted, fetching pages...");
-    const loadPages = async () => {
-      setIsLoading(true);
-      await fetchPages();
-      setIsLoading(false);
-    };
-    loadPages();
-  }, [fetchPages]);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refreshPages();
-    setIsRefreshing(false);
+  const getPageUrl = () => {
+    return `/store/${storeSlug || ""}/${page.slug || page.id}`;
   };
 
-  const totalBalance = pages.reduce(
-    (sum, page) => sum + (page.pageBalance || 0),
-    0,
-  );
-  const totalRevenue = pages.reduce(
-    (sum, page) => sum + (page.totalRevenue || 0),
-    0,
-  );
-  const totalPayments = pages.reduce(
-    (sum, page) => sum + (page.totalPayments || 0),
-    0,
-  );
-  const totalViews = pages.reduce(
-    (sum, page) => sum + (page.pageViews || 0),
-    0,
-  );
+  const getFullPageUrl = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const path = getPageUrl();
+    return `${origin}${path}`;
+  };
 
-  // Show loader while loading or refreshing
-  if (isLoading || (loading && pages.length === 0)) {
-    return (
-      <div className="min-h-screen dark:bg-[#0e0e0e]">
-        <DashboardSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-        <div className="lg:pl-72 min-h-screen flex flex-col">
-          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-              <Loader />
-              <p className="text-(--text-secondary) text-sm animate-pulse">
-                Loading your payment pages...
-              </p>
-            </div>
-          </main>
+  const isActive = page.isPublished === true;
+
+  const stripHtml = (html: string) => {
+    if (!html) return "No description";
+    if (typeof window !== "undefined") {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "No description";
+    }
+    return html.replace(/<[^>]*>/g, "").trim() || "No description";
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    router.push(`/dashboard/services/payment/edit/${page.id}`);
+  };
+
+  const handleToggleActive = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const newStatus = !isActive;
+      const result = await Swal.fire({
+        icon: "question",
+        title: newStatus ? "Activate Page?" : "Deactivate Page?",
+        text: newStatus
+          ? `Are you sure you want to activate "${page.title}"? It will become visible to customers.`
+          : `Are you sure you want to deactivate "${page.title}"? It will no longer be visible to customers.`,
+        showCancelButton: true,
+        confirmButtonColor: newStatus ? "#22c55e" : "#ef4444",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: newStatus ? "Yes, Activate" : "Yes, Deactivate",
+        cancelButtonText: "Cancel",
+      });
+      if (result.isConfirmed) {
+        await updatePage(page.id, { isPublished: newStatus });
+        toast.success(
+          `Page ${newStatus ? "activated" : "deactivated"} successfully!`,
+        );
+        onRefresh();
+      }
+    } catch (error: any) {
+      console.error("Error toggling page:", error);
+      toast.error(error.message || "Failed to update page status");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Delete Page?",
+      html: `
+        <div class="text-left">
+          <p class="font-semibold">Are you sure you want to delete "${page.title}"?</p>
+          <p class="text-sm text-gray-600 mt-2">This action cannot be undone.</p>
+          <ul class="text-sm text-gray-600 mt-2 list-disc pl-4">
+            <li>All payment data will be permanently removed</li>
+            <li>Customers will no longer be able to pay</li>
+            <li>This action is irreversible</li>
+          </ul>
         </div>
-      </div>
-    );
-  }
+      `,
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, Delete Page",
+      cancelButtonText: "Cancel",
+      width: 500,
+    });
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`/api/payment-page/delete/${page.id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to delete page");
+        }
+        toast.success(`"${page.title}" deleted successfully!`);
+        onRefresh();
+      } catch (error: any) {
+        console.error("Error deleting page:", error);
+        toast.error(error.message || "Failed to delete page");
+      }
+    }
+  };
+
+  const handleCopyUrl = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(getFullPageUrl());
+    toast.success("Page URL copied to clipboard!");
+  };
+
+  const handleViewPublic = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(getFullPageUrl(), "_blank");
+  };
+
+  const handleDownloadQR = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toast.info("QR code download will be available soon");
+  };
 
   return (
-    <div className="min-h-screen dark:bg-[#0e0e0e]">
-      <DashboardSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      onClick={() => router.push(`/dashboard/services/payment/page/${page.id}`)}
+      className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
+    >
+      <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/30">
+        {page.productImages && page.productImages.length > 0 ? (
+          <img
+            src={page.productImages[0]}
+            alt={page.title}
+            className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : page.coverImage ? (
+          <img
+            src={page.coverImage}
+            alt={page.title}
+            className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <CreditCard
+            className="size-14 text-muted-foreground/40"
+            strokeWidth={1.5}
+          />
+        )}
+        <span
+          className={cn(
+            "absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest",
+            isActive
+              ? "bg-background text-foreground"
+              : "bg-foreground text-background",
+          )}
+        >
+          {isActive ? "Active" : "Inactive"}
+        </span>
 
-      <div className="lg:pl-72 min-h-screen flex flex-col">
-        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto">
-            {/* Back Button */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) transition-colors mb-4"
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Actions for ${page.title}`}
+              className="absolute right-3 top-3 rounded-full bg-background p-2 text-foreground shadow-sm hover:bg-muted transition-colors"
             >
-              <ArrowLeft className="h-4 w-4" /> Back
+              <MoreHorizontal className="size-4" />
             </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 rounded-2xl bg-card border-border shadow-xl"
+          >
+            <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
+              <Pencil className="size-4 mr-2" /> Edit page
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleViewPublic}
+              className="cursor-pointer"
+            >
+              <ExternalLink className="size-4 mr-2" /> View public link
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDownloadQR}
+              className="cursor-pointer"
+            >
+              <QrCode className="size-4 mr-2" /> Download QR code
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleCopyUrl}
+              className="cursor-pointer"
+            >
+              <Link2 className="size-4 mr-2" /> Copy URL
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleToggleActive}
+              className={cn(
+                "cursor-pointer",
+                isActive ? "text-yellow-600" : "text-green-600",
+              )}
+            >
+              <EyeOff className="size-4 mr-2" />{" "}
+              {isActive ? "Make inactive" : "Make active"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDelete}
+              className="text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="size-4 mr-2" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-              <div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-(--text-primary)">
-                  Payment Pages
-                </h1>
-                <p className="text-(--text-secondary) text-xs sm:text-sm mt-1">
-                  {pages.length === 0
-                    ? "Create your first payment page to start collecting money"
-                    : `${pages.length} page${pages.length > 1 ? "s" : ""} created`}
-                </p>
+      <div className="mt-4 flex-1 min-w-0 px-1">
+        <p className="eyebrow truncate text-muted-foreground">
+          {page.pageType || "Payment"}
+        </p>
+        <h3
+          className="mt-1 font-display text-lg font-bold leading-tight text-foreground line-clamp-2 break-words"
+          title={page.title}
+        >
+          {page.title}
+        </h3>
+        <p className="mt-1 text-sm text-muted-foreground line-clamp-1 break-words">
+          {stripHtml(page.description)}
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border px-1 pt-3 text-sm font-semibold text-muted-foreground">
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${(page.pageBalance || 0).toLocaleString()} balance`}
+        >
+          <Wallet className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {formatCurrencyCompact(page.pageBalance || 0)}
+          </span>
+        </span>
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.pageViews || 0} views`}
+        >
+          <Eye className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.pageViews || 0)} views
+          </span>
+        </span>
+        <span
+          className="flex min-w-0 items-center gap-1 truncate tabular-nums"
+          title={`${page.totalPayments || 0} payments`}
+        >
+          <CreditCard className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {compactNumber(page.totalPayments || 0)} payments
+          </span>
+        </span>
+      </div>
+    </motion.article>
+  );
+}
+
+// Greeting Component
+function Greeting({
+  storeName,
+  firstName,
+}: {
+  storeName?: string;
+  firstName?: string;
+}) {
+  const [greeting, setGreeting] = useState("Good morning");
+  const [emoji, setEmoji] = useState("🌅");
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) {
+      setGreeting("Good morning");
+      setEmoji("🌅");
+    } else if (hour < 17) {
+      setGreeting("Good afternoon");
+      setEmoji("☀️");
+    } else if (hour < 21) {
+      setGreeting("Good evening");
+      setEmoji("🌆");
+    } else {
+      setGreeting("Good night");
+      setEmoji("🌙");
+    }
+  }, []);
+
+  const displayName = firstName || "there";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-2"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
+          <Waves className="size-6 text-primary" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-foreground break-words">
+            {greeting}, {displayName} {emoji}
+          </h1>
+          {storeName && (
+            <p className="text-sm text-muted-foreground mt-1 break-words">
+              Welcome to{" "}
+              <span className="text-primary font-medium">{storeName}</span>
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================================
+// MAIN DASHBOARD COMPONENT
+// ============================================================
+export default function PaymentDashboardPage() {
+  const router = useRouter();
+  const {
+    store,
+    pages,
+    loading,
+    hasStore,
+    hasPendingActivation,
+    fetchStore,
+    fetchPages,
+    refreshPages,
+  } = useStore();
+  const { userData } = useUserContextData();
+  const { wallet, loading: walletLoading, fetchBalance } = useStoreWallet();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodKey>("30d");
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [filteredPages, setFilteredPages] = useState<any[]>([]);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
+  const [dataReady, setDataReady] = useState(false);
+ 
+  const isRefreshingRef = useRef(false);
+  const lastRefreshTime = useRef(0);
+  const MIN_REFRESH_INTERVAL = 2000;
+
+  // STEP 1: Check store
+  useEffect(() => {
+    let isMounted = true;
+    const checkStoreStatus = async () => {
+      try {
+        setIsLoading(true);
+        await fetchStore();
+        if (isMounted) setIsStoreCheckComplete(true);
+      } catch (error) {
+        console.error("Error checking store:", error);
+        if (isMounted) setIsStoreCheckComplete(true);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    checkStoreStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchStore]);
+
+  // STEP 2: Load pages
+  useEffect(() => {
+    let isMounted = true;
+    const loadPages = async () => {
+      if (hasStore && isStoreCheckComplete && !isLoading) {
+        try {
+          await fetchPages();
+        } catch (error) {
+          console.error("Error loading pages:", error);
+        } finally {
+          if (isMounted) {
+            setInitialLoadComplete(true);
+            setDataReady(true);
+          }
+        }
+      }
+    };
+    loadPages();
+    return () => {
+      isMounted = false;
+    };
+  }, [hasStore, isStoreCheckComplete, isLoading, fetchPages]);
+
+  // STEP 3: Filter
+  useEffect(() => {
+    if (pages.length === 0) {
+      setFilteredPages([]);
+      return;
+    }
+    let filtered = [...pages];
+    if (period !== "all" && period !== "custom") {
+      const days = parseInt(period);
+      if (!isNaN(days)) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        filtered = filtered.filter(
+          (page) => new Date(page.createdAt) >= cutoffDate,
+        );
+      }
+    } else if (period === "custom" && range?.from) {
+      const from = new Date(range.from);
+      const to = range.to ? new Date(range.to) : new Date();
+      to.setHours(23, 59, 59, 999);
+      filtered = filtered.filter((page) => {
+        const createdAt = new Date(page.createdAt);
+        return createdAt >= from && createdAt <= to;
+      });
+    }
+    setFilteredPages(filtered);
+  }, [pages, period, range]);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    const now = Date.now();
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) return;
+    isRefreshingRef.current = true;
+    setIsRefreshing(true);
+    lastRefreshTime.current = now;
+    try {
+      await Promise.all([refreshPages(), fetchBalance(true)]);
+      toast.success("Dashboard refreshed");
+    } catch {
+      toast.error("Failed to refresh");
+    } finally {
+      setIsRefreshing(false);
+      isRefreshingRef.current = false;
+    }
+  }, [refreshPages, fetchBalance]);
+
+  const handlePageRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastRefreshTime.current < MIN_REFRESH_INTERVAL) return;
+    lastRefreshTime.current = now;
+    refreshPages();
+  }, [refreshPages]);
+
+  const metrics = useMemo(() => {
+    const totalRevenue = filteredPages.reduce(
+      (sum, p) => sum + (p.totalRevenue || 0),
+      0,
+    );
+    const totalPayments = filteredPages.reduce(
+      (sum, p) => sum + (p.totalPayments || 0),
+      0,
+    );
+    const totalViews = filteredPages.reduce(
+      (sum, p) => sum + (p.pageViews || 0),
+      0,
+    );
+    const avgOrder =
+      filteredPages.length > 0 && totalPayments > 0
+        ? totalRevenue / totalPayments
+        : 0;
+    const activePages = filteredPages.filter(
+      (p) => p.isPublished === true,
+    ).length;
+    return {
+      totalRevenue,
+      totalPayments,
+      totalViews,
+      avgOrder,
+      pageCount: filteredPages.length,
+      activePages,
+    };
+  }, [filteredPages]);
+
+  const walletBalance =
+    wallet?.available_balance != null ? Number(wallet.available_balance) : null;
+  const walletReady = !walletLoading && walletBalance !== null;
+
+  // ─── LOADING ───
+  // No shell — a plain fullscreen loader avoids sidebar flash.
+  if (isLoading || loading || !isStoreCheckComplete) {
+    return <Loader />;
+  }
+
+  // ─── ONBOARDING ───
+  // Fullscreen wizard. No ZidwellShell wrapper.
+  if (!hasStore || hasPendingActivation) {
+    return <CreateStoreForm />;
+  }
+
+  // ─── DATA LOADING (store exists) ───
+  if (!dataReady || !initialLoadComplete) {
+    return <Loader />;
+  }
+
+  const isEmpty = filteredPages.length === 0;
+  const firstName =
+    userData?.full_name?.split(" ")[0] || userData?.first_name || "";
+  const storeName = store?.name || "";
+  const storeSlug = store?.slug || "";
+
+  return (
+    <ZidwellShell>
+      {/* Header with Greeting */}
+      <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
+        <div className="min-w-0">
+          <p className="eyebrow text-muted-foreground">Online Store</p>
+          <Greeting storeName={storeName} firstName={firstName} />
+          <div className="mt-7 flex flex-wrap items-center gap-3 w-full">
+            <a
+              href={`/store/${storeSlug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-transparent px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 hover:border-primary transition-all duration-200"
+            >
+              <ExternalLink className="size-4" />
+              Visit storefront
+            </a>
+            <button
+              onClick={() => router.push("/dashboard/services/payment/create")}
+              className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
+            >
+              <Plus className="size-4" /> Add New product
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <DateFilter
+            value={period}
+            onChange={setPeriod}
+            range={range}
+            onRangeChange={setRange}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="rounded-2xl border border-border p-3 hover:bg-muted transition-colors bg-card shadow-sm"
+            >
+              <RefreshCw
+                className={cn("size-4", isRefreshing && "animate-spin")}
+              />
+            </button>
+            <p className="text-sm font-medium text-muted-foreground">
+              Click to refresh
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Primary Metrics */}
+      <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total balance"
+          value={walletReady ? formatCurrencyCompact(walletBalance!) : "—"}
+          delta="0%"
+          icon={Coins}
+          highlight
+          empty={!walletReady}
+        />
+        <StatCard
+          label="Total revenue"
+          value={isEmpty ? "₦0" : formatCurrencyCompact(metrics.totalRevenue)}
+          delta="0%"
+          icon={TrendingUp}
+          empty={isEmpty}
+        />
+        <StatCard
+          label="Total payments"
+          value={isEmpty ? "0" : compactNumber(metrics.totalPayments)}
+          delta="0%"
+          icon={CreditCard}
+          empty={isEmpty}
+        />
+        <StatCard
+          label="Page views"
+          value={isEmpty ? "0" : compactNumber(metrics.totalViews)}
+          delta="0%"
+          icon={Eye}
+          empty={isEmpty}
+        />
+      </section>
+
+      {/* Secondary Metrics */}
+      <section className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            label: "Average order value",
+            value: isEmpty
+              ? "₦0"
+              : formatCurrencyCompact(Math.round(metrics.avgOrder)),
+          },
+          {
+            label: "Conversion rate",
+            value: isEmpty ? "0%" : "3.2%",
+          },
+          {
+            label: "Active pages",
+            value: isEmpty ? "0" : compactNumber(metrics.activePages),
+          },
+          {
+            label: "Total pages",
+            value: isEmpty ? "0" : compactNumber(metrics.pageCount),
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className={cn(
+              "rounded-[2rem] p-7 bg-card border border-border shadow-sm min-w-0 overflow-hidden",
+              isEmpty ? "bg-muted/30 border border-border" : "bg-card",
+            )}
+          >
+            <p className="eyebrow text-muted-foreground">{s.label}</p>
+            <p
+              className="mt-2 font-display text-3xl font-bold tracking-tight text-foreground tabular-nums break-all"
+              title={s.value}
+            >
+              {s.value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      {/* Page Grid or Empty State */}
+      <section className="mt-20">
+        {isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-card rounded-3xl border border-border shadow-sm">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted/50">
+              <Package className="size-12 text-muted-foreground/40" />
+            </div>
+            <h3 className="mt-4 font-display text-2xl font-bold text-foreground">
+              No pages yet
+            </h3>
+            <p className="mt-2 max-w-md text-muted-foreground">
+              Create your first payment page to start collecting money from your
+              customers.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard/services/payment/create")}
+              className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              <Plus className="size-4" />
+              Create Payment Page
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="eyebrow text-muted-foreground">Collection</p>
+                <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl text-foreground break-words">
+                  Your Store Products
+                </h2>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="flex-1 sm:flex-none border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 sm:mr-1 ${isRefreshing ? "animate-spin" : ""}`}
-                  />
-                  <span className="hidden sm:inline">
-                    {isRefreshing ? "Refreshing..." : "Refresh"}
-                  </span>
-                </Button>
-                <Button
-                  variant="default"
+              <p className="text-base font-medium text-muted-foreground">
+                {filteredPages.filter((p) => p.isPublished === true).length}{" "}
+                active pages
+              </p>
+            </div>
+            <div className="mt-8">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <button
                   onClick={() =>
                     router.push("/dashboard/services/payment/create")
                   }
-                  className="flex-1 sm:flex-none bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
+                  className="flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-border p-6 text-muted-foreground transition-colors hover:border-foreground hover:text-foreground bg-card shadow-sm"
                 >
-                  <Plus className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">New Page</span>
-                </Button>
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+                    <Plus className="size-6" strokeWidth={2.6} />
+                  </span>
+                  <span className="font-display text-base font-bold">
+                    Add page
+                  </span>
+                  <span className="max-w-[180px] text-center text-sm">
+                    Create a new payment page
+                  </span>
+                </button>
+                {filteredPages.map((page, i) => (
+                  <PaymentPageCard
+                    key={page.id}
+                    page={page}
+                    index={i}
+                    storeSlug={storeSlug}
+                    onRefresh={handlePageRefresh}
+                  />
+                ))}
               </div>
             </div>
-
-            {/* Overview Stats */}
-            {pages.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
-                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
-                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
-                    ₦{totalBalance.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                    Total Balance
-                  </div>
-                </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
-                  <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-lemon-green) mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
-                    ₦{totalRevenue.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                    Total Revenue
-                  </div>
-                </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
-                    {totalPayments}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                    Total Payments
-                  </div>
-                </div>
-                <div className="p-3 sm:p-4 rounded-2xl bg-(--bg-primary) border border-(--border-color) shadow-soft">
-                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-(--color-accent-yellow) mb-2" />
-                  <div className="text-lg sm:text-2xl font-bold text-(--text-primary)">
-                    {totalViews.toLocaleString()}
-                  </div>
-                  <div className="text-[10px] sm:text-xs text-(--text-secondary)">
-                    Total Views
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Page Grid or Empty State */}
-            {pages.length === 0 && !loading ? (
-              <EmptyState
-                onCreateClick={() =>
-                  router.push("/dashboard/services/payment/create")
-                }
-              />
-            ) : (
-              <PageGrid pages={pages} />
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
+          </>
+        )}
+      </section>
+    </ZidwellShell>
   );
-};
-
-const EmptyState = ({ onCreateClick }: { onCreateClick: () => void }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="flex flex-col items-center justify-center py-16 sm:py-24 px-4"
-  >
-    <button
-      onClick={onCreateClick}
-      className="group relative h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-(--bg-secondary) border-2 border-dashed border-(--border-color) hover:border-(--color-accent-yellow) flex items-center justify-center transition-all duration-300 mb-6"
-    >
-      <Plus className="h-8 w-8 sm:h-10 sm:w-10 text-(--text-secondary) group-hover:text-(--color-accent-yellow) transition-colors" />
-    </button>
-    <h2 className="text-lg sm:text-xl font-bold text-(--text-primary) mb-2">
-      No pages yet
-    </h2>
-    <p className="text-(--text-secondary) text-xs sm:text-sm mb-6 text-center max-w-xs">
-      Create a payment page to start collecting money from your customers
-    </p>
-    <Button
-      variant="default"
-      size="default"
-      onClick={onCreateClick}
-      className="sm:text-base bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
-    >
-      <Plus className="h-4 w-4 mr-1" />
-      Create Payment Page
-    </Button>
-  </motion.div>
-);
-
-const PageGrid = ({ pages }: { pages: any[] }) => {
-  const router = useRouter();
-
-  if (!pages || pages.length === 0) {
-    return null;
-  }
- 
-
-  return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-      {pages.map((page, i) => (
-        <motion.div
-          key={page.id}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.05 }}
-          onClick={() =>
-            router.push(`/dashboard/services/payment/page/${page.id}`)
-          }
-          className="cursor-pointer group p-4 sm:p-5 rounded-2xl bg-(--bg-primary) border border-(--border-color) hover:border-(--color-accent-yellow) hover:shadow-lg transition-all duration-300"
-        >
-          {page.coverImage || page.logo ? (
-            <div className="h-28 sm:h-32 rounded-xl bg-gray-100 mb-4 overflow-hidden">
-              <img
-                src={page.coverImage || page.logo}
-                alt={page.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-              />
-            </div>
-          ) : (
-            <div className="h-28 sm:h-32 rounded-xl bg-(--bg-secondary) mb-4 flex items-center justify-center">
-              <CreditCard className="h-7 w-7 sm:h-8 sm:w-8 text-(--text-secondary)" />
-            </div>
-          )}
-          <h3 className="font-bold text-base sm:text-lg mb-1 text-(--text-primary) group-hover:text-(--color-accent-yellow) transition-colors line-clamp-1">
-            {page.title}
-          </h3>
-          <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 line-clamp-2">
-            {page.description || "No description"}
-          </p>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-(--text-secondary)">
-            <span className="flex items-center gap-1">
-              <Wallet className="h-3 w-3" />₦
-              {(page.pageBalance || 0).toLocaleString()}
-            </span>
-            <span className="flex items-center gap-1">
-              <CreditCard className="h-3 w-3" />
-              {page.totalPayments || 0} payments
-            </span>
-            <span className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {page.pageViews || 0} views
-            </span>
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
-};
-
-export default Dashboard;
+}

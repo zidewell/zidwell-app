@@ -1,15 +1,39 @@
+// app/api/payment-page/public/card-payment/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
+import { computeNextDueDate } from "@/lib/installment-utils";
+import { resolveFulfillmentForCheckout } from "@/app/api/_lib/delivery-resolver";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const baseUrl = process.env.NODE_ENV === "development"
-  ? "http://localhost:3000"
-  : "https://zidwell.com";
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://zidwell.com";
+
+const FEE_CONFIG = {
+  ZIDWELL_FEE_PERCENTAGE: 0.03,
+  NOMBA_FEE_PERCENTAGE: 0.004,
+  TOTAL_FEE_PERCENTAGE: 0.034,
+};
+
+function calculateFees(amount: number) {
+  const nombaFee = amount * FEE_CONFIG.NOMBA_FEE_PERCENTAGE;
+  const zidwellFee = amount * FEE_CONFIG.ZIDWELL_FEE_PERCENTAGE;
+  const totalFee = nombaFee + zidwellFee;
+  return {
+    gross: amount,
+    nombaFee: Math.round(nombaFee * 100) / 100,
+    zidwellFee: Math.round(zidwellFee * 100) / 100,
+    totalFee: Math.round(totalFee * 100) / 100,
+    netAmount: Math.round((amount - totalFee) * 100) / 100,
+    feePercentage: FEE_CONFIG.TOTAL_FEE_PERCENTAGE * 100,
+  };
+}
 
 const generateOrderReference = (pageId: string): string => {
   const timestamp = Date.now().toString(36);
@@ -18,25 +42,69 @@ const generateOrderReference = (pageId: string): string => {
   return `CARD-${shortId}-${timestamp}-${random}`;
 };
 
+function parseMetadata(raw: any): any {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {};
+    }
+  }
+  return raw;
+}
+
+async function getSoldUnitsForVariant(
+  pageId: string,
+  variantSku: string,
+): Promise<number> {
+  const { data: payments, error } = await supabase
+    .from("payment_page_payments")
+    .select("metadata")
+    .eq("payment_page_id", pageId)
+    .eq("status", "completed");
+
+  if (error) {
+    console.error("[card-payment] Failed to load payments:", error);
+    throw new Error("Could not verify stock");
+  }
+
+  let sold = 0;
+  for (const p of payments || []) {
+    const m = parseMetadata((p as any).metadata);
+    if (
+      m?.pageType === "physical" &&
+      String(m?.selectedVariantSku) === String(variantSku)
+    ) {
+      sold += Math.max(1, Number(m?.quantity) || 1);
+    }
+  }
+  return sold;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      pageSlug, 
-      customerName, 
-      customerEmail, 
-      customerPhone, 
-      amount, 
+    const {
+      pageSlug,
+      customerName,
+      customerEmail,
+      customerPhone,
+      amount,
       metadata,
-      returnUrl 
-    } = body;
+      returnUrl,
+      fulfillmentMethod = null,
+      deliveryAddress = null,
+      pickupLocationId = null,
+    } = body
 
-    // Validate required fields
     if (!pageSlug || !customerName || !customerEmail) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
-    // Get payment page
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
       .select("*")
@@ -45,60 +113,272 @@ export async function POST(request: Request) {
       .single();
 
     if (pageError || !page) {
-      return NextResponse.json({ error: "Payment page not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Payment page not found" },
+        { status: 404 },
+      );
     }
 
-    // Calculate final amount
-    let finalAmount = amount;
-    if (!finalAmount || finalAmount === 0) {
-      if (page.page_type === "school" && page.metadata?.feeBreakdown?.length > 0) {
-        finalAmount = page.metadata.feeBreakdown.reduce((sum: number, item: any) => sum + item.amount, 0);
-      } else {
-        finalAmount = page.price;
+    const pageMetadata = parseMetadata(page.metadata);
+
+    // ──────────────────────────────────────────────────────────────
+    // VARIANT STOCK GUARD — physical products only
+    // ──────────────────────────────────────────────────────────────
+    if (page.page_type === "physical" && metadata?.selectedVariantSku) {
+      const selectedVariantSku = String(metadata.selectedVariantSku);
+      const variants = Array.isArray(pageMetadata?.variants)
+        ? pageMetadata.variants
+        : [];
+
+      const variant = variants.find(
+        (v: any) => (v?.sku || v?.name) === selectedVariantSku,
+      );
+
+      if (!variant) {
+        return NextResponse.json(
+          {
+            error:
+              "This variant is no longer available. Please pick another.",
+            code: "VARIANT_NOT_FOUND",
+          },
+          { status: 409 },
+        );
+      }
+
+      const rawStock = variant.stock;
+      const isUnlimitedStock = rawStock == null || rawStock === "";
+      const declaredStock = isUnlimitedStock ? 0 : Number(rawStock);
+      const hasRealStock =
+        !isUnlimitedStock && Number.isFinite(declaredStock);
+
+      if (hasRealStock) {
+        const requestedQty = Math.max(1, Number(metadata?.quantity) || 1);
+
+        let sold = 0;
+        try {
+          sold = await getSoldUnitsForVariant(page.id, selectedVariantSku);
+        } catch {
+          return NextResponse.json(
+            {
+              error: "Could not verify stock right now. Please try again.",
+              code: "STOCK_CHECK_FAILED",
+            },
+            { status: 500 },
+          );
+        }
+
+        const remaining = declaredStock - sold;
+
+        if (remaining <= 0) {
+          return NextResponse.json(
+            {
+              error:
+                "This variant just sold out. Please pick another variant.",
+              code: "VARIANT_OUT_OF_STOCK",
+              remaining: 0,
+            },
+            { status: 409 },
+          );
+        }
+
+        if (requestedQty > remaining) {
+          return NextResponse.json(
+            {
+              error: `Only ${remaining} left in stock for this variant.`,
+              code: "INSUFFICIENT_STOCK",
+              remaining,
+            },
+            { status: 409 },
+          );
+        }
       }
     }
 
-    // Fee calculation
-    const fee = Math.min(finalAmount * 0.02, 2000);
-    const numberOfStudents = metadata?.numberOfStudents || 1;
-    const totalForCustomer = finalAmount * numberOfStudents;
+    // Determine amount
+    let finalAmount = Number(amount) || 0;
+    if (!finalAmount) {
+      if (
+        page.page_type === "school" &&
+        pageMetadata?.feeBreakdown?.length > 0
+      ) {
+        finalAmount = pageMetadata.feeBreakdown.reduce(
+          (sum: number, item: any) => sum + (item.amount || 0),
+          0,
+        );
+      } else {
+        finalAmount = Number(page.price) || 0;
+      }
+    }
+
+    if (finalAmount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // RESOLVE FULFILLMENT (server-authoritative)
+    // ──────────────────────────────────────────────────────────────
+    let resolvedFulfillment;
+    try {
+      resolvedFulfillment = await resolveFulfillmentForCheckout({
+        storeId: page.store_id ?? null,
+        pageType: page.page_type,
+        productType: page.product_type,
+        chosenMethod: fulfillmentMethod,
+        deliveryAddress: deliveryAddress ?? null,
+        pickupLocationId: pickupLocationId ?? null,
+        cartSubtotal: finalAmount,
+      });
+    } catch (err: any) {
+      console.error("[card-payment] Fulfillment resolution failed:", err?.message);
+      return NextResponse.json(
+        {
+          error: err?.message || "Fulfillment not available",
+          code: "FULFILLMENT_RESOLUTION_FAILED",
+        },
+        { status: 400 },
+      );
+    }
+    
+    const deliveryFee = Number(resolvedFulfillment.fee || 0);
+    const baseAmount = finalAmount;
+    const chargeAmount = baseAmount + deliveryFee;
+
+    const feeBreakdown = calculateFees(baseAmount);
     const orderReference = generateOrderReference(page.id);
 
-    // Prepare payment record
+    const storeSlug =
+      pageMetadata?.storeSlug || metadata?.storeSlug || "";
+    const linkConfig = pageMetadata?.linkConfig || {};
+    const pageRedirectUrl =
+      linkConfig.redirectUrl || pageMetadata?.redirectUrl || null;
+
+    let successRedirectUrl =
+      returnUrl || pageRedirectUrl || `/store/${storeSlug}/${page.slug}`;
+
+    if (page.page_type === "link" && pageRedirectUrl) {
+      successRedirectUrl = pageRedirectUrl;
+    }
+
+    const isInstallment =
+      metadata?.isInstallment === true ||
+      (page.price_type === "installment" &&
+        metadata?.paymentType === "installment");
+
+    const totalInstallments =
+      metadata?.totalInstallments ||
+      metadata?.installmentCount ||
+      page.installment_count ||
+      1;
+
+    const currentInstallment = metadata?.currentInstallment || 1;
+
+    // ─── BUILD PAYMENT RECORD ───
     const paymentData: any = {
       payment_page_id: page.id,
       user_id: page.user_id,
-      amount: totalForCustomer,
-      fee: fee * numberOfStudents,
-      net_amount: (finalAmount - fee) * numberOfStudents,
+      amount: feeBreakdown.gross,
+      fee: feeBreakdown.totalFee,
+      nomba_fee: feeBreakdown.nombaFee,
+      app_fee: feeBreakdown.zidwellFee,
+      total_fee: feeBreakdown.totalFee,
+      net_amount: feeBreakdown.netAmount,
       status: "pending",
       customer_name: customerName,
       customer_email: customerEmail,
       customer_phone: customerPhone || "",
       order_reference: orderReference,
-      payment_type: metadata?.isInstallment ? "installment" : "full",
-      total_amount: metadata?.totalAmount || finalAmount,
+      payment_type: isInstallment ? "installment" : "full",
+      total_amount: Number(metadata?.totalAmount) || chargeAmount,
       payment_method: "card_payment",
-      metadata: metadata,
+      installment_number: isInstallment ? currentInstallment : null,
+      total_installments: isInstallment ? totalInstallments : null,
+      installment_status: isInstallment ? "pending" : null,
+      next_installment_due: isInstallment
+        ? computeNextDueDate(
+            (metadata?.installmentPeriod || "monthly") as
+              | "weekly"
+              | "bi-weekly"
+              | "monthly",
+            currentInstallment,
+          )
+        : null,
+        delivery_fee: deliveryFee,
+        delivery_address_snapshot:
+          resolvedFulfillment.method === "pickup"
+            ? resolvedFulfillment.pickup
+            : resolvedFulfillment.delivery,
+        fulfillment_method: resolvedFulfillment.method,
+      metadata: {
+        ...metadata,
+        storeSlug,
+        redirectUrl: successRedirectUrl,
+        fee_breakdown: feeBreakdown,
+        fee_percentage: 3.4,
+        entity_ids: metadata?.entityIds || ["default"],
+        delivery_fee: deliveryFee,
+        fulfillment_method: resolvedFulfillment.method,
+        installment_plan: isInstallment
+          ? {
+              totalAmount: metadata?.totalAmount || chargeAmount,
+              installmentCount: totalInstallments,
+              installmentAmount: metadata?.installmentAmount,
+              period: metadata?.installmentPeriod || "monthly",
+            }
+          : null,
+      },
     };
 
-    // Add student tracking for school payments
     if (page.page_type === "school") {
-      if (metadata?.selectedStudents && metadata.selectedStudents.length === 1) {
-        paymentData.student_name = metadata.selectedStudents[0];
-        paymentData.parent_name = metadata.parentName;
-      } else if (metadata?.selectedStudents && metadata.selectedStudents.length > 1) {
-        paymentData.selected_students = metadata.selectedStudents;
-        paymentData.parent_name = metadata.parentName;
-      }
-      
-      if (metadata?.isInstallment) {
-        paymentData.installment_number = metadata.currentInstallment || 1;
-        paymentData.total_installments = metadata.totalInstallments;
+      const selectedStudents = metadata?.selectedStudents || [];
+      if (selectedStudents.length === 1) {
+        paymentData.student_name = selectedStudents[0];
+        paymentData.parent_name = metadata?.parentName || customerName;
+      } else if (selectedStudents.length > 1) {
+        paymentData.selected_students = selectedStudents;
+        paymentData.parent_name = metadata?.parentName || customerName;
       }
     }
 
-    // Create payment record
+    if (page.page_type === "physical") {
+      if (metadata?.selectedVariantSku) {
+        paymentData.metadata.selectedVariantSku =
+          metadata.selectedVariantSku;
+      }
+      paymentData.metadata.quantity = Math.max(
+        1,
+        Number(metadata?.quantity) || 1,
+      );
+
+      if (resolvedFulfillment.delivery) {
+        paymentData.metadata.shippingAddress = resolvedFulfillment.delivery;
+      } else if (resolvedFulfillment.method === "pickup") {
+        paymentData.metadata.shippingAddress = null;
+        paymentData.metadata.pickupSelected = true;
+      }
+    }
+
+    if (page.page_type === "services") {
+      if (metadata?.bookingDate) {
+        paymentData.metadata.bookingDate = metadata.bookingDate;
+      }
+      if (metadata?.bookingTime) {
+        paymentData.metadata.bookingTime = metadata.bookingTime;
+      }
+      if (metadata?.customerNote) {
+        paymentData.metadata.customerNote = metadata.customerNote;
+      }
+    }
+
+    if (page.page_type === "digital") {
+      paymentData.metadata.emailDelivery = metadata?.emailDelivery !== false;
+      paymentData.metadata.downloadUrl = metadata?.downloadUrl || null;
+      paymentData.metadata.accessLink = metadata?.accessLink || null;
+    }
+
+    if (page.page_type === "donation" && metadata?.donorMessage) {
+      paymentData.metadata.donorMessage = metadata.donorMessage;
+    }
+
     const { data: payment, error: paymentError } = await supabase
       .from("payment_page_payments")
       .insert(paymentData)
@@ -107,72 +387,92 @@ export async function POST(request: Request) {
 
     if (paymentError) {
       console.error("Error creating payment:", paymentError);
-      return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to create payment" },
+        { status: 500 },
+      );
     }
 
-    // Get Nomba token
     const accessToken = await getNombaToken();
     if (!accessToken) {
-      await supabase.from("payment_page_payments").update({ status: "failed" }).eq("id", payment.id);
-      return NextResponse.json({ error: "Payment service unavailable" }, { status: 503 });
+      await supabase
+        .from("payment_page_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
+      return NextResponse.json(
+        { error: "Payment service unavailable" },
+        { status: 503 },
+      );
     }
 
     const sessionId = `${payment.id}_${Date.now()}`;
+    const callbackUrl = `${baseUrl}/payment/callback?session_id=${sessionId}`;
 
-    // Create checkout - CARD ONLY
+    // Nomba charges the total: product + delivery.
     const checkoutPayload = {
       order: {
-        callbackUrl: `${baseUrl}/api/payment-page/callback?session_id=${sessionId}`,
-        customerEmail: customerEmail,
-        amount: totalForCustomer.toString(),
+        callbackUrl,
+        customerEmail,
+        amount: chargeAmount.toString(),
         currency: "NGN",
-        orderReference: orderReference,
+        orderReference,
         customerId: page.user_id,
         accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card"],
+        allowedPaymentMethods: ["Card", "Transfer"],
         metadata: {
           type: "payment_page",
           paymentPageId: page.id,
           paymentId: payment.id,
-          pageSlug: pageSlug,
+          pageSlug,
+          storeSlug,
+          redirectUrl: successRedirectUrl,
+          fee_breakdown: feeBreakdown,
+          isInstallment,
+          entityIds: metadata?.entityIds || ["default"],
+          selectedVariantSku: metadata?.selectedVariantSku || null,
+          deliveryFee,
+          fulfillmentMethod: resolvedFulfillment.method,
+          hasDeliveryAddress: !!resolvedFulfillment.delivery,
         },
       },
       tokenizeCard: false,
     };
 
-    const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        accountId: process.env.NOMBA_ACCOUNT_ID!,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${process.env.NOMBA_URL}/v1/checkout/order`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
       },
-      body: JSON.stringify(checkoutPayload),
-    });
+    );
 
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
-      await supabase.from("payment_page_payments").update({ status: "failed" }).eq("id", payment.id);
+      await supabase
+        .from("payment_page_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
       throw new Error(data.description || "Failed to create checkout");
-    }
-
-    // If returnUrl is provided, redirect to that URL with checkout link
-    if (returnUrl) {
-      return NextResponse.json({
-        success: true,
-        checkoutLink: data.data.checkoutLink,
-        orderReference: orderReference,
-        amount: totalForCustomer,
-        redirectUrl: returnUrl,
-      });
     }
 
     return NextResponse.json({
       success: true,
       checkoutLink: data.data.checkoutLink,
-      orderReference: orderReference,
-      amount: totalForCustomer,
+      orderReference,
+      amount: chargeAmount,
+      productAmount: baseAmount,
+      deliveryFee,
+      fulfillmentMethod: resolvedFulfillment.method,
+      redirectUrl: successRedirectUrl,
+      storeSlug,
+      fees: feeBreakdown,
+      isInstallment,
     });
   } catch (error: any) {
     console.error("Card payment error:", error);

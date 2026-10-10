@@ -33,7 +33,388 @@ function checkEmailConfiguration() {
 // Call configuration check
 checkEmailConfiguration();
 
-// Helper function to generate PDF HTML content for Invoice
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED CSS — injected into both PDF templates
+// Uses the real header/footer images (full-bleed) like the emails.
+// Tuned for A4 single page.
+// ─────────────────────────────────────────────────────────────────────────────
+const SHARED_PDF_CSS = `
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .pdf-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 0 0 8mm 0;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── FULL-BLEED HEADER (matches emails) ─── */
+  .email-header {
+    width: 100%;
+    display: block;
+  }
+
+  /* ─── CONTENT WRAPPER ─── */
+  .content-wrapper {
+    padding: 6mm 14mm 0 14mm;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── DOC TITLE BLOCK ─── */
+  .doc-title-block {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 3px solid #FDC020;
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+
+  .doc-title-left {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .doc-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: #0f172a;
+  }
+
+  .doc-subtitle {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1.3px;
+    margin-top: 3px;
+  }
+
+  .doc-title-right {
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .doc-number {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-top: 6px;
+  }
+
+  .doc-date {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ─── STATUS BADGE ─── */
+  .pdf-status {
+    display: inline-block;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .pdf-status-paid {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .pdf-status-partial {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .pdf-status-pending {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  /* ─── AMOUNT HERO ─── */
+  .pdf-amount-hero {
+    background: #0f172a;
+    color: #ffffff;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pdf-amount-hero::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #FDC020;
+  }
+
+  .pdf-amount-hero-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #94a3b8;
+    margin-bottom: 4px;
+  }
+
+  .pdf-amount-hero-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pdf-amount-hero-meta {
+    text-align: right;
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+
+  .pdf-amount-hero-meta strong {
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  /* ─── GRID SECTIONS ─── */
+  .pdf-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .pdf-grid-full {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .pdf-section {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #FDC020;
+  }
+
+  .pdf-section-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+
+  .pdf-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 3px 0;
+    font-size: 11px;
+  }
+
+  .pdf-row:not(:last-child) {
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .pdf-row-label {
+    color: #64748b;
+    flex-shrink: 0;
+  }
+
+  .pdf-row-value {
+    color: #0f172a;
+    font-weight: 600;
+    text-align: right;
+    word-break: break-word;
+    max-width: 60%;
+  }
+
+  /* ─── ITEMS TABLE ─── */
+  .pdf-items-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #475569;
+    margin: 10px 0 6px 0;
+  }
+
+  .pdf-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    font-size: 11px;
+  }
+
+  .pdf-items-table thead th {
+    background: #0f172a;
+    color: #ffffff;
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .pdf-items-table thead th:last-child,
+  .pdf-items-table thead th:nth-child(2),
+  .pdf-items-table thead th:nth-child(3) {
+    text-align: right;
+  }
+
+  .pdf-items-table tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+
+  .pdf-items-table tbody td:last-child,
+  .pdf-items-table tbody td:nth-child(2),
+  .pdf-items-table tbody td:nth-child(3) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pdf-items-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+  }
+
+  /* ─── TOTALS ─── */
+  .pdf-totals {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+
+  .pdf-totals-box {
+    width: 55%;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+
+  .pdf-totals-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    font-size: 11px;
+  }
+
+  .pdf-totals-row-grand {
+    border-top: 2px solid #FDC020;
+    margin-top: 5px;
+    padding-top: 7px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .pdf-totals-label {
+    color: #64748b;
+  }
+
+  .pdf-totals-label-grand {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .pdf-totals-value {
+    font-weight: 600;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pdf-totals-value-paid {
+    color: #16a34a;
+  }
+
+  .pdf-totals-value-due {
+    color: #d97706;
+  }
+
+  /* ─── NOTES ─── */
+  .pdf-note {
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 11px;
+    color: #78350f;
+    margin-bottom: 10px;
+  }
+
+  .pdf-note-success {
+    background: #dcfce7;
+    border-left-color: #16a34a;
+    color: #14532d;
+  }
+
+  .pdf-note-info {
+    background: #dbeafe;
+    border-left-color: #3b82f6;
+    color: #1e3a8a;
+  }
+
+  /* ─── FULL-BLEED FOOTER (matches emails) ─── */
+  .email-footer {
+    width: 100%;
+    display: block;
+    margin-top: auto;
+    padding-top: 8mm;
+  }
+
+  /* ─── UTILITIES ─── */
+  .pdf-text-right { text-align: right; }
+  .pdf-text-center { text-align: center; }
+  .pdf-mb-0 { margin-bottom: 0; }
+  .pdf-mb-8 { margin-bottom: 8px; }
+  .pdf-mb-12 { margin-bottom: 12px; }
+  .pdf-mt-8 { margin-top: 8px; }
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVOICE / RECEIPT TEMPLATE (used for invoices)
+// ─────────────────────────────────────────────────────────────────────────────
 function generateInvoicePDFHTML(
   invoice: any,
   paymentDetails: any,
@@ -80,541 +461,304 @@ function generateInvoicePDFHTML(
     }
   };
 
+  const statusClass = isFullyPaid
+    ? "pdf-status-paid"
+    : remainingBalance > 0 && paidAmount > 0
+      ? "pdf-status-partial"
+      : "pdf-status-pending";
+
+  const statusText = isFullyPaid
+    ? "Paid in Full"
+    : remainingBalance > 0 && paidAmount > 0
+      ? "Partially Paid"
+      : "Pending";
+
   return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>${isReceipt ? "Payment Receipt" : "Invoice"} - ${invoice.invoice_id}</title>
-      <meta charset="UTF-8">
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          background: #f5f5f5;
-          padding: 40px 20px;
-        }
-        
-        .document-container {
-          max-width: 900px;
-          margin: 0 auto;
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .header {
-          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
-          color: white;
-          padding: 40px;
-          text-align: center;
-        }
-        
-        .header img {
-          max-height: 60px;
-          margin-bottom: 20px;
-        }
-        
-        .header h1 {
-          font-size: 32px;
-          margin-bottom: 10px;
-          letter-spacing: 1px;
-        }
-        
-        .header .badge {
-          display: inline-block;
-          padding: 8px 20px;
-          background: rgba(255,255,255,0.2);
-          border-radius: 30px;
-          font-size: 14px;
-          margin-top: 15px;
-        }
-        
-        .content {
-          padding: 40px;
-        }
-        
-        .status-badge {
-          display: inline-block;
-          padding: 8px 20px;
-          border-radius: 30px;
-          font-size: 14px;
-          font-weight: bold;
-          margin-bottom: 30px;
-        }
-        
-        .status-paid {
-          background: #22c55e;
-          color: white;
-        }
-        
-        .status-partial {
-          background: #f59e0b;
-          color: white;
-        }
-        
-        .status-pending {
-          background: #ef4444;
-          color: white;
-        }
-        
-        .grid-2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-bottom: 30px;
-        }
-        
-        .info-section {
-          background: #f8fafc;
-          padding: 20px;
-          border-radius: 12px;
-          border-left: 4px solid #FDC020;
-          margin-bottom: 25px;
-        }
-        
-        .info-section h3 {
-          color: #FDC020;
-          font-size: 16px;
-          margin-bottom: 15px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .info-row:last-child {
-          border-bottom: none;
-        }
-        
-        .info-label {
-          font-weight: 600;
-          color: #475569;
-        }
-        
-        .info-value {
-          color: #1e293b;
-          text-align: right;
-        }
-        
-        .items-table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 25px 0;
-        }
-        
-        .items-table th {
-          background: #f1f5f9;
-          padding: 15px;
-          text-align: left;
-          font-weight: 600;
-          color: #475569;
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        
-        .items-table td {
-          padding: 12px 15px;
-          border-bottom: 1px solid #e2e8f0;
-          color: #334155;
-        }
-        
-        .items-table tr:last-child td {
-          border-bottom: none;
-        }
-        
-        .totals {
-          margin-top: 30px;
-          text-align: right;
-          padding-top: 20px;
-          border-top: 2px solid #e2e8f0;
-        }
-        
-        .total-line {
-          padding: 8px 0;
-          display: flex;
-          justify-content: flex-end;
-          gap: 30px;
-        }
-        
-        .total-line strong {
-          min-width: 150px;
-          text-align: left;
-        }
-        
-        .grand-total {
-          font-size: 24px;
-          font-weight: bold;
-          color: #FDC020;
-          margin-top: 15px;
-          padding-top: 15px;
-          border-top: 2px solid #FDC020;
-        }
-        
-        .payment-summary {
-          background: #f0fdf4;
-          padding: 20px;
-          border-radius: 12px;
-          margin: 25px 0;
-          border: 1px solid #bbf7d0;
-        }
-        
-        .payment-summary h3 {
-          color: #166534;
-          margin-bottom: 15px;
-        }
-        
-        .note {
-          background: #fef3c7;
-          padding: 15px 20px;
-          border-radius: 10px;
-          margin: 25px 0;
-          border-left: 4px solid #f59e0b;
-          font-size: 14px;
-          color: #92400e;
-        }
-        
-        .success-note {
-          background: #dcfce7;
-          border-left-color: #22c55e;
-          color: #166534;
-        }
-        
-        .footer {
-          background: #f8fafc;
-          padding: 30px 40px;
-          text-align: center;
-          border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer img {
-          max-height: 40px;
-          margin-bottom: 15px;
-        }
-        
-        .footer p {
-          color: #64748b;
-          font-size: 12px;
-          margin: 5px 0;
-        }
-        
-        @media print {
-          body {
-            background: white;
-            padding: 0;
-          }
-          .document-container {
-            box-shadow: none;
-            border-radius: 0;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="document-container">
-        <div class="header">
-          <img src="${headerImageUrl}" alt="Zidwell Logo" />
-          <h1>${isReceipt ? "PAYMENT RECEIPT" : "INVOICE"}</h1>
-          <div class="badge">${isReceipt ? "Official Payment Receipt" : "Tax Invoice"}</div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${isReceipt ? "Payment Receipt" : "Invoice"} - ${invoice.invoice_id}</title>
+  <style>${SHARED_PDF_CSS}</style>
+</head>
+<body>
+  <div class="pdf-page">
+
+    <!-- FULL-BLEED HEADER IMAGE (matches emails) -->
+    <img class="email-header" src="${headerImageUrl}" alt="Zidwell" />
+
+    <div class="content-wrapper">
+
+      <!-- DOC TITLE -->
+      <div class="doc-title-block">
+        <div class="doc-title-left">
+          <div class="doc-title">${isReceipt ? "Payment Receipt" : "Invoice"}</div>
+          <div class="doc-subtitle">Zidwell • Official Document</div>
         </div>
-        
-        <div class="content">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span class="status-badge ${isFullyPaid ? "status-paid" : remainingBalance > 0 && paidAmount > 0 ? "status-partial" : "status-pending"}">
-              ${isFullyPaid ? "✓ PAID IN FULL" : remainingBalance > 0 && paidAmount > 0 ? "⚠ PARTIALLY PAID" : "○ PENDING PAYMENT"}
-            </span>
-          </div>
-          
-          <div class="grid-2">
-            <div class="info-section">
-              <h3>📄 DOCUMENT INFORMATION</h3>
-              <div class="info-row">
-                <span class="info-label">${isReceipt ? "Receipt Number:" : "Invoice Number:"}</span>
-                <span class="info-value">${invoice.invoice_id}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Date Issued:</span>
-                <span class="info-value">${formatDate(invoice.issue_date)}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Due Date:</span>
-                <span class="info-value">${formatDate(invoice.due_date)}</span>
-              </div>
-              ${
-                paymentDetails?.transactionId
-                  ? `
-              <div class="info-row">
-                <span class="info-label">Transaction ID:</span>
-                <span class="info-value">${paymentDetails.transactionId}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Payment Date:</span>
-                <span class="info-value">${formatDate(paymentDetails.paidAt)}</span>
-              </div>
-              `
-                  : ""
-              }
-            </div>
-            
-            <div class="info-section">
-              <h3>🏢 BUSINESS INFORMATION</h3>
-              <div class="info-row">
-                <span class="info-label">Business Name:</span>
-                <span class="info-value">${invoice.business_name || invoice.from_name || "N/A"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Email:</span>
-                <span class="info-value">${invoice.from_email || invoice.business_email || "N/A"}</span>
-              </div>
-              ${
-                invoice.from_address
-                  ? `
-              <div class="info-row">
-                <span class="info-label">Address:</span>
-                <span class="info-value">${invoice.from_address}</span>
-              </div>
-              `
-                  : ""
-              }
-            </div>
-          </div>
-          
-          <div class="grid-2">
-            <div class="info-section">
-              <h3>👤 CUSTOMER INFORMATION</h3>
-              <div class="info-row">
-                <span class="info-label">Name:</span>
-                <span class="info-value">${payerName || invoice.client_name || "N/A"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Email:</span>
-                <span class="info-value">${payerEmail || invoice.client_email || "N/A"}</span>
-              </div>
-              ${
-                invoice.client_phone
-                  ? `
-              <div class="info-row">
-                <span class="info-label">Phone:</span>
-                <span class="info-value">${invoice.client_phone}</span>
-              </div>
-              `
-                  : ""
-              }
-            </div>
-            
-            ${
-              paymentDetails?.paymentMethod
-                ? `
-            <div class="info-section">
-              <h3>💳 PAYMENT DETAILS</h3>
-              <div class="info-row">
-                <span class="info-label">Payment Method:</span>
-                <span class="info-value">${
-                  paymentDetails.paymentMethod === "card_payment"
-                    ? "Card Payment"
-                    : paymentDetails.paymentMethod === "virtual_account"
-                      ? "Bank Transfer"
-                      : paymentDetails.paymentMethod === "bank_transfer"
-                        ? "Bank Transfer"
-                        : paymentDetails.paymentMethod || "N/A"
-                }</span>
-              </div>
-              ${
-                paymentDetails.narration
-                  ? `
-              <div class="info-row">
-                <span class="info-label">Narration:</span>
-                <span class="info-value">${paymentDetails.narration}</span>
-              </div>
-              `
-                  : ""
-              }
-            </div>
-            `
-                : ""
-            }
-          </div>
-          
-          ${
-            invoiceItems.length > 0
-              ? `
-            <h3 style="margin: 25px 0 15px; color: #FDC020;">📦 ITEMS / SERVICES</h3>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th style="text-align: center;">Quantity</th>
-                  <th style="text-align: right;">Unit Price</th>
-                  <th style="text-align: right;">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${invoiceItems
-                  .map(
-                    (item: any) => `
-                  <tr>
-                    <td>${item.item_description || item.description || ""}</td>
-                    <td style="text-align: center;">${item.quantity || 0}</td>
-                    <td style="text-align: right;">${formatCurrency(item.unit_price || item.unitPrice || 0)}</td>
-                    <td style="text-align: right;">${formatCurrency(item.total_amount || item.total || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0))}</td>
-                  </tr>
-                `,
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          `
-              : ""
-          }
-          
-          <div class="totals">
-            <div class="total-line">
-              <strong>Subtotal:</strong>
-              <span>${formatCurrency(subtotal)}</span>
-            </div>
-            ${
-              invoice.fee_amount > 0
-                ? `
-            <div class="total-line">
-              <strong>Processing Fee:</strong>
-              <span>${formatCurrency(invoice.fee_amount)}</span>
-            </div>
-            `
-                : ""
-            }
-            ${
-              invoice.discount_amount > 0
-                ? `
-            <div class="total-line">
-              <strong>Discount:</strong>
-              <span>-${formatCurrency(invoice.discount_amount)}</span>
-            </div>
-            `
-                : ""
-            }
-            <div class="total-line">
-              <strong>Total Invoice Amount:</strong>
-              <span>${formatCurrency(totalAmount)}</span>
-            </div>
-            ${
-              paidAmount > 0
-                ? `
-            <div class="total-line">
-              <strong>Amount Paid:</strong>
-              <span style="color: #22c55e;">${formatCurrency(paidAmount)}</span>
-            </div>
-            `
-                : ""
-            }
-            ${
-              remainingBalance > 0
-                ? `
-            <div class="total-line">
-              <strong>Remaining Balance:</strong>
-              <span style="color: #f59e0b;">${formatCurrency(remainingBalance)}</span>
-            </div>
-            `
-                : ""
-            }
-            <div class="grand-total">
-              ${isReceipt ? "PAYMENT RECEIVED:" : isFullyPaid ? "AMOUNT DUE: ₦0.00" : "AMOUNT DUE:"}
-              ${isReceipt ? formatCurrency(paidAmount) : isFullyPaid ? "" : formatCurrency(remainingBalance)}
-            </div>
-          </div>
-          
-          ${
-            paymentDetails && !isReceipt
-              ? `
-          <div class="payment-summary">
-            <h3>💰 Payment Summary</h3>
-            <div class="info-row">
-              <span class="info-label">Amount Paid:</span>
-              <span class="info-value" style="color: #16a34a; font-weight: bold;">${formatCurrency(paymentDetails.amount)}</span>
-            </div>
-            ${
-              paymentDetails.nombaFee > 0
-                ? `
-            <div class="info-row">
-              <span class="info-label">Processing Fee:</span>
-              <span class="info-value">${formatCurrency(paymentDetails.nombaFee)}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Net Amount Credited:</span>
-              <span class="info-value">${formatCurrency(paymentDetails.netAmount)}</span>
-            </div>
-            `
-                : ""
-            }
-          </div>
-          `
-              : ""
-          }
-          
-          ${
-            remainingBalance > 0 && !isFullyPaid
-              ? `
-            <div class="note">
-              <strong>⚠️ Note:</strong> This is a partial payment. The remaining balance of ${formatCurrency(remainingBalance)} is still due. 
-              Please settle the outstanding amount before the due date.
-            </div>
-          `
-              : isFullyPaid && !isReceipt
-                ? `
-            <div class="note success-note">
-              <strong>✅ Invoice Fully Paid:</strong> Thank you for your payment. This invoice has been fully settled.
-            </div>
-          `
-                : ""
-          }
-          
-          ${
-            invoice.terms_and_conditions
-              ? `
-            <div class="info-section">
-              <h3>📋 Terms & Conditions</h3>
-              <p style="margin: 0; color: #475569; line-height: 1.5;">${invoice.terms_and_conditions}</p>
-            </div>
-          `
-              : ""
-          }
-          
-          ${
-            invoice.customer_note
-              ? `
-            <div class="info-section">
-              <h3>📝 Note from Merchant</h3>
-              <p style="margin: 0; color: #475569; line-height: 1.5;">${invoice.customer_note}</p>
-            </div>
-          `
-              : ""
-          }
-        </div>
-        
-        <div class="footer">
-          <img src="${footerImageUrl}" alt="Zidwell Footer" />
-          <p>This is an official ${isReceipt ? "payment receipt" : "tax invoice"}. Please retain for your records.</p>
-          <p>For any questions regarding this ${isReceipt ? "receipt" : "invoice"}, please contact ${invoice.from_email || invoice.business_email}</p>
-          <p>Generated on ${new Date().toLocaleString("en-NG")}</p>
-          <p style="margin-top: 10px;">© ${new Date().getFullYear()} Zidwell. All rights reserved.</p>
+        <div class="doc-title-right">
+          <span class="pdf-status ${statusClass}">${statusText}</span>
+          <div class="doc-number">#${invoice.invoice_id}</div>
+          <div class="doc-date">Issued ${formatDate(invoice.issue_date)}</div>
         </div>
       </div>
-    </body>
-    </html>
-  `;
+
+      <!-- AMOUNT HERO -->
+      <div class="pdf-amount-hero">
+        <div>
+          <div class="pdf-amount-hero-label">Amount Paid</div>
+          <div class="pdf-amount-hero-value">${formatCurrency(paidAmount)}</div>
+        </div>
+        <div class="pdf-amount-hero-meta">
+          ${remainingBalance > 0
+            ? `Balance Due<br><strong>${formatCurrency(remainingBalance)}</strong>`
+            : `Total Paid<br><strong>${formatCurrency(totalAmount)}</strong>`}
+        </div>
+      </div>
+
+      <!-- DOC + BUSINESS -->
+      <div class="pdf-grid">
+        <div class="pdf-section">
+          <div class="pdf-section-title">Document Information</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">${isReceipt ? "Receipt No." : "Invoice No."}</span>
+            <span class="pdf-row-value">${invoice.invoice_id}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Issue Date</span>
+            <span class="pdf-row-value">${formatDate(invoice.issue_date)}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Due Date</span>
+            <span class="pdf-row-value">${formatDate(invoice.due_date)}</span>
+          </div>
+          ${paymentDetails?.transactionId
+            ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Transaction ID</span>
+            <span class="pdf-row-value">${paymentDetails.transactionId}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Payment Date</span>
+            <span class="pdf-row-value">${formatDate(paymentDetails.paidAt)}</span>
+          </div>
+          `
+            : ""}
+        </div>
+
+        <div class="pdf-section">
+          <div class="pdf-section-title">Business Information</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Business</span>
+            <span class="pdf-row-value">${invoice.business_name || invoice.from_name || "N/A"}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Email</span>
+            <span class="pdf-row-value">${invoice.from_email || invoice.business_email || "N/A"}</span>
+          </div>
+          ${invoice.from_address
+            ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Address</span>
+            <span class="pdf-row-value">${invoice.from_address}</span>
+          </div>
+          `
+            : ""}
+        </div>
+      </div>
+
+      <!-- CUSTOMER + PAYMENT -->
+      <div class="pdf-grid">
+        <div class="pdf-section">
+          <div class="pdf-section-title">Customer Information</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Name</span>
+            <span class="pdf-row-value">${payerName || invoice.client_name || "N/A"}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Email</span>
+            <span class="pdf-row-value">${payerEmail || invoice.client_email || "N/A"}</span>
+          </div>
+          ${invoice.client_phone
+            ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Phone</span>
+            <span class="pdf-row-value">${invoice.client_phone}</span>
+          </div>
+          `
+            : ""}
+        </div>
+
+        ${paymentDetails?.paymentMethod
+          ? `
+        <div class="pdf-section">
+          <div class="pdf-section-title">Payment Details</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Method</span>
+            <span class="pdf-row-value">${
+              paymentDetails.paymentMethod === "card_payment"
+                ? "Card Payment"
+                : paymentDetails.paymentMethod === "virtual_account" ||
+                  paymentDetails.paymentMethod === "bank_transfer"
+                  ? "Bank Transfer"
+                  : paymentDetails.paymentMethod || "N/A"
+            }</span>
+          </div>
+          ${paymentDetails.narration
+            ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Narration</span>
+            <span class="pdf-row-value">${paymentDetails.narration}</span>
+          </div>
+          `
+            : ""}
+        </div>
+        `
+          : ""}
+      </div>
+
+      <!-- ITEMS -->
+      ${
+        invoiceItems.length > 0
+          ? `
+      <div class="pdf-items-title">Items / Services</div>
+      <table class="pdf-items-table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invoiceItems
+            .map(
+              (item: any) => `
+          <tr>
+            <td>${item.item_description || item.description || ""}</td>
+            <td>${item.quantity || 0}</td>
+            <td>${formatCurrency(item.unit_price || item.unitPrice || 0)}</td>
+            <td>${formatCurrency(item.total_amount || item.total || (item.quantity || 0) * (item.unit_price || item.unitPrice || 0))}</td>
+          </tr>
+          `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+      `
+          : ""
+      }
+
+      <!-- TOTALS -->
+      <div class="pdf-totals">
+        <div class="pdf-totals-box">
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Subtotal</span>
+            <span class="pdf-totals-value">${formatCurrency(subtotal)}</span>
+          </div>
+          ${
+            invoice.fee_amount > 0
+              ? `
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Processing Fee</span>
+            <span class="pdf-totals-value">${formatCurrency(invoice.fee_amount)}</span>
+          </div>
+          `
+              : ""
+          }
+          ${
+            invoice.discount_amount > 0
+              ? `
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Discount</span>
+            <span class="pdf-totals-value">-${formatCurrency(invoice.discount_amount)}</span>
+          </div>
+          `
+              : ""
+          }
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Total</span>
+            <span class="pdf-totals-value">${formatCurrency(totalAmount)}</span>
+          </div>
+          ${
+            paidAmount > 0
+              ? `
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Amount Paid</span>
+            <span class="pdf-totals-value pdf-totals-value-paid">${formatCurrency(paidAmount)}</span>
+          </div>
+          `
+              : ""
+          }
+          ${
+            remainingBalance > 0
+              ? `
+          <div class="pdf-totals-row">
+            <span class="pdf-totals-label">Remaining</span>
+            <span class="pdf-totals-value pdf-totals-value-due">${formatCurrency(remainingBalance)}</span>
+          </div>
+          `
+              : ""
+          }
+          <div class="pdf-totals-row pdf-totals-row-grand">
+            <span class="pdf-totals-label-grand">${isReceipt ? "Received" : isFullyPaid ? "Amount Due" : "Amount Due"}</span>
+            <span class="pdf-totals-value">${isReceipt ? formatCurrency(paidAmount) : isFullyPaid ? formatCurrency(0) : formatCurrency(remainingBalance)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      ${
+        remainingBalance > 0 && !isFullyPaid
+          ? `
+      <div class="pdf-note">
+        <strong>Note:</strong> This is a partial payment. A remaining balance of ${formatCurrency(remainingBalance)} is still due. Please settle before the due date.
+      </div>
+      `
+          : isFullyPaid && !isReceipt
+            ? `
+      <div class="pdf-note pdf-note-success">
+        <strong>Invoice Fully Paid:</strong> Thank you for your payment. This invoice has been fully settled.
+      </div>
+      `
+            : ""
+      }
+
+      ${
+        invoice.terms_and_conditions
+          ? `
+      <div class="pdf-section pdf-mb-12">
+        <div class="pdf-section-title">Terms & Conditions</div>
+        <div style="font-size:10px;color:#475569;line-height:1.5;">${invoice.terms_and_conditions}</div>
+      </div>
+      `
+          : ""
+      }
+
+      ${
+        invoice.customer_note
+          ? `
+      <div class="pdf-section pdf-mb-12">
+        <div class="pdf-section-title">Note from Merchant</div>
+        <div style="font-size:10px;color:#475569;line-height:1.5;">${invoice.customer_note}</div>
+      </div>
+      `
+          : ""
+      }
+
+    </div>
+
+    <!-- FULL-BLEED FOOTER IMAGE (matches emails) -->
+    <img class="email-footer" src="${footerImageUrl}" alt="Zidwell" />
+
+  </div>
+</body>
+</html>`;
 }
 
-// Helper function to generate Payment Page PDF HTML
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT PAGE RECEIPT TEMPLATE
+// ─────────────────────────────────────────────────────────────────────────────
 function generatePaymentPagePDFHTML(
   paymentPage: any,
   paymentRecord: any,
@@ -647,37 +791,27 @@ function generatePaymentPagePDFHTML(
     }
   };
 
-  // Get page title from metadata or paymentPage object
   const pageTitle =
     metadata?.pageTitle ||
     paymentPage?.title ||
     paymentPage?.page_title ||
     "Payment Page";
 
-  // FIXED: Properly determine payment method text
   let paymentMethodText = "Card Payment";
-
-  // Check paymentMethod parameter first
   if (
     paymentMethod === "bank_transfer" ||
     paymentMethod === "virtual_account"
   ) {
     paymentMethodText = "Bank Transfer";
-  }
-  // Then check metadata
-  else if (
+  } else if (
     metadata?.payment_method === "bank_transfer" ||
     metadata?.bank_transfer === true ||
     metadata?.payment_type === "backtransfer"
   ) {
     paymentMethodText = "Bank Transfer";
-  }
-  // Check payment record payment_method
-  else if (paymentRecord?.payment_method === "bank_transfer") {
+  } else if (paymentRecord?.payment_method === "bank_transfer") {
     paymentMethodText = "Bank Transfer";
-  }
-  // Default to card payment
-  else if (paymentMethod === "card" || paymentMethod === "card_payment") {
+  } else if (paymentMethod === "card" || paymentMethod === "card_payment") {
     paymentMethodText = "Card Payment";
   }
 
@@ -685,291 +819,188 @@ function generatePaymentPagePDFHTML(
 
   if (metadata?.pageType === "school") {
     additionalInfo = `
-      <div class="info-section">
-        <h3>🎓 Student Information</h3>
-        <div class="info-row">
-          <span class="info-label">Student Name:</span>
-          <span class="info-value">${metadata.childName || "N/A"}</span>
+      <div class="pdf-section">
+        <div class="pdf-section-title">Student Information</div>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Student</span>
+          <span class="pdf-row-value">${metadata.childName || metadata.studentName || "N/A"}</span>
         </div>
-        <div class="info-row">
-          <span class="info-label">Registration Number:</span>
-          <span class="info-value">${metadata.regNumber || "N/A"}</span>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Reg. Number</span>
+          <span class="pdf-row-value">${metadata.regNumber || "N/A"}</span>
         </div>
-        <div class="info-row">
-          <span class="info-label">Parent Name:</span>
-          <span class="info-value">${metadata.parentName || "N/A"}</span>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Parent</span>
+          <span class="pdf-row-value">${metadata.parentName || "N/A"}</span>
         </div>
       </div>
     `;
-  } else if (metadata?.pageType === "physical" && metadata.address) {
+  } else if (
+    metadata?.pageType === "physical" &&
+    (metadata.shippingAddress || metadata.address)
+  ) {
+    const addr = metadata.shippingAddress || {};
+    const formatted = metadata.address
+      ? metadata.address
+      : [addr.street, addr.city, addr.state, addr.country]
+          .filter(Boolean)
+          .join(", ");
     additionalInfo = `
-      <div class="info-section">
-        <h3>📦 Shipping Information</h3>
-        <div class="info-row">
-          <span class="info-label">Quantity:</span>
-          <span class="info-value">${metadata.quantity || 1}</span>
+      <div class="pdf-section">
+        <div class="pdf-section-title">Shipping Information</div>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Quantity</span>
+          <span class="pdf-row-value">${metadata.quantity || 1}</span>
         </div>
-        <div class="info-row">
-          <span class="info-label">Shipping Address:</span>
-          <span class="info-value">${metadata.address}</span>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Address</span>
+          <span class="pdf-row-value">${formatted || "N/A"}</span>
         </div>
       </div>
     `;
   } else if (metadata?.pageType === "services" && metadata.bookingDate) {
     additionalInfo = `
-      <div class="info-section">
-        <h3>📅 Booking Details</h3>
-        <div class="info-row">
-          <span class="info-label">Date:</span>
-          <span class="info-value">${metadata.bookingDate}</span>
+      <div class="pdf-section">
+        <div class="pdf-section-title">Booking Details</div>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Date</span>
+          <span class="pdf-row-value">${metadata.bookingDate}</span>
         </div>
-        <div class="info-row">
-          <span class="info-label">Time:</span>
-          <span class="info-value">${metadata.bookingTime || "N/A"}</span>
+        <div class="pdf-row">
+          <span class="pdf-row-label">Time</span>
+          <span class="pdf-row-value">${metadata.bookingTime || "N/A"}</span>
         </div>
       </div>
     `;
   }
 
   return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Payment Receipt - ${pageTitle}</title>
-      <meta charset="UTF-8">
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-          background: #f5f5f5;
-          padding: 40px 20px;
-        }
-        
-        .receipt-container {
-          max-width: 800px;
-          margin: 0 auto;
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-          overflow: hidden;
-        }
-        
-        .header {
-          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
-          color: white;
-          padding: 40px;
-          text-align: center;
-        }
-        
-        .header img {
-          max-height: 60px;
-          margin-bottom: 20px;
-        }
-        
-        .header h1 {
-          font-size: 32px;
-          margin-bottom: 10px;
-        }
-        
-        .success-badge {
-          display: inline-block;
-          padding: 8px 20px;
-          background: #22c55e;
-          border-radius: 30px;
-          font-size: 14px;
-          font-weight: bold;
-          margin-top: 15px;
-        }
-        
-        .content {
-          padding: 40px;
-        }
-        
-        .info-section {
-          background: #f8fafc;
-          padding: 20px;
-          border-radius: 12px;
-          border-left: 4px solid #FDC020;
-          margin-bottom: 25px;
-        }
-        
-        .info-section h3 {
-          color: #FDC020;
-          font-size: 16px;
-          margin-bottom: 15px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .info-row:last-child {
-          border-bottom: none;
-        }
-        
-        .info-label {
-          font-weight: 600;
-          color: #475569;
-        }
-        
-        .info-value {
-          color: #1e293b;
-          text-align: right;
-        }
-        
-        .amount-box {
-          background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
-          color: white;
-          padding: 30px;
-          border-radius: 12px;
-          text-align: center;
-          margin: 25px 0;
-        }
-        
-        .amount-box .label {
-          font-size: 14px;
-          opacity: 0.9;
-          margin-bottom: 10px;
-        }
-        
-        .amount-box .amount {
-          font-size: 48px;
-          font-weight: bold;
-        }
-        
-        .note {
-          background: #fef3c7;
-          padding: 15px 20px;
-          border-radius: 10px;
-          margin: 25px 0;
-          border-left: 4px solid #f59e0b;
-          font-size: 14px;
-          color: #92400e;
-        }
-        
-        .footer {
-          background: #f8fafc;
-          padding: 30px 40px;
-          text-align: center;
-          border-top: 1px solid #e2e8f0;
-        }
-        
-        .footer img {
-          max-height: 40px;
-          margin-bottom: 15px;
-        }
-        
-        .footer p {
-          color: #64748b;
-          font-size: 12px;
-          margin: 5px 0;
-        }
-        
-        @media print {
-          body {
-            background: white;
-            padding: 0;
-          }
-          .receipt-container {
-            box-shadow: none;
-            border-radius: 0;
-          }
-          .success-badge, .amount-box {
-            print-color-adjust: exact;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="receipt-container">
-        <div class="header">
-          <img src="${headerImageUrl}" alt="Zidwell Logo" />
-          <h1>PAYMENT RECEIPT</h1>
-          <div class="success-badge">✓ PAYMENT SUCCESSFUL</div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Receipt - ${pageTitle}</title>
+  <style>${SHARED_PDF_CSS}</style>
+</head>
+<body>
+  <div class="pdf-page">
+
+    <!-- FULL-BLEED HEADER IMAGE (matches emails) -->
+    <img class="email-header" src="${headerImageUrl}" alt="Zidwell" />
+
+    <div class="content-wrapper">
+
+      <!-- DOC TITLE -->
+      <div class="doc-title-block">
+        <div class="doc-title-left">
+          <div class="doc-title">Payment Receipt</div>
+          <div class="doc-subtitle">Zidwell • Verified Transaction</div>
         </div>
-        
-        <div class="content">
-          <div class="amount-box">
-            <div class="label">AMOUNT PAID</div>
-            <div class="amount">${formatCurrency(amount)}</div>
-          </div>
-          
-          <div class="info-section">
-            <h3>💰 TRANSACTION DETAILS</h3>
-            <div class="info-row">
-              <span class="info-label">Transaction ID:</span>
-              <span class="info-value">${transactionId}</span>
-            </div>
-          
-            <div class="info-row">
-              <span class="info-label">Payment Date:</span>
-              <span class="info-value">${formatDate(paidAt)}</span>
-            </div>
-          </div>
-          
-          <div class="info-section">
-            <h3>📄 PAYMENT PAGE</h3>
-            <div class="info-row">
-              <span class="info-label">Page Title:</span>
-              <span class="info-value">${pageTitle}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Reference:</span>
-              <span class="info-value">${paymentRecord.order_reference || "N/A"}</span>
-            </div>
-          </div>
-          
-          <div class="info-section">
-            <h3>👤 CUSTOMER INFORMATION</h3>
-            <div class="info-row">
-              <span class="info-label">Name:</span>
-              <span class="info-value">${customerName}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Email:</span>
-              <span class="info-value">${customerEmail}</span>
-            </div>
-            ${
-              paymentRecord.customer_phone
-                ? `
-            <div class="info-row">
-              <span class="info-label">Phone:</span>
-              <span class="info-value">${paymentRecord.customer_phone}</span>
-            </div>
-            `
-                : ""
-            }
-          </div>
-          
-          ${additionalInfo}
-          
-          <div class="note">
-            <strong>Thank you for your payment!</strong> This is an official receipt for your transaction. 
-            Please keep this for your records.
-          </div>
-        </div>
-        
-        <div class="footer">
-          <img src="${footerImageUrl}" alt="Zidwell Footer" />
-          <p>This is an official payment receipt from Zidwell.</p>
-          <p>For any questions regarding this transaction, please contact the merchant directly.</p>
-          <p>Generated on ${new Date().toLocaleString("en-NG")}</p>
-          <p style="margin-top: 10px;">© ${new Date().getFullYear()} Zidwell. All rights reserved.</p>
+        <div class="doc-title-right">
+          <span class="pdf-status pdf-status-paid">Payment Successful</span>
+          <div class="doc-number">#${transactionId.slice(-12)}</div>
+          <div class="doc-date">${formatDate(paidAt)}</div>
         </div>
       </div>
-    </body>
-    </html>
-  `;
+
+      <!-- AMOUNT HERO -->
+      <div class="pdf-amount-hero">
+        <div>
+          <div class="pdf-amount-hero-label">Amount Paid</div>
+          <div class="pdf-amount-hero-value">${formatCurrency(amount)}</div>
+        </div>
+        <div class="pdf-amount-hero-meta">
+          Paid via<br><strong>${paymentMethodText}</strong>
+        </div>
+      </div>
+
+      <!-- PAGE + CUSTOMER -->
+      <div class="pdf-grid">
+        <div class="pdf-section">
+          <div class="pdf-section-title">Payment Page</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Title</span>
+            <span class="pdf-row-value">${pageTitle}</span>
+          </div>
+          ${
+            paymentRecord?.order_reference
+              ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Reference</span>
+            <span class="pdf-row-value">${paymentRecord.order_reference}</span>
+          </div>
+          `
+              : ""
+          }
+          ${
+            metadata?.referenceCode
+              ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Code</span>
+            <span class="pdf-row-value">${metadata.referenceCode}</span>
+          </div>
+          `
+              : ""
+          }
+        </div>
+
+        <div class="pdf-section">
+          <div class="pdf-section-title">Customer Information</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Name</span>
+            <span class="pdf-row-value">${customerName}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Email</span>
+            <span class="pdf-row-value">${customerEmail}</span>
+          </div>
+          ${
+            paymentRecord?.customer_phone
+              ? `
+          <div class="pdf-row">
+            <span class="pdf-row-label">Phone</span>
+            <span class="pdf-row-value">${paymentRecord.customer_phone}</span>
+          </div>
+          `
+              : ""
+          }
+        </div>
+      </div>
+
+      <!-- TRANSACTION -->
+      <div class="pdf-grid-full">
+        <div class="pdf-section">
+          <div class="pdf-section-title">Transaction Details</div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Transaction ID</span>
+            <span class="pdf-row-value">${transactionId}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Payment Date</span>
+            <span class="pdf-row-value">${formatDate(paidAt)}</span>
+          </div>
+          <div class="pdf-row">
+            <span class="pdf-row-label">Payment Method</span>
+            <span class="pdf-row-value">${paymentMethodText}</span>
+          </div>
+        </div>
+      </div>
+
+      ${additionalInfo}
+
+      <!-- NOTE -->
+      <div class="pdf-note pdf-note-success">
+        <strong>Thank you for your payment!</strong> This is an official receipt for your transaction. Please keep this for your records.
+      </div>
+
+    </div>
+
+    <!-- FULL-BLEED FOOTER IMAGE (matches emails) -->
+    <img class="email-footer" src="${footerImageUrl}" alt="Zidwell" />
+
+  </div>
+</body>
+</html>`;
 }
 
 // Function to call your PDF generation API
@@ -1024,14 +1055,12 @@ export async function sendTransactionReceiptWithPDF(
   console.log(`📧 [EMAIL] Transaction ID: ${paymentDetails.transactionId}`);
   console.log(`📧 [EMAIL] Payment Method: ${paymentDetails.paymentMethod}`);
   
-  // Validate email
   if (!payerEmail || !payerEmail.includes('@')) {
     console.error(`❌ [EMAIL] Invalid email address: ${payerEmail}`);
     return { success: false, error: "Invalid email address" };
   }
   
   try {
-    // Generate PDF HTML
     console.log(`📧 [EMAIL] Generating PDF HTML...`);
     const pdfHTML = generateInvoicePDFHTML(
       invoice,
@@ -1042,7 +1071,6 @@ export async function sendTransactionReceiptWithPDF(
     );
     console.log(`📧 [EMAIL] PDF HTML generated, length: ${pdfHTML.length} characters`);
 
-    // Generate PDF using your API
     console.log(`📧 [EMAIL] Calling PDF generation API...`);
     const pdfBuffer = await generatePDFFromAPI(pdfHTML);
     console.log(`📧 [EMAIL] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
@@ -1127,27 +1155,21 @@ export async function sendTransactionReceiptWithPDF(
 
     console.log(`✅ [EMAIL] Receipt PDF sent SUCCESSFULLY to ${payerEmail}`);
     console.log(`📧 [EMAIL] Message ID: ${emailResult.messageId}`);
-    console.log(`📧 [EMAIL] Accepted recipients: ${JSON.stringify(emailResult.accepted)}`);
-    console.log(`📧 [EMAIL] Rejected recipients: ${JSON.stringify(emailResult.rejected)}`);
-    console.log(`📧 [EMAIL] Response: ${JSON.stringify(emailResult.response)}`);
     console.log(`📧 [EMAIL] ========== END sendTransactionReceiptWithPDF ==========`);
     
     return { success: true, messageId: emailResult.messageId };
   } catch (error) {
     console.error(`❌ [EMAIL] Failed to send transaction receipt with PDF to ${payerEmail}:`, error);
-    console.error(`❌ [EMAIL] Error details:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
     
-    // Fallback to original email without PDF
     console.log(`📧 [EMAIL] Attempting fallback email without PDF for ${payerEmail}...`);
     try {
-      const fallbackResult = await sendTransactionReceiptFallback(
+      await sendTransactionReceiptFallback(
         payerEmail,
         payerName,
         invoice,
         paymentDetails,
       );
       console.log(`✅ [EMAIL] Fallback email sent successfully to ${payerEmail}`);
-      console.log(`📧 [EMAIL] ========== END sendTransactionReceiptWithPDF (fallback) ==========`);
       return { success: true, fallback: true };
     } catch (fallbackError) {
       console.error(`❌ [EMAIL] Fallback email also failed for ${payerEmail}:`, fallbackError);
@@ -1207,21 +1229,17 @@ export async function sendPaymentPageReceiptWithPDF(
 ): Promise<{ success: boolean; messageId?: string; error?: string; fallback?: boolean }> {
   console.log(`📧 [EMAIL-PAGE] ========== START sendPaymentPageReceiptWithPDF ==========`);
   console.log(`📧 [EMAIL-PAGE] Recipient: ${customerEmail}`);
-  console.log(`📧 [EMAIL-PAGE] Customer Name: ${customerName}`);
   console.log(`📧 [EMAIL-PAGE] Payment Record ID: ${paymentRecord?.id}`);
   console.log(`📧 [EMAIL-PAGE] Amount: ${amount}`);
   console.log(`📧 [EMAIL-PAGE] Transaction ID: ${transactionId}`);
-  console.log(`📧 [EMAIL-PAGE] Payment Method: ${paymentMethod}`);
   console.log(`📧 [EMAIL-PAGE] Page Title: ${paymentPage?.title || "N/A"}`);
   
-  // Validate email
   if (!customerEmail || !customerEmail.includes('@')) {
     console.error(`❌ [EMAIL-PAGE] Invalid email address: ${customerEmail}`);
     return { success: false, error: "Invalid email address" };
   }
   
   try {
-    // Generate PDF HTML
     console.log(`📧 [EMAIL-PAGE] Generating PDF HTML...`);
     const pdfHTML = generatePaymentPagePDFHTML(
       paymentPage,
@@ -1236,7 +1254,6 @@ export async function sendPaymentPageReceiptWithPDF(
     );
     console.log(`📧 [EMAIL-PAGE] PDF HTML generated, length: ${pdfHTML.length} characters`);
 
-    // Generate PDF using your API
     console.log(`📧 [EMAIL-PAGE] Calling PDF generation API...`);
     const pdfBuffer = await generatePDFFromAPI(pdfHTML);
     console.log(`📧 [EMAIL-PAGE] PDF generated successfully, size: ${pdfBuffer.length} bytes`);
@@ -1245,14 +1262,12 @@ export async function sendPaymentPageReceiptWithPDF(
       return `₦${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
-    // Get page title from metadata or paymentPage
     const pageTitle =
       metadata?.pageTitle ||
       paymentPage?.title ||
       paymentPage?.page_title ||
       "Payment Page";
 
-    // Determine payment method text for email
     let paymentMethodText = "Card Payment";
     if (
       paymentMethod === "bank_transfer" ||
@@ -1265,8 +1280,6 @@ export async function sendPaymentPageReceiptWithPDF(
     }
 
     console.log(`📧 [EMAIL-PAGE] Preparing email with PDF attachment for ${customerEmail}`);
-    console.log(`📧 [EMAIL-PAGE] From: Zidwell <${process.env.EMAIL_USER}>`);
-    console.log(`📧 [EMAIL-PAGE] Email subject: ✅ Payment Receipt - ${pageTitle} - ${formatCurrency(amount)}`);
     
     const emailResult = await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
@@ -1343,17 +1356,12 @@ export async function sendPaymentPageReceiptWithPDF(
 
     console.log(`✅ [EMAIL-PAGE] Payment page receipt PDF sent SUCCESSFULLY to ${customerEmail}`);
     console.log(`📧 [EMAIL-PAGE] Message ID: ${emailResult.messageId}`);
-    console.log(`📧 [EMAIL-PAGE] Accepted recipients: ${JSON.stringify(emailResult.accepted)}`);
-    console.log(`📧 [EMAIL-PAGE] Rejected recipients: ${JSON.stringify(emailResult.rejected)}`);
-    console.log(`📧 [EMAIL-PAGE] Response: ${JSON.stringify(emailResult.response)}`);
     console.log(`📧 [EMAIL-PAGE] ========== END sendPaymentPageReceiptWithPDF ==========`);
     
     return { success: true, messageId: emailResult.messageId };
   } catch (error) {
     console.error(`❌ [EMAIL-PAGE] Failed to send payment page receipt PDF to ${customerEmail}:`, error);
-    console.error(`❌ [EMAIL-PAGE] Error details:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
     
-    // Fallback to original email without PDF
     console.log(`📧 [EMAIL-PAGE] Attempting fallback email without PDF for ${customerEmail}...`);
     try {
       await sendPaymentPageReceiptFallback(
@@ -1365,7 +1373,6 @@ export async function sendPaymentPageReceiptWithPDF(
         paymentMethod,
       );
       console.log(`✅ [EMAIL-PAGE] Fallback email sent successfully to ${customerEmail}`);
-      console.log(`📧 [EMAIL-PAGE] ========== END sendPaymentPageReceiptWithPDF (fallback) ==========`);
       return { success: true, fallback: true };
     } catch (fallbackError) {
       console.error(`❌ [EMAIL-PAGE] Fallback email also failed for ${customerEmail}:`, fallbackError);

@@ -152,13 +152,13 @@ export default function ReceiptPage() {
         bg: isCorporation
           ? "bg-purple-50 dark:bg-purple-900/20"
           : isEnterprise
-          ? "bg-amber-50 dark:bg-amber-900/20"
-          : "bg-(--color-accent-yellow)/10",
+            ? "bg-amber-50 dark:bg-amber-900/20"
+            : "bg-(--color-accent-yellow)/10",
         border: isCorporation
           ? "border-purple-200 dark:border-purple-800"
           : isEnterprise
-          ? "border-amber-200 dark:border-amber-800"
-          : "border-(--color-accent-yellow)",
+            ? "border-amber-200 dark:border-amber-800"
+            : "border-(--color-accent-yellow)",
         icon: <TierIcon className={`w-5 h-5 ${tierInfo.color}`} />,
         title: `${tierInfo.label} Plan`,
         message: "You have unlimited receipts! Create as many as you need.",
@@ -254,7 +254,7 @@ export default function ReceiptPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="lg:pl-72 min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 p-4 md:p-6 lg:p-8">

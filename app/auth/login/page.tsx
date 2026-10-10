@@ -1,17 +1,14 @@
 // app/auth/login/page.tsx
 "use client";
 
-import { generatePageMetadata } from "@/lib/seo";
-
-const metadata = generatePageMetadata({
-  title: "Sign In to Zidwell Wallet | Secure Login",
-  description: "Sign in securely to your Zidwell Wallet. Access your payment pages, invoices, receipts, and manage your finances.",
-  pathname: "/auth/login",
-  keywords: ["login", "sign in", "Zidwell wallet", "secure login", "financial dashboard"],
-});
-
 import Swal from "sweetalert2";
-import { useState, FormEvent, useEffect, Suspense } from "react";
+import {
+  useState,
+  FormEvent,
+  useEffect,
+  Suspense,
+  useRef,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import logo from "@/public/logo.png";
@@ -26,13 +23,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, UserPlus, Wifi } from "lucide-react";
 import { useUserContextData } from "@/app/context/userData";
 import Carousel from "@/app/components/Carousel";
 import { useRouter, useSearchParams } from "next/navigation";
 import { sendLoginNotificationWithDeviceInfo } from "@/lib/login-notification";
 
-// ─── DEVICE FINGERPRINTING ───
+// ─── Timing constants ───
+// Slow networks (Nigeria → distant Supabase regions) can take 15–20s per
+// round trip. Give the request plenty of headroom.
+const LOGIN_TIMEOUT_MS = 60_000;
+// Show a "still working" hint after this many ms.
+const SLOW_HINT_AFTER_MS = 8_000;
 
 interface DeviceInfo {
   userAgent: string;
@@ -51,18 +53,18 @@ function collectDeviceInfo(): DeviceInfo {
     navigator.language,
     navigator.platform,
     screen.colorDepth,
-    screen.width + 'x' + screen.height,
+    screen.width + "x" + screen.height,
     new Date().getTimezoneOffset(),
     !!window.sessionStorage,
     !!window.localStorage,
     navigator.hardwareConcurrency,
   ];
-  
+
   let hash = 0;
-  const str = components.join('::');
+  const str = components.join("::");
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
 
@@ -108,16 +110,61 @@ const fixDoubleEncodedUrl = (url: string): string => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────
+// SAFE SWAL WRAPPER
+// Under Turbopack + certain sweetalert2 builds, Swal.fire() can resolve
+// to a non-promise value, which breaks `.then()` / `.catch()` chaining.
+// This wrapper guarantees a real Promise is always returned.
+// ─────────────────────────────────────────────────────────────────────
+function safeSwalFire(options: any): Promise<any> {
+  try {
+    const result = (Swal as any).fire(options);
+    if (result && typeof result.then === "function") {
+      return result;
+    }
+    return Promise.resolve(result);
+  } catch (err) {
+    console.error("Swal.fire threw synchronously:", err);
+    return Promise.resolve(undefined);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Non-blocking toast helper
+// ─────────────────────────────────────────────────────────────────────
+function toast(
+  icon: "success" | "warning" | "info" | "error",
+  title: string,
+  text?: string,
+) {
+  safeSwalFire({
+    toast: true,
+    position: "top-end",
+    icon,
+    title,
+    text,
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+  });
+}
+
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+  const [slowHint, setSlowHint] = useState(false);
   const { setUserData } = useUserContextData();
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
   const searchParams = useSearchParams();
+
+  // ✅ Synchronous double-submit guard. `loading` state is async and can be
+  //    defeated by a fast double-click; this ref cannot.
+  const submittingRef = useRef(false);
+  const slowHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const rawCallbackUrl = searchParams.get("callbackUrl");
   const callbackUrl = rawCallbackUrl
@@ -133,9 +180,75 @@ const LoginForm = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
+  // Clean up the slow-hint timer if the component unmounts mid-login.
+  useEffect(() => {
+    return () => {
+      if (slowHintTimerRef.current) clearTimeout(slowHintTimerRef.current);
+    };
+  }, []);
+
+  // ✅ Save user data (with store fields) to localStorage for optimistic UI
+  const saveUserDataToLocalStorage = (profile: any) => {
+    try {
+      const userDataToSave = {
+        ...profile,
+        store: profile.store || null,
+        hasStore: profile.hasStore || false,
+        storeIsActive: profile.storeIsActive || false,
+        storePendingActivation: profile.storePendingActivation || false,
+      };
+      localStorage.setItem("userData", JSON.stringify(userDataToSave));
+
+      if (profile.store) {
+        localStorage.setItem(
+          "zidwell_store_data",
+          JSON.stringify(profile.store),
+        );
+        localStorage.setItem("zidwell_store_timestamp", Date.now().toString());
+        console.log("💾 Store data cached on login:", profile.store.slug);
+      }
+    } catch (error) {
+      console.error("Failed to save user data to localStorage:", error);
+    }
+  };
+
+  const handleResendVerification = async (emailToResend: string) => {
+    try {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToResend }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        await safeSwalFire({
+          icon: "success",
+          title: "Verification Email Sent!",
+          text: "Please check your inbox and spam folder.",
+          confirmButtonColor: "var(--color-accent-yellow)",
+          confirmButtonText: "OK",
+        });
+      } else {
+        throw new Error(data.error || "Failed to resend verification");
+      }
+    } catch (error: any) {
+      await safeSwalFire({
+        icon: "error",
+        title: "Failed to Resend",
+        text: error.message || "Please try again later.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        confirmButtonText: "OK",
+      });
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // ✅ Synchronous double-submit guard
+    if (submittingRef.current) return;
     if (loading) return;
 
     if (!email || !password) {
@@ -146,17 +259,32 @@ const LoginForm = () => {
       return;
     }
 
+    submittingRef.current = true;
     setLoading(true);
+    setSlowHint(false);
     setErrors({});
 
+    // ✅ Show the "still working…" hint if the request takes >8s.
+    //    Essential on slow networks — a silent spinner feels broken.
+    slowHintTimerRef.current = setTimeout(() => {
+      setSlowHint(true);
+    }, SLOW_HINT_AFTER_MS);
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      LOGIN_TIMEOUT_MS,
+    );
 
     try {
-      Swal.fire({
-        title: "Signing in...",
-        text: "Please wait while we verify your credentials",
+      // ✅ Non-blocking modal. No `didOpen`/`showLoading` — those can get
+      //    stuck if a later Swal.close() races the open.
+      safeSwalFire({
+        title: "Signing in…",
+        text: "Verifying your credentials",
         allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
         didOpen: () => {
           Swal.showLoading();
         },
@@ -172,41 +300,211 @@ const LoginForm = () => {
       });
 
       clearTimeout(timeoutId);
-      const result = await res.json();
+      if (slowHintTimerRef.current) {
+        clearTimeout(slowHintTimerRef.current);
+        slowHintTimerRef.current = null;
+      }
+      setSlowHint(false);
 
-      if (!res.ok) {
-        throw new Error(result.error || "Invalid email or password");
+      // ─── Parse JSON safely (server might return HTML on a crash) ───
+      let result: any = null;
+      try {
+        result = await res.json();
+      } catch {
+        result = {
+          error:
+            "The server returned an unexpected response. Please try again.",
+        };
       }
 
-      // ─── HANDLE BLOCKED LOGIN ───
-      if (result.blocked) {
+      // ═══════════════════════════════════════════════════════════════════
+      // ERROR BRANCHES
+      // ═══════════════════════════════════════════════════════════════════
+
+      // ─── 503 / 502 / 504 → Supabase or server unreachable ───
+      if (res.status === 503 || res.status === 502 || res.status === 504) {
         Swal.close();
-        Swal.fire({
-          icon: "warning",
-          title: "Login Blocked",
+        await safeSwalFire({
+          icon: "error",
+          title: "Service Temporarily Unavailable",
           html: `
-            <div style="text-align: left;">
-              <p>This login was blocked due to unusual activity:</p>
-              <ul style="margin-top: 10px;">
-                ${result.reasons?.map((r: string) => `<li>${r}</li>`).join('') || ''}
-              </ul>
-              <p style="margin-top: 15px; font-size: 0.9em; color: #666;">
-                If this was you, please try again from a trusted device or contact support.
+            <div class="text-left">
+              <p>We couldn't reach the authentication service.</p>
+              <p class="text-sm text-gray-600 mt-2">
+                This is usually a temporary network issue.
+                <strong>Your credentials have not been marked as failed.</strong>
+              </p>
+              <p class="text-sm text-gray-600 mt-2">
+                Please wait a moment and try again.
               </p>
             </div>
           `,
           confirmButtonColor: "var(--color-accent-yellow)",
-          confirmButtonText: "I Understand",
+          confirmButtonText: "Try Again",
         });
-        setLoading(false);
         return;
       }
 
-      const { profile, isVerified, sessionEstablished } = result;
-      if (!profile) throw new Error("User profile not found.");
+      if (!res.ok) {
+        // ─── 429 → rate-limited ───
+        if (res.status === 429) {
+          Swal.close();
+          const retryAfter = result?.retryAfter
+            ? Math.ceil(result.retryAfter / 60)
+            : 15;
+          await safeSwalFire({
+            icon: "warning",
+            title: "Too Many Attempts",
+            html: `
+              <div class="text-left">
+                <p>Too many failed login attempts.</p>
+                <p class="text-sm text-gray-600 mt-2">
+                  Please wait about <strong>${retryAfter} minute${
+                    retryAfter === 1 ? "" : "s"
+                  }</strong> before trying again.
+                </p>
+                <p class="text-sm text-gray-600 mt-2">
+                  If you've forgotten your password, you can
+                  <a href="/auth/password-reset" class="text-blue-600 underline">reset it here</a>.
+                </p>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "OK",
+          });
+          return;
+        }
 
+        // ─── 404 / user not found ───
+        if (
+          res.status === 404 ||
+          result?.userNotFound ||
+          result?.error?.toLowerCase().includes("not found")
+        ) {
+          Swal.close();
+          const { value: action } = await safeSwalFire({
+            icon: "info",
+            title: "Account Not Found",
+            html: `
+              <div class="text-left">
+                <p class="mb-2">We couldn't find an account with this email:</p>
+                <p class="font-bold text-(--color-accent-yellow) text-lg break-all">${email}</p>
+                <p class="mt-4 text-sm text-(--text-secondary)">
+                  Would you like to create a new account?
+                </p>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "Create Account",
+            showCancelButton: true,
+            cancelButtonText: "Try Again",
+            cancelButtonColor: "#6b7280",
+            reverseButtons: true,
+          });
+
+          if (action) {
+            router.push("/auth/signup");
+          }
+          return;
+        }
+
+        // ─── 403 / blocked account ───
+        if (res.status === 403 && result?.blocked) {
+          Swal.close();
+          await safeSwalFire({
+            icon: "error",
+            title: "Account Blocked",
+            html: `
+              <div class="text-left">
+                <p>${result.error || "Your account has been blocked."}</p>
+                ${
+                  result.blockedReason
+                    ? `<p class="text-sm text-gray-600 mt-2"><strong>Reason:</strong> ${result.blockedReason}</p>`
+                    : ""
+                }
+                <p class="text-sm text-gray-600 mt-3">
+                  Please contact support if you believe this is a mistake.
+                </p>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "I Understand",
+          });
+          return;
+        }
+
+        // ─── 403 / email not verified ───
+        if (res.status === 403 && result?.requiresVerification) {
+          Swal.close();
+          const { value: action } = await safeSwalFire({
+            icon: "warning",
+            title: "Email Not Verified",
+            html: `
+              <div class="text-left">
+                <p class="mb-2">Please verify your email address before logging in.</p>
+                <p class="text-sm text-(--text-secondary) mb-2">
+                  We sent a verification link to:
+                  <strong class="text-(--color-accent-yellow) break-all">${email}</strong>
+                </p>
+                <div class="mt-3 p-3 bg-blue-50 rounded-lg text-sm">
+                  <p class="text-blue-700">💡 Didn't receive the email?</p>
+                  <p class="text-blue-600 text-xs mt-1">
+                    Check your spam folder or click "Resend Email" below.
+                  </p>
+                </div>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "I'll Check My Email",
+            showCancelButton: true,
+            cancelButtonText: "Resend Email",
+            cancelButtonColor: "#6b7280",
+            reverseButtons: true,
+          });
+
+          if (action === false) {
+            await handleResendVerification(email);
+          }
+          return;
+        }
+
+        // ─── 401 / wrong password ───
+        if (res.status === 401) {
+          Swal.close();
+          await safeSwalFire({
+            icon: "error",
+            title: "Incorrect Password",
+            html: `
+              <div class="text-left">
+                <p>${result?.error || "The password you entered is incorrect."}</p>
+                <p class="text-sm text-gray-600 mt-2">
+                  <a href="/auth/password-reset" class="text-blue-600 underline">
+                    Forgot your password?
+                  </a>
+                </p>
+              </div>
+            `,
+            confirmButtonColor: "var(--color-accent-yellow)",
+            confirmButtonText: "Try Again",
+          });
+          return;
+        }
+
+        // ─── Anything else: show the server's message ───
+        throw new Error(result?.error || "Login failed. Please try again.");
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // SUCCESS PATH
+      // ═══════════════════════════════════════════════════════════════════
+      const { profile, isVerified } = result;
+      if (!profile) {
+        throw new Error("Login succeeded but no profile was returned.");
+      }
+
+      // Persist to localStorage with augmented store fields
+      saveUserDataToLocalStorage(profile);
       setUserData(profile);
-      localStorage.setItem("userData", JSON.stringify(profile));
 
       Cookies.set("verified", isVerified ? "true" : "false", {
         expires: 7,
@@ -224,51 +522,29 @@ const LoginForm = () => {
 
       Swal.close();
 
-      // ─── SUSPICIOUS LOGIN WARNING ───
+      // ─── Suspicious login toast (non-blocking) ───
       if (result.security?.isSuspicious) {
-        Swal.fire({
-          icon: "warning",
-          title: "Unusual Login Detected",
-          text: `Login from ${result.security.location.city}, ${result.security.location.country}. A security alert has been sent to your email.`,
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 5000,
-          timerProgressBar: true,
-        });
-      }
-
-      // ─── NEW DEVICE NOTICE ───
-      if (result.security?.newDevice && !result.security?.isKnownDevice) {
-        console.log("New device detected - user should verify");
-      }
-
-      // ─── CONCURRENT SESSION NOTICE ───
-      if (result.concurrentSessionInvalidated) {
-        console.log("Previous device session was invalidated");
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const sessionCookie = Cookies.get("sb-client-session");
-      if (!sessionCookie) {
-        console.warn("Session cookie not set, retrying...");
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-
-      let targetUrl = callbackUrl;
-      if (fromLogin === "true" && scrollToPricing === "true") {
-        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
-      }
-
-      if (process.env.NODE_ENV === "production") {
-        window.location.replace(targetUrl);
+        toast(
+          "warning",
+          "Unusual Login Detected",
+          `Login from ${result.security.location?.city || "unknown"}, ${
+            result.security.location?.country || ""
+          }. A security alert has been sent to your email.`,
+        );
       } else {
-        router.replace(targetUrl);
+        toast(
+          "success",
+          "Welcome Back!",
+          `Hello, ${
+            profile.fullName || profile.email?.split("@")[0] || "User"
+          }`,
+        );
       }
 
-      Promise.allSettled([
-        (async () => {
+      // ─── Fire-and-forget side effects ───
+      void (async () => {
+           sessionStorage.removeItem("lastActivity")
+        try {
           await fetch("/api/activity/last-login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -276,49 +552,97 @@ const LoginForm = () => {
               user_id: profile.id,
               email: profile.email,
             }),
-          }).catch(console.error);
-        })(),
-      ]).catch((err) => console.error("Background operations failed:", err));
+          });
+        } catch (err) {
+          console.error("last-login ping failed:", err);
+        }
+      })();
 
-      if (process.env.NODE_ENV === "production") {
-        sendLoginNotificationWithDeviceInfo(profile).catch((err) =>
-          console.error("Failed to send login notification:", err),
-        );
+      void (async () => {
+        if (process.env.NODE_ENV !== "production") return;
+        try {
+          await sendLoginNotificationWithDeviceInfo(profile);
+        } catch (err) {
+          console.error("Failed to send login notification:", err);
+        }
+      })();
+
+      // ─── Navigate ───
+      let targetUrl = callbackUrl;
+      if (fromLogin === "true" && scrollToPricing === "true") {
+        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
       }
 
-      setTimeout(() => {
-        Swal.fire({
-          icon: "success",
-          title: "Welcome Back!",
-          text: `Hello, ${profile.name || profile.email?.split("@")[0] || "User"}`,
-          toast: true,
-          position: "top-end",
-          showConfirmButton: false,
-          timer: 2000,
-          timerProgressBar: true,
-        }).catch(console.error);
-      }, 100);
+      // In production use window.location.replace to force a fresh request
+      // so the proxy re-validates with the new cookies. In dev, use the
+      // client router for faster iteration.
+      if (process.env.NODE_ENV === "production") {
+        window.location.replace(targetUrl);
+      } else {
+        router.replace(targetUrl);
+      }
+      // Do NOT setLoading(false) here — component unmounts on navigation.
     } catch (err: any) {
+      // ─── Clear timers ───
       clearTimeout(timeoutId);
+      if (slowHintTimerRef.current) {
+        clearTimeout(slowHintTimerRef.current);
+        slowHintTimerRef.current = null;
+      }
+      setSlowHint(false);
       Swal.close();
 
+      // ─── Classify the error ───
+      const isAbort = err?.name === "AbortError";
+      const isNetwork =
+        err?.message === "Failed to fetch" ||
+        err?.message === "NetworkError when attempting to fetch resource." ||
+        err?.name === "TypeError";
+      const isServerHiccup =
+        typeof err?.message === "string" && /50[234]/.test(err.message);
+
+      let title = "Login Failed";
       let errorMessage =
         "Invalid email or password. Please check your credentials and try again.";
 
-      if (err.name === "AbortError") {
-        errorMessage = "Please check your internet connection and try again.";
-      } else if (err.message) {
+      if (isAbort) {
+        title = "Request Timed Out";
+        errorMessage = `The request took longer than ${Math.round(
+          LOGIN_TIMEOUT_MS / 1000,
+        )} seconds. Please check your internet connection and try again.`;
+      } else if (isNetwork) {
+        title = "Connection Problem";
+        errorMessage =
+          "We couldn't reach the server. Please check your internet connection and try again.";
+      } else if (isServerHiccup) {
+        title = "Server Error";
+        errorMessage =
+          "Something went wrong on our end. Please try again in a moment.";
+      } else if (err?.message) {
         errorMessage = err.message;
       }
 
-      Swal.fire({
+      await safeSwalFire({
         icon: "error",
-        title: "Login Failed",
-        text: errorMessage,
+        title,
+        html: `
+          <div class="text-left">
+            <p>${errorMessage}</p>
+            ${
+              isNetwork || isAbort
+                ? `<p class="text-sm text-gray-600 mt-2">
+                     Your credentials were not marked as failed.
+                     You can safely try again.
+                   </p>`
+                : ""
+            }
+          </div>
+        `,
         confirmButtonColor: "var(--color-accent-yellow)",
         confirmButtonText: "Try Again",
       });
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -367,6 +691,20 @@ const LoginForm = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* ─── Slow network hint ─── */}
+              {slowHint && loading && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <Wifi className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Still signing you in…</p>
+                    <p className="text-xs mt-0.5 text-amber-700">
+                      The network is a bit slow. Please don&apos;t close this
+                      page.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label
                   htmlFor="email"
@@ -489,7 +827,7 @@ const LoginForm = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       />
                     </svg>
-                    Signing In...
+                    {slowHint ? "Still Signing In…" : "Signing In…"}
                   </span>
                 ) : (
                   "Sign In"
@@ -502,8 +840,9 @@ const LoginForm = () => {
                 Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/signup"
-                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors"
+                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 font-medium transition-colors inline-flex items-center gap-1"
                 >
+                  <UserPlus className="h-3 w-3" />
                   Sign up
                 </Link>
               </p>

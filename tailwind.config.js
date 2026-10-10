@@ -15,10 +15,16 @@ module.exports = {
         'zidwell-white': '#FFFFFF',
         'zidwell-yellow': '#FDC020',
         'zidwell-green': '#00B64F',
+        // Gold / Lemon Green utility aliases (used via bg-gold, text-gold-foreground, etc.)
+        gold: '#FDC020',
+        'gold-foreground': '#191919',
+        'lemon-green': '#00B64F',
+        'lemon-green-foreground': '#FFFFFF',
       },
       fontFamily: {
         'space-grotesk': ['Space Grotesk', 'system-ui', 'sans-serif'],
         'be-vietnam': ['Be Vietnam Pro', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03)',

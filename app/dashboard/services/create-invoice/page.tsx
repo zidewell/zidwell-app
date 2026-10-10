@@ -17,7 +17,7 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import InvoiceGen from "@/app/components/Invoice-components/InvoiceGen"; 
+import InvoiceGen from "@/app/components/Invoice-components/InvoiceGen";
 import { SubscriptionPageGuard } from "@/app/components/subscription-components/SubscriptionGuard";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useUserContextData } from "@/app/context/userData";
@@ -25,13 +25,13 @@ import { useUserContextData } from "@/app/context/userData";
 export default function InvoicePage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { 
-    subscription, 
-    userTier, 
-    isSME, 
-    isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
+  const {
+    subscription,
+    userTier,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    isSolopreneur,
   } = useSubscription();
   const { userData } = useUserContextData();
   const [usage, setUsage] = useState<any>(null);
@@ -63,7 +63,8 @@ export default function InvoicePage() {
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
   const isCorporationUser = userTier === "corporation";
-  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const hasUnlimitedInvoices =
+    isSMEUser || isEnterpriseUser || isCorporationUser;
 
   const usedInvoices = usage?.invoices?.used || 0;
   const limit = hasUnlimitedInvoices ? "unlimited" : isSolopreneurUser ? 10 : 5;
@@ -141,7 +142,7 @@ export default function InvoicePage() {
           onClose={() => setSidebarOpen(false)}
         />
 
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
           <main className="flex-1 p-4 md:p-6 lg:p-8">

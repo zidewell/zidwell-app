@@ -31,14 +31,13 @@ interface VirtualAccountInvoiceParams {
 }
 
 function extractInvoiceReference(narration: string): string | null {
-  // Try multiple patterns to match the invoice reference
   const patterns = [
-    /INV[A-Za-z0-9]+/,        // INV... format
-    /INV_[A-Za-z0-9]+/,       // INV_... format
-    /INV-[A-Za-z0-9]+/,       // INV-... format
-    /INVOICE[A-Za-z0-9]+/,    // INVOICE... format
-    /INVOICE_[A-Za-z0-9]+/,   // INVOICE_... format
-    /INVOICE-[A-Za-z0-9]+/,   // INVOICE-... format
+    /INV[A-Za-z0-9]+/,
+    /INV_[A-Za-z0-9]+/,
+    /INV-[A-Za-z0-9]+/,
+    /INVOICE[A-Za-z0-9]+/,
+    /INVOICE_[A-Za-z0-9]+/,
+    /INVOICE-[A-Za-z0-9]+/,
   ];
 
   for (const pattern of patterns) {
@@ -52,6 +51,82 @@ function extractInvoiceReference(narration: string): string | null {
   return null;
 }
 
+// ============================================================
+// HELPER: Credit a user's wallet with full audit trail
+// Uses mutate_wallet_balance which writes balance_before/after
+// and merges metadata onto the transaction row.
+// ============================================================
+async function creditWalletWithAudit(
+  userId: string,
+  amount: number,
+  transactionReference: string,
+  reason: string,
+): Promise<{ newBalance: number | null; error: any }> {
+  const { data: txRow, error: fetchError } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("reference", transactionReference)
+    .maybeSingle();
+
+  if (fetchError || !txRow) {
+    console.error("❌ Cannot find transaction for wallet credit:", fetchError);
+    return { newBalance: null, error: fetchError || new Error("Tx not found") };
+  }
+
+  const { data: newBalance, error: creditError } = await supabase.rpc(
+    "mutate_wallet_balance",
+    {
+      p_user_id: userId,
+      p_amount: amount,
+      p_transaction_id: txRow.id,
+      p_reason: reason,
+    }
+  );
+
+  if (creditError) {
+    console.error("❌ mutate_wallet_balance failed:", creditError);
+
+    // Fallback — direct update + manual audit
+    const { data: user } = await supabase
+      .from("users")
+      .select("wallet_balance")
+      .eq("id", userId)
+      .single();
+
+    if (user) {
+      const before = Number(user.wallet_balance);
+      const after = before + amount;
+
+      await supabase
+        .from("users")
+        .update({
+          wallet_balance: after,
+          wallet_updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      await supabase
+        .from("transactions")
+        .update({
+          balance_before: before,
+          balance_after: after,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", txRow.id);
+
+      return { newBalance: after, error: null };
+    }
+
+    return { newBalance: null, error: creditError };
+  }
+
+  return { newBalance, error: null };
+}
+
+// ============================================================
+// CARD / PAYMENT PAGE INVOICE PAYMENT
+// ============================================================
 export async function processInvoicePayment(payload: any, params: InvoicePaymentParams) {
   const {
     nombaTransactionId,
@@ -59,7 +134,7 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     nombaFee,
     orderReference,
     customer,
-    tx
+    tx,
   } = params;
 
   console.log("🧾 Processing invoice payment...");
@@ -84,7 +159,6 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
 
   console.log("✅ Found invoice:", invoice.invoice_id);
 
-  // Check for duplicate payment
   const { data: existingPayment } = await supabase
     .from("invoice_payments")
     .select("*")
@@ -97,13 +171,12 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     return { success: true };
   }
 
-  // FIXED: Get customer email and name from correct sources
   const orderData = payload.data?.order || {};
   const customerEmail = orderData.customerEmail || customer.email || invoice.client_email;
   const customerName = orderData.customerName || customer.name || invoice.client_name || "Customer";
   const netAmount = transactionAmount - nombaFee;
 
-  // Create payment record
+  // ── 1. Payment record ──
   const { error: paymentError } = await supabase
     .from("invoice_payments")
     .insert({
@@ -127,41 +200,63 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     return { error: "Payment record failed" };
   }
 
-  // Create transaction record
+  // ── 2. Transaction record with metadata ──
+  const txReference = `INV-${invoice.invoice_id}-${nombaTransactionId}`;
+
+  const txMetadata = {
+    invoice_id: invoice.invoice_id,
+    invoice_db_id: invoice.id,
+    payer_name: customerName,
+    payer_email: customerEmail,
+    gross_amount: transactionAmount,
+    nomba_fee: nombaFee,
+    net_amount: netAmount,
+    nomba_transaction_id: nombaTransactionId,
+    payment_method: "card_payment",
+    order_reference: orderReference || null,
+    invoice_owner_id: invoice.user_id,
+    received_at: new Date().toISOString(),
+  };
+
   await supabase.from("transactions").insert({
     user_id: invoice.user_id,
     type: "credit",
     amount: netAmount,
     gross_amount: transactionAmount,
     fee: nombaFee,
+    net_amount: netAmount,
     status: "success",
-    reference: `INV-${invoice.invoice_id}-${nombaTransactionId}`,
+    reference: txReference,
     description: `Payment received for invoice ${invoice.invoice_id} from ${customerName}`,
+    narration: tx.narration || "N/A",
     channel: "invoice_payment",
     sender: { name: customerName, email: customerEmail },
     receiver: { name: invoice.from_name, email: invoice.from_email },
+    metadata: txMetadata,
     external_response: {
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
     },
   });
 
-  // Credit wallet
-  const { error: creditError } = await supabase.rpc("increment_wallet_balance", {
-    user_id: invoice.user_id,
-    amt: netAmount,
-  });
+  // ── 3. Credit wallet with audit trail ──
+  const { newBalance, error: creditError } = await creditWalletWithAudit(
+    invoice.user_id,
+    netAmount,
+    txReference,
+    "invoice_payment_card",
+  );
 
   if (creditError) {
     console.error("Failed to credit wallet:", creditError);
   } else {
-    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to user ${invoice.user_id}`);
+    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to user ${invoice.user_id}. New balance: ₦${newBalance}`);
   }
 
-  // Update invoice totals
-  const { newStatus } = await updateInvoiceTotals(invoice, transactionAmount);
+  // ── 4. Update invoice totals ──
+  await updateInvoiceTotals(invoice, transactionAmount);
 
-  // Send payment success email to customer
+  // ── 5. Emails ──
   if (customerEmail) {
     sendPaymentSuccessEmail(
       customerEmail,
@@ -187,7 +282,6 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     }
   );
 
-  // Send notification to invoice creator
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -208,6 +302,9 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
   return { success: true };
 }
 
+// ============================================================
+// VIRTUAL ACCOUNT INVOICE PAYMENT
+// ============================================================
 export async function processVirtualAccountInvoicePayment(payload: any, params: VirtualAccountInvoiceParams) {
   const {
     aliasAccountReference,
@@ -216,7 +313,7 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     nombaFee,
     customer,
     tx,
-    invoiceRef
+    invoiceRef,
   } = params;
 
   console.log("🏦 Processing virtual account invoice payment...");
@@ -232,8 +329,7 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   const narration = tx.narration || "";
   const senderName = customer.senderName || customer.name || "Bank Transfer";
   const netAmount = transactionAmount - nombaFee;
-  
-  // Extract invoice reference from narration if not provided
+
   let extractedInvoiceRef = invoiceRef;
   if (!extractedInvoiceRef) {
     extractedInvoiceRef = extractInvoiceReference(narration);
@@ -244,13 +340,12 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     return { error: "No invoice reference found" };
   }
 
-  // Normalize the invoice reference (remove separators)
   const normalizedRef = extractedInvoiceRef.replace(/[_-]/g, '').toUpperCase();
   console.log("🔍 Normalized reference:", normalizedRef);
 
   let invoice = null;
 
-  // METHOD 1: Try exact match first
+  // METHOD 1: exact match
   const { data: exactMatch } = await supabase
     .from("invoices")
     .select("*")
@@ -262,18 +357,14 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     console.log("✅ Found invoice by exact match:", invoice.invoice_id);
   }
 
-  // METHOD 2: If not found, try normalized match
+  // METHOD 2: normalized match
   if (!invoice) {
-    console.log("🔍 No exact match, trying normalized match...");
-    
-    // Get all invoices that start with INV
     const { data: allInvoices } = await supabase
       .from("invoices")
       .select("*")
       .ilike("invoice_id", "INV%");
 
     if (allInvoices && allInvoices.length > 0) {
-      // Find invoice where normalized invoice_id matches normalized reference
       invoice = allInvoices.find(inv => {
         const normalizedInvoiceId = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
         return normalizedInvoiceId === normalizedRef;
@@ -281,30 +372,24 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
 
       if (invoice) {
         console.log("✅ Found invoice by normalized match:", invoice.invoice_id);
-        console.log(`   (${invoice.invoice_id} matched ${extractedInvoiceRef})`);
       }
     }
   }
 
-  // METHOD 3: Try variations with underscores and dashes
+  // METHOD 3: variations
   if (!invoice) {
-    console.log("🔍 Trying variations with underscores and dashes...");
-    
     const variations = [
       extractedInvoiceRef,
       extractedInvoiceRef.replace(/^INV/, 'INV_'),
       extractedInvoiceRef.replace(/^INV/, 'INV-'),
       extractedInvoiceRef.replace(/_/g, ''),
       extractedInvoiceRef.replace(/-/g, ''),
-      // Also try with INV prefix variations
       `INV${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
       `INV_${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
       `INV-${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
     ];
 
-    // Remove duplicates
     const uniqueVariations = [...new Set(variations)];
-    console.log("🔍 Trying variations:", uniqueVariations);
 
     for (const variation of uniqueVariations) {
       const { data: found } = await supabase
@@ -321,24 +406,19 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     }
   }
 
-  // METHOD 4: Try to find by searching in narration pattern
+  // METHOD 4: pattern search
   if (!invoice) {
-    console.log("🔍 Trying to find invoice by pattern search...");
-    
-    // Try to find any invoice that matches the pattern
     const { data: allInvoices } = await supabase
       .from("invoices")
       .select("*")
       .ilike("invoice_id", "INV%");
 
     if (allInvoices && allInvoices.length > 0) {
-      // Try to match by checking if any invoice ID is contained in the narration
       for (const inv of allInvoices) {
         const invoiceIdPattern = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
         if (normalizedRef.includes(invoiceIdPattern) || invoiceIdPattern.includes(normalizedRef)) {
           invoice = inv;
           console.log("✅ Found invoice by pattern search:", invoice.invoice_id);
-          console.log(`   (${invoice.invoice_id} matched ${extractedInvoiceRef})`);
           break;
         }
       }
@@ -347,7 +427,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
 
   if (!invoice) {
     console.log("⚠️ No invoice found for reference:", extractedInvoiceRef);
-    console.log("   Tried exact match, normalized match, variations, and pattern search");
     return { error: "Invoice not found" };
   }
 
@@ -357,7 +436,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     depositor_id: userId,
   });
 
-  // Check for duplicate payment
   const { data: existingPayment } = await supabase
     .from("invoice_payments")
     .select("*")
@@ -370,11 +448,10 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     return { success: true };
   }
 
-  // Get customer email
   const customerEmail = customer.email || invoice.client_email;
   const customerName = senderName;
 
-  // Create payment record
+  // ── 1. Payment record ──
   const { error: paymentError } = await supabase
     .from("invoice_payments")
     .insert({
@@ -415,65 +492,79 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   const creditUserId = invoice.user_id;
   const isCrossUser = invoice.user_id !== userId;
 
-  // Create transaction record
+  // ── 2. Transaction with metadata ──
+  const txReference = `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`;
+
+  const txMetadata = {
+    invoice_id: invoice.invoice_id,
+    invoice_db_id: invoice.id,
+    payer_name: senderName,
+    payer_email: customerEmail,
+    payer_bank: customer.bankName || null,
+    payer_account: customer.accountNumber || null,
+    gross_amount: transactionAmount,
+    nomba_fee: nombaFee,
+    net_amount: netAmount,
+    nomba_transaction_id: nombaTransactionId,
+    payment_method: "virtual_account",
+    is_cross_user: isCrossUser,
+    depositor_user_id: isCrossUser ? userId : null,
+    invoice_owner_id: invoice.user_id,
+    narration,
+    received_at: new Date().toISOString(),
+  };
+
   await supabase.from("transactions").insert({
     user_id: creditUserId,
     type: "credit",
     amount: transactionAmount,
     fee: nombaFee,
     net_amount: netAmount,
+    gross_amount: transactionAmount,
     status: "success",
-    reference: `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`,
+    reference: txReference,
     description: `Payment received for invoice ${invoice.invoice_id} via virtual account from ${senderName}`,
+    narration: narration || "N/A",
     channel: "virtual_account",
     sender: {
       name: senderName,
       bank: customer.bankName,
-      user_id: isCrossUser ? userId : null
+      account_number: customer.accountNumber || null,
+      user_id: isCrossUser ? userId : null,
     },
     receiver: {
       name: invoice.from_name,
-      email: invoice.from_email
+      email: invoice.from_email,
+      user_id: creditUserId,
     },
+    metadata: txMetadata,
     external_response: {
       nomba_transaction_id: nombaTransactionId,
       nomba_fee: nombaFee,
       gross_amount: transactionAmount,
       net_amount: netAmount,
-      is_cross_user: isCrossUser
+      is_cross_user: isCrossUser,
     },
   });
 
-  // Credit wallet
-  const { error: creditError } = await supabase.rpc("increment_wallet_balance", {
-    user_id: creditUserId,
-    amt: netAmount,
-  });
+  // ── 3. Credit wallet with audit ──
+  const { newBalance, error: creditError } = await creditWalletWithAudit(
+    creditUserId,
+    netAmount,
+    txReference,
+    "invoice_payment_va",
+  );
 
   if (creditError) {
     console.error("❌ Failed to credit invoice owner:", creditError);
-    // Fallback: Update wallet directly
-    const { data: user } = await supabase
-      .from("users")
-      .select("wallet_balance")
-      .eq("id", creditUserId)
-      .single();
-    
-    if (user) {
-      const newBalance = Number(user.wallet_balance) + netAmount;
-      await supabase
-        .from("users")
-        .update({ wallet_balance: newBalance })
-        .eq("id", creditUserId);
-    }
   } else {
-    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}`);
+    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}. New balance: ₦${newBalance}`);
   }
 
-  // Update invoice totals
+  // ── 4. Update invoice totals ──
   await updateInvoiceTotals(invoice, transactionAmount);
 
-  // Send TRANSACTION RECEIPT to payer
+  // ── 5. Emails ──
   if (customerEmail) {
     await sendTransactionReceiptWithPDF(
       customerEmail,
@@ -491,7 +582,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     );
   }
 
-  // Send notification to invoice creator
   const { data: creator } = await supabase
     .from("users")
     .select("email")
@@ -509,7 +599,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     ).catch(console.error);
   }
 
-  // Send deposit email to depositor if cross-user
   if (isCrossUser) {
     const { data: depositorUser, error: depositorError } = await supabase
       .from("users")

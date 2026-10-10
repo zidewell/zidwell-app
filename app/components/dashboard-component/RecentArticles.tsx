@@ -6,6 +6,9 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
+const DEFAULT_IMAGE =
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBF9jAdhX2MuVy2aLW60NI0D7FZn5LdFs1LY9CXyweMw&s=10";
+
 const CACHE_DURATION = 10 * 60 * 1000;
 const CACHE_KEY = "recent_articles_cache";
 
@@ -14,14 +17,45 @@ interface CachedData {
   timestamp: number;
 }
 
+// ✅ Strip HTML tags and decode common entities
+const stripHtml = (html: string): string => {
+  if (!html) return "";
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ") // remove all tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ") // collapse whitespace
+    .trim();
+};
+
+// ✅ Build a clean excerpt from content as fallback
+const buildExcerpt = (rawContent: string, length = 160): string => {
+  const clean = stripHtml(rawContent || "");
+  if (!clean) return "";
+  return clean.length > length
+    ? clean.substring(0, length).trim() + "..."
+    : clean;
+};
+
 const transformPostForDisplay = (post: any) => {
+  const rawExcerpt = (post.excerpt || "").trim();
+  const fallbackExcerpt = buildExcerpt(post.content || "");
+
   return {
     id: post.id,
     title: post.title,
     slug: post.slug,
-    excerpt: post.excerpt || post.content?.substring(0, 120) + "...",
+    // ✅ Always use plain-text excerpt — never raw HTML
+    excerpt: rawExcerpt || fallbackExcerpt,
     date: post.published_at || post.created_at,
-    image: post.featured_image || post.featuredImage,
+    image: post.featured_image || post.featuredImage || DEFAULT_IMAGE,
     author: post.author?.name || post.author_name || "Author",
   };
 };
@@ -72,7 +106,12 @@ const RecentArticles = () => {
       try {
         const cached = getCachedArticles();
         if (cached && isCacheValid(cached) && cached.articles.length > 0) {
-          setDisplayArticles(cached.articles);
+          // ✅ Sanitize cached excerpts too (in case they were saved with HTML)
+          const sanitized = cached.articles.map((a: any) => ({
+            ...a,
+            excerpt: stripHtml(a.excerpt || ""),
+          }));
+          setDisplayArticles(sanitized);
           setIsFromCache(true);
           setIsLoading(false);
           return;
@@ -250,6 +289,10 @@ const RecentArticles = () => {
                 height={300}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 priority={false}
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  target.src = DEFAULT_IMAGE;
+                }}
               />
             </div>
             <div className="p-6">
@@ -259,6 +302,7 @@ const RecentArticles = () => {
               <h4 className="font-bold text-lg text-(--text-primary) leading-snug mb-3 group-hover:text-(--color-accent-yellow) transition-colors line-clamp-2">
                 {article.title}
               </h4>
+              {/* ✅ Plain text excerpt only */}
               <p className="text-sm text-(--text-secondary) leading-relaxed font-['Be_Vietnam_Pro'] line-clamp-3">
                 {article.excerpt}
               </p>

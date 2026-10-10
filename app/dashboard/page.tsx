@@ -212,8 +212,8 @@ function DashboardPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Main Content - Using lg:pl-72 for desktop spacing */}
-      <div className="flex-1 flex flex-col min-w-0 lg:pl-72">
+      {/* Main Content — padding follows the collapsible sidebar width */}
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         {/* Header with menu button */}
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
@@ -236,67 +236,21 @@ function DashboardPage() {
               </p>
             </div>
 
-            {/* Balance Card */}
-            {/* <section>
-              <BalanceCard />
-            </section> */}
-
-            {/* Usage Summary for Free Tier
-            {userTier === 'free' && !loading && usage && (
-              <section>
-                <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                  Your Usage {isNearLimit() && <span className="ml-2 text-yellow-600">⚠️ Near limit</span>}
-                </h3>
-                <UsageSummary usage={usage} onRefresh={refreshUsage} />
-                
-          
-                {isNearLimit() && (
-                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      You're approaching your free tier limits. 
-                      <button 
-                        onClick={() => setShowSubscriptionModal(true)}
-                        className="ml-2 font-semibold text-(--color-accent-yellow) hover:underline"
-                      >
-                        Upgrade now →
-                      </button>
-                    </p>
-                  </div>
-                )}
-              </section>
-            )} */}
-
             {/* Announcement Slider */}
             <section>
               <AnnouncementSlider />
             </section>
 
             {/* Quick Actions / Service Cards */}
-            <section>
+            <section className="mt-16">
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
                 Quick Actions
               </h3>
               <FeatureCards onActionComplete={refreshUsage} usage={usage} />
             </section>
 
-            {/* Analytics Charts */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Analytics
-              </h3>
-              <DashboardCharts />
-            </section> */}
-
-            {/* Transaction History */}
-            {/* <section>
-              <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">
-                Recent Transactions
-              </h3>
-              <TransactionHistory />
-            </section> */}
-
             {/* Articles */}
-            <section className="mt-6">
+            <section className="mt-20">
               <RecentArticles />
             </section>
           </div>

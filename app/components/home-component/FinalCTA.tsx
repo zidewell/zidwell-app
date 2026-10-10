@@ -9,13 +9,13 @@ export function FinalCTA() {
       <div className="container mx-auto px-4 relative z-10">
         {/* Main CTA Content */}
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 border-2 border-[var(--border-color)] rounded-xl mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 border-2 border-(--border-color) rounded-xl mb-8">
             <Sparkles className="w-4 h-4 text-[var(--color-accent-yellow)]" />
-            <span className="text-sm font-semibold text-[var(--text-primary)]">
+            <span className="text-sm font-semibold text-(--text-primary)">
               The Future of Zidwell
             </span>
           </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-balance text-[var(--text-primary)]">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-balance text-(--text-primary)">
             We're building toward a future where Africans have{" "}
             <span className="relative inline-block">
               <span className="relative z-10">full visibility</span>
@@ -23,7 +23,7 @@ export function FinalCTA() {
             </span>{" "}
             and control over their money
           </h2>
-          <p className="text-lg text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto">
+          <p className="text-lg text-(--text-secondary) mb-8 max-w-2xl mx-auto">
             Savings, spending, records, and growth — all in one place. Zidwell is just getting started.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -38,9 +38,9 @@ export function FinalCTA() {
             </Button>
           </div>
           <div className="mt-16 flex justify-center gap-4">
-            <div className="w-4 h-4 bg-[var(--color-accent-yellow)] border-2 border-[var(--border-color)] rounded-sm" />
+            <div className="w-4 h-4 bg-[var(--color-accent-yellow)] border-2 border-(--border-color) rounded-sm" />
             <div className="w-4 h-4 bg-[var(--border-color)] rounded-sm" />
-            <div className="w-4 h-4 bg-[var(--color-accent-yellow)] border-2 border-[var(--border-color)] rounded-sm" />
+            <div className="w-4 h-4 bg-[var(--color-accent-yellow)] border-2 border-(--border-color) rounded-sm" />
           </div>
         </div>
 

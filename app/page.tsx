@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
+import Loader from "@/app/components/Loader";
 import { AISection } from "./components/home-component/AISection";
 import { BonusTools } from "./components/home-component/BonusTools";
 import { BuiltForReal } from "./components/home-component/BuiltForReal";
@@ -140,7 +141,7 @@ function LandingContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-(--bg-primary) text-(--text-primary)">
       {componentSettings.map((component) => (
         <div
           key={component.id}
@@ -185,9 +186,7 @@ export default function Landing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <Loader2 className="w-8 h-8 animate-spin text-gold" />
-        </div>
+        <Loader/>
       }
     >
       <LandingContent />

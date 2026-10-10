@@ -13,13 +13,13 @@ import Link from "next/link";
 function TaxFilingPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { 
-    subscription, 
-    userTier, 
-    isSME, 
-    isEnterprise, 
-    isCorporation, 
-    isSolopreneur 
+  const {
+    subscription,
+    userTier,
+    isSME,
+    isEnterprise,
+    isCorporation,
+    isSolopreneur,
   } = useSubscription();
 
   // Define tier variables
@@ -30,7 +30,8 @@ function TaxFilingPage() {
   const isCorporationUser = userTier === "corporation";
 
   // Tax calculator access: SME, Enterprise, Corporation have access
-  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const hasTaxCalculatorAccess =
+    isSMEUser || isEnterpriseUser || isCorporationUser;
   // Tax support: Enterprise and Corporation
   const hasTaxSupport = isEnterpriseUser || isCorporationUser;
   // Full tax filing: Corporation only
@@ -90,7 +91,7 @@ function TaxFilingPage() {
           onClose={() => setSidebarOpen(false)}
         />
 
-        <div className="lg:pl-72 min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
           <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
           <main className="flex-1 p-4 md:p-6 lg:p-8">

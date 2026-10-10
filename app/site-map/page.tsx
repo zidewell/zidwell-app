@@ -28,7 +28,7 @@ export default function SiteMapPage() {
       description: "Create your Zidwell account",
     },
     {
-      href: "/login",
+      href: "/auth/login",
       name: "Login",
       description: "Access your Zidwell account",
     },

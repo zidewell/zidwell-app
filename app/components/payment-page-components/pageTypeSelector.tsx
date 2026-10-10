@@ -1,3 +1,4 @@
+// app/components/payment-page-components/pageTypeSelector.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -35,14 +36,12 @@ const types: {
     label: "Donation",
     icon: Heart,
     description: "Accept donations with suggested amounts & donor messages",
-    disabled: true,
   },
   {
     value: "physical",
     label: "Physical Product",
     icon: Package,
     description: "Sell items with variants, quantity & shipping",
-    disabled: true,
   },
   {
     value: "digital",
@@ -55,7 +54,6 @@ const types: {
     label: "Services",
     icon: Briefcase,
     description: "Offer services with optional booking & customer notes",
-    disabled: true,
   },
   {
     value: "link",
@@ -65,6 +63,9 @@ const types: {
   },
 ];
 
+// ─── All investment & savings page types are disabled for now. ───
+// The `disabled: true` flag hides their interactivity; the click
+// guards in this file already skip them.
 const investmentTypes: {
   value: PageType;
   label: string;
@@ -111,7 +112,7 @@ const PageTypeSelector = ({ onSelect }: Props) => {
 
   const handleTypeClick = (t: typeof types[0]) => {
     if (t.disabled) return;
-    
+
     if (t.value === "link") {
       router.push("/dashboard/services/payment/create-link");
     } else {
@@ -123,29 +124,32 @@ const PageTypeSelector = ({ onSelect }: Props) => {
     <div className="space-y-8">
       <div className="text-center">
         <h2
-          className="text-2xl font-bold text-[var(--text-primary)]"
+          className="text-2xl font-bold text-(--text-primary)"
           style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
           What are you selling?
         </h2>
-        <p className="text-[var(--text-secondary)] mt-1">
+        <p className="text-(--text-secondary) mt-1">
           Choose the type that best fits your use case
         </p>
         <div className="mt-3 p-4 rounded-xl bg-[var(--color-accent-yellow)]/5 border border-[var(--color-accent-yellow)]/20 text-left">
           <p className="text-xs font-bold text-[var(--color-accent-yellow)] mb-2">
             Please Note:
           </p>
-          <ul className="text-xs text-[var(--text-secondary)] space-y-1 list-disc pl-4">
+          <ul className="text-xs text-(--text-secondary) space-y-1 list-disc pl-4">
             <li>Every payment page carries its own account number</li>
             <li>The page title = account name of the attached account</li>
             <li>Don't randomly create payment pages</li>
             <li>Inactive payment pages will be deleted after 30 days</li>
-            <li>
+            {/* <li>
               Only verified businesses with an RC Number can create payment
               pages
+            </li> */}
+            <li>
+              We charge a 3.5% fee on every payment — set your prices accordingly
             </li>
             <li>
-              We charge a 2% fee on every payment — set your prices accordingly
+              All page types support installments (weekly, bi-weekly or monthly)
             </li>
             <li>
               We manually review all pages — fraudulent/suspicious pages will be
@@ -165,21 +169,25 @@ const PageTypeSelector = ({ onSelect }: Props) => {
             onClick={() => handleTypeClick(t)}
             className={`p-5 rounded-2xl border-2 text-left transition-all group squircle-lg ${
               t.disabled
-                ? "border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
-                : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
+                ? "border-(--border-color) bg-(--bg-primary) opacity-50 cursor-not-allowed"
+                : "border-(--border-color) bg-(--bg-primary) hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
             }`}
           >
             <t.icon
-              className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${t.disabled ? "text-[var(--text-secondary)]" : "text-[var(--color-accent-yellow)]"}`}
+              className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${
+                t.disabled
+                  ? "text-(--text-secondary)"
+                  : "text-[var(--color-accent-yellow)]"
+              }`}
             />
-            <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
+            <h3 className="font-bold text-base mb-1 text-(--text-primary)">
               {t.label}
             </h3>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            <p className="text-sm text-(--text-secondary) leading-relaxed">
               {t.description}
             </p>
             {t.disabled && (
-              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
+              <span className="inline-block mt-2 text-[10px] font-bold text-(--text-secondary) bg-[var(--border-color)] px-2 py-0.5 rounded-full">
                 Coming Soon
               </span>
             )}
@@ -187,11 +195,11 @@ const PageTypeSelector = ({ onSelect }: Props) => {
         ))}
       </div>
 
-      {/* Investment & Savings Section */}
+      {/* Investment & Savings Section — currently disabled */}
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="h-px flex-1 bg-[var(--border-color)]" />
-          <span className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+          <span className="text-sm font-bold text-(--text-secondary) uppercase tracking-wider">
             Investment & Savings
           </span>
           <div className="h-px flex-1 bg-[var(--border-color)]" />
@@ -204,32 +212,20 @@ const PageTypeSelector = ({ onSelect }: Props) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: (types.length + i) * 0.05 }}
-              onClick={() => !t.disabled && onSelect(t.value)}
-              className={`p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg ${
-                t.disabled
-                  ? "border-[var(--border-color)] bg-[var(--bg-primary)] opacity-50 cursor-not-allowed"
-                  : "border-[var(--border-color)] bg-[var(--bg-primary)] hover:border-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/5"
-              }`}
+              disabled
+              aria-disabled="true"
+              className="p-5 rounded-2xl border-2 text-left transition-all group relative squircle-lg border-(--border-color) bg-(--bg-primary) opacity-50 cursor-not-allowed"
             >
-              {!t.disabled && (
-                <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-accent-yellow)]/10 text-[var(--color-accent-yellow)] text-[10px] font-bold">
-                  <AlertTriangle className="h-3 w-3" /> Disclaimer
-                </div>
-              )}
-              <t.icon
-                className={`h-7 w-7 mb-3 group-hover:scale-110 transition-transform ${t.disabled ? "text-[var(--text-secondary)]" : "text-[var(--color-accent-yellow)]"}`}
-              />
-              <h3 className="font-bold text-base mb-1 text-[var(--text-primary)]">
+              <t.icon className="h-7 w-7 mb-3 text-(--text-secondary)" />
+              <h3 className="font-bold text-base mb-1 text-(--text-primary)">
                 {t.label}
               </h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-sm text-(--text-secondary) leading-relaxed">
                 {t.description}
               </p>
-              {t.disabled && (
-                <span className="inline-block mt-2 text-[10px] font-bold text-[var(--text-secondary)] bg-[var(--border-color)] px-2 py-0.5 rounded-full">
-                  Coming Soon
-                </span>
-              )}
+              <span className="inline-block mt-2 text-[10px] font-bold text-(--text-secondary) bg-[var(--border-color)] px-2 py-0.5 rounded-full">
+                Coming Soon
+              </span>
             </motion.button>
           ))}
         </div>
