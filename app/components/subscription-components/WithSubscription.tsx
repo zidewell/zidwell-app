@@ -1,8 +1,8 @@
-// components/withSubscription.tsx
-import { SubscriptionPageGuard } from "./SubscriptionGuard"; 
+// app/components/subscription-components/WithSubscription.tsx
+import { SubscriptionPageGuard } from "./SubscriptionGuard";
 
 interface WithSubscriptionProps {
-  requiredTier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+  requiredTier: "free" | "starter" | "sme" | "enterprise" | "console";
   featureKey: string;
   title?: string;
   description?: string;
@@ -10,7 +10,7 @@ interface WithSubscriptionProps {
 
 export function withSubscription<P extends object>(
   WrappedComponent: React.ComponentType<P>,
-  options: WithSubscriptionProps
+  options: WithSubscriptionProps,
 ) {
   return function WithSubscriptionComponent(props: P) {
     return (

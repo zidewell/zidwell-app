@@ -13,38 +13,25 @@ import Link from "next/link";
 function TaxFilingPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const {
-    subscription,
-    userTier,
-    isSME,
-    isEnterprise,
-    isCorporation,
-    isSolopreneur,
-  } = useSubscription();
+  const { subscription, userTier } = useSubscription();
 
-  // Define tier variables
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
 
-  // Tax calculator access: SME, Enterprise, Corporation have access
-  const hasTaxCalculatorAccess =
-    isSMEUser || isEnterpriseUser || isCorporationUser;
-  // Tax support: Enterprise and Corporation
-  const hasTaxSupport = isEnterpriseUser || isCorporationUser;
-  // Full tax filing: Corporation only
-  const hasFullTaxFiling = isCorporationUser;
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isConsoleUser;
+  const hasTaxSupport = isEnterpriseUser || isConsoleUser;
+  const hasFullTaxFiling = isConsoleUser;
 
-  // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Corporation",
+        label: "Console",
       };
     if (isEnterpriseUser)
       return {
@@ -60,12 +47,12 @@ function TaxFilingPage() {
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         icon: Zap,
         color: "text-blue-600",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Solopreneur",
+        label: "Starter",
       };
     return {
       icon: Star,
@@ -96,7 +83,6 @@ function TaxFilingPage() {
 
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="max-w-5xl mx-auto">
-              {/* Back button and header */}
               <div className="flex items-start gap-4 mb-6 md:mb-8">
                 <Button
                   variant="ghost"
@@ -115,7 +101,6 @@ function TaxFilingPage() {
                     <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
                       Tax Manager Services
                     </h1>
-                    {/* Single Tier Badge */}
                     <div
                       className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
                     >
@@ -133,10 +118,8 @@ function TaxFilingPage() {
                 </div>
               </div>
 
-              {/* Tax Calculator - Available to SME and above */}
-              <TaxCalculator userTier={userTier} />
+              <TaxCalculator userTier={userTier as any} />
 
-              {/* Premium Features - Enterprise and Corporation */}
               {hasTaxSupport && (
                 <div className="mt-8 grid md:grid-cols-2 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-(--border-color) rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
@@ -168,7 +151,6 @@ function TaxFilingPage() {
                 </div>
               )}
 
-              {/* Corporation Features - Only Corporation has full tax filing */}
               {hasFullTaxFiling && (
                 <div className="mt-8 grid md:grid-cols-3 gap-6">
                   <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">

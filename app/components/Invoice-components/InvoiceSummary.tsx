@@ -74,11 +74,11 @@ export default function InvoiceSummary({
   userTier = "free",
 }: InvoiceSummaryProps) {
   const isFree = userTier === "free";
-  const isSolopreneur = userTier === "solopreneur";
+  const isStarter = userTier === "solopreneur";
   const isSME = userTier === "sme";
   const isEnterprise = userTier === "enterprise";
-  const isCorporation = userTier === "corporation";
-  const hasUnlimited = isSME || isEnterprise || isCorporation;
+  const isConsole = userTier === "corporation";
+  const hasUnlimited = isSME || isEnterprise || isConsole;
 
   const getRemaining = (): number => {
     if (usageInfo) {
@@ -94,15 +94,15 @@ export default function InvoiceSummary({
   const isChecking = usageInfo?.isChecking || false;
 
   const getTierIcon = () => {
-    if (isCorporation) return <Sparkles className="w-5 h-5 text-purple-600" />;
+    if (isConsole) return <Sparkles className="w-5 h-5 text-purple-600" />;
     if (isEnterprise) return <Crown className="w-5 h-5 text-amber-600" />;
     if (isSME) return <Star className="w-5 h-5 text-(--color-accent-yellow)" />;
-    if (isSolopreneur) return <Zap className="w-5 h-5 text-blue-600" />;
+    if (isStarter) return <Zap className="w-5 h-5 text-blue-600" />;
     return <Star className="w-5 h-5 text-gray-600" />;
   };
 
   const getTierColors = () => {
-    if (isCorporation)
+    if (isConsole)
       return {
         bg: "bg-purple-50 dark:bg-purple-900/20",
         border: "border-purple-200 dark:border-purple-800",
@@ -123,7 +123,7 @@ export default function InvoiceSummary({
         text: "text-(--color-accent-yellow)",
         btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
       };
-    if (isSolopreneur)
+    if (isStarter)
       return {
         bg: "bg-blue-50 dark:bg-blue-900/20",
         border: "border-blue-200 dark:border-blue-800",
@@ -142,10 +142,10 @@ export default function InvoiceSummary({
   const tierIcon = getTierIcon();
 
   const getTierDisplayName = () => {
-    if (isCorporation) return "Corporation";
+    if (isConsole) return "Corporation";
     if (isEnterprise) return "Enterprise";
     if (isSME) return "SME";
-    if (isSolopreneur) return "Solopreneur";
+    if (isStarter) return "Solopreneur";
     return "Free Trial";
   };
 

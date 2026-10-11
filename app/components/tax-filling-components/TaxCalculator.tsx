@@ -29,14 +29,14 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
 
   // Define tier-based access
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "solopreneur";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "corporation";
 
-  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isCorporationUser;
-  const hasTaxSupport = isEnterpriseUser || isCorporationUser;
-  const hasFullTaxFiling = isCorporationUser;
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isConsoleUser;
+  const hasTaxSupport = isEnterpriseUser || isConsoleUser;
+  const hasFullTaxFiling = isConsoleUser;
 
   // CIT state
   const [citRevenue, setCitRevenue] = useState("");
@@ -79,7 +79,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         actionLink: "/pricing?upgrade=sme",
       };
     }
-    if (isSolopreneurUser) {
+    if (isStarterUser) {
       return {
         icon: Zap,
         text: "Solopreneur Plan - Tax Calculator requires SME",
@@ -112,7 +112,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         actionLink: "/pricing?upgrade=corporation",
       };
     }
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return {
         icon: Sparkles,
         text: "Corporation Plan - Full Tax Filing Support",
@@ -151,24 +151,24 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
                   You have access to all tax calculations and filing support.
                 </p>
               )}
-              {isCorporationUser && (
+              {isConsoleUser && (
                 <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
                   Full tax filing including VAT, PAYE, and WHT. Contact our team for assistance.
                 </p>
               )}
-              {(isFree || isSolopreneurUser) && (
+              {(isFree || isStarterUser) && (
                 <p className="text-sm text-(--text-secondary) mt-1">
                   Get accurate tax estimates and filing support with our SME plan and above.
                 </p>
               )}
             </div>
           </div>
-          {!isCorporationUser && (
+          {!isConsoleUser && (
             <Link href={tierInfo.actionLink}>
               <button
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors
                 ${
-                  isFree || isSolopreneurUser
+                  isFree || isStarterUser
                     ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                     : isSMEUser
                     ? "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"

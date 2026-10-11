@@ -2,7 +2,7 @@
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { Crown, Zap, Sparkles, Star, AlertCircle, Clock } from "lucide-react";
+import { Crown, Zap, Sparkles, Star, AlertCircle, Clock, Briefcase } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TIER_DISPLAY_NAMES } from "@/lib/subscription-features";
 
@@ -15,13 +15,13 @@ const tierConfig = {
     darkColor: "dark:text-gray-300",
     label: TIER_DISPLAY_NAMES.free,
   },
-  solopreneur: {
-    icon: Zap,
+  starter: {
+    icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-100",
     darkBg: "dark:bg-blue-900/30",
     darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.solopreneur,
+    label: TIER_DISPLAY_NAMES.starter,
   },
   sme: {
     icon: Zap,
@@ -39,13 +39,13 @@ const tierConfig = {
     darkColor: "dark:text-(--color-accent-yellow)",
     label: TIER_DISPLAY_NAMES.enterprise,
   },
-  corporation: {
+  console: {
     icon: Sparkles,
     color: "text-purple-600",
     bg: "bg-purple-100",
     darkBg: "dark:bg-purple-900/30",
     darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.corporation,
+    label: TIER_DISPLAY_NAMES.console,
   },
 };
 
@@ -67,7 +67,7 @@ export function SubscriptionBadge({
   const { subscription, isActive } = useSubscription();
   const [trialInfo, setTrialInfo] = useState<any>(null);
   const tier = subscription?.tier || "free";
-  const config = tierConfig[tier as keyof typeof tierConfig];
+  const config = tierConfig[tier as keyof typeof tierConfig] ?? tierConfig.free;
   const Icon = config.icon;
 
   useEffect(() => {

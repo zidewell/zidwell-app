@@ -28,14 +28,12 @@ export default function ReceiptPage() {
   const [loading, setLoading] = useState(false);
   const [receipts, setReceipts] = useState<any[]>([]);
   const { userData } = useUserContextData();
-  const {
-    userTier,
-    isSME,
-    isEnterprise,
-    isCorporation,
-    isSolopreneur,
-    isFree,
-  } = useSubscription();
+  const { userTier } = useSubscription();
+  const isFree = userTier === "free";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const isStarterUser = userTier === "starter";
+  const isConsoleUser = userTier === "console";
 
   const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
   const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
@@ -82,56 +80,55 @@ export default function ReceiptPage() {
   const receiptCount = receipts.length;
 
   // Tier-based limits
-  const isSolopreneurUser = userTier === "solopreneur";
-  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedReceipts = isSMEUser || isEnterpriseUser || isConsoleUser;
 
   const receiptLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return "unlimited";
-    if (isSolopreneurUser) return 10;
+    if (isStarterUser) return 10;
     return 5; // free tier
-  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts]);
+  }, [userTier, isStarterUser, hasUnlimitedReceipts]);
 
   const hasReachedLimit = useMemo(() => {
     if (hasUnlimitedReceipts) return false;
-    if (isSolopreneurUser) return receiptCount >= 10;
+    if (isStarterUser) return receiptCount >= 10;
     return receiptCount >= 5; // free tier
-  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts, receiptCount]);
+  }, [userTier, isStarterUser, hasUnlimitedReceipts, receiptCount]);
 
   const remainingReceipts = useMemo(() => {
     if (hasUnlimitedReceipts) return "unlimited";
-    if (isSolopreneurUser) return Math.max(0, 10 - receiptCount);
+    if (isStarterUser) return Math.max(0, 10 - receiptCount);
     return Math.max(0, 5 - receiptCount);
-  }, [userTier, isSolopreneurUser, hasUnlimitedReceipts, receiptCount]);
+  }, [userTier, isStarterUser, hasUnlimitedReceipts, receiptCount]);
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporation)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Corporation",
+        label: "Console",
       };
-    if (isEnterprise)
+    if (isEnterpriseUser)
       return {
         icon: Crown,
         color: "text-amber-600 dark:text-amber-400",
         bg: "bg-amber-100 dark:bg-amber-900/20",
         label: "Enterprise",
       };
-    if (isSME)
+    if (isSMEUser)
       return {
         icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         icon: Zap,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Solopreneur",
+        label: "Starter",
       };
     return {
       icon: Star,
@@ -146,17 +143,17 @@ export default function ReceiptPage() {
 
   // Get status banner based on tier
   const getStatusBanner = () => {
-    // SME/Enterprise/Corporation - Unlimited
+    // SME/Enterprise/Console - Unlimited
     if (hasUnlimitedReceipts) {
       return {
-        bg: isCorporation
+        bg: isConsoleUser
           ? "bg-purple-50 dark:bg-purple-900/20"
-          : isEnterprise
+          : isEnterpriseUser
             ? "bg-amber-50 dark:bg-amber-900/20"
             : "bg-(--color-accent-yellow)/10",
-        border: isCorporation
+        border: isConsoleUser
           ? "border-purple-200 dark:border-purple-800"
-          : isEnterprise
+          : isEnterpriseUser
             ? "border-amber-200 dark:border-amber-800"
             : "border-(--color-accent-yellow)",
         icon: <TierIcon className={`w-5 h-5 ${tierInfo.color}`} />,
@@ -166,8 +163,8 @@ export default function ReceiptPage() {
       };
     }
 
-    // Solopreneur - Show usage
-    if (isSolopreneurUser) {
+    // Starter - Show usage
+    if (isStarterUser) {
       if (hasReachedLimit) {
         return {
           bg: "bg-red-50 dark:bg-red-900/20",
@@ -175,7 +172,7 @@ export default function ReceiptPage() {
           icon: (
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
           ),
-          title: "Solopreneur Limit Reached",
+          title: "Starter Limit Reached",
           message: `You've used all ${receiptCount}/10 receipts. Upgrade to continue creating receipts.`,
           showUpgrade: true,
           upgradeText: "Upgrade for Unlimited",
@@ -190,7 +187,7 @@ export default function ReceiptPage() {
             <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
           ),
           title: "Limited Receipts Remaining",
-          message: `You have ${remainingReceipts} Solopreneur receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
+          message: `You have ${remainingReceipts} Starter receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
           showUpgrade: true,
           upgradeText: "Upgrade to SME",
         };
@@ -200,7 +197,7 @@ export default function ReceiptPage() {
         bg: "bg-blue-50 dark:bg-blue-900/20",
         border: "border-blue-200 dark:border-blue-800",
         icon: <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
-        title: "Solopreneur Plan",
+        title: "Starter Plan",
         message: `You have ${remainingReceipts} receipt${remainingReceipts !== 1 ? "s" : ""} remaining.`,
         showUpgrade: true,
         upgradeText: "Upgrade for Unlimited",

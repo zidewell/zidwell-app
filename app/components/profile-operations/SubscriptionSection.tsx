@@ -115,8 +115,8 @@ const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
     userTier, 
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur, 
+    isConsole, 
+    isStarter, 
     isFree 
   } = useSubscription();
 

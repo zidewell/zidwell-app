@@ -1,226 +1,327 @@
 "use client";
+
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
-import ContractGen from "@/app/components/sign-contract-form-component/ContractGen";
+import ReceiptGen from "@/app/components/Receipt-component/ReceiptGen";
+
+import { Button } from "@/app/components/ui/button";
 import { useUserContextData } from "@/app/context/userData";
 import { SubscriptionPageGuard } from "@/app/components/subscription-components/SubscriptionGuard";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  Crown,
+  Zap,
+  Sparkles,
+  Star,
+  Clock,
+  AlertCircle,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Swal from "sweetalert2";
-import { Button } from "@/app/components/ui/button";
-import Loader from "@/app/components/Loader";
+import Link from "next/link";
 
-const Page = () => {
+export default function ReceiptPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [receipts, setReceipts] = useState<any[]>([]);
   const { userData } = useUserContextData();
-  const { userTier, isSME, isEnterprise, isCorporation, isSolopreneur } =
-    useSubscription();
-  const fetchStartedRef = useRef(false);
-
-  const fetchContracts = useCallback(
-    async (email: string) => {
-      if (loading || fetchStartedRef.current) return;
-
-      try {
-        fetchStartedRef.current = true;
-        setLoading(true);
-        const res = await fetch("/api/contract/get-contracts-db", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userEmail: email }),
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch contracts");
-        }
-
-        const data = await res.json();
-        setContracts(data.contracts || []);
-      } catch (error) {
-        console.error("Error fetching contracts:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Failed to load contracts. Please try again.",
-        });
-      } finally {
-        setLoading(false);
-        setInitialLoadDone(true);
-        fetchStartedRef.current = false;
-      }
-    },
-    [loading],
-  );
-
-  useEffect(() => {
-    if (
-      userData?.email &&
-      !initialLoadDone &&
-      !loading &&
-      !fetchStartedRef.current
-    ) {
-      fetchContracts(userData.email);
-    }
-  }, [userData?.email, initialLoadDone, loading, fetchContracts]);
-
-  const hasContracts = useMemo(() => contracts.length > 0, [contracts]);
-
-  const contractCount = contracts.length;
-
+  const { userTier } = useSubscription();
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isStarterUser = userTier === "starter";
+  const isConsoleUser = userTier === "console";
 
-  const hasUnlimitedContracts =
-    isEnterpriseUser || isCorporationUser || isSMEUser;
+  const [bookkeepingTrial, setBookkeepingTrial] = useState<any>(null);
+  const [taxCalculatorTrial, setTaxCalculatorTrial] = useState<any>(null);
 
-  const contractLimit = useMemo(() => {
-    if (hasUnlimitedContracts) return "unlimited";
-    if (isSMEUser) return 1;
-    return 0; // free and solopreneur have 0 contracts
-  }, [userTier, hasUnlimitedContracts, isSMEUser]);
+  const fetchReceipts = async (email: string) => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/receipt/get-receipts-db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userEmail: email }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch receipts");
+      }
+
+      const data = await res.json();
+      setReceipts(data.receipts || []);
+    } catch (error) {
+      console.error("Error fetching receipts:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load receipts. Please try again.",
+        confirmButtonColor: "var(--color-accent-yellow)",
+        background: "var(--bg-primary)",
+        customClass: {
+          popup: "squircle-lg",
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userData?.email) {
+      fetchReceipts(userData.email);
+    }
+  }, [userData]);
+
+  const hasReceipts = receipts.length > 0;
+  const receiptCount = receipts.length;
+
+  const hasUnlimitedReceipts = isSMEUser || isEnterpriseUser || isConsoleUser;
+
+  const receiptLimit = useMemo(() => {
+    if (hasUnlimitedReceipts) return "unlimited";
+    if (isStarterUser) return 10;
+    return 5;
+  }, [userTier, isStarterUser, hasUnlimitedReceipts]);
 
   const hasReachedLimit = useMemo(() => {
-    if (hasUnlimitedContracts) return false;
-    if (isSMEUser) return contractCount >= 1;
-    return contractCount >= 0; // free and solopreneur can't create contracts
-  }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
+    if (hasUnlimitedReceipts) return false;
+    if (isStarterUser) return receiptCount >= 10;
+    return receiptCount >= 5;
+  }, [userTier, isStarterUser, hasUnlimitedReceipts, receiptCount]);
 
-  const remainingContracts = useMemo(() => {
-    if (hasUnlimitedContracts) return "unlimited";
-    if (isSMEUser) return Math.max(0, 1 - contractCount);
-    return 0;
-  }, [userTier, hasUnlimitedContracts, isSMEUser, contractCount]);
+  const remainingReceipts = useMemo(() => {
+    if (hasUnlimitedReceipts) return "unlimited";
+    if (isStarterUser) return Math.max(0, 10 - receiptCount);
+    return Math.max(0, 5 - receiptCount);
+  }, [userTier, isStarterUser, hasUnlimitedReceipts, receiptCount]);
 
   const getTierInfo = () => {
-    if (isCorporationUser) return { icon: Sparkles, label: "Corporation" };
-    if (isEnterpriseUser) return { icon: Crown, label: "Enterprise" };
-    if (isSMEUser) return { icon: Star, label: "SME" };
-    if (isSolopreneurUser) return { icon: Zap, label: "Solopreneur" };
-    return { icon: Star, label: "Free Trial" };
+    if (isConsoleUser)
+      return {
+        icon: Sparkles,
+        color: "text-purple-600 dark:text-purple-400",
+        bg: "bg-purple-100 dark:bg-purple-900/20",
+        label: "Console",
+      };
+    if (isEnterpriseUser)
+      return {
+        icon: Crown,
+        color: "text-amber-600 dark:text-amber-400",
+        bg: "bg-amber-100 dark:bg-amber-900/20",
+        label: "Enterprise",
+      };
+    if (isSMEUser)
+      return {
+        icon: Star,
+        color: "text-(--color-accent-yellow)",
+        bg: "bg-(--color-accent-yellow)/10",
+        label: "SME",
+      };
+    if (isStarterUser)
+      return {
+        icon: Zap,
+        color: "text-blue-600 dark:text-blue-400",
+        bg: "bg-blue-100 dark:bg-blue-900/20",
+        label: "Starter",
+      };
+    return {
+      icon: Star,
+      color: "text-gray-600 dark:text-gray-400",
+      bg: "bg-gray-100 dark:bg-gray-800",
+      label: "Free Trial",
+    };
   };
 
   const tierInfo = getTierInfo();
   const TierIcon = tierInfo.icon;
 
-  const getTierMessage = () => {
-    if (isCorporationUser) {
-      return "You have unlimited contracts with priority support!";
+  const getStatusBanner = () => {
+    if (hasUnlimitedReceipts) {
+      return {
+        bg: isConsoleUser
+          ? "bg-purple-50 dark:bg-purple-900/20"
+          : isEnterpriseUser
+            ? "bg-amber-50 dark:bg-amber-900/20"
+            : "bg-(--color-accent-yellow)/10",
+        border: isConsoleUser
+          ? "border-purple-200 dark:border-purple-800"
+          : isEnterpriseUser
+            ? "border-amber-200 dark:border-amber-800"
+            : "border-(--color-accent-yellow)",
+        icon: <TierIcon className={`w-5 h-5 ${tierInfo.color}`} />,
+        title: `${tierInfo.label} Plan`,
+        message: "You have unlimited receipts! Create as many as you need.",
+        showUpgrade: false,
+      };
     }
-    if (isEnterpriseUser) {
-      return "You have 10 contracts included in your subscription.";
+
+    if (isStarterUser) {
+      if (hasReachedLimit) {
+        return {
+          bg: "bg-red-50 dark:bg-red-900/20",
+          border: "border-red-200 dark:border-red-800",
+          icon: (
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          ),
+          title: "Starter Limit Reached",
+          message: `You've used all ${receiptCount}/10 receipts. Upgrade to continue creating receipts.`,
+          showUpgrade: true,
+          upgradeText: "Upgrade for Unlimited",
+        };
+      }
+
+      if (receiptCount >= 8) {
+        return {
+          bg: "bg-yellow-50 dark:bg-yellow-900/20",
+          border: "border-yellow-200 dark:border-yellow-800",
+          icon: (
+            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+          ),
+          title: "Limited Receipts Remaining",
+          message: `You have ${remainingReceipts} Starter receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
+          showUpgrade: true,
+          upgradeText: "Upgrade to SME",
+        };
+      }
+
+      return {
+        bg: "bg-blue-50 dark:bg-blue-900/20",
+        border: "border-blue-200 dark:border-blue-800",
+        icon: <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+        title: "Starter Plan",
+        message: `You have ${remainingReceipts} receipt${remainingReceipts !== 1 ? "s" : ""} remaining.`,
+        showUpgrade: true,
+        upgradeText: "Upgrade for Unlimited",
+      };
     }
-    if (isSMEUser) {
-      return "You have 1 contract included in your subscription.";
+
+    if (hasReachedLimit) {
+      return {
+        bg: "bg-red-50 dark:bg-red-900/20",
+        border: "border-red-200 dark:border-red-800",
+        icon: (
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+        ),
+        title: "Free Trial Limit Reached",
+        message: `You've used all ${receiptCount}/5 receipts. Upgrade to continue creating receipts.`,
+        showUpgrade: true,
+        upgradeText: "Upgrade Now",
+      };
     }
-    if (isSolopreneurUser) {
-      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
+
+    if (receiptCount >= 4) {
+      return {
+        bg: "bg-yellow-50 dark:bg-yellow-900/20",
+        border: "border-yellow-200 dark:border-yellow-800",
+        icon: (
+          <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+        ),
+        title: "Limited Receipts Remaining",
+        message: `You have ${remainingReceipts} free receipt${remainingReceipts !== 1 ? "s" : ""} left.`,
+        showUpgrade: true,
+        upgradeText: "Upgrade for More",
+      };
     }
-    return "Free plan does not include contracts. Upgrade to SME or higher.";
+
+    return {
+      icon: <Star className="w-5 h-5 text-gray-600 dark:text-gray-400" />,
+      title: "Free Trial",
+      message: `You have ${remainingReceipts} free receipt${remainingReceipts !== 1 ? "s" : ""} remaining.`,
+      showUpgrade: true,
+      upgradeText: "Upgrade for More",
+    };
   };
 
-  const tierMessage = getTierMessage();
-
-  if (!initialLoadDone && loading) {
-    return (
-      <div className="min-h-screen bg-(--bg-secondary) dark:bg-[#0e0e0e]">
-        <DashboardSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
-        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
-          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="max-w-6xl mx-auto flex justify-center items-center h-64">
-              <Loader />
-            </div>
-          </main>
-        </div>
-      </div>
-    );
-  }
+  const banner = getStatusBanner();
 
   return (
-    <SubscriptionPageGuard
-      requiredTier="sme"
-      featureKey="contracts_per_month"
-      title="Smart Contract Generator"
-      description="Create legally binding agreements, contracts, and NDAs with our easy-to-use contract generator"
-    >
-      <div className="min-h-screen bg-(--bg-secondary) dark:bg-[#0e0e0e] fade-in relative">
-        <DashboardSidebar
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+    <div className="min-h-screen bg-[#f7f7f7] dark:bg-[#0e0e0e] fade-in relative">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-        <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
-          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+      <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
+        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
 
-          <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <div className="max-w-5xl mx-auto">
-              {/* Back button and header */}
-              <div className="flex items-start gap-4 mb-6 md:mb-8">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.back()}
-                  className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:bg-(--bg-secondary) p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-(--border-color) transition-all"
-                >
-                  <ArrowLeft className="w-5 h-5 md:mr-2" />
-                  <span className="hidden md:inline text-sm font-medium">
-                    Back
-                  </span>
-                </Button>
+        <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <div className="max-w-5xl mx-auto">
+            <div className="flex items-start gap-4 mb-6 md:mb-8">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="text-(--color-accent-yellow) hover:text-(--color-accent-yellow)/80 hover:bg-(--bg-secondary) p-2 md:p-2.5 rounded-md border-2 border-transparent hover:border-(--border-color) transition-all"
+              >
+                <ArrowLeft className="w-5 h-5 md:mr-2" />
+                <span className="hidden md:inline text-sm font-medium">
+                  Back
+                </span>
+              </Button>
 
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
-                      Contract Management
-                    </h1>
-                  </div>
-                  <p className="text-sm md:text-base text-(--text-secondary)">
-                    Create legally binding agreements, contracts, and NDAs
-                  </p>
-                </div>
-              </div>
-
-              {/* Tier Message */}
-              {tierMessage && (
-                <div className="mb-6 p-4 rounded-md border-2 bg-(--bg-secondary) border-(--border-color) shadow-soft squircle-lg">
-                  <p className="font-medium flex items-center gap-2 text-(--text-primary)">
-                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-(--color-accent-yellow) text-(--color-ink)">
-                      {tierInfo.label.toUpperCase()}
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-(--text-primary)">
+                    Receipt Management
+                  </h1>
+                  <div
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
+                  >
+                    <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
+                    <span className={`text-xs font-semibold ${tierInfo.color}`}>
+                      {tierInfo.label}
                     </span>
-                    {tierMessage}
-                  </p>
+                  </div>
                 </div>
-              )}
-
-              <ContractGen
-                contracts={contracts}
-                loading={loading}
-                userTier={userTier}
-                isPremium={isEnterpriseUser || isCorporationUser}
-                hasReachedLimit={hasReachedLimit}
-                remainingContracts={remainingContracts}
-                onRefresh={() =>
-                  userData?.email && fetchContracts(userData.email)
-                }
-              />
+                <p className="text-sm md:text-base text-(--text-secondary)">
+                  Create, manage, and track your receipts
+                </p>
+              </div>
             </div>
-          </main>
-        </div>
-      </div>
-    </SubscriptionPageGuard>
-  );
-};
 
-export default Page;
+            <div
+              className={`mb-6 p-4 rounded-lg border-2 ${banner.bg} ${banner.border} shadow-soft squircle-lg`}
+            >
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5">{banner.icon}</div>
+                  <div>
+                    <h3 className="font-semibold text-(--text-primary)">
+                      {banner.title}
+                    </h3>
+                    <p className="text-sm text-(--text-secondary) mt-1">
+                      {banner.message}
+                    </p>
+                  </div>
+                </div>
+
+                {banner.showUpgrade && (
+                  <Link href="/pricing?upgrade=sme">
+                    <Button
+                      size="sm"
+                      className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 whitespace-nowrap squircle-md"
+                    >
+                      <Crown className="w-4 h-4 mr-2" />
+                      {banner.upgradeText}
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <ReceiptGen
+              receipts={receipts}
+              loading={loading}
+              userTier={userTier as any}
+              remainingReceipts={remainingReceipts}
+            />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

@@ -1,7 +1,8 @@
 // app/components/Invoice-components/CreateInvoice.tsx
 "use client";
 
-import React, { JSX, Suspense, useEffect, useState } from "react";
+import React, { JSX } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
@@ -17,8 +18,6 @@ import {
   Plus,
   ArrowLeft,
   Save,
-  Edit,
-  Eye,
   FileText,
   AlertCircle,
   Crown,
@@ -112,25 +111,18 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const { userData, balance } = useUserContextData();
-  const {
-    userTier,
-    subscription,
-    isSME,
-    isEnterprise,
-    isCorporation,
-    isSolopreneur,
-  } = useSubscription();
+  const { userTier } = useSubscription();
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Determine user tier
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
   const hasUnlimitedInvoices =
-    isSMEUser || isEnterpriseUser || isCorporationUser;
+    isSMEUser || isEnterpriseUser || isConsoleUser;
 
   // Invoice limits by tier
   const freeTierLimit = 5;
@@ -140,12 +132,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     used: 0,
     limit: hasUnlimitedInvoices
       ? "unlimited"
-      : isSolopreneurUser
+      : isStarterUser
         ? solopreneurLimit
         : freeTierLimit,
     remaining: hasUnlimitedInvoices
       ? "unlimited"
-      : isSolopreneurUser
+      : isStarterUser
         ? solopreneurLimit
         : freeTierLimit,
     hasAccess: true,
@@ -180,12 +172,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600 dark:text-purple-400",
         bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Corporation",
+        label: "Console",
       };
     if (isEnterpriseUser)
       return {
@@ -201,12 +193,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         bg: "bg-(--color-accent-yellow)/10 dark:bg-(--color-accent-yellow)/20",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         icon: Zap,
         color: "text-blue-600 dark:text-blue-400",
         bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "Solopreneur",
+        label: "Starter",
       };
     return {
       icon: Star,
@@ -347,7 +339,6 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     // Check if draft has items in the correct format from the API
     if (draft.invoice_items && Array.isArray(draft.invoice_items)) {
       transformedItems = draft.invoice_items.map((item: any) => {
-        // Handle both field naming conventions
         const description = item.item_description || item.description || "";
         const quantity = Number(item.quantity) || 1;
         const unitPrice = Number(item.unit_price || item.unitPrice || 0);
@@ -533,7 +524,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     const draftsHTML = userDrafts
       .map(
         (draft, index) => `
-      <div class="draft-item p-3 border-b border-(--border-color) hover:bg-[var(--bg-secondary)] cursor-pointer" 
+      <div class="draft-item p-3 border-b border-(--border-color) hover:bg-[var(--bg-secondary)] cursor-pointer"
            data-draft-id="${draft.id}">
         <div class="flex justify-between items-center">
           <div>
@@ -573,7 +564,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
           ${draftsHTML}
         </div>
         <div class="p-6 border-t border-(--border-color)">
-          <button class="start-fresh-btn w-full py-2 px-4 bg-[var(--bg-secondary)] text-(--text-primary) rounded hover:bg-[var(--bg-secondary)]/80 transition-colors squircle-md">
+          <button class="start-fresh-btn w-full py-2 px-4 bg-[var(--bg-secondary)] text-(--text-primary) rounded hover-bg-[var(--bg-secondary)]/80 transition-colors squircle-md">
             Start New Invoice
           </button>
         </div>
@@ -1063,8 +1054,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     if (hasUnlimitedInvoices) {
       return {
         text: "Generate Invoice",
-        color:
-          "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
+        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
@@ -1075,8 +1065,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     ) {
       return {
         text: `Generate Invoice (${invoiceUsage.remaining} free left)`,
-        color:
-          "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
+        color: "bg-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/90",
         icon: null,
         disabled: false,
       };
@@ -1093,7 +1082,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingText = (): string => {
     if (hasUnlimitedInvoices) return "UNLIMITED";
-    if (isSolopreneurUser) return "10 limit";
+    if (isStarterUser) return "10 limit";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1105,7 +1094,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
   const getRemainingColor = (): string => {
     if (hasUnlimitedInvoices) return "bg-purple-600";
-    if (isSolopreneurUser) return "bg-blue-600";
+    if (isStarterUser) return "bg-blue-600";
     if (
       typeof invoiceUsage.remaining === "number" &&
       invoiceUsage.remaining > 0
@@ -1162,8 +1151,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
               Invoice Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isSolopreneurUser
-                ? "You've used all your Solopreneur invoices. Upgrade to continue creating unlimited invoices!"
+              {isStarterUser
+                ? "You've used all your Starter invoices. Upgrade to continue creating unlimited invoices!"
                 : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
             </p>
             <div className="flex gap-3">
@@ -1203,7 +1192,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
         usageInfo={invoiceUsage}
-        userTier={userTier || "free"}
+        userTier={(userTier || "free") as any}
       />
 
       <InvoiceItemForm
@@ -1303,7 +1292,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   <div
                     className={`mb-6 p-4 rounded-lg border ${
                       hasUnlimitedInvoices
-                        ? isCorporationUser
+                        ? isConsoleUser
                           ? "bg-purple-50 border-purple-200"
                           : isEnterpriseUser
                             ? "bg-amber-50 border-amber-200"
@@ -1315,7 +1304,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   >
                     <div className="flex items-start gap-3">
                       {hasUnlimitedInvoices ? (
-                        isCorporationUser ? (
+                        isConsoleUser ? (
                           <Sparkles className="w-5 h-5 text-purple-600 mt-0.5" />
                         ) : isEnterpriseUser ? (
                           <Crown className="w-5 h-5 text-amber-600 mt-0.5" />
@@ -1331,7 +1320,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         <p
                           className={`font-medium ${
                             hasUnlimitedInvoices
-                              ? isCorporationUser
+                              ? isConsoleUser
                                 ? "text-purple-700"
                                 : isEnterpriseUser
                                   ? "text-amber-700"
@@ -1352,7 +1341,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             "You have unlimited invoices as part of your subscription."
                           ) : hasReachedLimit() ? (
                             <>
-                              You've used all {isSolopreneurUser ? "10" : "5"}{" "}
+                              You've used all {isStarterUser ? "10" : "5"}{" "}
                               free invoices.{" "}
                               <Button
                                 variant="link"
@@ -1428,10 +1417,12 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                     </div>
 
                     <div className="border-t border-(--border-color) pt-4 mt-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-(--text-primary)">
-                          Bill To
-                        </h3>
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h3 className="font-semibold text-(--text-primary)">
+                            Bill To
+                          </h3>
+                        </div>
                         <span className="text-xs text-(--text-secondary)">
                           (Optional - leave blank for client to fill)
                         </span>
@@ -1494,42 +1485,35 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           <h3 className="font-semibold text-(--text-primary)">
                             Items
                           </h3>
-                          {form.invoice_items.length > 0 && (
-                            <p className="text-xs text-(--text-secondary) mt-1">
-                              {form.invoice_items.length} item
-                              {form.invoice_items.length !== 1 ? "s" : ""} •
-                              Total: ₦
-                              {form.invoice_items
-                                .reduce(
-                                  (sum, item) => sum + (item.total || 0),
-                                  0,
-                                )
-                                .toLocaleString()}
-                            </p>
-                          )}
                         </div>
-                        <Button
-                          className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
-                          size="sm"
-                          onClick={handleAddItem}
-                          disabled={isFormLocked}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Add Item
-                        </Button>
+                        {form.invoice_items.length > 0 && (
+                          <p className="text-xs text-(--text-secondary) mt-1">
+                            {form.invoice_items.length} item
+                            {form.invoice_items.length !== 1 ? "s" : ""} • Total:
+                            ₦
+                            {form.invoice_items
+                              .reduce((sum, item) => sum + (item.total || 0), 0)
+                              .toLocaleString()}
+                          </p>
+                        )}
                       </div>
+                      <Button
+                        className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
+                        size="sm"
+                        onClick={handleAddItem}
+                        disabled={isFormLocked}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Item
+                      </Button>
 
                       {form.invoice_items.length > 0 ? (
                         <div>
                           <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-(--text-secondary)">
                             <div className="md:col-span-5">DESCRIPTION</div>
                             <div className="md:col-span-1 text-center">QTY</div>
-                            <div className="md:col-span-2 text-right">
-                              PRICE
-                            </div>
-                            <div className="md:col-span-2 text-right">
-                              TOTAL
-                            </div>
+                            <div className="md:col-span-2 text-right">PRICE</div>
+                            <div className="md:col-span-2 text-right">TOTAL</div>
                             <div className="md:col-span-2 text-right">
                               ACTIONS
                             </div>
@@ -1697,39 +1681,62 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         )}
                       </div>
                       <p className="text-(--text-secondary)">
-                        Live preview of your invoice as you fill out the form
+                        This is how your invoice will appear to your client
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 text-blue-700 border-blue-200"
-                    >
-                      Live Preview
-                    </Badge>
+                  <div className="flex items-center gap-4">
+                    {form.invoice_items.length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-50 text-blue-700 border-blue-200"
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        {form.invoice_items.length} item(s)
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-6">
+                <div className="mb-6">
                   <InvoicePreview invoice={previewInvoice} />
+                </div>
 
-                  <div className="flex justify-between items-center pt-4 border-t border-(--border-color)">
-                    <div className="text-sm text-(--text-secondary)">
-                      <p>
-                        Switch to the "Create Invoice" tab to edit your invoice
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setActiveTab("create")}
-                      className="border-[var(--color-accent-yellow)] text-[var(--color-accent-yellow)] hover:bg-[var(--color-accent-yellow)]/10"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Back to Editor
-                    </Button>
-                  </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setActiveTab("create")}
+                    className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)]"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Edit Invoice
+                  </Button>
+                  <Button
+                    onClick={() => handleSubmit(false)}
+                    disabled={
+                      loading ||
+                      isFormLocked ||
+                      draftLoading ||
+                      invoiceUsage.isChecking ||
+                      buttonConfig.disabled
+                    }
+                    className={`flex-1 ${buttonConfig.color} text-[var(--color-ink)]`}
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </div>
+                    ) : invoiceUsage.isChecking ? (
+                      "Checking..."
+                    ) : (
+                      <>
+                        {buttonConfig.icon}
+                        {buttonConfig.text}
+                      </>
+                    )}
+                  </Button>
                 </div>
               </>
             }
@@ -1740,17 +1747,4 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
   );
 };
 
-export default function CreateInvoiceWithSuspense() {
-  return (
-    <Suspense
-      fallback={
-        <div className="text-center p-8 text-(--text-primary)">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)] mx-auto mb-4" />
-          <p>Loading invoice form...</p>
-        </div>
-      }
-    >
-      <CreateInvoice />
-    </Suspense>
-  );
-}
+export default CreateInvoice;

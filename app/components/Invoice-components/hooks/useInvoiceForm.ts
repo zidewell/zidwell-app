@@ -19,8 +19,8 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     userTier, 
     isSME, 
     isEnterprise, 
-    isCorporation, 
-    isSolopreneur,
+    isConsole, 
+    isStarter,
     isFree 
   } = useSubscription();
 
@@ -206,7 +206,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     if (invoiceUsage.isChecking) return false;
     
     // SME/Enterprise/Corporation always have unlimited access
-    if (isSME || isEnterprise || isCorporation) return true;
+    if (isSME || isEnterprise || isConsole) return true;
     
     // For limited tiers (free/solopreneur), check if remaining > 0
     if (typeof invoiceUsage.remaining === "number") {
@@ -227,7 +227,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   };
 
   // Check if user has unlimited access
-  const hasUnlimitedAccess = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedAccess = isSME || isEnterprise || isConsole;
 
   return {
     form,

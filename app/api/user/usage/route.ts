@@ -57,15 +57,15 @@ export async function GET(req: NextRequest) {
     
     // ✅ Updated tier types
     const isFree = tier === 'free';
-    const isSolopreneur = tier === 'solopreneur';
+    const isStarter = tier === 'solopreneur';
     const isSME = tier === 'sme';
     const isEnterprise = tier === 'enterprise';
-    const isCorporation = tier === 'corporation';
-    const hasUnlimitedInvoices = isSME || isEnterprise || isCorporation;
+    const isConsole = tier === 'corporation';
+    const hasUnlimitedInvoices = isSME || isEnterprise || isConsole;
 
     // Calculate invoice usage based on tier
     let invoiceData;
-    if (isFree || isSolopreneur) {
+    if (isFree || isStarter) {
       const used = userData.invoices_used_lifetime || 0;
       const limit = isFree ? 5 : 10; // Free: 5, Solopreneur: 10
       invoiceData = {
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
 
     // Calculate receipt usage
     let receiptData;
-    if (isFree || isSolopreneur) {
+    if (isFree || isStarter) {
       const used = userData.receipts_used_lifetime || 0;
       const limit = isFree ? 5 : 'unlimited'; // Free: 5, Solopreneur: unlimited
       if (limit === 'unlimited') {
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
         requiresUpgrade: true,
         canCreate: false
       };
-    } else if (isSolopreneur) {
+    } else if (isStarter) {
       const used = userData.contracts_used_lifetime || 0;
       const limit = 0; // Solopreneur: 0 contracts
       contractData = {
@@ -211,10 +211,10 @@ export async function GET(req: NextRequest) {
       summary: {
         invoices: {
           used: userData.invoices_used_lifetime || 0,
-          limit: isFree ? 5 : isSolopreneur ? 10 : 'unlimited',
+          limit: isFree ? 5 : isStarter ? 10 : 'unlimited',
           remaining: isFree 
             ? Math.max(0, 5 - (userData.invoices_used_lifetime || 0))
-            : isSolopreneur
+            : isStarter
             ? Math.max(0, 10 - (userData.invoices_used_lifetime || 0))
             : 'unlimited'
         }

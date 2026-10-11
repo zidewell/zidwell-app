@@ -1,7 +1,7 @@
 // app/components/sign-contract-form-component/FormBody.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import RichTextArea from "./RichTextArea";
 
 import SignContractToggle from "./SignContractToggle";
@@ -20,7 +20,6 @@ import {
   ArrowLeft,
   Trash2,
   Crown,
-  AlertCircle,
   Zap,
   Sparkles,
   Star,
@@ -101,22 +100,11 @@ interface SaveContractResponse {
   message?: string;
 }
 
-const CONTRACT_FEE = 1000;
-const LAWYER_FEE = 10000;
-
 const FormBody: React.FC = () => {
   const router = useRouter();
   const { userData } = useUserContextData();
-  const { 
-    userTier, 
-    isSME, 
-    isEnterprise, 
-    isCorporation, 
-    isSolopreneur,
-    hasRequiredTier 
-  } = useSubscription();
+  const { userTier } = useSubscription();
 
-  const inputCount = 4;
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -134,34 +122,36 @@ const FormBody: React.FC = () => {
 
   // Determine user tier
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "starter";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
+  const isConsoleUser = userTier === "console";
 
   // Lawyer signature available for Enterprise and Corporation
-  const canAddLawyerSignature = isEnterpriseUser || isCorporationUser;
-  
+  const canAddLawyerSignature = isEnterpriseUser || isConsoleUser;
+
   // Unlimited contracts for SME, Enterprise, Corporation
-  const hasUnlimitedContracts = isSMEUser || isEnterpriseUser || isCorporationUser;
+  const hasUnlimitedContracts =
+    isSMEUser || isEnterpriseUser || isConsoleUser;
 
   // Contract limits based on tier
-  const contractLimit = isFree || isSolopreneurUser
-    ? 0
-    : isSMEUser
-      ? 1
-      : isEnterpriseUser
-        ? 10
-        : Infinity; // Corporation unlimited
+  const contractLimit =
+    isFree || isStarterUser
+      ? 0
+      : isSMEUser
+        ? 1
+        : isEnterpriseUser
+          ? 10
+          : Infinity; // Corporation unlimited
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
         bg: "bg-purple-100",
-        label: "Corporation",
+        label: "Console",
       };
     if (isEnterpriseUser)
       return {
@@ -177,12 +167,12 @@ const FormBody: React.FC = () => {
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         icon: Zap,
         color: "text-blue-600",
         bg: "bg-blue-100",
-        label: "Solopreneur",
+        label: "Starter",
       };
     return {
       icon: Star,
@@ -606,7 +596,7 @@ const FormBody: React.FC = () => {
     const draftListHTML = draftsList
       .map(
         (draft, index) => `
-        <div style="padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer;" 
+        <div style="padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer;"
              data-draft-index="${index}" class="hover:bg-(--bg-secondary)">
           <strong>${draft.contract_title || "Untitled Contract"}</strong><br>
           <small>To: ${draft.receiver_name || draft.signee_name || "No recipient"}</small><br>
@@ -1081,7 +1071,7 @@ const FormBody: React.FC = () => {
 
     // Check limit for tiers without unlimited contracts
     if (!hasUnlimitedContracts && !isDraft) {
-      if (isFree || isSolopreneurUser) {
+      if (isFree || isStarterUser) {
         setShowUpgradePrompt(true);
         return;
       }
@@ -1244,14 +1234,14 @@ const FormBody: React.FC = () => {
 
   const getLimitDisplay = () => {
     if (hasUnlimitedContracts) return "Unlimited";
-    if (isFree || isSolopreneurUser) return "0/0";
+    if (isFree || isStarterUser) return "0/0";
     if (isSMEUser) return `${Math.max(0, 1 - contractCount)}/1`;
     if (isEnterpriseUser) return `${Math.max(0, 10 - contractCount)}/10`;
     return "0/0";
   };
 
   const getTierMessage = () => {
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return "You have unlimited contracts! Create as many as you need.";
     }
     if (isEnterpriseUser) {
@@ -1260,8 +1250,8 @@ const FormBody: React.FC = () => {
     if (isSMEUser) {
       return `You have ${Math.max(0, 1 - contractCount)} contract${Math.max(0, 1 - contractCount) !== 1 ? "s" : ""} remaining.`;
     }
-    if (isSolopreneurUser) {
-      return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
+    if (isStarterUser) {
+      return "Starter plan does not include contracts. Upgrade to SME or higher.";
     }
     return "Free plan does not include contracts. Upgrade to SME or higher.";
   };
@@ -1279,11 +1269,11 @@ const FormBody: React.FC = () => {
               Contract Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isFree || isSolopreneurUser
+              {isFree || isStarterUser
                 ? "Your plan does not include contracts. Upgrade to SME or higher to create contracts!"
                 : isSMEUser
-                ? "You've used all your SME contracts. Upgrade to Enterprise for more contracts!"
-                : "You've used all your Enterprise contracts. Upgrade to Corporation for unlimited!"}
+                  ? "You've used all your SME contracts. Upgrade to Enterprise for more contracts!"
+                  : "You've used all your Enterprise contracts. Upgrade to Console for unlimited!"}
             </p>
             <div className="flex gap-3">
               <Button
@@ -1321,7 +1311,7 @@ const FormBody: React.FC = () => {
         dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
-        userTier={userTier}
+        userTier={userTier as any}
         contractCount={contractCount}
         hasUnlimitedContracts={hasUnlimitedContracts}
       />
@@ -1449,39 +1439,39 @@ const FormBody: React.FC = () => {
           {!isFree && (
             <div
               className={`mb-6 p-4 rounded-lg border-2 ${
-                isCorporationUser
+                isConsoleUser
                   ? "bg-purple-50 border-purple-200"
                   : isEnterpriseUser
                     ? "bg-amber-50 border-amber-200"
                     : isSMEUser
                       ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
-                      : isSolopreneurUser
+                      : isStarterUser
                         ? "bg-blue-50 border-blue-200"
                         : ""
               }`}
             >
               <p
                 className={`font-medium flex items-center gap-2 ${
-                  isCorporationUser
+                  isConsoleUser
                     ? "text-purple-600"
                     : isEnterpriseUser
                       ? "text-amber-600"
                       : isSMEUser
                         ? "text-(--color-accent-yellow)"
-                        : isSolopreneurUser
+                        : isStarterUser
                           ? "text-blue-600"
                           : ""
                 }`}
               >
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    isCorporationUser
+                    isConsoleUser
                       ? "bg-purple-100 text-purple-600 border border-purple-200"
                       : isEnterpriseUser
                         ? "bg-amber-100 text-amber-600 border border-amber-200"
                         : isSMEUser
                           ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
-                          : isSolopreneurUser
+                          : isStarterUser
                             ? "bg-blue-100 text-blue-600 border border-blue-200"
                             : ""
                   }`}

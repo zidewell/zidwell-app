@@ -1,3 +1,4 @@
+// app/components/Receipt-component/ReceiptGen.tsx
 "use client";
 
 import { useState } from "react";
@@ -61,7 +62,7 @@ export interface Receipt {
 interface ReceiptGenProps {
   receipts: Receipt[];
   loading: boolean;
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
   remainingReceipts?: string | number;
 }
 
@@ -78,14 +79,14 @@ export default function ReceiptGen({
 
   // Calculate limits based on tier
   const isFree = userTier === "free";
-  const isSolopreneur = userTier === "solopreneur";
+  const isStarter = userTier === "starter";
   const isSME = userTier === "sme";
   const isEnterprise = userTier === "enterprise";
-  const isCorporation = userTier === "corporation";
+  const isConsole = userTier === "console";
 
-  const hasUnlimitedReceipts = isSME || isEnterprise || isCorporation;
+  const hasUnlimitedReceipts = isSME || isEnterprise || isConsole;
   const receiptCount = receipts.length;
-  const receiptLimit = isFree ? 5 : isSolopreneur ? 10 : Infinity;
+  const receiptLimit = isFree ? 5 : isStarter ? 10 : Infinity;
   const hasReachedLimit = !hasUnlimitedReceipts && receiptCount >= receiptLimit;
 
   const totalAmount = receipts.reduce((sum, receipt) => {
@@ -124,17 +125,19 @@ export default function ReceiptGen({
 
   const getRemainingText = () => {
     if (hasUnlimitedReceipts) return "Unlimited";
-    if (isSolopreneur) return `${Math.max(0, 10 - receiptCount)} remaining`;
+    if (isStarter) return `${Math.max(0, 10 - receiptCount)} remaining`;
     return `${Math.max(0, 5 - receiptCount)} remaining`;
   };
 
   const getUsageColor = () => {
     if (hasUnlimitedReceipts) {
-      if (isCorporation) return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
-      if (isEnterprise) return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400";
+      if (isConsole)
+        return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+      if (isEnterprise)
+        return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400";
       return "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow)";
     }
-    if (isSolopreneur) {
+    if (isStarter) {
       if (receiptCount >= 10)
         return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
       if (receiptCount >= 8)
@@ -162,8 +165,8 @@ export default function ReceiptGen({
               Upgrade Required
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isSolopreneur
-                ? "You've used all your Solopreneur receipts. Upgrade to SME or higher for unlimited receipts!"
+              {isStarter
+                ? "You've used all your Starter receipts. Upgrade to SME or higher for unlimited receipts!"
                 : "You've used all your free receipts. Upgrade to SME or higher for unlimited receipts!"}
             </p>
             <div className="flex gap-3">

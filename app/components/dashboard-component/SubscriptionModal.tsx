@@ -1,18 +1,16 @@
-// app/components/subscription-components/SubscriptionModal.tsx
+// app/components/dashboard-component/SubscriptionModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  Sparkles,
   Check,
   Zap,
-  Star,
   Crown,
   Rocket,
-  Target,
   Gem,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
@@ -30,26 +28,26 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   );
   const { userTier } = useSubscription();
 
-  if (userTier === "corporation") return null;
-
-  const handleViewPricing = () => {
-    onClose();
-    navigate.push("/pricing?upgrade=" + getNextTier());
-  };
+  if (userTier === "console") return null;
 
   const getNextTier = () => {
     switch (userTier) {
       case "free":
-        return "solopreneur";
-      case "solopreneur":
+        return "starter";
+      case "starter":
         return "sme";
       case "sme":
         return "enterprise";
       case "enterprise":
-        return "corporation";
+        return "console";
       default:
-        return "solopreneur";
+        return "starter";
     }
+  };
+
+  const handleViewPricing = () => {
+    onClose();
+    navigate.push("/pricing?upgrade=" + getNextTier());
   };
 
   const getNextTierInfo = () => {
@@ -57,42 +55,42 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
       case "free":
         return {
           currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
+          nextTier: "Starter",
+          title: "Upgrade to Starter",
+          description: "Start putting structure around your business",
+          icon: <Briefcase className="h-6 w-6 text-white" />,
+          badge: "GET STRUCTURED",
+          primaryCta: "Go Starter",
+          monthlyPrice: "₦8,325",
+          annualPrice: "₦99,900",
+          annualSavings: "one annual payment",
           features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
+            "Business bank account",
+            "Business Plan Template",
+            "Automatic Bookkeeping",
+            "Invoice Tool",
+            "Receipt Tool",
+            "Online storefront",
+            "Document Vault",
           ],
         };
-      case "solopreneur":
+      case "starter":
         return {
-          currentTier: "Solopreneur",
+          currentTier: "Starter",
           nextTier: "SME",
           title: "Upgrade to SME",
           description: "Run your business properly",
           icon: <Rocket className="h-6 w-6 text-white" />,
           badge: "RUN YOUR BUSINESS",
           primaryCta: "Go SME",
-          monthlyPrice: "₦29,900",
-          annualPrice: "₦299,000",
-          annualSavings: "save ₦59,800",
+          monthlyPrice: "₦16,658",
+          annualPrice: "₦199,900",
+          annualSavings: "one annual payment",
           features: [
-            "Unlimited Invoices & Receipts",
-            "Upload bank statements",
-            "Connect up to 3 bank accounts",
-            "Vault for financial documents",
-            "Tax calculator included",
-            "Financial statements (P&L, Cash Flow)",
-            "1 extra team member",
+            "Everything in Starter, plus:",
+            "International payments",
+            "One Extra User",
+            "Payroll, HMO, Tax Filing Support add-ons",
           ],
         };
       case "sme":
@@ -100,69 +98,68 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           currentTier: "SME",
           nextTier: "Enterprise",
           title: "Upgrade to Enterprise",
-          description: "Team business management",
+          description: "Full business finance system",
           icon: <Crown className="h-6 w-6 text-white" />,
           badge: "GO ENTERPRISE",
           primaryCta: "Upgrade to Enterprise",
-          monthlyPrice: "₦100,000",
-          annualPrice: "₦1,000,000",
-          annualSavings: "save ₦200,000",
+          monthlyPrice: "₦49,992",
+          annualPrice: "₦599,900",
+          annualSavings: "one annual payment",
           features: [
-            "Multi-user access (full team)",
-            "Role-based permissions",
-            "Approvals for payments, invoices, receipts",
-            "Connect up to 5 bank accounts",
-            "Downloadable financial reports",
-            "10 contracts",
-            "Dedicated onboarding support",
+            "Business bank account with higher limits",
+            "Increased transaction limits",
+            "Connect Your Bank Accounts",
+            "Three Extra Users",
+            "Dedicated support team",
+            "All SME add-ons available",
           ],
         };
       case "enterprise":
         return {
           currentTier: "Enterprise",
-          nextTier: "Corporation",
-          title: "Upgrade to Corporation",
-          description: "Full business finance system",
+          nextTier: "Console",
+          title: "Upgrade to Console",
+          description: "Custom pricing for organizations",
           icon: <Gem className="h-6 w-6 text-white" />,
-          badge: "GO CORPORATION",
+          badge: "GO CONSOLE",
           primaryCta: "Talk to Sales",
-          monthlyPrice: "₦300,000",
-          annualPrice: "₦3,000,000",
-          annualSavings: "save ₦600,000",
+          monthlyPrice: "Custom",
+          annualPrice: "Custom",
+          annualSavings: "tailored to you",
           features: [
-            "Unlimited contracts",
-            "Department-based access",
-            "Connect unlimited bank accounts",
-            "Simple payroll system",
-            "Advanced financial reporting",
-            "Custom financial structure setup",
-            "Priority onboarding & dedicated account manager",
+            "Sub Accounts",
+            "Roles & Permissions",
+            "Approvals",
+            "Unlimited users",
+            "Custom pricing",
           ],
         };
       default:
         return {
           currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
+          nextTier: "Starter",
+          title: "Upgrade to Starter",
+          description: "Start putting structure around your business",
+          icon: <Briefcase className="h-6 w-6 text-white" />,
+          badge: "GET STRUCTURED",
+          primaryCta: "Go Starter",
+          monthlyPrice: "₦8,325",
+          annualPrice: "₦99,900",
+          annualSavings: "one annual payment",
           features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
+            "Business bank account",
+            "Business Plan Template",
+            "Automatic Bookkeeping",
+            "Invoice Tool",
+            "Receipt Tool",
+            "Online storefront",
+            "Document Vault",
           ],
         };
     }
   };
 
   const tierInfo = getNextTierInfo();
-  const nextTier = getNextTier();
 
   return (
     <AnimatePresence>
@@ -236,12 +233,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   ))}
                 </ul>
               </div>
-
-              <div className="relative z-10 mt-3 pt-3 border-t border-white/20">
-                <p className="text-(--color-ink)/60 text-[10px]">
-                  ✦ Earn ZidCoins (1 ZC = ₦1) on every transaction
-                </p>
-              </div>
             </div>
 
             {/* Right Column - Pricing & CTA */}
@@ -266,7 +257,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                           : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                       }`}
                     >
-                      Monthly
+                      Monthly equivalent
                     </button>
                     <button
                       onClick={() => setSelectedPlan("annual")}
@@ -278,7 +269,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     >
                       Annual
                       <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-yellow-900 text-[8px] font-bold px-1 py-0.5 rounded-full">
-                        -20%
+                        BEST
                       </span>
                     </button>
                   </div>
@@ -315,9 +306,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
                     {userTier === "enterprise"
-                      ? "/mo"
+                      ? ""
                       : selectedPlan === "annual"
-                        ? "/yr"
+                        ? "/year"
                         : "/mo"}
                   </span>
                   {selectedPlan === "annual" && userTier !== "enterprise" && (
@@ -344,17 +335,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                     </li>
                   ))}
                 </ul>
-
-                {userTier !== "free" && userTier !== "enterprise" && (
-                  <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      vs {tierInfo.currentTier}:{" "}
-                      {selectedPlan === "annual"
-                        ? tierInfo.annualSavings
-                        : "More features"}
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col items-center gap-2">
@@ -378,7 +358,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
                   {userTier === "enterprise"
                     ? "Contact sales for custom pricing"
-                    : "14-day trials available on select features"}
+                    : "7-day free trial on all plans"}
                 </p>
               </div>
             </div>
@@ -388,3 +368,5 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     </AnimatePresence>
   );
 }
+
+export default SubscriptionModal;

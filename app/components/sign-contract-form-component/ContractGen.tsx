@@ -52,11 +52,11 @@ export default function ContractGen({
 
   // Define tier variables based on userTier prop
   const isFree = userTier === "free";
-  const isSolopreneurUser = userTier === "solopreneur";
+  const isStarterUser = userTier === "solopreneur";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isCorporationUser = userTier === "corporation";
-  const hasUnlimitedContracts = isEnterpriseUser || isCorporationUser || isSMEUser;
+  const isConsoleUser = userTier === "corporation";
+  const hasUnlimitedContracts = isEnterpriseUser || isConsoleUser || isSMEUser;
 
   const contractCount = contracts.length;
   
@@ -72,7 +72,7 @@ export default function ContractGen({
 
   // Get tier icon and color
   const getTierInfo = () => {
-    if (isCorporationUser)
+    if (isConsoleUser)
       return {
         icon: Sparkles,
         color: "text-purple-600",
@@ -93,7 +93,7 @@ export default function ContractGen({
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isSolopreneurUser)
+    if (isStarterUser)
       return {
         icon: Zap,
         color: "text-blue-600",
@@ -159,7 +159,7 @@ export default function ContractGen({
 
   // Get tier message
   const getTierMessage = () => {
-    if (isCorporationUser) {
+    if (isConsoleUser) {
       return "You have unlimited contracts! Create as many as you need.";
     }
     if (isEnterpriseUser) {
@@ -168,7 +168,7 @@ export default function ContractGen({
     if (isSMEUser) {
       return `You have ${getRemainingDisplay()} contract${getRemainingDisplay() !== 1 ? "s" : ""} remaining.`;
     }
-    if (isSolopreneurUser) {
+    if (isStarterUser) {
       return "Solopreneur plan does not include contracts. Upgrade to SME or higher.";
     }
     return "Free plan does not include contracts. Upgrade to SME or higher.";
@@ -263,7 +263,7 @@ export default function ContractGen({
       </div>
 
       {/* Free and Solopreneur - No contracts available */}
-      {(isFree || isSolopreneurUser) && (
+      {(isFree || isStarterUser) && (
         <Card className="border-2 border-gray-200 bg-gray-50">
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -363,7 +363,7 @@ export default function ContractGen({
       )}
 
       {/* Corporation - Show unlimited banner */}
-      {isCorporationUser && (
+      {isConsoleUser && (
         <Card className="border-2 border-purple-200 bg-purple-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -441,7 +441,7 @@ export default function ContractGen({
         contracts={filteredContracts}
         loading={loading}
         userTier={userTier}
-        isPremium={isEnterpriseUser || isCorporationUser}
+        isPremium={isEnterpriseUser || isConsoleUser}
         hasReachedLimit={reachedLimit}
         onRefresh={onRefresh}
       />

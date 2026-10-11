@@ -1,9 +1,10 @@
+// app/dashboard/services/create-invoice/create/page.tsx
 "use client";
 
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import CreateInvoice from "@/app/components/Invoice-components/CreateInvoice";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 export default function CreateInvoicePage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -18,7 +19,15 @@ export default function CreateInvoicePage() {
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="max-w-6xl mx-auto">
-            <CreateInvoice />
+            <Suspense
+              fallback={
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent-yellow)]"></div>
+                </div>
+              }
+            >
+              <CreateInvoice />
+            </Suspense>
           </div>
         </main>
       </div>
