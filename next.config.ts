@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   //           exclude: ["error", "warn"],
   //         }
   //       : false,
-  // },
+  // }, 
 
   // Webpack configuration
   webpack: (config) => {
