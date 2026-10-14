@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const { user } = await isAuthenticatedWithRefresh(req);
     if (!user) {
+      console.log("[/api/prembly/initiate-session] 401 — no auth");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -29,36 +30,38 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (profileError || !profile) {
-      return NextResponse.json(
-        { error: "User profile not found" },
-        { status: 404 }
-      );
+      console.log("[/api/prembly/initiate-session] 404 — profile not found", profileError);
+      return NextResponse.json({ error: "User profile not found" }, { status: 404 });
     }
 
-    const p = profile as UserProfileRow;
-
-    if (!p.full_name || !p.email) {
-      return NextResponse.json(
-        { error: "User profile incomplete" },
-        { status: 400 }
-      );
+    if (!profile.full_name || !profile.email) {
+      console.log("[/api/prembly/initiate-session] 400 — incomplete profile", {
+        hasFullName: !!profile.full_name,
+        hasEmail: !!profile.email,
+      });
+      return NextResponse.json({ error: "User profile incomplete" }, { status: 400 });
     }
 
-    const nameParts = p.full_name.trim().split(/\s+/);
+    const nameParts = profile.full_name.trim().split(/\s+/);
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || firstName;
 
     const premblyBody: Record<string, any> = {
       first_name: firstName,
       last_name: lastName,
-      email: p.email,
-      widget_id: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_ID!,
-      widget_key: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_KEY!,
+      email: profile.email,
+      widget_id: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_ID,
+      widget_key: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_KEY,
     };
 
-    if (redirectUrl) {
-      premblyBody.redirect_url = redirectUrl;
-    }
+    if (redirectUrl) premblyBody.redirect_url = redirectUrl;
+
+    console.log("[/api/prembly/initiate-session] Calling Prembly with", {
+      hasWidgetId: !!premblyBody.widget_id,
+      hasWidgetKey: !!premblyBody.widget_key,
+      email: profile.email,
+      redirectUrl,
+    });
 
     const res = await fetch(
       `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/initiate/`,
@@ -74,12 +77,17 @@ export async function POST(req: NextRequest) {
 
     const data = await res.json();
 
+    console.log("[/api/prembly/initiate-session] Prembly response", {
+      status: res.status,
+      ok: res.ok,
+      premblyStatus: data?.status,
+      message: data?.message,
+    });
+
     if (!res.ok || !data?.status || !data?.data?.session?.session_id) {
+      console.log("[/api/prembly/initiate-session] 400 — Prembly rejected", data);
       return NextResponse.json(
-        {
-          error:
-            data?.message || "Failed to initiate Prembly verification session",
-        },
+        { error: data?.message || "Failed to initiate Prembly verification session" },
         { status: res.status || 500 }
       );
     }
@@ -91,9 +99,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     console.error("[/api/prembly/initiate-session] Exception:", err.message);
-    return NextResponse.json(
-      { error: err.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
