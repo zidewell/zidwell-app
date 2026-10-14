@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
       first_name: firstName,
       last_name: lastName,
       email: profile.email,
-      widget_id: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_ID,
-      widget_key: process.env.NEXT_PUBLIC_PREMBLY_WIDGET_KEY,
+      widget_id: process.env.PREMBLY_WIDGET_ID,
+      widget_key: process.env.PREMBLY_WIDGET_KEY,
     };
 
     if (redirectUrl) premblyBody.redirect_url = redirectUrl;
