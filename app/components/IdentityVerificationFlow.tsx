@@ -205,28 +205,47 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
   }, [userData]);
 
   // ═══════════════════════════════════════════════════════════
-  // AUTO-REDIRECT on success
+  // SUCCESS — refresh profile from server, then redirect.
+  // We skip the countdown gate: the user already saw the account
+  // number on the previous screen. This gets them to the dashboard
+  // immediately with fresh data.
   // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     if (step !== "success") return;
-
-    setCountdown(5);
+  
     clearLocalProgress();
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          router.push("/dashboard");
-          return 0;
+  
+    let cancelled = false;
+  
+    (async () => {
+      try {
+        const res = await fetch("/api/user/me", {
+          credentials: "include",
+          headers: { "Cache-Control": "no-cache" },
+        });
+  
+        if (res.ok) {
+          const fresh = await res.json();
+          if (fresh?.id && !cancelled) {
+            setUserData(fresh); // persists via wrapper
+          }
         }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [step, router]);
-
+      } catch (err) {
+        console.warn(
+          "[IdentityFlow] Post-success refresh failed (non-fatal):",
+          err,
+        );
+      } finally {
+        if (!cancelled) {
+          router.replace("/dashboard");
+        }
+      }
+    })();
+  
+    return () => {
+      cancelled = true;
+    };
+  }, [step, router, setUserData]);
   // ═══════════════════════════════════════════════════════════
   // CORE: Save identity result
   // ═══════════════════════════════════════════════════════════
@@ -901,12 +920,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
       {step === "success" && account && (
         <div className="space-y-8 text-center">
           <div className="mx-auto h-20 w-20 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">
-            <Check
-              className="h-10 w-10 text-(--color-lemon-green)"
-              strokeWidth={3}
-            />
+            <Check className="h-10 w-10 text-(--color-lemon-green)" strokeWidth={3} />
           </div>
-
+      
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-(--text-primary)">
               You&apos;re verified!
@@ -915,7 +931,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
               Your Zidwell account is ready to use.
             </p>
           </div>
-
+      
           <div className="squircle-lg bg-(--bg-primary) border border-(--border-color) p-6 sm:p-8 shadow-[var(--shadow-soft)] space-y-5 text-left">
             <div className="space-y-1">
               <p className="text-sm text-(--text-secondary) font-medium">
@@ -947,7 +963,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                     "h-10 px-4 squircle-md text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer",
                     copied
                       ? "bg-(--color-lemon-green) text-white"
-                      : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color)"
+                      : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color)",
                   )}
                 >
                   {copied ? (
@@ -961,27 +977,26 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
             </div>
             <div className="text-xs text-(--text-secondary) pt-2 border-t border-(--border-color)">
               Provider:{" "}
-              <span className="font-semibold uppercase">
-                {account.provider}
-              </span>
-              {" · "}
-              Type:{" "}
+              <span className="font-semibold uppercase">{account.provider}</span>
+              {" · "}Type:{" "}
               <span className="font-semibold capitalize">
                 {account.accountType.replace(/_/g, " ")}
               </span>
             </div>
           </div>
-
+      
           <div className="space-y-3">
+            <div className="flex items-center justify-center gap-2 text-(--text-secondary)">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Taking you to your dashboard…</span>
+            </div>
             <Button
               onClick={() => router.push("/dashboard")}
-              className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
+              variant="outline"
+              className="w-full h-12 squircle-md text-sm font-medium border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary) cursor-pointer"
             >
-              Go to Dashboard {countdown > 0 ? `(${countdown})` : ""}
+              Go now instead
             </Button>
-            <p className="text-sm text-(--text-secondary) text-center">
-              Redirecting automatically...
-            </p>
           </div>
         </div>
       )}
