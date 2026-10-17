@@ -1,149 +1,104 @@
+// app/admin/tax-filings/page.tsx
 "use client";
 
+import React, { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
-import { useState, useEffect, useMemo } from "react";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
 import AdminLayout from "@/app/components/admin-components/layout";
+import AdminTable, { AdminTableColumn } from "@/app/components/admin-components/AdminTable";
+import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
-import TaxFilingsTable from "@/app/components/admin-components/TaxtFilingsTable";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/app/components/ui/pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/components/ui/select";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
+import { Button } from "@/app/components/ui/button";
+import fetcher from "@/app/lib/fetcher";
+import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
+import { useDebounce } from "@/app/lib/hooks/useDebounce";
 
 export default function TaxFilingsPage() {
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [dateRange, setDateRange] = useState("total");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const itemsPerPage = 10;
+  const debouncedSearch = useDebounce(searchTerm, 500);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
-  // Build API URL with all filters for server-side filtering
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
-      page: currentPage.toString(),
-      limit: itemsPerPage.toString(),
-      range: dateRange,
+      page: page.toString(),
+      limit: "20",
+      includeStats: "true",
     });
+    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (statusFilter) params.append("status", statusFilter);
+    if (typeFilter) params.append("filing_type", typeFilter);
+    return `/api/admin-apis/tax-filings?${params}`;
+  }, [page, debouncedSearch, statusFilter, typeFilter]);
 
-    if (searchTerm) params.append("search", searchTerm);
-    if (statusFilter !== "all") params.append("status", statusFilter);
-    if (typeFilter !== "all") params.append("type", typeFilter);
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
+  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 2000,
+    keepPreviousData: true,
+  });
 
-    return `/api/admin-apis/tax-filings?${params.toString()}`;
-  }, [
-    currentPage,
-    dateRange,
-    searchTerm,
-    statusFilter,
-    typeFilter,
-    startDate,
-    endDate,
-    itemsPerPage,
-  ]);
-
-  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher);
-
-  // Separate hook for stats (all filtered data without pagination)
-  const statsApiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      range: dateRange,
-      limit: "10000", // Get all for stats calculation
-    });
-
-    if (searchTerm) params.append("search", searchTerm);
-    if (statusFilter !== "all") params.append("status", statusFilter);
-    if (typeFilter !== "all") params.append("type", typeFilter);
-    if (startDate) params.append("startDate", startDate);
-    if (endDate) params.append("endDate", endDate);
-
-    return `/api/admin-apis/tax-filings?${params.toString()}`;
-  }, [dateRange, searchTerm, statusFilter, typeFilter, startDate, endDate]);
-
-  const { data: statsData } = useSWR(statsApiUrl, fetcher);
-
-  // Reset to first page when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, typeFilter, dateRange, startDate, endDate]);
+    setPage(1);
+  }, [debouncedSearch, statusFilter, typeFilter]);
 
-  // Memoize calculations
-  const filings = useMemo(() => data?.filings || [], [data]);
-  const totalFilings = useMemo(() => data?.total || 0, [data]);
-  const totalPages = useMemo(
-    () => Math.ceil(totalFilings / itemsPerPage),
-    [totalFilings, itemsPerPage],
-  );
+  const filings = data?.filings ?? data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 20) || 1;
+  const stats = data?.stats ?? {};
 
-  // Use statsData for calculations
-  const allFilteredFilings = useMemo(
-    () => statsData?.filings || [],
-    [statsData],
-  );
-
-  // Calculate stats
-  const pendingFilings = useMemo(
-    () =>
-      allFilteredFilings.filter(
-        (f: any) => f.status === "pending" || f.status === "submitted",
+  const columns: AdminTableColumn[] = [
+    {
+      key: "first_name",
+      label: "Taxpayer",
+      render: (_v, row) => (
+        <div className="flex flex-col">
+          <span className="font-medium">
+            {row.first_name} {row.last_name}
+          </span>
+          <span className="text-xs text-(--text-secondary)">{row.company_name ?? "Individual"}</span>
+        </div>
       ),
-    [allFilteredFilings],
-  );
-
-  const processingFilings = useMemo(
-    () =>
-      allFilteredFilings.filter(
-        (f: any) => f.status === "processing" || f.status === "under_review",
+    },
+    { key: "filing_type", label: "Type" },
+    { key: "tax_year", label: "Year" },
+    {
+      key: "income_amount",
+      label: "Income",
+      render: (v) => formatCurrency(Number(v) || 0),
+    },
+    {
+      key: "tax_amount",
+      label: "Tax",
+      render: (v) => (
+        <span className="font-medium text-[--color-accent-yellow]">
+          {formatCurrency(Number(v) || 0)}
+        </span>
       ),
-    [allFilteredFilings],
-  );
-
-  const successfulFilings = useMemo(
-    () =>
-      allFilteredFilings.filter(
-        (f: any) =>
-          f.status === "completed" ||
-          f.status === "approved" ||
-          f.status === "success",
-      ),
-    [allFilteredFilings],
-  );
-
-  const rejectedFilings = useMemo(
-    () =>
-      allFilteredFilings.filter(
-        (f: any) => f.status === "rejected" || f.status === "failed",
-      ),
-    [allFilteredFilings],
-  );
-
-  const totalRevenue = useMemo(
-    () =>
-      allFilteredFilings.reduce(
-        (sum: number, f: any) => sum + Number(f.amount_paid || 0),
-        0,
-      ),
-    [allFilteredFilings],
-  );
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (v) => {
+        const s = String(v ?? "pending");
+        const cls =
+          s === "approved"
+            ? "bg-[--color-lemon-green]/15 text-[--color-lemon-green]"
+            : s === "pending" || s === "submitted"
+            ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
+            : "bg-destructive/15 text-destructive";
+        const icon = s === "approved" ? "✓" : s === "rejected" ? "✗" : "⏳";
+        return (
+          <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>
+            {icon} {s}
+          </span>
+        );
+      },
+    },
+    { key: "created_at", label: "Filed" },
+  ];
 
   if (isLoading) {
     return (
@@ -158,9 +113,7 @@ export default function TaxFilingsPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p className="p-6 text-red-600 text-center">
-          Failed to load tax filings ❌
-        </p>
+        <div className="p-6 text-destructive">Failed to load tax filings ❌</div>
       </AdminLayout>
     );
   }
@@ -168,224 +121,80 @@ export default function TaxFilingsPage() {
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold">Tax Filings Management</h2>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => mutate()}>
-              🔄 Refresh
+          <h2 className="text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
+            Tax Filings
+          </h2>
+          <Button variant="outline" onClick={() => mutate()}>
+            🔄 Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <KPICard title="Total Filings" value={formatNumber(stats.total ?? total)} icon="◈" />
+          <KPICard title="Approved" value={formatNumber(stats.approved ?? 0)} icon="✓" />
+          <KPICard title="Pending" value={formatNumber(stats.pending ?? 0)} icon="⏳" />
+          <KPICard
+            title="Total Tax"
+            value={formatCurrency(stats.totalTax ?? 0)}
+            icon="◎"
+            className="border-l-4 border-l-[--color-accent-yellow]"
+          />
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4">
+          <Input
+            placeholder="Search by name or NIN..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full md:w-1/3"
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="submitted">Submitted</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <option value="">All Types</option>
+            <option value="individual">Individual</option>
+            <option value="business">Business</option>
+            <option value="corporate">Corporate</option>
+            <option value="vat">VAT</option>
+            <option value="withholding">Withholding</option>
+            <option value="paye">PAYE</option>
+          </Select>
+        </div>
+
+        <div className="text-sm text-(--text-secondary)">
+          Showing {filings.length} of {total} filings
+        </div>
+
+        <AdminTable
+          columns={columns}
+          rows={filings}
+          onRowClick={(row) => {
+            window.location.href = `/api/admin-apis/tax-filings/${row.id}`;
+          }}
+          emptyMessage="No tax filings found"
+        />
+
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2">
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              ← Prev
             </Button>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
-            <p className="text-2xl font-semibold">
-              ₦{totalRevenue.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-(--color-accent-yellow)">
-              {pendingFilings.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Processing</h3>
-            <p className="text-2xl font-semibold text-blue-600">
-              {processingFilings.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Successful</h3>
-            <p className="text-2xl font-semibold text-green-600">
-              {successfulFilings.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Rejected</h3>
-            <p className="text-2xl font-semibold text-red-600">
-              {rejectedFilings.length}
-            </p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2">
-            <Input
-              placeholder="Search by name, company, tax ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="under_review">Under Review</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="individual">Individual</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-                <SelectItem value="corporate">Corporate</SelectItem>
-                <SelectItem value="vat">VAT</SelectItem>
-                <SelectItem value="withholding">Withholding Tax</SelectItem>
-                <SelectItem value="paye">PAYE</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="total">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
+            <span className="px-4 py-2 text-sm text-(--text-secondary)">
+              Page {page} of {totalPages}
+            </span>
             <Button
               variant="outline"
-              className="w-full"
-              onClick={() => {
-                setSearchTerm("");
-                setStatusFilter("all");
-                setTypeFilter("all");
-                setDateRange("total");
-                setStartDate("");
-                setEndDate("");
-              }}
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
             >
-              Clear Filters
+              Next →
             </Button>
-          </div>
-        </div>
-
-        {/* Custom Date Range */}
-        {dateRange === "custom" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                From Date
-              </label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                To Date
-              </label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Results Count */}
-        <div className="text-sm text-gray-500">
-          Showing {filings.length} of {totalFilings} tax filings
-          {searchTerm && ` matching "${searchTerm}"`}
-          {statusFilter !== "all" && ` | Status: ${statusFilter}`}
-          {typeFilter !== "all" && ` | Type: ${typeFilter}`}
-          {dateRange !== "total" && ` | Date: ${dateRange}`}
-          {` - Page ${currentPage} of ${totalPages}`}
-        </div>
-
-        {/* Table */}
-        <TaxFilingsTable filings={filings} />
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={
-                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
-                    }
-                  />
-                </PaginationItem>
-
-                {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
-                  let pageNum;
-                  if (totalPages <= 7) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 4) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 3) {
-                    pageNum = totalPages - 6 + i;
-                  } else {
-                    pageNum = currentPage - 3 + i;
-                  }
-
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        href="#"
-                        isActive={pageNum === currentPage}
-                        onClick={() => setCurrentPage(pageNum)}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(p + 1, totalPages))
-                    }
-                    className={
-                      currentPage >= totalPages
-                        ? "pointer-events-none opacity-50"
-                        : ""
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 const withPWA = require("next-pwa")({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  disable: true,
   register: true,
   skipWaiting: true,
   scope: "/",
@@ -137,6 +137,7 @@ const nextConfig = {
           },
         ],
       },
+
       {
         source: "/sitemap.xml",
         headers: [
@@ -146,6 +147,7 @@ const nextConfig = {
           },
         ],
       },
+
       {
         source: "/robots.txt",
         headers: [
@@ -165,11 +167,13 @@ const nextConfig = {
         destination: "/",
         permanent: true,
       },
+
       {
         source: "/signin",
         destination: "/auth/login",
         permanent: true,
       },
+
       {
         source: "/register",
         destination: "/auth/signup",
@@ -178,6 +182,7 @@ const nextConfig = {
     ];
   },
 
+  // Environment variables
   env: {
     SITE_URL: process.env.SITE_URL || "zidwell.com",
     SITE_NAME: "Zidwell",
@@ -218,7 +223,7 @@ module.exports = withPWA(nextConfig);
 //       },
 //       {
 //         message: /Critical dependency: the request of a dependency is an expression/,
-//       }
+//       },
 //     );
 
 //     return config;
@@ -275,26 +280,28 @@ module.exports = withPWA(nextConfig);
 //         destination: "/",
 //         permanent: true,
 //       },
+
 //       {
-//         source: "/signin",
-//         destination: "/auth/login",
-//         permanent: true,
+//         source: "/signin"
+//         destination: "/auth/login"
+//         permanent: true
 //       },
+
 //       {
-//         source: "/register",
-//         destination: "/auth/signup",
-//         permanent: true,
+//         source: "/register"
+//         destination: "/auth/signup"
+//         permanent: true
 //       },
 //     ];
 //   },
 
 //   env: {
-//     SITE_URL: process.env.SITE_URL || "zidwell.com",
-//     SITE_NAME: "Zidwell",
+//     SITE_URL: process.env.SITE_URL || "zidwell.com"
+//     SITE_NAME: "Zidwell"
 //   },
 
 //   // compiler: {
-//   //   removeConsole: process.env.NODE_ENV === "production",
+//   //   removeConsole: process.env.NODE_ENV === "production"
 //   // },
 // };
 

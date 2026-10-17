@@ -1,25 +1,99 @@
+// app/admin/invoices/page.tsx
 "use client";
 
-import useSWR, { mutate } from "swr";
-import React from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import useSWR from "swr";
 import AdminLayout from "@/app/components/admin-components/layout";
-import AdminTable from "@/app/components/admin-components/AdminTable";
+import AdminTable, {
+  AdminTableColumn,
+} from "@/app/components/admin-components/AdminTable";
+import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
+import { Button } from "@/app/components/ui/button";
+import fetcher from "@/app/lib/fetcher";
+import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
+import { useDebounce } from "@/app/lib/hooks/useDebounce";
 
 export default function InvoicesPage() {
-  const { data, error } = useSWR("/api/admin-apis/invoices", fetcher);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebounce(searchTerm, 500);
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");
 
-  if (error) {
-    return (
-      <AdminLayout>
-        <div className="text-center text-red-500 mt-10">Failed to load invoices.</div>
-      </AdminLayout>
-    );
-  }
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: "20",
+      includeStats: "true",
+    });
+    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (statusFilter) params.append("status", statusFilter);
+    return `/api/admin-apis/invoices?${params}`;
+  }, [page, debouncedSearch, statusFilter]);
 
-  if (!data) {
+  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 2000,
+    keepPreviousData: true,
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
+
+  const invoices = data?.invoices ?? data?.data ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / 20) || 1;
+  const stats = data?.stats ?? {};
+
+  const columns: AdminTableColumn[] = [
+    { key: "invoice_id", label: "Invoice ID" },
+    { key: "business_name", label: "Business" },
+    { key: "client_name", label: "Client" },
+    {
+      key: "total_amount",
+      label: "Total",
+      render: (v) => (
+        <span className="font-medium">{formatCurrency(Number(v) || 0)}</span>
+      ),
+    },
+    {
+      key: "paid_amount",
+      label: "Paid",
+      render: (v) => (
+        <span className="text-[--color-lemon-green]">
+          {formatCurrency(Number(v) || 0)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (v) => {
+        const s = String(v ?? "unpaid");
+        const cls =
+          s === "paid"
+            ? "bg-[--color-lemon-green]/15 text-[--color-lemon-green]"
+            : s === "unpaid" || s === "partially_paid"
+              ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
+              : s === "overdue" || s === "cancelled"
+                ? "bg-destructive/15 text-destructive"
+                : "bg-(--bg-secondary) text-(--text-secondary)";
+        const icon = s === "paid" ? "✓" : s === "overdue" ? "✗" : "⏳";
+        return (
+          <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>
+            {icon} {s}
+          </span>
+        );
+      },
+    },
+    { key: "issue_date", label: "Issued" },
+  ];
+
+  if (isLoading) {
     return (
       <AdminLayout>
         <div className="flex justify-center items-center h-64">
@@ -29,46 +103,99 @@ export default function InvoicesPage() {
     );
   }
 
-  // ✅ Edit invoice status
-  async function handleEdit(row: any) {
-    const newStatus = prompt("Enter new status", row.status) || row.status;
-    await fetch("/api/admin-apis/invoices", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: row.id, status: newStatus }),
-    });
-    mutate("/api/admin-apis/invoices");
-  }
-
-  // ✅ Delete invoice
-  async function handleDelete(row: any) {
-    if (!confirm("Are you sure you want to delete this invoice?")) return;
-    await fetch("/api/admin-apis/invoices", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: row.id }),
-    });
-    mutate("/api/admin-apis/invoices");
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="p-6 text-destructive">Failed to load invoices ❌</div>
+      </AdminLayout>
+    );
   }
 
   return (
     <AdminLayout>
-      <div className="px-4 py-6">
-        <h2 className="text-3xl font-bold mb-6">📄 Invoices Management</h2>
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
+            Invoices
+          </h2>
+          <Button variant="outline" onClick={() => mutate()}>
+            🔄 Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <KPICard
+            title="Total Invoices"
+            value={formatNumber(stats.total ?? total)}
+            icon="▤"
+          />
+          <KPICard
+            title="Paid"
+            value={formatNumber(stats.paid ?? 0)}
+            icon="✓"
+          />
+          <KPICard
+            title="Overdue"
+            value={formatNumber(stats.overdue ?? 0)}
+            icon="✗"
+          />
+          <KPICard
+            title="Total Value"
+            value={formatCurrency(stats.totalValue ?? 0)}
+            icon="◎"
+            className="border-l-4 border-l-[--color-accent-yellow]"
+          />
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4">
+          <Input
+            placeholder="Search by invoice ID or client..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full md:w-1/3"
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="unpaid">Unpaid</option>
+            <option value="paid">Paid</option>
+            <option value="overdue">Overdue</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="partially_paid">Partially Paid</option>
+          </Select>
+        </div>
+
+        <div className="text-sm text-(--text-secondary)">
+          Showing {invoices.length} of {total} invoices
+        </div>
 
         <AdminTable
-          columns={[
-            { key: "invoice_id", label: "Invoice #" },
-            { key: "initiator_email", label: "Initiator" },
-            { key: "signee_email", label: "Signee" },
-            { key: "total_amount", label: "Total" },
-            { key: "status", label: "Status" },
-            { key: "created_at", label: "Created" },
-          ]}
-          rows={data}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
+          columns={columns}
+          rows={invoices}
+          emptyMessage="No invoices found"
         />
+
+        {totalPages > 1 && (
+          <div className="flex justify-center gap-2">
+            <Button
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              ← Prev
+            </Button>
+            <span className="px-4 py-2 text-sm text-(--text-secondary)">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next →
+            </Button>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

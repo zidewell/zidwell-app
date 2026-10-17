@@ -1,6 +1,6 @@
 // app/components/admin-components/dashboard/overview/OverviewKPIRows.tsx
 import KPICard from "../../KPICard"
-import { GrowthIndicator } from "../GrowthIndicator"
+import GrowthIndicator from "../GrowthIndicator" 
 import {
   TrendingUp,
   Wallet,

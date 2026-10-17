@@ -1,69 +1,39 @@
-// app/components/admin-components/dashboard/DashboardHeader.tsx
-'use client'
+// app/components/admin-components/AdminHeader.tsx
+"use client";
 
-import { RefreshCw, Sparkles } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select'
-import { RangeOption } from '@/types/admin-dashoard'
+import React from "react";
+import { usePathname } from "next/navigation";
 
-interface DashboardHeaderProps {
-  range: RangeOption
-  onRangeChange: (value: RangeOption) => void
-  onRefresh: () => void
-}
+export default function AdminHeader() {
+  const pathname = usePathname();
+  const segment = pathname.split("/").filter(Boolean).pop() ?? "Dashboard";
+  const title = segment
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
-export const DashboardHeader = ({ range, onRangeChange, onRefresh }: DashboardHeaderProps) => {
   return (
-    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <div className="space-y-1">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-[var(--color-amber)]/20 to-[var(--color-amber)]/5 border border-[var(--border)]/50">
-            <Sparkles className="w-5 h-5 text-[var(--color-amber)]" />
-          </div>
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-bold font-[var(--font-space-grotesk)] tracking-tight bg-gradient-to-r from-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
-              Admin Dashboard
-            </h2>
-            <p className="text-sm text-[var(--text-muted)] flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-[var(--color-emerald)] animate-pulse" />
-              Live overview of your platform
-            </p>
-          </div>
+    <header className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-(--border-color) bg-(--bg-primary)">
+      <div className="flex flex-col">
+        <span className="text-xs font-semibold uppercase tracking-widest text-(--text-secondary)">
+          Admin
+        </span>
+        <h1 className="text-lg font-semibold font-(--font-space-grotesk) text-(--text-primary) leading-tight">
+          {title}
+        </h1>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="hidden sm:flex flex-col items-end">
+          <span className="text-sm font-medium text-(--text-primary)">
+            Admin
+          </span>
+          <span className="text-xs text-(--text-secondary)">
+            Zidwell Internal
+          </span>
+        </div>
+        <div className="w-9 h-9 squircle-sm bg-[--color-accent-yellow] text-(--color-ink) flex items-center justify-center font-semibold">
+          A
         </div>
       </div>
-
-      <div className="flex items-center gap-3 w-full sm:w-auto">
-        <div className="flex flex-col items-end w-full sm:w-auto">
-          <label className="text-xs font-medium text-[var(--text-muted)] mb-1.5">Time Range</label>
-          <Select value={range} onValueChange={onRangeChange}>
-            <SelectTrigger className="w-full sm:w-44 bg-[var(--bg-secondary)] border-2 border-transparent rounded-xl focus:border-[var(--color-amber)] transition-all duration-200">
-              <SelectValue placeholder="Select range" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl shadow-xl border border-[var(--border)]">
-              <SelectItem value="total">All Time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="90days">Last 90 Days</SelectItem>
-              <SelectItem value="180days">Last 180 Days</SelectItem>
-              <SelectItem value="year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <button
-          onClick={onRefresh}
-          className="group flex items-center gap-2 px-4 py-2.5 bg-[var(--bg-secondary)] rounded-xl text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-300 hover:shadow-md mt-6 sm:mt-0"
-        >
-          <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
-    </div>
-  )
+    </header>
+  );
 }

@@ -1,67 +1,54 @@
 // app/components/admin-components/KPICard.tsx
-import { ReactNode } from 'react'
+"use client";
+
+import React from "react";
 
 interface KPICardProps {
-  title: string
-  value: string | number
-  growth?: ReactNode
-  className?: string
-  icon?: ReactNode
-  subtitle?: string
-  isLoading?: boolean
+  title: string;
+  value: string | number;
+  growth?: React.ReactNode;
+  icon?: React.ReactNode;
+  subtitle?: string;
+  className?: string;
+  isLoading?: boolean;
 }
 
 export default function KPICard({
   title,
   value,
   growth,
-  className = '',
   icon,
   subtitle,
+  className = "",
   isLoading = false,
 }: KPICardProps) {
-  if (isLoading) {
-    return (
-      <div className="bg-[var(--bg-card)] p-6 rounded-2xl border border-[var(--border)] animate-pulse">
-        <div className="flex items-center justify-between mb-3">
-          <div className="h-4 bg-[var(--bg-secondary)] rounded-lg w-24" />
-          <div className="h-8 w-8 bg-[var(--bg-secondary)] rounded-xl" />
-        </div>
-        <div className="h-8 bg-[var(--bg-secondary)] rounded-lg w-3/4 mb-2" />
-        {subtitle && <div className="h-3 bg-[var(--bg-secondary)] rounded-lg w-full" />}
-      </div>
-    )
-  }
-
   return (
-    <div className={`
-      group relative overflow-hidden bg-[var(--bg-card)] p-6 rounded-2xl border border-[var(--border)]
-      transition-all duration-300 hover:shadow-xl hover:-translate-y-1
-      ${className}
-    `}>
-      <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-amber)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      <div className="relative">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {icon && <div className="text-[var(--text-muted)] group-hover:text-[var(--color-amber)] transition-colors duration-300">{icon}</div>}
-            <div className="text-sm font-medium text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors duration-300">
-              {title}
-            </div>
-          </div>
-          {growth && <div className="shrink-0">{growth}</div>}
+    <div className={`card ${className}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-(--text-secondary)">
+            {title}
+          </p>
+          {isLoading ? (
+            <div className="mt-3 h-7 w-24 bg-(--bg-secondary) squircle-sm animate-pulse" />
+          ) : (
+            <p className="mt-2 text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary) truncate">
+              {value}
+            </p>
+          )}
+          {subtitle && (
+            <p className="mt-1 text-xs text-(--text-secondary) truncate">
+              {subtitle}
+            </p>
+          )}
         </div>
-
-        <div className="mb-1">
-          <div className="text-2xl font-bold font-[var(--font-space-grotesk)] tracking-tight text-[var(--text-primary)] truncate">
-            {typeof value === 'number' ? value.toLocaleString() : value}
+        {icon && (
+          <div className="shrink-0 w-10 h-10 squircle-sm bg-(--bg-secondary) flex items-center justify-center text-(--text-secondary)">
+            {icon}
           </div>
-        </div>
-
-        {subtitle && (
-          <div className="text-xs text-[var(--text-muted)] mt-1 truncate">{subtitle}</div>
         )}
       </div>
+      {growth && <div className="mt-3">{growth}</div>}
     </div>
-  )
+  );
 }
