@@ -1,111 +1,114 @@
 // app/components/home-component/Hero.tsx
-import { ArrowRight, CheckCircle2, Instagram, PlayCircle } from "lucide-react";
-import { FloatingCard } from "./FloatingCard";
-import { PhoneMock } from "./PhoneMock";
-
-const styles = `
-  .hero-gradient {
-    background-image: 
-      radial-gradient(at 20% 10%, oklch(0.84 0.16 88 / 0.14), transparent 50%),
-      radial-gradient(at 80% 0%, oklch(0.66 0.18 148 / 0.10), transparent 50%);
-  }
-`;
+import { ArrowRight, CheckCircle2, Store } from "lucide-react";
+import { ToolkitOrbit } from "./ToolkitOrbit";
 
 export function Hero() {
   return (
-    <>
-      <style>{styles}</style>
-      <section className="relative overflow-hidden hero-gradient bg-background">
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 pt-16 sm:pt-24 pb-20">
-          <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-            <div className="lg:col-span-7 animate-fade-up">
-              <span className="inline-flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs font-medium border border-border text-foreground">
-                <CheckCircle2 className="h-3.5 w-3.5 text-leaf" />
-                The Business Owner&apos;s Toolkit
-              </span>
-              <h1 className="mt-6 font-display text-[40px] leading-[1.04] sm:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground">
-                Tools That Help You Build &amp; Run Your{" "}
-                <span className="relative inline-block">
-                  Business Empire
-                  <span className="absolute -bottom-1 left-0 right-0 h-2 bg-gold/60 rounded-full" />
-                </span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base sm:text-lg text-muted-foreground">
-                Running your business all on WhatsApp keeps you unstructured and
-                informal. Zidwell gives you a bundle of business tools to help
-                you manage your money, customers, documents, sales and
-                day-to-day business operations — all in one place.
-              </p>
+    <section
+      id="top"
+      className="relative overflow-hidden"
+      style={{ backgroundColor: "var(--ink)", color: "var(--background)" }}
+    >
+      <div className="absolute inset-0 grain-bg opacity-60" />
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="/auth/signup"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-ink text-background text-sm font-semibold hover:opacity-90 transition"
-                >
-                  Sign Up <ArrowRight className="h-4 w-4" />
-                </a>
-                <a
-                  href="https://tally.so/r/Xx7Jed"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-surface text-sm font-semibold border border-border hover:bg-surface-2 transition text-foreground"
-                >
-                  <PlayCircle className="h-4 w-4" /> Watch Video
-                </a>
-                <a
-                  href="https://instagram.com/zidwell"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full text-sm font-semibold border border-border bg-surface hover:bg-surface-2 transition text-foreground"
-                >
-                  <Instagram className="h-4 w-4" /> Follow on Instagram
-                </a>
-              </div>
+      <div className="relative mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-12 lg:py-20">
+        {/* Copy — 5 cols */}
+        <div className="lg:col-span-5 animate-fade-up">
+          <span
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+            style={{
+              borderWidth: 1,
+              borderColor:
+                "color-mix(in oklab, var(--background) 15%, transparent)",
+              backgroundColor:
+                "color-mix(in oklab, var(--background) 5%, transparent)",
+              color: "color-mix(in oklab, var(--background) 80%, transparent)",
+            }}
+          >
+            <Store className="h-3.5 w-3.5" style={{ color: "var(--gold)" }} />
+            Built for ambitious SMEs
+          </span>
 
-              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-leaf" /> Free business
-                  bank account
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-leaf" /> Invoices &amp;
-                  receipts included
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-leaf" /> 7-day free trial
-                </span>
-              </div>
-            </div>
+          <h1 className="mt-6 font-display text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
+            Get a Business Bank Account + An{" "}
+            <span style={{ color: "var(--gold)" }}>Online Store</span> in 60
+            Seconds
+          </h1>
 
-            <div className="lg:col-span-5 relative">
-              <div className="relative h-[520px]">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <PhoneMock />
-                </div>
+          <p
+            className="mt-6 max-w-xl text-base leading-relaxed sm:text-lg"
+            style={{
+              color: "color-mix(in oklab, var(--background) 70%, transparent)",
+            }}
+          >
+            Our goal at Zidwell is to give you the tools to run your business
+            hitch-free. Business bank account, online store, bookkeeping, sales
+            records, tax calculator and more — all in one place.
+          </p>
 
-                <FloatingCard
-                  className="absolute top-2 -left-2 sm:-left-6 animate-float"
-                  title="Business account · payment in"
-                  amount="+ ₦ 850,000"
-                  tone="leaf"
-                />
-                <FloatingCard
-                  className="absolute bottom-10 -right-2 sm:-right-6 animate-float-slow"
-                  title="Invoice · paid & recorded"
-                  amount="INV-2041"
-                  tone="gold"
-                />
-                <FloatingCard
-                  className="absolute top-1/2 -right-4 sm:right-2 hidden sm:flex animate-float"
-                  title="Storefront · new order"
-                  amount="2 items"
-                  tone="ink"
-                />
-              </div>
-            </div>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href="#cta"
+              className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition hover:opacity-90 cursor-pointer"
+              style={{
+                backgroundColor: "var(--gold)",
+                color: "var(--ink)",
+              }}
+            >
+              Start Free <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="#tools"
+              className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition cursor-pointer"
+              style={{
+                borderWidth: 1,
+                borderColor:
+                  "color-mix(in oklab, var(--background) 20%, transparent)",
+                backgroundColor:
+                  "color-mix(in oklab, var(--background) 5%, transparent)",
+                color: "var(--background)",
+              }}
+            >
+              Explore the Toolkit
+            </a>
+          </div>
+
+          <div
+            className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs"
+            style={{
+              color: "color-mix(in oklab, var(--background) 60%, transparent)",
+            }}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2
+                className="h-4 w-4"
+                style={{ color: "var(--leaf)" }}
+              />
+              Built for everyday selling
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2
+                className="h-4 w-4"
+                style={{ color: "var(--leaf)" }}
+              />
+              Clean financial records
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2
+                className="h-4 w-4"
+                style={{ color: "var(--leaf)" }}
+              />
+              One simple dashboard
+            </span>
           </div>
         </div>
-      </section>
-    </>
+
+        {/* Orbit — 7 cols. Your orbit is width: min(78vw, 34rem), so it needs
+            the wide column and can bleed slightly right on desktop. */}
+        <div className="lg:col-span-7 flex justify-center lg:justify-end lg:-mr-4 xl:-mr-8">
+          <ToolkitOrbit />
+        </div>
+      </div>
+    </section>
   );
 }

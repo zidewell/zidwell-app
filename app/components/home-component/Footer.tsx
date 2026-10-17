@@ -1,189 +1,109 @@
 // app/components/home-component/Footer.tsx
-// components/Footer.tsx
-
 "use client";
-import {
-  Mail,
-  Phone,
-  MapPin,
-  Instagram,
-  Linkedin,
-  Facebook,
-} from "lucide-react";
+
+import { Instagram, Linkedin, Facebook } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const footerLinks = {
-    product: [
-      { label: "Features", href: "/#tools" },
-      { label: "Pricing", href: "/pricing" },
-      { label: "FAQ", href: "/#faq" },
-    ],
-    company: [{ label: "About Us", href: "/" }],
-    legal: [
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Service", href: "/privacy" },
-      { label: "Cookie Policy", href: "/privacy" },
-    ],
-  };
-  const socialLinks = [
-    {
-      icon: Instagram,
-      href: "https://www.instagram.com/zidwellfinance",
-      label: "Instagram",
-    },
-    {
-      icon: Linkedin,
-      href: "https://www.linkedin.com/company/zidwellfinance",
-      label: "LinkedIn",
-    },
-    {
-      icon: Facebook,
-      href: "https://facebook.com/zidwellfinance",
-      label: "Facebook",
-    },
-  ];
 
   return (
-    <footer className="bg-(--bg-secondary) py-8 sm:py-12 md:py-16">
+    <footer className="bg-surface py-12 sm:py-16">
       <div className="container mx-auto px-4 sm:px-6">
-        {/* Grid Layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-12 mb-8 sm:mb-12">
-          {/* Brand Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
           <div className="sm:col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-              <Link href="/" className="flex items-center gap-2 group">
-                <Image
-                  src="/logo.png"
-                  alt="Zidwell Logo"
-                  width={49}
-                  height={40}
-                  className="w-8 sm:w-10 object-contain transition-transform group-hover:scale-105"
-                />
-                <span className="text-lg sm:text-xl font-bold tracking-tight text-(--text-primary) uppercase">
-                  Zidwell
-                </span>
-              </Link>
-            </div>
+            <Link href="/" className="inline-flex items-center gap-2 mb-4 cursor-pointer">
+              <Image
+                src="/logo.png"
+                alt="Zidwell"
+                width={40}
+                height={32}
+                className="w-8 object-contain"
+              />
+              <span className="text-lg font-bold tracking-tight uppercase font-display text-foreground">
+                Zidwell
+              </span>
+            </Link>
 
-            <p className="text-sm font-semibold text-(--text-primary) mb-2">
+            <p className="text-sm font-semibold text-foreground mb-2">
               The Business Owner&apos;s Toolkit.
             </p>
-
-            <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
-              Manage your money. Organize your business. Sell online. Build
-              with structure.
+            <p className="text-xs text-muted-foreground mb-6 leading-relaxed max-w-md">
+              Manage your money. Organize your business. Sell online. Build with
+              structure.
             </p>
 
-            <p className="text-xs sm:text-sm text-(--text-secondary) mb-4 sm:mb-6 leading-relaxed max-w-2xl">
-              Zidwell operates as a financial technology company and does not
-              provide banking services or hold depositor funds. All financial
-              transactions facilitated by Zidwell are conducted in partnership
-              with licensed financial institutions. Zidwell does not engage in
-              traditional banking activities. By accessing or using
-              Zidwell&apos;s website and services, you acknowledge and agree
-              that Zidwell is not a bank, and all financial services are
-              provided through third-party partners.
-            </p>
-
-            <div className="flex flex-wrap gap-2 sm:gap-3">
-              {socialLinks.map((social) => (
+            <div className="flex gap-2">
+              {[
+                { icon: Instagram, href: "https://www.instagram.com/zidwellfinance" },
+                { icon: Linkedin, href: "https://www.linkedin.com/company/zidwellfinance" },
+                { icon: Facebook, href: "https://facebook.com/zidwellfinance" },
+              ].map(({ icon: Icon, href }, i) => (
                 <a
-                  key={social.label}
-                  href={social.href}
-                  aria-label={social.label}
+                  key={i}
+                  href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-8 h-8 sm:w-10 sm:h-10 bg-(--bg-primary) border border-(--border-color) flex items-center justify-center hover:bg-gold hover:border-gold transition-all duration-300 squircle-md hover:scale-105"
+                  className="w-9 h-9 rounded-xl bg-background border border-border flex items-center justify-center hover:bg-primary-custom hover:border-primary-custom transition-colors cursor-pointer"
                 >
-                  <social.icon className="w-4 h-4 sm:w-5 sm:h-5 text-(--text-primary)" />
+                  <Icon className="w-4 h-4 text-foreground" />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Product Links */}
           <div>
-            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
-              Product
-            </h4>
-            <ul className="space-y-2 sm:space-y-2.5">
-              {footerLinks.product.map((link) => (
-                <li key={link.label}>
+            <h4 className="font-semibold text-sm mb-4 text-foreground">Product</h4>
+            <ul className="space-y-2">
+              {[
+                { l: "Features", h: "/#tools" },
+                { l: "Pricing", h: "/#pricing" },
+                { l: "FAQ", h: "/#faq" },
+                { l: "Changelog", h: "/changelog" },
+              ].map((link) => (
+                <li key={link.l}>
                   <Link
-                    href={link.href}
-                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-gold transition-colors"
+                    href={link.h}
+                    className="text-xs text-muted-foreground hover:text-primary-custom transition-colors"
                   >
-                    {link.label}
+                    {link.l}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Legal Links */}
           <div>
-            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
-              Legal
-            </h4>
-            <ul className="space-y-2 sm:space-y-2.5">
-              {footerLinks.legal.map((link) => (
-                <li key={link.label}>
+            <h4 className="font-semibold text-sm mb-4 text-foreground">Legal</h4>
+            <ul className="space-y-2">
+              {[
+                { l: "Privacy", h: "/privacy" },
+                { l: "Terms", h: "/terms" },
+                { l: "Status", h: "/status" },
+                { l: "Support", h: "mailto:support@zidwell.com" },
+              ].map((link) => (
+                <li key={link.l}>
                   <Link
-                    href={link.href}
-                    className="text-xs sm:text-sm text-(--text-secondary) hover:text-gold transition-colors"
+                    href={link.h}
+                    className="text-xs text-muted-foreground hover:text-primary-custom transition-colors"
                   >
-                    {link.label}
+                    {link.l}
                   </Link>
                 </li>
               ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div>
-            <h4 className="font-bold text-base sm:text-lg mb-3 sm:mb-4 text-(--text-primary)">
-              Contact
-            </h4>
-            <ul className="space-y-2 sm:space-y-3">
-              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
-                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>Lagos, Nigeria</span>
-              </li>
-              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
-                <Mail className="w-4 h-4 mt-0.5 shrink-0" />
-                <a
-                  href="mailto:support@zidwell.com"
-                  className="hover:text-(--color-accent-yellow) transition-colors"
-                >
-                  support@zidwell.com
-                </a>
-              </li>
-              <li className="flex items-start gap-2 text-xs sm:text-sm text-(--text-secondary)">
-                <Phone className="w-4 h-4 mt-0.5 shrink-0" />
-                <a
-                  href="tel:+2347069175399"
-                  className="hover:text-(--color-accent-yellow) transition-colors"
-                >
-                  +234 706 917 5399
-                </a>
-              </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-6 sm:pt-8 border-t border-(--border-color)">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
-            <p className="text-xs sm:text-sm text-(--text-secondary) text-center sm:text-left">
-              © {currentYear} Zidwell. All rights reserved.
-            </p>
-            <p className="text-xs sm:text-sm text-(--text-secondary) text-center sm:text-right">
-              Built with ❤️ for Nigerian businesses
-            </p>
-          </div>
+        <div className="pt-6 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            © {currentYear} Zidwell · Made in Lagos. Used in 14 countries.
+          </p>
+          <p className="text-[11px] text-muted-foreground max-w-md sm:text-right">
+            Zidwell is a financial technology company, not a bank. Banking
+            services are provided by our licensed partner institutions.
+          </p>
         </div>
       </div>
     </footer>

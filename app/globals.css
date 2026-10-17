@@ -8,13 +8,12 @@
   /* New design system colors exposed to Tailwind utilities.
      Each utility reads from a CSS variable that flips in `.dark`. */
   --color-ink: var(--ink);
-  --color-white: var(--color-white);
-  --color-accent-yellow: var(--gold);
-  --color-lemon-green: var(--leaf);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-leaf: var(--leaf);
   --color-gold: var(--gold);
+  --color-accent-yellow: var(--gold);
+  --color-lemon-green: var(--leaf);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-border: var(--border);
@@ -40,22 +39,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -64,20 +48,15 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
 
-  /* Zidwell Design Tokens */
+  /* ─────────────────────────────
+     ZIDWELL BRAND TOKENS (source of truth)
+  ───────────────────────────── */
   --color-ink: #191919;
   --color-white: #FFFFFF;
   --color-accent-yellow: #FDC020;
   --color-lemon-green: #00B64F;
 
-  /* New design system tokens */
   --ink: #191919;
   --background: #FFFFFF;
   --surface: #F5F5F5;
@@ -88,39 +67,52 @@
   --gold: #FDC020;
 
   /* Semantic mappings - Light mode */
-  --bg-primary: var(--color-white);        /* #FFFFFF */
-  --bg-secondary: var(--color-surface);    /* #F5F5F5 */
-  --bg-tertiary: var(--color-surface-2);   /* #EBEBEB */
-  --text-primary: var(--color-ink);        /* #191919 */
-  --text-secondary: var(--color-muted-foreground);  /* #666666 */
+  --bg-primary: var(--color-white);
+  --bg-secondary: var(--color-surface);
+  --bg-tertiary: var(--color-surface-2);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-muted-foreground);
   --text-muted: var(--color-muted-foreground);
-  --border-color: var(--color-border);     /* #E5E5E5 */
-  
+  --border-color: var(--color-border);
+
   /* Shadows */
   --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.15), 0 5px 12px -4px rgba(0, 0, 0, 0.1);
   --shadow-ink: 0 2px 4px rgba(25, 25, 25, 0.1);
   --shadow-float: 0 10px 30px -12px rgba(0, 0, 0, 0.18);
 
-  /* Primary color - Zidwell accent yellow converted to OKLCH */
+  /* ─────────────────────────────
+     SHADCN COMPAT DEFAULTS
+     (Zidwell tokens above take precedence for brand)
+  ───────────────────────────── */
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+
   --primary: oklch(0.85 0.15 85);
   --primary-foreground: oklch(0.129 0.042 264.695);
 
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
+
   --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
+
   --accent: oklch(0.968 0.007 247.896);
   --accent-foreground: oklch(0.208 0.042 265.755);
+
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
+
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.85 0.15 85);
+
   --chart-1: oklch(0.85 0.15 85);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: #fe9a00;
+
   --sidebar: oklch(0.984 0.003 247.858);
   --sidebar-foreground: oklch(0.129 0.042 264.695);
   --sidebar-primary: oklch(0.85 0.15 85);
@@ -132,26 +124,20 @@
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-
-  /* New design system tokens (dark mode) - exposed to Tailwind utilities */
+  /* ─────────────────────────────
+     ZIDWELL BRAND TOKENS (dark)
+  ───────────────────────────── */
   --color-ink: #FFFFFF;
   --color-white: #FFFFFF;
   --color-accent-yellow: #FDC020;
   --color-lemon-green: #00B64F;
-  --color-background: #0F0F0F;   /* true dark background */
-  --color-surface: #1A1A1A;      /* elevated surface */
-  --color-surface-2: #242424;    /* higher elevation */
+  --color-background: #0F0F0F;
+  --color-surface: #1A1A1A;
+  --color-surface-2: #242424;
   --color-leaf: #00B64F;
   --color-gold: #FDC020;
   --color-muted-foreground: #9CA3AF;
 
-  /* New design system tokens - Dark mode */
   --ink: #FFFFFF;
   --background: #0F0F0F;
   --surface: #1A1A1A;
@@ -161,39 +147,48 @@
   --leaf: #00B64F;
   --gold: #FDC020;
 
-  /* Dark mode semantic mappings - standard modern dark theme */
-  --bg-primary: var(--color-background);     /* #0F0F0F - main bg */
-  --bg-secondary: var(--color-surface);      /* #1A1A1A - cards/sections */
-  --bg-tertiary: var(--color-surface-2);     /* #242424 - higher elevation */
-  --text-primary: var(--color-white);        /* #FFFFFF - primary text */
-  --text-secondary: var(--color-muted-foreground);  /* #9CA3AF - secondary text */
+  --bg-primary: var(--color-background);
+  --bg-secondary: var(--color-surface);
+  --bg-tertiary: var(--color-surface-2);
+  --text-primary: var(--color-white);
+  --text-secondary: var(--color-muted-foreground);
   --text-muted: var(--color-muted-foreground);
-  --border-color: var(--border);             /* #2A2A2A - borders */
-  
+  --border-color: var(--border);
+
   --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-pop: 0 20px 35px -8px rgba(0, 0, 0, 0.4), 0 5px 12px -4px rgba(0, 0, 0, 0.3);
   --shadow-ink: 0 2px 4px rgba(0, 0, 0, 0.4);
   --shadow-float: 0 10px 30px -12px rgba(0, 0, 0, 0.5);
 
-  /* Primary color for dark mode - Zidwell accent yellow */
+  /* shadcn compat */
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+
   --primary: oklch(0.85 0.15 85);
   --primary-foreground: oklch(0.208 0.042 265.755);
 
   --secondary: oklch(0.279 0.041 260.031);
   --secondary-foreground: oklch(0.984 0.003 247.858);
+
   --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
+
   --accent: oklch(0.279 0.041 260.031);
   --accent-foreground: oklch(0.984 0.003 247.858);
+
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.85 0.15 85);
+
   --chart-1: oklch(0.85 0.15 85);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+
   --sidebar: oklch(0.208 0.042 265.755);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
   --sidebar-primary: oklch(0.85 0.15 85);
@@ -214,7 +209,13 @@
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-family: var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, sans-serif;
+    font-family: var(--font-be-vietnam), "Be Vietnam Pro", system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -224,34 +225,17 @@
   }
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
+/* ─────────────────────────────
+   SQUIRCLE RADII
+───────────────────────────── */
+.squircle     { border-radius: 24px; }
+.squircle-sm  { border-radius: 16px; }
+.squircle-md  { border-radius: 20px; }
+.squircle-lg  { border-radius: 28px; }
+.squircle-xl  { border-radius: 32px; }
+.squircle-full{ border-radius: 9999px; }
 
-/* Squircle (G2) shapes */
-.squircle {
-  border-radius: 24px;
-}
-.squircle-sm {
-  border-radius: 16px;
-}
-.squircle-md {
-  border-radius: 20px;
-}
-.squircle-lg {
-  border-radius: 28px;
-}
-.squircle-xl {
-  border-radius: 32px;
-}
-.squircle-full {
-  border-radius: 9999px;
-}
-
-/* Card component */
+/* Card */
 .card {
   border-radius: 20px;
   background-color: var(--bg-primary);
@@ -267,19 +251,15 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
-/* Input fields */
+/* Input */
 .input {
   border-radius: 20px;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  transition-property: all;
-  transition-duration: 200ms;
-  font-family: var(--font-be-vietnam), 'Be Vietnam Pro', sans-serif;
+  transition: all 200ms;
+  font-family: var(--font-be-vietnam), "Be Vietnam Pro", sans-serif;
 }
 .input:focus {
   outline: none;
@@ -292,23 +272,14 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 16px;
   display: inline-flex;
   align-items: center;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.875rem;
   font-weight: 500;
 }
-.badge-success {
-  background-color: var(--color-lemon-green);
-  color: white;
-}
-.badge-warning {
-  background-color: var(--color-accent-yellow);
-  color: var(--color-ink);
-}
+.badge-success { background-color: var(--color-lemon-green); color: white; }
+.badge-warning { background-color: var(--color-accent-yellow); color: var(--color-ink); }
 
-/* Gradient backgrounds */
+/* Gradients */
 .gradient-subtle {
   background: linear-gradient(135deg, rgba(253, 192, 32, 0.08) 0%, rgba(253, 192, 32, 0.02) 100%);
 }
@@ -316,7 +287,7 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(135deg, rgba(253, 192, 32, 0.12) 0%, transparent 100%);
 }
 
-/* Custom button variants */
+/* Button variants */
 .btn-zidwell-primary {
   background-color: var(--color-accent-yellow);
   color: var(--color-ink);
@@ -326,10 +297,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.2s ease;
   cursor: pointer;
 }
-.btn-zidwell-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+.btn-zidwell-primary:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .btn-zidwell-success {
   background-color: var(--color-lemon-green);
@@ -340,30 +308,9 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.2s ease;
   cursor: pointer;
 }
-.btn-zidwell-success:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+.btn-zidwell-success:hover { opacity: 0.9; transform: translateY(-1px); }
 
-/* Global styles */
-body {
-  scroll-behavior: smooth;
-}
-
-.fade-in {
-  animation: fade-in 0.3s ease-in-out forwards;
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Patterns using Zidwell accent yellow instead of green */
+/* Patterns */
 .bg-patterns {
   background-color: #ffffff;
   opacity: 0.1;
@@ -372,132 +319,91 @@ body {
     repeating-radial-gradient(circle at 0 0, transparent 0, #ffffff 38px),
     repeating-linear-gradient(var(--color-accent-yellow)55, var(--color-accent-yellow));
 }
-
 .bg-primary-mesh {
   background:
     radial-gradient(at 40% 20%, rgba(253, 192, 32, 0.15) 0px, transparent 50%),
     radial-gradient(at 80% 0%, rgba(253, 192, 32, 0.1) 0px, transparent 50%),
     radial-gradient(at 0% 50%, rgba(253, 192, 32, 0.08) 0px, transparent 50%);
 }
-
 .bg-grid-pattern {
   background-image:
     linear-gradient(rgba(253, 192, 32, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(253, 192, 32, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
 }
-
-/* Dark mode versions of patterns */
 .dark .bg-patterns {
   background-color: #1a1a1a;
   background-image:
     repeating-radial-gradient(circle at 0 0, transparent 0, #1a1a1a 38px),
     repeating-linear-gradient(var(--color-accent-yellow)33, var(--color-accent-yellow));
 }
-
 .dark .bg-primary-mesh {
   background:
     radial-gradient(at 40% 20%, rgba(253, 192, 32, 0.25) 0px, transparent 50%),
     radial-gradient(at 80% 0%, rgba(253, 192, 32, 0.2) 0px, transparent 50%),
     radial-gradient(at 0% 50%, rgba(253, 192, 32, 0.15) 0px, transparent 50%);
 }
-
 .dark .bg-grid-pattern {
   background-image:
     linear-gradient(rgba(253, 192, 32, 0.1) 1px, transparent 1px),
     linear-gradient(90deg, rgba(253, 192, 32, 0.1) 1px, transparent 1px);
 }
 
-/* Utility classes for Zidwell accent yellow */
-.bg-primary-custom {
-  background-color: var(--color-accent-yellow) !important;
-}
+/* Yellow accent utilities */
+.bg-primary-custom   { background-color: var(--color-accent-yellow) !important; }
+.bg-primary-dark     { background-color: #e6a800 !important; }
+.bg-primary-light    { background-color: #fed454 !important; }
+.text-primary-custom { color: var(--color-accent-yellow) !important; }
+.text-primary-dark   { color: #e6a800 !important; }
+.border-primary-custom { border-color: var(--color-accent-yellow) !important; }
+.hover\:bg-primary-custom:hover   { background-color: var(--color-accent-yellow) !important; }
+.hover\:text-primary-custom:hover { color: var(--color-accent-yellow) !important; }
+.focus\:ring-primary-custom:focus { --tw-ring-color: var(--color-accent-yellow) !important; }
 
-.bg-primary-dark {
-  background-color: #e6a800 !important;
-}
-
-.bg-primary-light {
-  background-color: #fed454 !important;
-}
-
-.text-primary-custom {
-  color: var(--color-accent-yellow) !important;
-}
-
-.text-primary-dark {
-  color: #e6a800 !important;
-}
-
-.border-primary-custom {
-  border-color: var(--color-accent-yellow) !important;
-}
-
-.hover\:bg-primary-custom:hover {
-  background-color: var(--color-accent-yellow) !important;
-}
-
-.hover\:text-primary-custom:hover {
-  color: var(--color-accent-yellow) !important;
-}
-
-/* Focus ring with Zidwell accent yellow */
-.focus\:ring-primary-custom:focus {
-  --tw-ring-color: var(--color-accent-yellow) !important;
-}
-
-/* Gradient classes using Zidwell accent yellow */
 .primary-gradient {
   background: linear-gradient(135deg, var(--color-accent-yellow) 0%, #e6a800 100%);
 }
-
 .primary-gradient-light {
   background: linear-gradient(135deg, #fed454 0%, var(--color-accent-yellow) 100%);
 }
+.primary-light-bg { background-color: rgba(253, 192, 32, 0.1); }
+.dark .primary-light-bg { background-color: rgba(253, 192, 32, 0.2); }
 
-.primary-light-bg {
-  background-color: rgba(253, 192, 32, 0.1);
+/* ============================================
+   ANIMATION KEYFRAMES + CLASSES
+   ============================================ */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+.fade-in { animation: fade-in 0.3s ease-in-out forwards; }
 
-.dark .primary-light-bg {
-  background-color: rgba(253, 192, 32, 0.2);
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.animate-fade-up { animation: fade-up 0.7s ease-out both; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slide-in 0.5s ease-out both; }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.animate-float      { animation: float-y 6s ease-in-out infinite; }
+.animate-float-slow { animation: float-y 9s ease-in-out infinite; }
 
 @keyframes gradient-x {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
 }
-
 .animate-gradient-x {
   animation: gradient-x 3s ease infinite;
   background-size: 200% 200%;
-}
-
-
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 /* ============================================
@@ -505,18 +411,18 @@ body {
    ============================================ */
 
 /* Background colors */
-.bg-ink { background-color: var(--ink); }
+.bg-ink        { background-color: var(--ink); }
 .bg-background { background-color: var(--background); }
-.bg-surface { background-color: var(--surface); }
-.bg-surface-2 { background-color: var(--surface-2); }
-.bg-leaf { background-color: var(--leaf); }
-.bg-gold { background-color: var(--gold); }
+.bg-surface    { background-color: var(--surface); }
+.bg-surface-2  { background-color: var(--surface-2); }
+.bg-leaf       { background-color: var(--leaf); }
+.bg-gold       { background-color: var(--gold); }
 
 /* Text colors */
-.text-ink { color: var(--ink); }
-.text-background { color: var(--background); }
-.text-leaf { color: var(--leaf); }
-.text-gold { color: var(--gold); }
+.text-ink              { color: var(--ink); }
+.text-background       { color: var(--background); }
+.text-leaf             { color: var(--leaf); }
+.text-gold             { color: var(--gold); }
 .text-muted-foreground { color: var(--muted-foreground); }
 
 /* Border colors */
@@ -524,17 +430,15 @@ body {
 
 /* Shadows */
 .shadow-float { box-shadow: var(--shadow-float); }
-.shadow-soft { box-shadow: var(--shadow-soft); }
+.shadow-soft  { box-shadow: var(--shadow-soft); }
 
 /* Typography */
 .font-display {
-  font-family: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
 }
 
 /* Grain background */
-.grain-bg {
-  position: relative;
-}
+.grain-bg { position: relative; }
 .grain-bg::before {
   content: "";
   position: absolute;
@@ -544,4 +448,223 @@ body {
   pointer-events: none;
 }
 
+/* ─────────────────────────────
+   HUMAN DESIGN ADDITIONS
+───────────────────────────── */
+.hand-underline {
+  position: relative;
+  display: inline-block;
+  z-index: 0;
+}
+.hand-underline::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -8px;
+  bottom: 6px;
+  height: 8px;
+  background: var(--gold);
+  border-radius: 999px;
+  transform: rotate(-0.6deg);
+  z-index: -1;
+  opacity: 0.55;
+}
 
+/* Marquee */
+.marquee-wrap {
+  overflow: hidden;
+  width: 100%;
+}
+.marquee-track {
+  display: flex;
+  gap: 2rem;
+  white-space: nowrap;
+  width: max-content;
+  animation: marquee-scroll 45s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+@keyframes marquee-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  transition: stroke-dashoffset 1.4s ease-out;
+}
+.timeline-line.in-view {
+  stroke-dashoffset: 0;
+}
+
+/* ============================================
+   TOOLKIT ORBIT — the hero visual
+   (kept exactly as you designed it)
+   ============================================ */
+.toolkit-orbit {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.toolkit-orbit-ring {
+  position: absolute;
+  inset: 6%;
+  border-radius: 9999px;
+  border: 1px dashed rgba(253, 192, 32, 0.35);
+}
+
+.toolkit-orbit-ring-inner {
+  inset: 22%;
+  border-style: solid;
+  border-color: rgba(253, 192, 32, 0.18);
+}
+
+.toolkit-orbit-rotor {
+  position: absolute;
+  inset: 0;
+  animation: toolkit-rotate 40s linear infinite;
+}
+
+.toolkit-orbit-counter {
+  animation: toolkit-counter-rotate 40s linear infinite;
+}
+
+.toolkit-orbit-position {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--tool-angle));
+}
+
+.toolkit-orbit-position > .toolkit-orbit-counter {
+  position: absolute;
+  top: -32px;
+  left: -64px;
+  width: 128px;
+  display: flex;
+  justify-content: center;
+}
+
+.toolkit-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  text-align: center;
+  min-width: 100px;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.toolkit-node:hover {
+  transform: scale(1.06);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toolkit-node span {
+  font-size: 10px;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 500;
+  max-width: 90px;
+}
+
+.toolkit-node-gold svg { color: var(--gold); }
+.toolkit-node-leaf svg { color: var(--leaf); }
+
+.toolkit-core {
+  position: relative;
+  z-index: 2;
+  width: 140px;
+  height: 140px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, #2a2a2a, #191919);
+  border: 1px solid rgba(253, 192, 32, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px;
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5);
+}
+
+.toolkit-core-mark {
+  font-family: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.toolkit-core p {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.toolkit-core span:last-child {
+  margin-top: 2px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+@keyframes toolkit-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes toolkit-counter-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+@media (max-width: 640px) {
+  .toolkit-node { min-width: 80px; padding: 8px 8px; }
+  .toolkit-node span { font-size: 9px; max-width: 70px; }
+  .toolkit-core { width: 110px; height: 110px; }
+  .toolkit-core-mark { font-size: 24px; }
+}
+
+/* ─────────────────────────────
+   REDUCED MOTION
+───────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-fade-up,
+  .animate-slide-in,
+  .animate-gradient-x,
+  .fade-in,
+  .marquee-track,
+  .toolkit-orbit-rotor,
+  .toolkit-orbit-counter {
+    animation: none;
+  }
+  .timeline-line { transition: none; stroke-dashoffset: 0; }
+}
+
+/* Cursor pointer everywhere */
+button, a, [role="button"] {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
