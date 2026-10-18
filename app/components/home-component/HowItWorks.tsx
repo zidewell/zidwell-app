@@ -1,7 +1,7 @@
 // app/components/home-component/HowItWorksNew.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect,useRef, useState } from "react";
 
 const steps = [
   {
