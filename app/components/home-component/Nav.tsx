@@ -69,9 +69,7 @@ export function Nav() {
               Zidwell
             </span>
           </Link>
-          <span className="hidden sm:inline text-[10px] text-muted-foreground font-mono">
-            v2.4 · Lagos
-          </span>
+        
         </div>
 
         <nav className="hidden md:flex items-center gap-7 text-sm">

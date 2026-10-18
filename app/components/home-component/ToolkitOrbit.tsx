@@ -29,7 +29,6 @@ const styles = `
     place-items: center;
   }
 
-  /* Outer ring — faint */
   .zm-orbit::before {
     content: "";
     position: absolute;
@@ -39,7 +38,6 @@ const styles = `
     pointer-events: none;
   }
 
-  /* Gold ring */
   .zm-orbit-ring {
     position: absolute;
     inset: 10%;
@@ -48,7 +46,6 @@ const styles = `
     pointer-events: none;
   }
 
-  /* Inner ring */
   .zm-orbit-ring-inner {
     position: absolute;
     inset: 23%;
@@ -58,26 +55,28 @@ const styles = `
     pointer-events: none;
   }
 
-  /* Slow rotation of the spoke dots (visual accent only) */
+  /* Rotor spins the gold dots around the ring */
   .zm-orbit-rotor {
     position: absolute;
     inset: 0;
     animation: zm-orbit-spin 54s linear infinite;
+    transform-origin: center center;
+    will-change: transform;
     pointer-events: none;
   }
 
   @keyframes zm-orbit-spin {
-    to { transform: rotate(360deg); }
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
   }
 
-  /* Each tool node — absolutely positioned at a specific angle */
   .zm-orbit-node {
     position: absolute;
     top: 50%;
     left: 50%;
     width: 7.25rem;
-    margin-left: -3.625rem;      /* half width */
-    margin-top: -2.675rem;        /* half of min-height (5.35rem) */
+    margin-left: -3.625rem;
+    margin-top: -2.675rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -110,7 +109,6 @@ const styles = `
   .zm-orbit-node-gold svg { color: var(--gold); }
   .zm-orbit-node-leaf svg { color: var(--leaf); }
 
-  /* Center core */
   .zm-orbit-core {
     position: relative;
     z-index: 4;
@@ -171,25 +169,19 @@ const styles = `
     .zm-orbit-core { width: 38%; padding: 0.8rem; }
     .zm-orbit-core-mark { width: 2rem; height: 2rem; }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .zm-orbit-rotor { animation: none; }
-  }
 `;
 
 export function ToolkitOrbit() {
-  // Radius as a percentage of the container (0–50%).
-  // 42% puts the node centers just inside the gold ring at inset 10%.
   const radiusPct = 42;
 
   return (
     <div className="zm-orbit" aria-label="Zidwell Business Owners Toolkit">
-      <style>{styles}</style>
+      <style dangerouslySetInnerHTML={{ __html: styles }} />
 
       <div className="zm-orbit-ring" />
       <div className="zm-orbit-ring-inner" />
 
-      {/* Slow-rotating spoke dots — visual accent only, no labels */}
+      {/* Slow-rotating spoke dots */}
       <div className="zm-orbit-rotor" aria-hidden="true">
         {tools.map(({ angle }) => {
           const rad = ((angle - 90) * Math.PI) / 180;
@@ -216,7 +208,7 @@ export function ToolkitOrbit() {
         })}
       </div>
 
-      {/* Tool nodes — positioned statically, no rotation inheritance */}
+      {/* Static tool nodes */}
       {tools.map(({ icon: Icon, label, angle, tone }) => {
         const rad = ((angle - 90) * Math.PI) / 180;
         const x = 50 + Math.cos(rad) * radiusPct;
@@ -225,10 +217,7 @@ export function ToolkitOrbit() {
           <div
             key={label}
             className={`zm-orbit-node zm-orbit-node-${tone}`}
-            style={{
-              top: `${y}%`,
-              left: `${x}%`,
-            }}
+            style={{ top: `${y}%`, left: `${x}%` }}
           >
             <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
             <span>{label}</span>
