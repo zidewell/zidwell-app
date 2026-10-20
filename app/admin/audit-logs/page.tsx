@@ -8,6 +8,7 @@ import AdminTable from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatNumber } from "@/app/lib/dashboard-utils";
@@ -103,40 +104,34 @@ export default function AuditLogsPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by description or admin..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
-          <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
-            className="input w-full md:w-48 squircle-md"
-          >
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by description or admin..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
+          <Select value={actionFilter} onValueChange={setActionFilter}>
             <option value="">All Actions</option>
             <option value="create">Create</option>
             <option value="update">Update</option>
             <option value="delete">Delete</option>
-            <option value="block">Block</option>
-            <option value="unblock">Unblock</option>
-            <option value="approve">Approve</option>
-            <option value="reject">Reject</option>
-          </select>
-          <select
-            value={resourceFilter}
-            onChange={(e) => setResourceFilter(e.target.value)}
-            className="input w-full md:w-48 squircle-md"
-          >
+          </Select>
+          <Select value={resourceFilter} onValueChange={setResourceFilter}>
             <option value="">All Resources</option>
-            <option value="User">User</option>
-            <option value="Contract">Contract</option>
-            <option value="Invoice">Invoice</option>
-            <option value="Transaction">Transaction</option>
-            <option value="KYC">KYC</option>
-            <option value="Dispute">Dispute</option>
-            <option value="Notification">Notification</option>
-          </select>
+            <option value="user">User</option>
+            <option value="wallet">Wallet</option>
+            <option value="transaction">Transaction</option>
+            <option value="contract">Contract</option>
+            <option value="invoice">Invoice</option>
+            <option value="receipt">Receipt</option>
+            <option value="kyc">KYC</option>
+            <option value="notification">Notification</option>
+          </Select>
         </div>
 
         <div className="text-sm text-(--text-secondary)">
@@ -147,11 +142,7 @@ export default function AuditLogsPage() {
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>
             <span className="px-4 py-2 text-sm text-(--text-secondary)">

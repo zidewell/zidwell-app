@@ -4,7 +4,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import AdminLayout from "@/app/components/admin-components/layout";
-import AdminTable, { AdminTableColumn } from "@/app/components/admin-components/AdminTable";
+import AdminTable from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
@@ -49,16 +49,18 @@ export default function TaxFilingsPage() {
   const totalPages = Math.ceil(total / 20) || 1;
   const stats = data?.stats ?? {};
 
-  const columns: AdminTableColumn[] = [
+  const columns = [
     {
       key: "first_name",
       label: "Taxpayer",
-      render: (_v, row) => (
+      render: (_v: any, row: any) => (
         <div className="flex flex-col">
           <span className="font-medium">
             {row.first_name} {row.last_name}
           </span>
-          <span className="text-xs text-(--text-secondary)">{row.company_name ?? "Individual"}</span>
+          <span className="text-xs text-(--text-secondary)">
+            {row.company_name ?? "Individual"}
+          </span>
         </div>
       ),
     },
@@ -67,12 +69,12 @@ export default function TaxFilingsPage() {
     {
       key: "income_amount",
       label: "Income",
-      render: (v) => formatCurrency(Number(v) || 0),
+      render: (v: any) => formatCurrency(Number(v) || 0),
     },
     {
       key: "tax_amount",
       label: "Tax",
-      render: (v) => (
+      render: (v: any) => (
         <span className="font-medium text-[--color-accent-yellow]">
           {formatCurrency(Number(v) || 0)}
         </span>
@@ -81,7 +83,7 @@ export default function TaxFilingsPage() {
     {
       key: "status",
       label: "Status",
-      render: (v) => {
+      render: (v: any) => {
         const s = String(v ?? "pending");
         const cls =
           s === "approved"
@@ -143,12 +145,17 @@ export default function TaxFilingsPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by name or NIN..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by name or NIN..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <option value="">All Status</option>
             <option value="pending">Pending</option>
@@ -175,7 +182,7 @@ export default function TaxFilingsPage() {
           columns={columns}
           rows={filings}
           onRowClick={(row) => {
-            window.location.href = `/api/admin-apis/tax-filings/${row.id}`;
+            window.location.href = `/admin/tax-filings/${row.id}`;
           }}
           emptyMessage="No tax filings found"
         />

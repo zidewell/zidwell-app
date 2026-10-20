@@ -8,6 +8,7 @@ import AdminTable from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatNumber } from "@/app/lib/dashboard-utils";
@@ -63,9 +64,7 @@ export default function DisputesPage() {
             : p === "medium"
             ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
             : "bg-(--bg-secondary) text-(--text-secondary)";
-        return (
-          <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>● {p}</span>
-        );
+        return <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>● {p}</span>;
       },
     },
     {
@@ -128,35 +127,32 @@ export default function DisputesPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by ticket ID or subject..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input w-full md:w-48 squircle-md"
-          >
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by ticket ID or subject..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <option value="">All Status</option>
             <option value="open">Open</option>
             <option value="in_progress">In Progress</option>
             <option value="awaiting_response">Awaiting Response</option>
             <option value="resolved">Resolved</option>
             <option value="closed">Closed</option>
-          </select>
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="input w-full md:w-48 squircle-md"
-          >
+          </Select>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
             <option value="">All Priority</option>
             <option value="low">Low</option>
             <option value="medium">Medium</option>
             <option value="high">High</option>
             <option value="urgent">Urgent</option>
-          </select>
+          </Select>
         </div>
 
         <div className="text-sm text-(--text-secondary)">
@@ -166,7 +162,7 @@ export default function DisputesPage() {
         <AdminTable
           columns={columns}
           rows={tickets}
-          onRowClick={(row: any) => {
+          onRowClick={(row) => {
             window.location.href = `/admin/disputes-supports/${row.id}`;
           }}
           emptyMessage="No dispute tickets found"
@@ -174,11 +170,7 @@ export default function DisputesPage() {
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>
             <span className="px-4 py-2 text-sm text-(--text-secondary)">

@@ -1,3 +1,4 @@
+// app/api/admin-apis/dashboard/summary/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
@@ -8,12 +9,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const summaryCache = new Map();
+const summaryCache = new Map<string, { data: any; timestamp: number }>();
 const SUMMARY_CACHE_TTL = 1 * 60 * 1000;
 
 let _cachedNomba = { ts: 0, value: 0 };
 const NOMBA_CACHE_TTL = 60 * 1000;
 
+// ─────────────────────────────────────────────
+// Nomba balance (unchanged — it works)
+// ─────────────────────────────────────────────
 async function fetchNombaBalanceCached(
   getTokenFn: () => Promise<string | null>
 ): Promise<number> {
@@ -25,82 +29,93 @@ async function fetchNombaBalanceCached(
 
     const token = await getTokenFn();
     if (!token) {
-      console.error('[Nomba] No token available');
+      console.error("[Nomba] No token available");
       return 0;
     }
 
     const accountId = process.env.NOMBA_ACCOUNT_ID;
     if (!accountId) {
-      console.error('[Nomba] No account ID configured');
+      console.error("[Nomba] No account ID configured");
       return 0;
     }
 
-    const url = `${process.env.NOMBA_URL ?? 'https://api.nomba.com'}/v1/accounts/balance`;
-    console.log(`[Nomba] Fetching balance from: ${url}`);
-    console.log(`[Nomba] Account ID: ${accountId}`);
-
-    const options = {
-      method: 'GET',
+    const url = `${process.env.NOMBA_URL ?? "https://api.nomba.com"}/v1/accounts/balance`;
+    const res = await fetch(url, {
+      method: "GET",
       headers: {
-        'accountId': accountId,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    };
-
-    console.log('[Nomba] Request headers:', JSON.stringify(options.headers, null, 2));
-
-    const res = await fetch(url, options);
-
-    console.log(`[Nomba] Response status: ${res.status} ${res.statusText}`);
+        accountId,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    });
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error(`[Nomba] Error response: ${errorText}`);
-      
-      // Try to parse error as JSON
-      try {
-        const errorJson = JSON.parse(errorText);
-        console.error('[Nomba] Error details:', errorJson);
-      } catch (e) {
-        // Not JSON, use as is
-      }
-      
+      console.error(`[Nomba] Error ${res.status}: ${await res.text()}`);
       return 0;
     }
 
     const data = await res.json();
-    console.log("[Nomba] Balance response:", JSON.stringify(data, null, 2));
-    
-    // Check different possible response structures
     let amount = 0;
-    if (data?.data?.amount !== undefined) {
-      amount = Number(data.data.amount);
-    } else if (data?.amount !== undefined) {
-      amount = Number(data.amount);
-    } else if (data?.balance !== undefined) {
-      amount = Number(data.balance);
-    } else if (data?.available_balance !== undefined) {
+    if (data?.data?.amount !== undefined) amount = Number(data.data.amount);
+    else if (data?.amount !== undefined) amount = Number(data.amount);
+    else if (data?.balance !== undefined) amount = Number(data.balance);
+    else if (data?.available_balance !== undefined)
       amount = Number(data.available_balance);
-    } else if (data?.data?.balance !== undefined) {
+    else if (data?.data?.balance !== undefined)
       amount = Number(data.data.balance);
-    }
-    
-    console.log(`[Nomba] Parsed amount: ${amount}`);
-    
+
     _cachedNomba = { ts: now, value: amount };
     return amount;
   } catch (err) {
-    console.error('[Nomba] Error fetching balance:', err);
+    console.error("[Nomba] Error fetching balance:", err);
     return 0;
   }
 }
+
+// ─────────────────────────────────────────────
+// Robust wallet balance aggregation
+// Tries: wallets.balance → users.wallet_balance → 0
+// ─────────────────────────────────────────────
+async function getTotalWalletBalance(): Promise<number> {
+  try {
+    const { data: walletsData, error: walletsError } = await supabaseAdmin
+      .from("wallets")
+      .select("balance");
+
+    if (!walletsError && Array.isArray(walletsData) && walletsData.length > 0) {
+      const sum = walletsData.reduce(
+        (s: number, w: any) => s + (Number(w.balance) || 0),
+        0
+      );
+      if (sum > 0) return sum;
+    }
+  } catch {}
+
+  try {
+    const { data: usersData, error: usersError } = await supabaseAdmin
+      .from("users")
+      .select("wallet_balance");
+
+    if (!usersError && Array.isArray(usersData)) {
+      return usersData.reduce(
+        (s: number, u: any) => s + (Number(u.wallet_balance) || 0),
+        0
+      );
+    }
+  } catch {}
+
+  return 0;
+}
+
+// ─────────────────────────────────────────────
+// Range helpers (unchanged)
+// ─────────────────────────────────────────────
 function parseRangeToDates(
   range: string | null
 ): { start: string; end: string } | null {
   if (!range || range === "total") return null;
-  
+
   const now = new Date();
   let start = new Date(now);
   let end = new Date(now);
@@ -122,7 +137,15 @@ function parseRangeToDates(
     }
     case "month":
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      end = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+      );
       break;
     case "90days":
       start.setDate(now.getDate() - 90);
@@ -141,7 +164,7 @@ function parseRangeToDates(
     default:
       return null;
   }
-  
+
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -149,9 +172,8 @@ function buildMonthLabelsFromRange(
   rangeDates: { start: string; end: string } | null
 ): string[] {
   const labels: string[] = [];
-  
+
   if (!rangeDates) {
-    // For "total" range, show last 12 months
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -163,32 +185,32 @@ function buildMonthLabelsFromRange(
     const start = new Date(rangeDates.start);
     const end = new Date(rangeDates.end);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
-    
-    // For custom ranges (like 90days, 180days), we might have fewer months
+
     while (cur <= end) {
       labels.push(
         cur.toLocaleString("default", { month: "short", year: "numeric" })
       );
       cur.setMonth(cur.getMonth() + 1);
     }
-    
-    // Ensure we have at least one label
+
     if (labels.length === 0) {
       const singleMonth = new Date(start.getFullYear(), start.getMonth(), 1);
       labels.push(
-        singleMonth.toLocaleString("default", { month: "short", year: "numeric" })
+        singleMonth.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        })
       );
     }
   }
-  
+
   return labels;
 }
 
 function clearSummaryCache(range?: string): boolean | number {
   if (range) {
     const cacheKey = `summary_${range}`;
-    const existed = summaryCache.delete(cacheKey);
-    return existed;
+    return summaryCache.delete(cacheKey);
   } else {
     const count = summaryCache.size;
     summaryCache.clear();
@@ -196,19 +218,20 @@ function clearSummaryCache(range?: string): boolean | number {
   }
 }
 
+// ─────────────────────────────────────────────
+// Main summary builder
+// ─────────────────────────────────────────────
 async function getCachedSummaryData(rangeParam: string): Promise<any> {
   const cacheKey = `summary_${rangeParam}`;
   const cached = summaryCache.get(cacheKey);
 
   if (cached && Date.now() - cached.timestamp < SUMMARY_CACHE_TTL) {
-    return {
-      ...cached.data,
-      _fromCache: true,
-    };
+    return { ...cached.data, _fromCache: true };
   }
 
   const rangeDates = parseRangeToDates(rangeParam);
 
+  // ─── Transactions ───────────────────────────
   let txQuery = supabaseAdmin
     .from("transactions")
     .select(
@@ -222,7 +245,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       .lte("created_at", rangeDates.end);
   }
 
-  const { data: transactionsData, error: txError } = await txQuery;
+  const { data: transactionsData } = await txQuery;
   const transactions = transactionsData || [];
 
   const INFLOW_TYPES = [
@@ -294,11 +317,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     0
   );
 
-  const totalDeductions = successfulTransactions.reduce((s: number, t: any) => {
-    const deduction = Number(t.total_deduction ?? 0);
-    return s + (isNaN(deduction) ? 0 : deduction);
-  }, 0);
-
   const latestTransactions = transactions.slice(0, 5).map((t: any) => ({
     id: t.id,
     type: t.type,
@@ -310,27 +328,23 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     description: t.description,
   }));
 
-  const { data: usersBalancesData } = await supabaseAdmin
-    .from("users")
-    .select("wallet_balance");
-  const usersBalances = usersBalancesData || [];
-  const mainWalletBalance = usersBalances.reduce(
-    (s: number, u: any) => s + Number(u.wallet_balance ?? 0),
-    0
-  );
+  // ─── Wallet balance (with fallback chain) ───
+  const mainWalletBalance = await getTotalWalletBalance();
 
+  // ─── Users count ────────────────────────────
   const { count: totalUsersCount } = await supabaseAdmin
     .from("users")
     .select("*", { count: "exact", head: true });
   const totalUsers = Number(totalUsersCount ?? 0);
 
+  // ─── Contracts ──────────────────────────────
   let contractsQuery = supabaseAdmin
     .from("contracts")
     .select("id, status, created_at, contract_date");
   if (rangeDates) {
     contractsQuery = contractsQuery
-      .gte("contract_date", rangeDates.start.split('T')[0])
-      .lte("contract_date", rangeDates.end.split('T')[0]);
+      .gte("contract_date", rangeDates.start.split("T")[0])
+      .lte("contract_date", rangeDates.end.split("T")[0]);
   }
   const { data: contractsDataRaw } = await contractsQuery;
   const contractsData = contractsDataRaw || [];
@@ -360,6 +374,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     count: monthlyContractsMap[m] ?? 0,
   }));
 
+  // ─── Invoices ───────────────────────────────
   let invoicesQuery = supabaseAdmin
     .from("invoices")
     .select(
@@ -380,44 +395,40 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     .select("*", { count: "exact", head: true });
   const totalInvoicesIssued = Number(totalInvoicesCount ?? 0);
 
-  // Get paid and partially paid invoices
   const paidInvoices = invoicesData.filter(
     (inv: any) => inv.status === "paid"
   ).length;
   const partiallyPaidInvoices = invoicesData.filter(
     (inv: any) => inv.status === "partially_paid"
   ).length;
-  const unpaidInvoices = totalInvoicesIssued - paidInvoices - partiallyPaidInvoices;
-
-  const totalInvoiceRevenue = invoicesData.reduce(
-    (s: number, inv: any) =>
-      s + Number(inv.paid_amount ?? inv.total_amount ?? 0),
-    0
-  );
-
+  const unpaidInvoices =
+    totalInvoicesIssued - paidInvoices - partiallyPaidInvoices;
 
   const paidOrPartiallyPaidInvoices = invoicesData.filter(
     (inv: any) => inv.status === "paid" || inv.status === "partially_paid"
   );
-  
+
   const invoiceFeesFromTable = paidOrPartiallyPaidInvoices.reduce(
     (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
     0
   );
 
-
-  const invoiceCreationTransactions = successfulTransactions.filter((t: any) => {
-    const typeLower = (t.type || "").toString().toLowerCase();
-    return typeLower.includes("invoice_creation");
-  });
-
-  const invoiceCreationRevenue = invoiceCreationTransactions.reduce(
-    (s: number, t: any) => s + Number(t.amount ?? 0), 0
+  const invoiceCreationTransactions = successfulTransactions.filter(
+    (t: any) => {
+      const typeLower = (t.type || "").toString().toLowerCase();
+      return typeLower.includes("invoice_creation");
+    }
   );
 
- 
-  const totalInvoiceRevenueCombined = invoiceCreationRevenue + invoiceFeesFromTable;
+  const invoiceCreationRevenue = invoiceCreationTransactions.reduce(
+    (s: number, t: any) => s + Number(t.amount ?? 0),
+    0
+  );
 
+  const totalInvoiceRevenueCombined =
+    invoiceCreationRevenue + invoiceFeesFromTable;
+
+  // ─── Contract payments ──────────────────────
   let contractPaymentsQuery = supabaseAdmin
     .from("contract_payments")
     .select("amount, fee_amount, status, created_at")
@@ -429,106 +440,84 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       .lte("created_at", rangeDates.end);
   }
 
-  const { data: contractPaymentsRaw, error: contractPaymentsError } = await contractPaymentsQuery;
-  let contractPayments = contractPaymentsRaw || [];
+  const { data: contractPaymentsRaw, error: contractPaymentsError } =
+    await contractPaymentsQuery;
+  const contractPayments = contractPaymentsRaw || [];
   let totalContractRevenue = 0;
   let totalContractAmount = 0;
   let contractPaymentsCount = 0;
 
-  if (contractPaymentsError && contractPaymentsError.code === '42P01') {
-    // Table doesn't exist, get contract revenue from transactions table
+  if (contractPaymentsError && contractPaymentsError.code === "42P01") {
     const contractTransactions = successfulTransactions.filter((t: any) => {
       const typeLower = (t.type || "").toString().toLowerCase();
       return typeLower.includes("contract");
     });
-    
+
     totalContractRevenue = contractTransactions.reduce((s: number, t: any) => {
-      // Try to get fee from fee column first, then from total_deduction
       const fee = Number(t.fee ?? 0);
       const deduction = Number(t.total_deduction ?? 0);
-      
-      // Also check external_response for contract-specific fees
       let contractFee = fee > 0 ? fee : deduction;
-      
+
       if (t.external_response) {
         try {
-          const externalResponse = typeof t.external_response === 'string' 
-            ? JSON.parse(t.external_response)
-            : t.external_response;
-          
-          if (externalResponse && externalResponse.fee_breakdown) {
-            // Use contract fee from fee_breakdown if available
-            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
-            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
-            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
-            
-            if (feeFromJson > 0) {
-              contractFee = feeFromJson;
-            } else if (baseFee > 0 || lawyerFee > 0) {
+          const ext =
+            typeof t.external_response === "string"
+              ? JSON.parse(t.external_response)
+              : t.external_response;
+          if (ext?.fee_breakdown) {
+            const feeFromJson = Number(ext.fee_breakdown.total) || 0;
+            const baseFee = Number(ext.fee_breakdown.base_fee) || 0;
+            const lawyerFee = Number(ext.fee_breakdown.lawyer_fee) || 0;
+            if (feeFromJson > 0) contractFee = feeFromJson;
+            else if (baseFee > 0 || lawyerFee > 0)
               contractFee = baseFee + lawyerFee;
-            }
           }
-        } catch (err) {
-          // JSON parsing failed, skip this
-        }
+        } catch {}
       }
-      
+
       return s + contractFee;
     }, 0);
-    
+
     totalContractAmount = contractTransactions.reduce((s: number, t: any) => {
       const amount = Number(t.amount ?? 0);
-      
-      // Check external_response for total_amount if available
       if (t.external_response) {
         try {
-          const externalResponse = typeof t.external_response === 'string' 
-            ? JSON.parse(t.external_response)
-            : t.external_response;
-          
-          if (externalResponse && externalResponse.total_amount) {
-            const jsonAmount = Number(externalResponse.total_amount) || 0;
-            if (jsonAmount > 0) {
-              return s + jsonAmount;
-            }
+          const ext =
+            typeof t.external_response === "string"
+              ? JSON.parse(t.external_response)
+              : t.external_response;
+          if (ext?.total_amount) {
+            const jsonAmount = Number(ext.total_amount) || 0;
+            if (jsonAmount > 0) return s + jsonAmount;
           }
-        } catch (err) {
-          // JSON parsing failed, use regular amount
-        }
+        } catch {}
       }
-      
       return s + amount;
     }, 0);
-    
+
     contractPaymentsCount = contractTransactions.length;
   } else {
-    // Use contract_payments table data
-    totalContractRevenue = contractPayments.reduce((s: number, p: any) => {
-      const fee = Number(p.fee_amount ?? 0);
-      return s + fee;
-    }, 0);
-    
-    totalContractAmount = contractPayments.reduce((s: number, p: any) => {
-      return s + Number(p.amount ?? 0);
-    }, 0);
-    
+    totalContractRevenue = contractPayments.reduce(
+      (s: number, p: any) => s + Number(p.fee_amount ?? 0),
+      0
+    );
+    totalContractAmount = contractPayments.reduce(
+      (s: number, p: any) => s + Number(p.amount ?? 0),
+      0
+    );
     contractPaymentsCount = contractPayments.length;
   }
 
-  // Also process any contract transactions that might not be in contract_payments
   const contractTransactions = successfulTransactions.filter((t: any) => {
     const typeLower = (t.type || "").toString().toLowerCase();
     return typeLower.includes("contract");
   });
 
   contractTransactions.forEach((t: any) => {
-    // Check if this transaction is already accounted for
-    const isAlreadyCounted = contractPayments.some((p: any) => 
-      Math.abs(p.amount - Number(t.amount)) < 0.01
+    const isAlreadyCounted = contractPayments.some(
+      (p: any) => Math.abs(Number(p.amount) - Number(t.amount)) < 0.01
     );
-    
     if (!isAlreadyCounted) {
-      // Add fee if not already counted
       const fee = Number(t.fee ?? 0);
       if (fee > 0) {
         totalContractRevenue += fee;
@@ -537,9 +526,11 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Update combined app revenue to use invoice revenue from both sources
-  const combinedAppRevenue = totalFeesFromColumn + totalInvoiceRevenueCombined + totalContractRevenue;
+  // Legacy fee-sum revenue (kept for diagnostics — not shown as App Revenue)
+  const feeSumRevenue =
+    totalFeesFromColumn + totalInvoiceRevenueCombined + totalContractRevenue;
 
+  // ─── Monthly aggregates ─────────────────────
   const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> =
     {};
   invoicesData.forEach((inv: any) => {
@@ -575,7 +566,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     monthlyTransactionsMap[key] =
       (monthlyTransactionsMap[key] ?? 0) + Number(t.amount ?? 0);
   });
-  
   const monthlyTransactions = monthLabels.map((m) => ({
     month: m,
     transactions: monthlyTransactionsMap[m] ?? 0,
@@ -583,7 +573,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   const monthlyRevenueMap: Record<string, number> = {};
 
-  // Add transaction fees
   successfulTransactions.forEach((t: any) => {
     const feeAmount = Number(t.fee ?? 0);
     if (feeAmount > 0) {
@@ -597,21 +586,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add deductions
-  successfulTransactions.forEach((t: any) => {
-    const deductionAmount = Number(t.total_deduction ?? 0);
-    if (deductionAmount > 0) {
-      const d = new Date(t.created_at);
-      if (isNaN(d.getTime())) return;
-      const key = d.toLocaleString("default", {
-        month: "short",
-        year: "numeric",
-      });
-      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + deductionAmount;
-    }
-  });
-
-  // Add invoice creation revenue
   invoiceCreationTransactions.forEach((t: any) => {
     const creationAmount = Number(t.amount ?? 0);
     if (creationAmount > 0) {
@@ -625,7 +599,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add invoice fees from invoices table
   paidOrPartiallyPaidInvoices.forEach((inv: any) => {
     const invoiceFee = Number(inv.fee_amount ?? 0);
     if (invoiceFee > 0) {
@@ -639,7 +612,6 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Add contract payments to monthly revenue
   contractPayments.forEach((p: any) => {
     const contractFee = Number(p.fee_amount ?? 0);
     if (contractFee > 0) {
@@ -653,34 +625,30 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
-  // Also add contract fees from transactions
-  contractTransactions.forEach((t: any) => {
-    const feeAmount = Number(t.fee ?? 0);
-    if (feeAmount > 0) {
-      const d = new Date(t.created_at);
-      if (isNaN(d.getTime())) return;
-      const key = d.toLocaleString("default", {
-        month: "short",
-        year: "numeric",
-      });
-      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + feeAmount;
-    }
-  });
-
   const monthlyAppRevenue = monthLabels.map((m) => ({
     month: m,
     revenue: monthlyRevenueMap[m] ?? 0,
   }));
 
+  // ─── Nomba balance ──────────────────────────
   const nombaBalance = await fetchNombaBalanceCached(async () => {
     try {
       return await getNombaToken();
-    } catch (err) {
+    } catch {
       return null;
     }
   });
 
-  // Get previous period data for growth calculations
+  // ─── App Revenue = Nomba Balance − Total User Wallets ───
+  // Nomba holds ALL money Zidwell processes. User wallets represent what
+  // is owed back to users. The difference is what Zidwell owns (revenue
+  // accumulated, fees collected, pending payouts, etc.).
+  const appRevenue = Math.max(
+    0,
+    Number(nombaBalance) - Number(mainWalletBalance)
+  );
+
+  // ─── Previous period (for growth) ───────────
   let prevTotalContracts = 0;
   let prevPendingContracts = 0;
   let prevSignedContracts = 0;
@@ -688,113 +656,93 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   let prevTotalInvoices = 0;
   let prevPaidInvoices = 0;
   let prevUnpaidInvoices = 0;
-  
+
   if (rangeDates) {
-    // Calculate previous period for growth comparisons
     const prevStart = new Date(rangeDates.start);
     const prevEnd = new Date(rangeDates.end);
     const duration = prevEnd.getTime() - prevStart.getTime();
-    
-    // Set previous period to same duration before the current start
     prevStart.setTime(prevStart.getTime() - duration);
     prevEnd.setTime(prevEnd.getTime() - duration);
-    
-    // Get previous contracts count
-    const prevContractsQuery = supabaseAdmin
+
+    const { data: prevContractsData } = await supabaseAdmin
       .from("contracts")
       .select("status, contract_date")
-      .gte("contract_date", prevStart.toISOString().split('T')[0])
-      .lte("contract_date", prevEnd.toISOString().split('T')[0]);
-    
-    const { data: prevContractsData } = await prevContractsQuery;
+      .gte("contract_date", prevStart.toISOString().split("T")[0])
+      .lte("contract_date", prevEnd.toISOString().split("T")[0]);
+
     const prevContracts = prevContractsData || [];
     prevTotalContracts = prevContracts.length;
-    prevPendingContracts = prevContracts.filter((c: any) => (c.status ?? "pending") === "pending").length;
-    prevSignedContracts = prevContracts.filter((c: any) => (c.status ?? "").toLowerCase() === "signed").length;
-    
-    // Get previous contract fees
-    const prevContractTxQuery = supabaseAdmin
-      .from("transactions")
-      .select("fee, type, status, created_at, external_response")
-      .gte("created_at", prevStart.toISOString())
-      .lte("created_at", prevEnd.toISOString())
-      .eq("status", "success");
-    
-    const { data: prevContractTxData } = await prevContractTxQuery;
-    const prevContractTransactions = (prevContractTxData || []).filter((t: any) => {
-      const typeLower = (t.type || "").toString().toLowerCase();
-      return typeLower.includes("contract");
-    });
-    
-    prevContractFees = prevContractTransactions.reduce((s: number, t: any) => {
-      const fee = Number(t.fee ?? 0);
-      if (t.external_response) {
-        try {
-          const externalResponse = typeof t.external_response === 'string' 
-            ? JSON.parse(t.external_response)
-            : t.external_response;
-          
-          if (externalResponse && externalResponse.fee_breakdown) {
-            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
-            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
-            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
-            
-            if (feeFromJson > 0) {
-              return s + feeFromJson;
-            } else if (baseFee > 0 || lawyerFee > 0) {
-              return s + baseFee + lawyerFee;
-            }
-          }
-        } catch (err) {
-          // JSON parsing failed, use regular fee
-        }
-      }
-      return s + fee;
-    }, 0);
+    prevPendingContracts = prevContracts.filter(
+      (c: any) => (c.status ?? "pending") === "pending"
+    ).length;
+    prevSignedContracts = prevContracts.filter(
+      (c: any) => (c.status ?? "").toLowerCase() === "signed"
+    ).length;
 
-    // Get previous invoices data
-    const prevInvoicesQuery = supabaseAdmin
+    const { data: prevInvoicesData } = await supabaseAdmin
       .from("invoices")
       .select("status, created_at")
       .gte("created_at", prevStart.toISOString())
       .lte("created_at", prevEnd.toISOString());
-    
-    const { data: prevInvoicesData } = await prevInvoicesQuery;
+
     const prevInvoices = prevInvoicesData || [];
     prevTotalInvoices = prevInvoices.length;
-    prevPaidInvoices = prevInvoices.filter((inv: any) => inv.status === "paid").length;
+    prevPaidInvoices = prevInvoices.filter(
+      (inv: any) => inv.status === "paid"
+    ).length;
     prevUnpaidInvoices = prevTotalInvoices - prevPaidInvoices;
   }
 
+  // ─── Response ───────────────────────────────
   const response = {
+    // Wallet balances (both field names for frontend compatibility)
+    mainWalletBalance,
+    totalWalletBalance: mainWalletBalance,
+
+    // Nomba balance (provider account balance)
+    nombaBalance,
+
+    // App Revenue = Nomba Balance − Total Wallet Balance
+    totalAppRevenue: appRevenue,
+    appRevenue, // alias for dashboard KPI
+
+    // Legacy fee-sum revenue (kept for diagnostics / other consumers)
+    feeSumRevenue,
+
+    // Transaction flow
     totalInflow,
     totalOutflow,
-    mainWalletBalance,
-    nombaBalance,
     totalTransactions,
+
+    // Transaction fees (legacy — kept for backward compatibility)
+    transactionFees: totalFeesFromColumn,
+    platformFees: 0,
+    contractFees: totalContractRevenue,
+    totalContractAmount,
+    contractPaymentsCount,
+
+    // Nomba fees (still 0 — populate from fee_breakdown.nomba_fee if needed)
+    nombaFees: 0,
+
+    // Users
     totalUsers,
+
+    // Invoices
     pendingInvoices: unpaidInvoices,
     paidInvoices,
     partiallyPaidInvoices,
     totalInvoicesIssued,
-    totalInvoiceRevenue: totalInvoiceRevenueCombined, // Combined invoice revenue
-    invoiceCreationRevenue, // Revenue from invoice_creation transactions
-    invoiceFeesFromTable, // Revenue from invoice fees
+    totalInvoiceRevenue: totalInvoiceRevenueCombined,
+    invoiceCreationRevenue,
+    invoiceFeesFromTable,
+
+    // Contracts
     pendingContracts,
     signedContracts,
+    activeContracts: signedContracts,
     totalContractsIssued,
-    latestTransactions,
-    monthlyTransactions,
-    monthlyInvoices,
-    monthlyContracts,
-    range: rangeParam,
-    totalAppRevenue: combinedAppRevenue,
-    transactionFees: totalFeesFromColumn,
-    platformFees: 0, // Set to 0 since we're not using invoice_payments table anymore
-    contractFees: totalContractRevenue,
-    totalContractAmount,
-    contractPaymentsCount,
-    monthlyAppRevenue,
+
+    // Transaction status breakdown
     transactionStatus: {
       success: successfulTransactions.length,
       failed: failedTransactions.length,
@@ -803,8 +751,20 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     successfulTransactions: successfulTransactions.length,
     failedTransactions: failedTransactions.length,
     pendingTransactions: pendingTransactions.length,
-    
-    // Previous period data for growth calculations
+
+    // Operational placeholders
+    pendingKyc: 0,
+    openDisputes: 0,
+
+    // Charts
+    latestTransactions,
+    monthlyTransactions,
+    monthlyInvoices,
+    monthlyContracts,
+    monthlyAppRevenue,
+    range: rangeParam,
+
+    // Growth previous period
     prevTotalContracts,
     prevPendingContracts,
     prevSignedContracts,
@@ -812,7 +772,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     prevTotalInvoices,
     prevPaidInvoices,
     prevUnpaidInvoices,
-    
+
     _fromCache: false,
   };
 
@@ -824,6 +784,9 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   return response;
 }
 
+// ─────────────────────────────────────────────
+// Route handler
+// ─────────────────────────────────────────────
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const adminUser = await requireAdmin(req);
@@ -852,9 +815,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const rangeParam = url.searchParams.get("range") ?? "total";
     const nocache = url.searchParams.get("nocache") === "true";
 
-    if (nocache) {
-      clearSummaryCache(rangeParam);
-    }
+    if (nocache) clearSummaryCache(rangeParam);
 
     const response = await getCachedSummaryData(rangeParam);
     const { _fromCache, ...cleanResponse } = response;
@@ -868,6 +829,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (err) {
+    console.error("Summary error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

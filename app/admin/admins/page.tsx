@@ -11,12 +11,10 @@ import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatNumber } from "@/app/lib/dashboard-utils";
-import { useDebounce } from "@/app/lib/hooks/useDebounce";
 import Swal from "sweetalert2";
 
 export default function AdminsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState("");
 
@@ -26,10 +24,10 @@ export default function AdminsPage() {
       limit: "20",
       includeStats: "true",
     });
-    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (searchTerm) params.append("search", searchTerm);
     if (roleFilter) params.append("role", roleFilter);
     return `/api/admin-apis/admins?${params}`;
-  }, [page, debouncedSearch, roleFilter]);
+  }, [page, searchTerm, roleFilter]);
 
   const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
     revalidateOnFocus: false,
@@ -40,7 +38,7 @@ export default function AdminsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter]);
+  }, [searchTerm, roleFilter]);
 
   const admins = data?.admins ?? data?.data ?? [];
   const total = data?.total ?? 0;
@@ -123,19 +121,40 @@ export default function AdminsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KPICard title="Total Admins" value={formatNumber(stats.total ?? total)} icon="★" />
-          <KPICard title="Super Admins" value={formatNumber(stats.superAdmins ?? 0)} icon="◆" />
-          <KPICard title="Active Today" value={formatNumber(stats.activeToday ?? 0)} icon="●" />
-          <KPICard title="All Roles" value={formatNumber(stats.roles ?? 0)} icon="◈" />
+          <KPICard
+            title="Total Admins"
+            value={formatNumber(stats.total ?? total)}
+            icon="★"
+          />
+          <KPICard
+            title="Super Admins"
+            value={formatNumber(stats.superAdmins ?? 0)}
+            icon="◆"
+          />
+          <KPICard
+            title="Active Today"
+            value={formatNumber(stats.activeToday ?? 0)}
+            icon="●"
+          />
+          <KPICard
+            title="All Roles"
+            value={formatNumber(stats.roles ?? 0)}
+            icon="◈"
+          />
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by name or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}

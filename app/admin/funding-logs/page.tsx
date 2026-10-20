@@ -45,14 +45,12 @@ export default function FundingLogsPage() {
   const stats = data?.stats ?? {};
 
   const columns = [
-    { key: "reference_id", label: "Reference" },
+    { key: "reference", label: "Reference" },
     { key: "user_email", label: "User" },
     {
       key: "amount",
       label: "Amount",
-      render: (v: any) => (
-        <span className="font-medium">{formatCurrency(Number(v) || 0)}</span>
-      ),
+      render: (v: any) => <span className="font-medium">{formatCurrency(Number(v) || 0)}</span>,
     },
     { key: "gateway", label: "Channel" },
     {
@@ -66,9 +64,7 @@ export default function FundingLogsPage() {
             : s === "pending"
             ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
             : "bg-destructive/15 text-destructive";
-        return (
-          <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>● {s}</span>
-        );
+        return <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>● {s}</span>;
       },
     },
     { key: "created_at", label: "Date" },
@@ -111,42 +107,33 @@ export default function FundingLogsPage() {
             icon="◎"
             className="border-l-4 border-l-[--color-lemon-green]"
           />
-          <KPICard
-            title="Transactions"
-            value={formatNumber(stats.count ?? total)}
-            icon="⇄"
-          />
-          <KPICard
-            title="Success Rate"
-            value={`${stats.successRate ?? 0}%`}
-            icon="✓"
-          />
+          <KPICard title="Transactions" value={formatNumber(stats.count ?? total)} icon="⇄" />
+          <KPICard title="Success Rate" value={`${stats.successRate ?? 0}%`} icon="✓" />
         </div>
 
-        <Input
-          placeholder="Search by reference or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/3"
-        />
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by reference or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
+        </div>
 
         <div className="text-sm text-(--text-secondary)">
           Showing {logs.length} of {total} funding logs
         </div>
 
-        <AdminTable
-          columns={columns}
-          rows={logs}
-          emptyMessage="No funding logs found"
-        />
+        <AdminTable columns={columns} rows={logs} emptyMessage="No funding logs found" />
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>
             <span className="px-4 py-2 text-sm text-(--text-secondary)">

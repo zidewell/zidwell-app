@@ -4,21 +4,21 @@
 import React, { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import AdminLayout from "@/app/components/admin-components/layout";
-import AdminTable, {
-  AdminTableColumn,
-} from "@/app/components/admin-components/AdminTable";
+import AdminTable from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
-import { useDebounce } from "@/app/lib/hooks/useDebounce";
+import { resolveFullName, hasRealName } from "@/app/lib/resolve-name";
 
 export default function WalletsPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [balanceFilter, setBalanceFilter] = useState("all");
 
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
@@ -26,9 +26,11 @@ export default function WalletsPage() {
       limit: "20",
       includeStats: "true",
     });
-    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (appliedSearch) params.append("search", appliedSearch);
+    if (balanceFilter && balanceFilter !== "all")
+      params.append("balance", balanceFilter);
     return `/api/admin-apis/wallets?${params}`;
-  }, [page, debouncedSearch]);
+  }, [page, appliedSearch, balanceFilter]);
 
   const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
     revalidateOnFocus: false,
@@ -39,53 +41,96 @@ export default function WalletsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch]);
+  }, [appliedSearch, balanceFilter]);
 
   const wallets = data?.wallets ?? data?.data ?? [];
   const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20) || 1;
+  const totalPages = data?.totalPages ?? (Math.ceil(total / 20) || 1);
   const stats = data?.stats ?? {};
 
-  const columns: AdminTableColumn[] = [
+  const runSearch = () => {
+    setAppliedSearch(searchInput.trim());
+    setPage(1);
+  };
+
+  const columns = [
     {
-      key: "user_email",
+      key: "email",
       label: "User",
-      render: (_v, row) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{row.full_name ?? "—"}</span>
-          <span className="text-xs text-(--text-secondary)">
-            {row.user_email ?? row.email}
+      render: (_v: any, row: any) => (
+        <div className="flex flex-col min-w-0">
+          <span className="font-medium truncate">{resolveFullName(row)}</span>
+          <span className="text-xs text-(--text-secondary) truncate">
+            {row.email ?? row.user_email ?? "—"}
           </span>
+          {!hasRealName(row) && (
+            <span className="mt-1 inline-flex w-fit squircle-sm px-2 py-0.5 text-[10px] font-medium bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]">
+              ⚠ Profile incomplete
+            </span>
+          )}
         </div>
       ),
     },
     {
       key: "wallet_balance",
       label: "Balance",
-      render: (v) => (
-        <span className="font-medium">{formatCurrency(Number(v) || 0)}</span>
+      render: (v: any, row: any) => (
+        <span className="font-medium whitespace-nowrap">
+          {formatCurrency(Number(row.wallet_balance ?? row.balance ?? v) || 0)}
+        </span>
       ),
     },
     {
       key: "zidcoin_balance",
       label: "Zidcoin",
-      render: (v) => formatNumber(Number(v) || 0),
+      render: (v: any) => (
+        <span className="whitespace-nowrap">
+          {formatNumber(Number(v) || 0)}
+        </span>
+      ),
     },
     {
-      key: "wallet_frozen",
+      key: "status",
       label: "Status",
-      render: (v) =>
-        v ? (
-          <span className="squircle-sm px-2 py-1 text-xs bg-destructive/15 text-destructive">
-            ❄ Frozen
-          </span>
-        ) : (
-          <span className="squircle-sm px-2 py-1 text-xs bg-[--color-lemon-green]/15 text-[--color-lemon-green]">
+      render: (_v: any, row: any) => {
+        const status = row.status ?? "unknown";
+        if (status === "unknown") {
+          return (
+            <span className="squircle-sm px-2 py-1 text-xs bg-(--bg-secondary) text-(--text-secondary) whitespace-nowrap">
+              — Unknown
+            </span>
+          );
+        }
+        if (status === "blocked") {
+          return (
+            <span className="squircle-sm px-2 py-1 text-xs bg-destructive/15 text-destructive whitespace-nowrap">
+              ✗ Blocked
+            </span>
+          );
+        }
+        if (status === "frozen") {
+          return (
+            <span className="squircle-sm px-2 py-1 text-xs bg-[--color-accent-yellow]/15 text-[--color-accent-yellow] whitespace-nowrap">
+              ❄ Frozen
+            </span>
+          );
+        }
+        return (
+          <span className="squircle-sm px-2 py-1 text-xs bg-[--color-lemon-green]/15 text-[--color-lemon-green] whitespace-nowrap">
             ✓ Active
           </span>
-        ),
+        );
+      },
     },
-    { key: "updated_at", label: "Last Updated" },
+    {
+      key: "last_updated",
+      label: "Last Updated",
+      render: (v: any) => (
+        <span className="whitespace-nowrap">
+          {v ? new Date(v).toLocaleString("en-GB") : "—"}
+        </span>
+      ),
+    },
   ];
 
   if (isLoading) {
@@ -108,9 +153,9 @@ export default function WalletsPage() {
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
+      <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h2 className="text-xl sm:text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
             Wallets
           </h2>
           <Button variant="outline" onClick={() => mutate()}>
@@ -118,7 +163,8 @@ export default function WalletsPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* ✅ Fixed grid: 1→2→3→5 across breakpoints */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 sm:gap-5">
           <KPICard
             title="Total Balance"
             value={formatCurrency(stats.totalBalance ?? 0)}
@@ -126,7 +172,7 @@ export default function WalletsPage() {
             className="border-l-4 border-l-[--color-lemon-green]"
           />
           <KPICard
-            title="Active Wallets"
+            title="Active"
             value={formatNumber(stats.active ?? 0)}
             icon="✓"
           />
@@ -134,21 +180,46 @@ export default function WalletsPage() {
             title="Frozen"
             value={formatNumber(stats.frozen ?? 0)}
             icon="❄"
+            className="border-l-4 border-l-[--color-accent-yellow]"
+          />
+          <KPICard
+            title="Blocked"
+            value={formatNumber(stats.blocked ?? 0)}
+            icon="✗"
+            className="border-l-4 border-l-destructive"
           />
           <KPICard
             title="Nomba Balance"
             value={formatCurrency(stats.nombaBalance ?? 0)}
             icon="◎"
             subtitle="Provider balance"
+            className="border-l-4 border-l-[--color-accent-yellow]"
           />
         </div>
 
-        <Input
-          placeholder="Search by email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full md:w-1/3"
-        />
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by name or email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runSearch();
+              }}
+              className="flex-1"
+            />
+            <Button onClick={runSearch} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
+          <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+            <option value="all">All Balances</option>
+            <option value="high">High (≥ ₦10,000)</option>
+            <option value="medium">Medium (₦1,000 – ₦10,000)</option>
+            <option value="low">Low (₦1 – ₦1,000)</option>
+            <option value="zero">Zero</option>
+          </Select>
+        </div>
 
         <div className="text-sm text-(--text-secondary)">
           Showing {wallets.length} of {total} wallets
@@ -161,11 +232,11 @@ export default function WalletsPage() {
         />
 
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <Button
               variant="outline"
               disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               ← Prev
             </Button>

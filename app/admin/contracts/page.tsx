@@ -4,21 +4,18 @@
 import React, { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import AdminLayout from "@/app/components/admin-components/layout";
-import AdminTable, {
-  AdminTableColumn,
-} from "@/app/components/admin-components/AdminTable";
+import AdminTable, { AdminTableColumn } from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
 import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
-import { formatNumber } from "@/app/lib/dashboard-utils";
+import { formatNumber } from "@/lib/dashboard-utils";
 import { useDebounce } from "@/app/lib/hooks/useDebounce";
 
 export default function ContractsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearch = useDebounce(searchTerm, 500);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -28,10 +25,10 @@ export default function ContractsPage() {
       limit: "20",
       includeStats: "true",
     });
-    if (debouncedSearch) params.append("search", debouncedSearch);
+    if (searchTerm) params.append("search", searchTerm);
     if (statusFilter) params.append("status", statusFilter);
     return `/api/admin-apis/contracts?${params}`;
-  }, [page, debouncedSearch, statusFilter]);
+  }, [page, searchTerm, statusFilter]);
 
   const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
     revalidateOnFocus: false,
@@ -42,7 +39,7 @@ export default function ContractsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter]);
+  }, [searchTerm, statusFilter]);
 
   const contracts = data?.contracts ?? data?.data ?? [];
   const total = data?.total ?? 0;
@@ -62,14 +59,9 @@ export default function ContractsPage() {
           s === "signed" || s === "completed"
             ? "bg-[--color-lemon-green]/15 text-[--color-lemon-green]"
             : s === "pending"
-              ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
-              : "bg-(--bg-secondary) text-(--text-secondary)";
-        const icon =
-          s === "signed" || s === "completed"
-            ? "✓"
-            : s === "pending"
-              ? "⏳"
-              : "✗";
+            ? "bg-[--color-accent-yellow]/15 text-[--color-accent-yellow]"
+            : "bg-(--bg-secondary) text-(--text-secondary)";
+        const icon = s === "signed" || s === "completed" ? "✓" : s === "pending" ? "⏳" : "✗";
         return (
           <span className={`squircle-sm px-2 py-1 text-xs ${cls}`}>
             {icon} {s}
@@ -123,35 +115,27 @@ export default function ContractsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KPICard
-            title="Total"
-            value={formatNumber(stats.total ?? total)}
-            icon="✎"
-          />
-          <KPICard
-            title="Signed"
-            value={formatNumber(stats.signed ?? 0)}
-            icon="✓"
-          />
-          <KPICard
-            title="Pending"
-            value={formatNumber(stats.pending ?? 0)}
-            icon="⏳"
-          />
-          <KPICard
-            title="Flagged"
-            value={formatNumber(stats.flagged ?? 0)}
-            icon="⚑"
-          />
+          <KPICard title="Total" value={formatNumber(stats.total ?? total)} icon="✎" />
+          <KPICard title="Signed" value={formatNumber(stats.signed ?? 0)} icon="✓" />
+          <KPICard title="Pending" value={formatNumber(stats.pending ?? 0)} icon="⏳" />
+          <KPICard title="Flagged" value={formatNumber(stats.flagged ?? 0)} icon="⚑" />
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by title or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by title or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button
+              onClick={() => setPage(1)}
+              className="input squircle-md"
+            >
+              🔍 Search
+            </Button>
+          </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <option value="">All Status</option>
             <option value="pending">Pending</option>
@@ -177,11 +161,7 @@ export default function ContractsPage() {
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>
             <span className="px-4 py-2 text-sm text-(--text-secondary)">

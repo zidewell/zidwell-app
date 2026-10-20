@@ -48,45 +48,7 @@ export function Hero() {
               <p className="mt-4 max-w-xl text-sm text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                 So you're always ready for:
               </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {["Taxes", "Loans", "Investors", "Business decisions"].map(
-                  (t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[oklch(1_0_0)] dark:bg-[oklch(0.18_0_0)] border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] px-3 py-1 text-xs font-medium font-['Be_Vietnam_Pro',system-ui,sans-serif] text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-[oklch(0.66_0.18_148)]" />
-                      {t}
-                    </span>
-                  ),
-                )}
-              </div>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/auth/signup"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[oklch(0.17_0_0)] dark:bg-[oklch(0.98_0_0)] text-[oklch(1_0_0)] dark:text-[oklch(0.17_0_0)] text-sm font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif] hover:opacity-90 transition"
-                >
-                  Start Free <ArrowRight className="h-4 w-4" />
-                </Link>
-
-                <Link
-                  href="https://instagram.com/zidwell"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] text-sm font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif] border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] hover:bg-[oklch(0.935_0_0)] dark:hover:bg-[oklch(0.22_0_0)] transition text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
-                >
-                  <Instagram className="h-4 w-4" /> Follow on Instagram
-                </Link>
-                <Link
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href="https://tally.so/r/Xx7Jed"
                 
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] text-sm font-semibold font-['Be_Vietnam_Pro',system-ui,sans-serif] border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] hover:bg-[oklch(0.935_0_0)] dark:hover:bg-[oklch(0.22_0_0)] transition text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
-                >
-                  Book a Demo
-                </Link>
-              </div>
               <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-[oklch(0.66_0.18_148)]" />{" "}

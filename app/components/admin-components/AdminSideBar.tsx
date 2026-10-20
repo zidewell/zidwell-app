@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/admin/invoices", label: "Invoices", icon: "▤" },
   { href: "/admin/receipts", label: "Receipts", icon: "▣" },
   { href: "/admin/tax-filings", label: "Tax Filings", icon: "◈" },
+  { href: "/admin/online-stores", label: "Online Stores", icon: "🏪" },
   { href: "/admin/kyc", label: "KYC", icon: "✓" },
   { href: "/admin/disputes-supports", label: "Disputes & Support", icon: "⚑" },
   { href: "/admin/notifications", label: "Notifications", icon: "◆" },

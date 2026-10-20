@@ -8,6 +8,7 @@ import AdminTable from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatNumber } from "@/app/lib/dashboard-utils";
@@ -42,7 +43,7 @@ export default function KycPage() {
     setPage(1);
   }, [debouncedSearch, statusFilter]);
 
-  const kycRecords = data?.applications ?? data?.kyc ?? data?.data ?? [];
+  const kycRecords = data?.kyc ?? data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20) || 1;
   const stats = data?.stats ?? {};
@@ -61,7 +62,7 @@ export default function KycPage() {
       const res = await fetch(`/api/admin-apis/kyc`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kycId: row.id, status: "approved" }),
+        body: JSON.stringify({ id: row.id, status: "approved" }),
       });
       if (!res.ok) throw new Error("Failed");
       mutate();
@@ -84,7 +85,7 @@ export default function KycPage() {
       const res = await fetch(`/api/admin-apis/kyc`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kycId: row.id, status: "rejected" }),
+        body: JSON.stringify({ id: row.id, status: "rejected" }),
       });
       if (!res.ok) throw new Error("Failed");
       mutate();
@@ -95,16 +96,14 @@ export default function KycPage() {
 
   const columns = [
     {
-      key: "user_name",
+      key: "first_name",
       label: "User",
       render: (_v: any, row: any) => (
         <div className="flex flex-col">
           <span className="font-medium">
             {row.user?.first_name ?? "—"} {row.user?.last_name ?? ""}
           </span>
-          <span className="text-xs text-(--text-secondary)">
-            {row.user?.email ?? "—"}
-          </span>
+          <span className="text-xs text-(--text-secondary)">{row.user?.email ?? "—"}</span>
         </div>
       ),
     },
@@ -174,22 +173,23 @@ export default function KycPage() {
         </div>
 
         <div className="flex flex-col md:flex-row gap-4">
-          <Input
-            placeholder="Search by name, email, or NIN..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-1/3"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input w-full md:w-48 squircle-md"
-          >
+          <div className="flex flex-1 gap-2">
+            <Input
+              placeholder="Search by name, email, or NIN..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={() => setPage(1)} className="input squircle-md">
+              🔍 Search
+            </Button>
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <option value="">All Status</option>
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-          </select>
+          </Select>
         </div>
 
         <div className="text-sm text-(--text-secondary)">
@@ -218,11 +218,7 @@ export default function KycPage() {
 
         {totalPages > 1 && (
           <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>
             <span className="px-4 py-2 text-sm text-(--text-secondary)">
