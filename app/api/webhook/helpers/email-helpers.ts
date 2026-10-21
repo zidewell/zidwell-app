@@ -1,3 +1,4 @@
+// app/api/webhook/helpers/email-helpers.ts
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
 import puppeteer from "puppeteer-core";
@@ -304,6 +305,90 @@ async function sendWithdrawalEmail(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// REFUND EMAIL
+//
+// Sent when a payout fails and Nomba returns the money to our corporate
+// wallet, and we credit the user's wallet back. Mirrors the visual format
+// of sendWithdrawalEmail so the user experience is consistent.
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendRefundEmail(
+  userId: string,
+  amount: number,
+  refundAmount: number,
+  recipientName: string,
+  recipientAccount: string,
+  bankName: string,
+  transactionId?: string,
+  originalFee?: number,
+) {
+  try {
+    console.log(`📧 Attempting to send refund email for user ${userId}`);
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("email, first_name")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ Failed to fetch user for refund email:", error);
+      return;
+    }
+
+    if (!user) {
+      console.error("❌ User not found for ID:", userId);
+      return;
+    }
+
+    if (!user.email) {
+      console.error("❌ User has no email address:", userId);
+      return;
+    }
+
+    console.log(`📧 Sending refund email to: ${user.email}`);
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: `🔄 Refund Processed - ${formatNaira(refundAmount)}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <h3 style="color: #3b82f6;">🔄 Refund Processed</h3>
+          <p>Hi ${user.first_name || "there"},</p>
+          <p>Your recent transfer could not be completed by the bank. The funds have been returned to your Zidwell wallet.</p>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+            <p><strong>Refund Amount:</strong> ${formatNaira(refundAmount)}</p>
+            ${originalFee && originalFee > 0 ? `<p><strong>Fee Refunded:</strong> ${formatNaira(originalFee)}</p>` : ""}
+            <p><strong>Original Transfer:</strong> ${formatNaira(amount)}</p>
+            <p><strong>Recipient:</strong> ${recipientName}</p>
+            <p><strong>Account:</strong> ${recipientAccount}</p>
+            <p><strong>Bank:</strong> ${bankName}</p>
+            ${transactionId ? `<p><strong>Transaction ID:</strong> ${transactionId}</p>` : ""}
+          </div>
+          <p style="margin-top: 15px; color: #16a34a; font-weight: 600;">
+            ✅ ${formatNaira(refundAmount)} has been credited back to your wallet.
+          </p>
+          <p style="color: #666; font-size: 14px;">
+            The transfer failed due to a bank-side issue. You can try the transfer again or contact support if the problem persists.
+          </p>
+          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+        </div>
+      `,
+    });
+
+    console.log(`✅ Refund email sent successfully to ${user.email}!`);
+  } catch (error) {
+    console.error("❌ Failed to send refund email:", error);
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // generateTransferReceipt — fee removed from user-facing receipt
 // ─────────────────────────────────────────────────────────────────────────────
 function generateTransferReceipt(data: any): string {
@@ -510,5 +595,6 @@ export {
   sendInvoiceCreatorNotificationEmail,
   sendVirtualAccountDepositEmail,
   sendWithdrawalEmail,
+  sendRefundEmail,
   generateTransferReceipt
 };

@@ -36,16 +36,6 @@ import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 import { ProtectedLink } from "../ProtectedLink";
 import { useTheme } from "../ThemeProvider";
-import {
-  ALLOWED_PAYMENT_EMAILS,
-  ALLOWED_PAYMENT_EMAIL_SET,
-  canAccessPaymentPage, 
-} from "@/lib/constants";
-
-// Re-export for backwards compatibility with any other module that imports
-// ALLOWED_PAYMENT_EMAILS from this file. Prefer importing from @/lib/constants
-// directly instead.
-export { ALLOWED_PAYMENT_EMAILS, ALLOWED_PAYMENT_EMAIL_SET };
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -231,25 +221,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
       );
     }
 
-    if (item.href === "/dashboard/services/payment/dashboard") {
-      if (canAccessPaymentPage(userData?.email)) {
-        return (
-          <div className="relative">
-            <Link
-              href={item.href}
-              onClick={onClose}
-              className={baseClass}
-              aria-current={isActive ? "page" : undefined}
-            >
-              {inner}
-            </Link>
-            {tooltip}
-          </div>
-        );
-      }
-      return null;
-    }
-
     if (shouldProtect) {
       return (
         <div className="relative">
@@ -285,8 +256,6 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
     if (balance != null) return formatNumber(balance);
     return "0.00";
   };
-
-  const showPaymentPage = canAccessPaymentPage(userData?.email);
 
   const SectionLabel = ({ children }: { children: React.ReactNode }) => {
     if (effectiveCollapsed) {
@@ -382,20 +351,19 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
 
       <div className="space-y-1">
         <SectionLabel>Business Tools</SectionLabel>
-        {showPaymentPage && (
-          <NavItem
-            item={{
-              name: "Online Store",
-              href: "/dashboard/services/payment/dashboard",
-              icon: CreditCard,
-            }}
-            isActive={
-              isPathActive(pathname, "/dashboard/services/payment/dashboard") ||
-              isPathActive(pathname, "/dashboard/store")
-            }
-            collapsed={effectiveCollapsed}
-          />
-        )}
+        {/* Online Store — now shown for everyone */}
+        <NavItem
+          item={{
+            name: "Online Store",
+            href: "/dashboard/services/payment/dashboard",
+            icon: CreditCard,
+          }}
+          isActive={
+            isPathActive(pathname, "/dashboard/services/payment/dashboard") ||
+            isPathActive(pathname, "/dashboard/store")
+          }
+          collapsed={effectiveCollapsed}
+        />
         <NavItem
           item={{
             name: "Bookkeeping",
