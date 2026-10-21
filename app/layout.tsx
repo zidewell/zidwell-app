@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Be_Vietnam_Pro } from "next/font/google";
+import { Space_Grotesk, Be_Vietnam_Pro, Oswald } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
@@ -32,6 +32,18 @@ const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-be-vietnam",
+  display: "swap",
+});
+
+// ─── Narrow display font for h1 (Oswald = free stand-in for Agrandir Narrow) ───
+// The CSS variable is named `--font-agrandir-narrow` on purpose so that
+// globals.css can keep its `h1 { font-family: var(--font-agrandir-narrow), ... }`
+// rule unchanged. Swapping to the real licensed Agrandir Narrow later means
+// only replacing this block with `next/font/local` — nothing else changes.
+const oswald = Oswald({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-agrandir-narrow",
   display: "swap",
 });
 
@@ -102,7 +114,7 @@ export default function RootLayout({
     <html
       lang="en-NG"
       suppressHydrationWarning
-      className={`${spaceGrotesk.variable} ${beVietnamPro.variable}`}
+      className={`${spaceGrotesk.variable} ${beVietnamPro.variable} ${oswald.variable}`}
     >
       <head>
         {/* Theme initialization — prevents flash of wrong theme */}
@@ -187,24 +199,20 @@ export default function RootLayout({
         <ThemeProvider>
           <ThemeWrapper>
             <UserProvider>
-                <BlogProvider>
-             
+              <BlogProvider>
                 <SessionWatcher>
-               
-                    <VerificationModalProvider>
-                      <StoreProvider>
-                        {children}
-                        <GlobalVerificationModal />
-                        {/* <div className="fixed bottom-4 right-4 z-50">
-                          <InstallPrompt />
-                        </div> */}
+                  <VerificationModalProvider>
+                    <StoreProvider>
+                      {children}
+                      <GlobalVerificationModal />
+                      {/* <div className="fixed bottom-4 right-4 z-50">
+                        <InstallPrompt />
+                      </div> */}
                       <FloatingWhatsApp />
-                        {/* <NotificationToast /> */}
-                      </StoreProvider>
-                    </VerificationModalProvider>
-                
+                      {/* <NotificationToast /> */}
+                    </StoreProvider>
+                  </VerificationModalProvider>
                 </SessionWatcher>
-            
               </BlogProvider>
             </UserProvider>
           </ThemeWrapper>

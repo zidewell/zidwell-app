@@ -182,7 +182,7 @@ function CreateReceiptPage({
   const tierInfo = getTierInfo();
   const TierIcon = tierInfo.icon;
 
-  // Usage tracking
+  // Usage tracking 
   const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
     used: 0,
     limit: hasUnlimitedReceipts ? "unlimited" : isStarterUser ? solopreneurLimit : freeTierLimit,

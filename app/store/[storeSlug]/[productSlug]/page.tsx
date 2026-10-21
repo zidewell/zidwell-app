@@ -8,7 +8,8 @@ import {
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
-import Footer from "@/app/components/home-component/Footer";
+import SimpleFooter from "./components/Footer";
+
 
 export const revalidate = 60;
 
@@ -361,7 +362,7 @@ export default async function StoreProductPage({
           moreProducts={moreProducts || []}
         />
       </Suspense>
-      <Footer />
+      <SimpleFooter />
     </>
   );
 }

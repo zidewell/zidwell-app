@@ -25,7 +25,7 @@ export function DashboardTabs() {
               <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
                 The dashboard
               </p>
-              <h2 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight">
+              <h2 className="font-narrow-display text-3xl sm:text-4xl font-semibold tracking-tight">
                 See your money clearly.
               </h2>
               <p className="mt-4 text-sm text-muted-foreground leading-relaxed">

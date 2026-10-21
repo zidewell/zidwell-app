@@ -10,7 +10,7 @@ export function ApprovalNote() {
             <span className="inline-flex items-center gap-2 rounded-full bg-ink text-background px-3 py-1.5 text-xs font-medium">
               <Shield className="h-3.5 w-3.5 text-primary-custom" /> Zidwell Console
             </span>
-            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight">
+            <h2 className="mt-5 font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
               When you hire your first person, this is already set up.
             </h2>
             <p className="mt-4 text-muted-foreground leading-relaxed">

@@ -22,8 +22,8 @@ export default function HomePage() {
       <main>
         <Hero />
         <TrustMarquee />
-        <ToolsBento />
         <HowItWorks />
+        <ToolsBento />
         <DashboardTabs />
         <BankingRow />
         <ApprovalNote />

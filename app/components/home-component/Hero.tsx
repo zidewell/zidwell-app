@@ -1,5 +1,5 @@
 // app/components/home-component/Hero.tsx
-import { ArrowRight, CheckCircle2, Store } from "lucide-react";
+import { ArrowRight, CheckCircle2, Store, Instagram, Play } from "lucide-react";
 import { ToolkitOrbit } from "./ToolkitOrbit";
 
 export function Hero() {
@@ -29,10 +29,10 @@ export function Hero() {
             Built for ambitious SMEs
           </span>
 
-          <h1 className="mt-6 font-display text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
-            Get a Business Bank Account + An{" "}
-            <span style={{ color: "var(--gold)" }}>Online Store</span> in 60
-            Seconds
+         <h1 className="mt-6 text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
+            Run Your business{" "}
+            From
+            <span style={{ color: "var(--gold)" }}>One App</span>
           </h1>
 
           <p
@@ -41,25 +41,28 @@ export function Hero() {
               color: "color-mix(in oklab, var(--background) 70%, transparent)",
             }}
           >
-            Our goal at Zidwell is to give you the tools to run your business
-            hitch-free. Business bank account, online store, bookkeeping, sales
-            records, tax calculator and more — all in one place.
+            If you care about systems  and structure then Zidwell is for you. {" "}
+            It's the one place businesses get to manage their financial operations with ease.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          {/* ── Buttons — wrap on mobile, single row on lg+ ── */}
+          <div className="mt-8 flex flex-wrap gap-3 lg:flex-nowrap">
+            {/* 1 — Sign Up (primary) */}
             <a
               href="#cta"
-              className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition hover:opacity-90 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3.5 text-sm font-semibold transition hover:opacity-90 cursor-pointer lg:px-6"
               style={{
                 backgroundColor: "var(--gold)",
                 color: "var(--ink)",
               }}
             >
-              Start Free <ArrowRight className="h-4 w-4" />
+              Sign Up <ArrowRight className="h-4 w-4" />
             </a>
+
+            {/* 2 — Watch Tutorial (secondary) */}
             <a
-              href="#tools"
-              className="inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition cursor-pointer"
+              href="#tutorial"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3.5 text-sm font-semibold transition cursor-pointer lg:px-6"
               style={{
                 borderWidth: 1,
                 borderColor:
@@ -69,7 +72,27 @@ export function Hero() {
                 color: "var(--background)",
               }}
             >
-              Explore the Toolkit
+              <Play className="h-4 w-4" />
+              Watch Tutorial
+            </a>
+
+            {/* 3 — Follow on Instagram (tertiary / outline) */}
+            <a
+              href="https://www.instagram.com/zidwellfinance"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3.5 text-sm font-semibold transition cursor-pointer lg:px-6"
+              style={{
+                borderWidth: 1,
+                borderColor:
+                  "color-mix(in oklab, var(--background) 20%, transparent)",
+                backgroundColor:
+                  "color-mix(in oklab, var(--background) 5%, transparent)",
+                color: "var(--background)",
+              }}
+            >
+              <Instagram className="h-4 w-4" />
+              Follow on Instagram
             </a>
           </div>
 
@@ -103,8 +126,7 @@ export function Hero() {
           </div>
         </div>
 
-        {/* Orbit — 7 cols. Your orbit is width: min(78vw, 34rem), so it needs
-            the wide column and can bleed slightly right on desktop. */}
+        {/* Orbit — 7 cols */}
         <div className="lg:col-span-7 flex justify-center lg:justify-end lg:-mr-4 xl:-mr-8">
           <ToolkitOrbit />
         </div>

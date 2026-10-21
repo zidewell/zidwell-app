@@ -113,7 +113,7 @@ export function PricingNew() {
           <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
             Pricing
           </p>
-          <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-tight">
+          <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
             One bundle. One annual payment.
           </h2>
           <p className="mt-4 text-muted-foreground">

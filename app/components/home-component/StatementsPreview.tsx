@@ -19,7 +19,7 @@ export function StatementsPreview() {
             <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
               Financial statements
             </p>
-            <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-tight">
+            <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
               When the investor asks for your P&amp;L, you&apos;ll have it in 30
               seconds.
             </h2>

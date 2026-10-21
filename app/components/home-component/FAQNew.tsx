@@ -53,7 +53,7 @@ export function FAQNew() {
           <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
             FAQ
           </p>
-          <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-tight">
+          <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
             Questions, answered.
           </h2>
         </div>

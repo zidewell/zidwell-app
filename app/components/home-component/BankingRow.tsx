@@ -26,7 +26,7 @@ export function BankingRow() {
             <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
               Bank-connected
             </p>
-            <h2 className="font-display text-4xl sm:text-5xl font-semibold tracking-tight">
+            <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
               Every naira, in one view.
             </h2>
             <p className="mt-4 text-muted-foreground">

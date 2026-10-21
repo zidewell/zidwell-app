@@ -8,13 +8,15 @@ import {
   Store,
   Users,
 } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 const tools = [
   { icon: Store, label: "Online Store", angle: 0, tone: "gold" },
   { icon: Landmark, label: "Business Bank Account", angle: 51.4, tone: "leaf" },
   { icon: BookOpen, label: "Bookkeeping Tool", angle: 102.8, tone: "gold" },
   { icon: Calculator, label: "Tax Manager", angle: 154.2, tone: "leaf" },
-  { icon: HeartPulse, label: "HMO", angle: 205.6, tone: "gold" },
+  { icon: FileChartColumn, label: "Invoices", angle: 205.6, tone: "gold" },
   { icon: Users, label: "Multi-signatory Account", angle: 257, tone: "leaf" },
   { icon: FileChartColumn, label: "Business Plan", angle: 308.4, tone: "gold" },
 ];
@@ -225,10 +227,22 @@ export function ToolkitOrbit() {
         );
       })}
 
+     
       <div className="zm-orbit-core">
-        <span className="zm-orbit-core-mark">Z</span>
-        <p>Business Owners Toolkit</p>
-        <span>by Zidwell</span>
+        <Link href="/" className="flex items-center flex-col gap-2 cursor-pointer">
+          <Image
+            src="/logo.png"
+            alt="Zidwell"
+            width={32}
+            height={26}
+            className="md:w-16 object-contain"
+          />
+          <span className=" font-bold tracking-tight uppercase font-display">
+            Business Toolkit
+          </span>
+        </Link>
+      
+    
       </div>
     </div>
   );
