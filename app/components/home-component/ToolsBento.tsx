@@ -1,4 +1,5 @@
 // app/components/home-component/ToolsBento.tsx
+import Image from "next/image";
 import {
   Landmark,
   FileText,
@@ -32,7 +33,8 @@ export function ToolsBento() {
         </div>
 
         <div className="mt-14 grid grid-cols-1 md:grid-cols-8 gap-4">
-          <div className="md:col-span-5 squircle-lg bg-ink text-background p-6 sm:p-8 flex flex-col justify-between min-h-[280px]">
+          {/* Business Bank Account — literal dark bg so it stays dark in both modes */}
+          <div className="md:col-span-5 squircle-lg bg-[#0f0f0f] text-white p-6 sm:p-8 flex flex-col justify-between min-h-[320px]">
             <div>
               <span className="h-10 w-10 rounded-2xl bg-white/10 flex items-center justify-center">
                 <Landmark className="h-5 w-5 text-primary-custom" />
@@ -40,37 +42,32 @@ export function ToolsBento() {
               <h3 className="mt-5 font-display text-2xl font-semibold">
                 Business Bank Account
               </h3>
-              <p className="mt-2 text-sm text-background/70 max-w-md">
+              <p className="mt-2 text-sm text-white/70 max-w-md">
                 Open a real account with signatories. No more &quot;send to my
                 personal.&quot;
               </p>
             </div>
-            <div className="mt-6 rounded-2xl bg-white/5 border border-white/10 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-8 w-8 rounded-xl bg-[#e85d3a] flex items-center justify-center text-white text-xs font-bold">
-                    GT
-                  </span>
-                  <div>
-                    <p className="text-xs font-medium text-white">GTBank</p>
-                    <p className="text-[10px] text-white/50">•••• 4821 · Business</p>
-                  </div>
-                </div>
-                <span className="text-[10px] text-leaf font-medium">Live</span>
-              </div>
-              <div className="mt-3 flex items-end justify-between">
-                <div>
-                  <p className="text-[10px] text-white/50">Balance</p>
-                  <p className="font-display text-xl font-semibold tabular">
-                    ₦1,284,500.00
-                  </p>
-                </div>
-                <span className="text-[10px] text-white/50">Signatories: 2</span>
+            <div className="mt-6 rounded-2xl overflow-hidden relative">
+              <Image
+                src="https://images.pexels.com/photos/4968391/pexels-photo-4968391.jpeg?auto=compress&cs=tinysrgb&w=800"
+                alt="African business owner using the Zidwell bank account"
+                width={600}
+                height={400}
+                className="h-44 w-full object-cover"
+              />
+              <div className="absolute bottom-3 left-3 right-3 rounded-xl bg-black/60 backdrop-blur-sm p-3 text-white">
+                <p className="text-[10px] text-white/70">
+                  GTBank · •••• 4821 · Business
+                </p>
+                <p className="font-display text-lg font-semibold tabular">
+                  ₦1,284,500.00
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="md:col-span-3 squircle-lg bg-background border border-border p-6 sm:p-8 flex flex-col justify-between min-h-[280px]">
+          {/* Auto-Bookkeeping — African founder */}
+          <div className="md:col-span-3 squircle-lg bg-background border border-border p-6 sm:p-8 flex flex-col justify-between min-h-[320px]">
             <div>
               <span className="h-10 w-10 rounded-2xl bg-surface border border-border flex items-center justify-center">
                 <ClipboardList className="h-5 w-5 text-ink" />
@@ -83,22 +80,45 @@ export function ToolsBento() {
                 the ones Zidwell isn&apos;t sure about.
               </p>
             </div>
-            <div className="mt-6 flex items-end gap-1.5 h-16">
-              {[40, 55, 45, 70, 65, 85, 78, 92].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-t-sm bg-leaf"
-                  style={{ height: `${h}%`, opacity: 0.55 + i * 0.05 }}
-                />
-              ))}
+            <div className="mt-6 relative rounded-2xl overflow-hidden">
+              <Image
+                src="https://images.pexels.com/photos/6694543/pexels-photo-6694543.jpeg?auto=compress&cs=tinysrgb&w=600"
+                alt="African founder reviewing bookkeeping on Zidwell"
+                width={400}
+                height={300}
+                className="h-28 w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-2 left-3 text-white">
+                <p className="text-[10px] text-white/70">Auto-categorized</p>
+                <p className="font-display text-sm font-semibold">
+                  98% this month
+                </p>
+              </div>
             </div>
           </div>
 
           {[
-            { icon: FileText, t: "Invoice", d: "Send a branded PDF. It self-files when paid." },
-            { icon: Receipt, t: "Receipt", d: "Auto-issues on payment. Attached to the transaction." },
-            { icon: FilePen, t: "Contracts", d: "E-signature + archive, linked to the client's account." },
-            { icon: FolderLock, t: "Vault", d: "CAC, TIN, statements. One folder, not eleven." },
+            {
+              icon: FileText,
+              t: "Invoice",
+              d: "Send a branded PDF. It self-files when paid.",
+            },
+            {
+              icon: Receipt,
+              t: "Receipt",
+              d: "Auto-issues on payment. Attached to the transaction.",
+            },
+            {
+              icon: FilePen,
+              t: "Contracts",
+              d: "E-signature + archive, linked to the client's account.",
+            },
+            {
+              icon: FolderLock,
+              t: "Vault",
+              d: "CAC, TIN, statements. One folder, not eleven.",
+            },
           ].map((it) => {
             const Icon = it.icon;
             return (
@@ -110,7 +130,9 @@ export function ToolsBento() {
                   <Icon className="h-4 w-4 text-ink" />
                 </span>
                 <div>
-                  <h3 className="font-display text-base font-semibold">{it.t}</h3>
+                  <h3 className="font-display text-base font-semibold">
+                    {it.t}
+                  </h3>
                   <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                     {it.d}
                   </p>
@@ -120,7 +142,9 @@ export function ToolsBento() {
           })}
 
           <div className="md:col-span-8 squircle bg-background border border-border p-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-            <span className="text-muted-foreground font-medium">Also included:</span>
+            <span className="text-muted-foreground font-medium">
+              Also included:
+            </span>
             {[
               { icon: Store, l: "Storefront" },
               { icon: Calculator, l: "Tax calculator" },
@@ -139,7 +163,9 @@ export function ToolsBento() {
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                   {it.l}
                   {it.addon && (
-                    <span className="text-[9px] text-muted-foreground">(add-on)</span>
+                    <span className="text-[9px] text-muted-foreground">
+                      (add-on)
+                    </span>
                   )}
                 </a>
               );

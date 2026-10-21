@@ -11,7 +11,7 @@ const steps = [
   {
     n: "02",
     t: "Complete KYC",
-    img: "https://images.pexels.com/photos/5668858/pexels-photo-5668858.jpeg?auto=compress&cs=tinysrgb&w=800&h=1066&fit=crop",
+    videoUrl: "https://www.youtube.com/embed/DTX24f8IGpQ",
   },
   {
     n: "03",
@@ -57,10 +57,10 @@ export function HowItWorks() {
 
         <div className="relative mt-10 sm:mt-12">
           {/* ───── Desktop: two-column grid ───── */}
-          <div className="hidden lg:grid lg:grid-cols-[1fr_320px] lg:gap-10">
+          <div className="hidden lg:grid lg:grid-cols-[1fr_400px] lg:gap-10">
             {/* Left column — vertical timeline, stretched to fill the
-                same height as the KYC image on the right. */}
-            <div className="relative flex min-h-[350px] flex-col justify-between py-2">
+                same height as the video on the right. */}
+            <div className="relative flex min-h-[300px] flex-col justify-between py-2">
               {/* Single continuous gold connector, animated by scaleY.
                   Line sits at the EXACT center of the 16px dots (8px). */}
               <span
@@ -104,17 +104,21 @@ export function HowItWorks() {
               ))}
             </div>
 
-            {/* Right column — large image */}
+            {/* Right column — embedded YouTube tutorial */}
             <div className="relative">
-              <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float">
-                <img
-                  src={steps[1].img}
-                  alt="African founder completing KYC on Zidwell"
-                  width={800}
-                  height={1066}
-                  loading="lazy"
-                  className="w-full h-auto object-cover"
-                />
+              <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float bg-black">
+                <div className="relative w-full aspect-video">
+                  <iframe
+                    src={steps[1].videoUrl}
+                    title="Zidwell tutorial — how it works"
+                    className="absolute inset-0 h-full w-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -152,7 +156,7 @@ export function HowItWorks() {
                     )}
                   </div>
 
-                  {/* Right: content, then image below */}
+                  {/* Right: content, then video below */}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono text-muted-foreground">
                       {s.n}
@@ -160,16 +164,20 @@ export function HowItWorks() {
                     <h3 className="mt-0.5 font-display text-lg font-semibold">
                       {s.t}
                     </h3>
-                    {s.img && (
-                      <div className="mt-4 max-w-[240px] rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float">
-                        <img
-                          src={s.img}
-                          alt="African founder setting up Zidwell"
-                          width={600}
-                          height={800}
-                          loading="lazy"
-                          className="w-full h-auto object-cover"
-                        />
+                    {s.videoUrl && (
+                      <div className="mt-4 max-w-[280px] rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
+                        <div className="relative w-full aspect-video">
+                          <iframe
+                            src={s.videoUrl}
+                            title="Zidwell tutorial — how it works"
+                            className="absolute inset-0 h-full w-full"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                            loading="lazy"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>

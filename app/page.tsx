@@ -14,12 +14,16 @@ import { FAQNew } from "./components/home-component/FAQNew";
 import Footer from "./components/home-component/Footer";
 import { HowItWorks } from "./components/home-component/HowItWorks";
 
+import { ZidStoreSection } from "./components/home-component/ZidStoreSection";
+import { VideoTestimonials } from "./components/home-component/VideoTestimonials";
+import { GradientCTA } from "./components/home-component/GradientCTA";
 
 export default function HomePage() {
   return (
     <>
       <Nav />
-      <main>
+      {/* pt-16 md:pt-20 offsets the fixed nav (h-16 mobile / md:h-20 desktop) */}
+      <main className="pt-16 md:pt-20">
         <Hero />
         <TrustMarquee />
         <HowItWorks />
@@ -28,10 +32,12 @@ export default function HomePage() {
         <BankingRow />
         <ApprovalNote />
         <StatementsPreview />
+        <ZidStoreSection />
+        <VideoTestimonials />
         <EditorialQuote />
         <PricingNew />
         <FAQNew />
-      
+        <GradientCTA />
       </main>
       <Footer />
     </>

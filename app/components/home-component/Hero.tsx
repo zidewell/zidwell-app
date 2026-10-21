@@ -1,5 +1,6 @@
 // app/components/home-component/Hero.tsx
 import { ArrowRight, CheckCircle2, Store, Instagram, Play } from "lucide-react";
+import Image from "next/image";
 import { ToolkitOrbit } from "./ToolkitOrbit";
 
 export function Hero() {
@@ -29,10 +30,9 @@ export function Hero() {
             Built for ambitious SMEs
           </span>
 
-         <h1 className="mt-6 text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
-            Run Your business{" "}
-            From
-            <span style={{ color: "var(--gold)" }}>One App</span>
+          <h1 className="mt-6 text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
+            Run Your business From
+            <span style={{ color: "var(--gold)" }}> One App</span>
           </h1>
 
           <p
@@ -41,13 +41,12 @@ export function Hero() {
               color: "color-mix(in oklab, var(--background) 70%, transparent)",
             }}
           >
-            If you care about systems  and structure then Zidwell is for you. {" "}
-            It's the one place businesses get to manage their financial operations with ease.
+            If you care about systems and structure then Zidwell is for you.{" "}
+            It&apos;s the one place businesses get to manage their financial
+            operations with ease.
           </p>
 
-          {/* ── Buttons — wrap on mobile, single row on lg+ ── */}
           <div className="mt-8 flex flex-wrap gap-3 lg:flex-nowrap">
-            {/* 1 — Sign Up (primary) */}
             <a
               href="#cta"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3.5 text-sm font-semibold transition hover:opacity-90 cursor-pointer lg:px-6"
@@ -59,10 +58,11 @@ export function Hero() {
               Sign Up <ArrowRight className="h-4 w-4" />
             </a>
 
-            {/* 2 — Watch Tutorial (secondary) */}
             <a
-              href="#tutorial"
+              href="https://youtu.be/DTX24f8IGpQ?si=FgVfglySFshQHE8N"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3.5 text-sm font-semibold transition cursor-pointer lg:px-6"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 borderWidth: 1,
                 borderColor:
@@ -76,7 +76,6 @@ export function Hero() {
               Watch Tutorial
             </a>
 
-            {/* 3 — Follow on Instagram (tertiary / outline) */}
             <a
               href="https://www.instagram.com/zidwellfinance"
               target="_blank"
@@ -96,37 +95,12 @@ export function Hero() {
             </a>
           </div>
 
-          <div
-            className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs"
-            style={{
-              color: "color-mix(in oklab, var(--background) 60%, transparent)",
-            }}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2
-                className="h-4 w-4"
-                style={{ color: "var(--leaf)" }}
-              />
-              Built for everyday selling
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2
-                className="h-4 w-4"
-                style={{ color: "var(--leaf)" }}
-              />
-              Clean financial records
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2
-                className="h-4 w-4"
-                style={{ color: "var(--leaf)" }}
-              />
-              One simple dashboard
-            </span>
-          </div>
+   
+
+        
         </div>
 
-        {/* Orbit — 7 cols */}
+        {/* Orbit */}
         <div className="lg:col-span-7 flex justify-center lg:justify-end lg:-mr-4 xl:-mr-8">
           <ToolkitOrbit />
         </div>
