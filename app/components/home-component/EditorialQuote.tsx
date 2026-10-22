@@ -1,7 +1,7 @@
 // app/components/home-component/EditorialQuote.tsx
 export function EditorialQuote() {
   return (
-    <section className="py-28 bg-[#0f0f0f] text-white">
+    <section className="py-28  bg-[#0f0f0f] text-white">
       <div className="mx-auto max-w-4xl px-5 sm:px-8">
         <div className="relative">
           <span
