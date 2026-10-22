@@ -6,135 +6,96 @@ import {
 } from "@/lib/auth-check-api";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { verifyCACBasic } from "@/lib/prembly";
+import { compareNames } from "@/lib/name-match";
+import { checkAndIncrement, CAC_RATE_LIMIT } from "@/lib/rate-limit-verify";
 import type { Database } from "@/types/supabase";
 
 type BusinessUpdate = Database["public"]["Tables"]["businesses"]["Update"];
 type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
 
+const NAME_MATCH_THRESHOLD = 0.6;
+
 const debug = (label: string, data?: any) =>
   console.log(`[/verify/business-cac] ${label}`, data ?? "");
 
 export async function POST(req: NextRequest) {
-  debug("=== Business CAC verification request received ===");
-
   try {
-    // ─── 1. Authenticate ───
     const { user, newTokens } = await isAuthenticatedWithRefresh(req);
     if (!user) {
-      debug("Auth failed — no valid session");
       return NextResponse.json(
-        {
-          error:
-            "Your session has expired. Please log in again and retry.",
-          code: "SESSION_EXPIRED",
-        },
+        { error: "Your session has expired. Please log in again.", code: "SESSION_EXPIRED" },
         { status: 401 }
       );
     }
 
     const userId = user.id;
-    debug("Authenticated", { userId });
-
-    // ─── 2. Parse payload ───
     const body = await req.json().catch(() => ({}));
-    const { rcNumber, companyName, companyType } = body;
+    const { rcNumber } = body as { rcNumber?: string };
 
     if (!rcNumber || !rcNumber.trim()) {
       return NextResponse.json(
-        {
-          error: "Please enter your CAC registration number.",
-          code: "MISSING_RC_NUMBER",
-        },
+        { error: "Please enter your CAC registration number.", code: "MISSING_RC" },
         { status: 400 }
       );
     }
 
-    // Normalize: strip leading RC/BN/IT/LP/LLP if user included it
     const cleanedRc = rcNumber.trim().toUpperCase().replace(/^(RC|BN|IT|LP|LLP)/, "");
-    debug("RC number cleaned", { input: rcNumber, cleaned: cleanedRc });
 
-    // ─── 3. Load business record ───
     const supabase = getSupabaseAdmin();
 
+    // ─── Load business + idempotency ───
     const { data: business, error: bizErr } = await supabase
       .from("businesses")
       .select(
-        "id, user_id, business_name, verification_logs, cac_number, rc_number, company_name, company_status, business_address, cac_data, cac_verified, verification_status, verification_completed, business_kyc_completed, verified_at, verification_reference, verification_id, is_registered"
+        "id, user_id, business_name, signup_business_name, cac_verified, verification_logs, cac_number"
       )
       .eq("user_id", userId)
       .maybeSingle();
 
     if (bizErr || !business) {
-      debug("Business record missing", bizErr);
       return NextResponse.json(
-        {
-          error:
-            "We couldn't find your business profile. Please complete the signup steps first.",
-          code: "BUSINESS_NOT_FOUND",
-          step: "signup",
-        },
+        { error: "Business record not found. Complete signup first.", code: "BUSINESS_NOT_FOUND" },
         { status: 404 }
       );
     }
 
-    // Snapshot for rollback
-    const businessSnapshot: BusinessUpdate = {
-      cac_number: business.cac_number,
-      rc_number: business.rc_number,
-      company_name: business.company_name,
-      company_status: business.company_status,
-      business_address: business.business_address,
-      cac_data: business.cac_data,
-      cac_verified: business.cac_verified,
-      verification_status: business.verification_status,
-      verification_completed: business.verification_completed,
-      business_kyc_completed: business.business_kyc_completed,
-      verified_at: business.verified_at,
-      verification_reference: business.verification_reference,
-      verification_id: business.verification_id,
-      is_registered: business.is_registered,
-    };
+    if (business.cac_verified) {
+      const cachedName = business.business_name || "Business";
+      const resp = {
+        success: true,
+        verifiedBusinessName: cachedName,
+        nameMatched: true,
+        nameMismatch: false,
+        cached: true,
+      };
+      if (newTokens) return createAuthResponse(resp, { status: 200, newTokens });
+      return NextResponse.json(resp);
+    }
 
-    debug("Snapshot captured", businessSnapshot);
-
-    // ─── 4. Call Prembly CAC Basic ───
-    debug("Calling Prembly verifyCACBasic", {
-      rcNumber: cleanedRc,
-      companyType: companyType || "RC",
-    });
-
-    let result;
-    try {
-      result = await verifyCACBasic({
-        rcNumber: cleanedRc,
-        companyName,
-        companyType: companyType || "RC",
-      });
-    } catch (cacException: any) {
-      console.error(
-        "[/verify/business-cac] Prembly exception:",
-        cacException.message
-      );
+    // ─── Rate limit ───
+    const rate = await checkAndIncrement(userId, "cac", CAC_RATE_LIMIT);
+    if (!rate.allowed) {
       return NextResponse.json(
         {
-          error:
-            "Our verification service is temporarily unavailable. Please try again in a moment.",
-          code: "PREMBLY_UNREACHABLE",
-          retryable: true,
+          error: `Too many CAC attempts. Please try again in ${Math.ceil(
+            (rate.retryAfterSeconds || 0) / 60
+          )} minutes.`,
+          code: "RATE_LIMITED",
+          retryAfterSeconds: rate.retryAfterSeconds,
         },
-        { status: 503 }
+        { status: 429 }
       );
     }
 
-    // ─── 5. Failure path ───
-    if (!result.ok) {
-      debug("CAC verification failed", result.error);
+    // ─── Call Prembly ───
+    const result = await verifyCACBasic({ rcNumber: cleanedRc, companyType: "RC" });
 
-      // Log the failed attempt
+    if (!result.ok) {
+      debug("CAC failed", result.error);
+
       const logs: any[] = Array.isArray(business.verification_logs)
         ? business.verification_logs
         : [];
-
       await supabase
         .from("businesses")
         .update({
@@ -152,45 +113,44 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", business.id);
 
-      // Translate to user-friendly message
       const lowerErr = (result.error || "").toLowerCase();
-      let userMessage = "We couldn't verify your CAC number. Please double-check it and try again.";
-
+      let message = "We couldn't verify your CAC number. Please check it and try again.";
       if (lowerErr.includes("not found") || lowerErr.includes("record")) {
-        userMessage =
-          "We couldn't find a company with that RC number. Please check the number on your CAC certificate and try again.";
-      } else if (lowerErr.includes("mismatch")) {
-        userMessage =
-          "The RC number doesn't match the company on record. Please confirm it's correct.";
+        message =
+          "We couldn't find a company with that RC number. Check the number on your CAC certificate.";
       } else if (lowerErr.includes("inactive") || lowerErr.includes("dissolved")) {
-        userMessage =
-          "The company on record appears inactive or dissolved. Please contact support for assistance.";
-      } else if (result.error) {
-        userMessage = result.error;
+        message =
+          "The company on record appears inactive or dissolved. Please contact support.";
       }
 
       return NextResponse.json(
-        {
-          error: userMessage,
-          code: "CAC_VERIFICATION_FAILED",
-          retryable: true,
-        },
+        { error: message, code: "CAC_VERIFICATION_FAILED" },
         { status: 400 }
       );
     }
 
-    // ─── 6. Success path ───
     const data: any = result.data || {};
     const verification = result.verification;
-    const reference: string | null = verification?.reference ?? null;
+    const reference = verification?.reference ?? null;
+    const cacCompanyName = (data.company_name || "").trim();
 
-    debug("CAC verified", {
-      companyName: data.company_name,
-      rcNumber: data.rc_number,
-      status: data.company_status,
-      reference,
+    // ─── Name reconciliation ───
+    const signupName = business.signup_business_name || business.business_name || "";
+    const nameResult = compareNames(signupName, cacCompanyName, {
+      stripCorporate: true,
+      threshold: NAME_MATCH_THRESHOLD,
     });
 
+    debug("CAC name reconciliation", {
+      signupName,
+      cacCompanyName,
+      score: nameResult.score,
+      matched: nameResult.matched,
+    });
+
+    const verifiedBusinessName = (cacCompanyName || signupName || "").toUpperCase();
+
+    // ─── Save ───
     const logs: any[] = Array.isArray(business.verification_logs)
       ? business.verification_logs
       : [];
@@ -198,7 +158,7 @@ export async function POST(req: NextRequest) {
     const businessUpdate: BusinessUpdate = {
       cac_number: data.rc_number || cleanedRc,
       rc_number: data.rc_number || cleanedRc,
-      company_name: data.company_name || null,
+      company_name: cacCompanyName || null,
       company_status: data.company_status || null,
       business_address: data.company_address || null,
       cac_data: data,
@@ -210,6 +170,11 @@ export async function POST(req: NextRequest) {
       verification_reference: reference,
       verification_id: reference,
       is_registered: true,
+      // Overwrite with CAC-verified name
+      business_name: verifiedBusinessName,
+      // Preserve original for audit
+      signup_business_name: business.signup_business_name || business.business_name,
+      name_mismatch: !nameResult.matched,
       verification_logs: [
         ...logs,
         {
@@ -218,6 +183,10 @@ export async function POST(req: NextRequest) {
           status: "success",
           rc_number: data.rc_number || cleanedRc,
           reference,
+          signup_business_name: signupName,
+          cac_verified_name: cacCompanyName,
+          name_match_score: Number(nameResult.score.toFixed(3)),
+          name_matched: nameResult.matched,
           timestamp: new Date().toISOString(),
         },
       ],
@@ -229,61 +198,23 @@ export async function POST(req: NextRequest) {
       .eq("id", business.id);
 
     if (updateErr) {
-      console.error(
-        "[/verify/business-cac] Business update failed:",
-        updateErr.message
-      );
-
-      // Rollback: restore snapshot
-      try {
-        debug("Rolling back business snapshot");
-        await supabase
-          .from("businesses")
-          .update(businessSnapshot)
-          .eq("id", business.id);
-      } catch (rollbackErr: any) {
-        console.error(
-          "[/verify/business-cac] Rollback failed:",
-          rollbackErr.message
-        );
-      }
-
+      console.error("[/verify/business-cac] Update error:", updateErr);
       return NextResponse.json(
-        {
-          error:
-            "We couldn't save your CAC verification. Your progress is safe — please try again.",
-          code: "DB_UPDATE_FAILED",
-          retryable: true,
-        },
+        { error: "We couldn't save your CAC verification. Please try again.", code: "DB_UPDATE_FAILED" },
         { status: 500 }
       );
     }
 
-    // ─── 7. Mirror flag on user ───
-    const userUpdate: UserUpdate = {
-      is_business_registered: true,
-    };
+    // ─── Mirror on users ───
+    const userUpdate: UserUpdate = { is_business_registered: true };
+    await supabase.from("users").update(userUpdate).eq("id", userId);
 
-    const { error: userUpdateErr } = await supabase
-      .from("users")
-      .update(userUpdate)
-      .eq("id", userId);
-
-    if (userUpdateErr) {
-      console.error(
-        "[/verify/business-cac] User mirror update failed (non-fatal):",
-        userUpdateErr.message
-      );
-      // Not rolling back — business row is the source of truth
-    }
-
-    debug("CAC verified and saved", { businessId: business.id });
-
-    // ─── 8. Respond ───
     const responseBody = {
       success: true,
-      companyName: data.company_name,
-      rcNumber: data.rc_number || cleanedRc,
+      verifiedBusinessName,
+      companyStatus: data.company_status || null,
+      nameMatched: nameResult.matched,
+      nameMismatch: !nameResult.matched,
       reference,
     };
 
@@ -292,18 +223,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(responseBody);
   } catch (err: any) {
-    console.error("[/verify/business-cac] Unhandled exception:", {
-      message: err.message,
-      stack: err.stack,
-    });
-
+    console.error("[/verify/business-cac] Exception:", err.message);
     return NextResponse.json(
-      {
-        error:
-          "Something unexpected happened during business verification. Please try again.",
-        code: "UNEXPECTED_ERROR",
-        retryable: true,
-      },
+      { error: "Something went wrong. Please try again.", code: "UNEXPECTED_ERROR" },
       { status: 500 }
     );
   }

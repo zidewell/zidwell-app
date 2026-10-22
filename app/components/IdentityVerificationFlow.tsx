@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
-import { startPremblyVerification } from "@/lib/prembly-sdk";
 import { fetchWithRetry, isNetworkError } from "@/lib/fetch-with-retry";
-
 import {
   Check,
   ShieldCheck,
@@ -16,19 +14,19 @@ import {
   AlertCircle,
   Info,
   WifiOff,
+  IdCard,
+  BadgeCheck,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import SelfieCapture from "./SelfieCapture";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import { cn } from "@/lib/utils";
 
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
-
 type Step = 1 | 2 | 3 | "provisioning" | "success";
+type IdType = "bvn" | "nin";
 
 interface AccountDetails {
   accountNumber: string;
@@ -38,17 +36,6 @@ interface AccountDetails {
   accountType: string;
 }
 
-interface PremblyRedirectResult {
-  status: string | null;
-  code: string | null;
-  message: string | null;
-  sessionId: string | null;
-}
-
-interface Props {
-  premblyResult?: PremblyRedirectResult | null;
-}
-
 interface ApiError {
   error: string;
   code?: string;
@@ -56,38 +43,23 @@ interface ApiError {
   step?: "identity" | "pin" | "cac";
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-
-const debug = (label: string, data?: any) => {
-  console.log(`[IdentityFlow] ${label}`, data ?? "");
-};
-
-/**
- * The API routes now throw `new Error(JSON.stringify(data))` when
- * returning a non-OK response. This parses that back into a usable
- * error object.
- */
 function parseApiError(err: any): ApiError {
   if (err?.message) {
     try {
       const parsed = JSON.parse(err.message);
       if (parsed?.error) return parsed as ApiError;
-    } catch {
-      // Not JSON — fall through to raw message
-    }
+    } catch {}
     return { error: err.message };
   }
   if (typeof err === "string") return { error: err };
   return { error: "Something went wrong. Please try again." };
 }
 
-// ─────────────────────────────────────────────────────────────
-// Component
-// ─────────────────────────────────────────────────────────────
+const debug = (label: string, data?: any) => {
+  console.log(`[IdentityFlow] ${label}`, data ?? "");
+};
 
-const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
+const IdentityVerificationFlow = () => {
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
 
@@ -98,87 +70,67 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
 
   const [step, setStep] = useState<Step>(1);
 
-  // ─── Step 1: Identity ───
+  // Step 1 — Identity
+  const [idType, setIdType] = useState<IdType>("bvn");
+  const [idNumber, setIdNumber] = useState("");
+  const [selfie, setSelfie] = useState<string | null>(null);
   const [identityLoading, setIdentityLoading] = useState(false);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const [verifiedName, setVerifiedName] = useState<string | null>(null);
+  const [faceConfidence, setFaceConfidence] = useState<number | null>(null);
+  const [nameMatched, setNameMatched] = useState<boolean | null>(null);
+  const [showNameConfirmation, setShowNameConfirmation] = useState(false);
 
-  // ─── Step 2: PIN ───
+  // Step 2 — PIN
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinLoading, setPinLoading] = useState(false);
 
-  // ─── Step 3: CAC ───
+  // Step 3 — CAC
   const [rcNumber, setRcNumber] = useState("");
   const [cacLoading, setCacLoading] = useState(false);
   const [cacError, setCacError] = useState<string | null>(null);
   const [cacAttempts, setCacAttempts] = useState(0);
+  const [verifiedBusinessName, setVerifiedBusinessName] = useState<string | null>(null);
+  const [showBusinessConfirmation, setShowBusinessConfirmation] = useState(false);
 
-  // ─── Provisioning / Success ───
+  // Provisioning / Success
   const [account, setAccount] = useState<AccountDetails | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // ─── Network / retry state ───
+  // Network / retry
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [retryAction, setRetryAction] = useState<(() => void) | null>(null);
 
-  const [countdown, setCountdown] = useState(5);
+  const processedRef = useRef(false);
 
-  const processedResultRef = useRef(false);
-
-  // ═══════════════════════════════════════════════════════════
-  // Clean URL query params (after Prembly redirect)
-  // ═══════════════════════════════════════════════════════════
-  const cleanUrl = () => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete("status");
-    url.searchParams.delete("code");
-    url.searchParams.delete("message");
-    url.searchParams.delete("session_id");
-    window.history.replaceState({}, "", url.toString());
-  };
-
-  // ═══════════════════════════════════════════════════════════
-  // Clear local session storage on success
-  // ═══════════════════════════════════════════════════════════
   const clearLocalProgress = () => {
     if (typeof window === "undefined") return;
-    sessionStorage.removeItem("prembly_session_id");
     sessionStorage.removeItem("zidwell:verification:progress");
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // GUARD: Already-verified users get redirected immediately
-  // ═══════════════════════════════════════════════════════════
+  // Already verified guard
   useEffect(() => {
     if (!userData) return;
-
     const isFullyVerified =
       userData.bvnVerification === "verified" &&
-      (userData.bank78Verified === true ||
-        userData.verificationCompleted === true);
-
+      (userData.bank78Verified === true || userData.verificationCompleted === true);
     if (isFullyVerified) {
-      debug("User already verified — redirecting to dashboard");
       router.replace("/dashboard");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
-  // ═══════════════════════════════════════════════════════════
-  // RESUME: Skip completed steps on mount
-  // ═══════════════════════════════════════════════════════════
+  // Resume guard
   useEffect(() => {
-    if (!userData) return;
-    if (processedResultRef.current && premblyResult) return;
+    if (!userData || processedRef.current) return;
     if (step !== 1) return;
 
     const identityDone = userData.bvnVerification === "verified";
     const pinDone = userData.pinSet === true;
     const accountDone =
-      userData.bank78Verified === true ||
-      userData.verificationCompleted === true;
+      userData.bank78Verified === true || userData.verificationCompleted === true;
 
     if (identityDone && accountDone) {
       router.replace("/dashboard");
@@ -186,206 +138,112 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
     }
 
     if (!identityDone) return;
-
     if (!pinDone) {
-      debug("Resuming at PIN step");
       setStep(2);
       return;
     }
-
     if (isRegisteredBusiness) {
-      debug("Resuming at CAC step");
       setStep(3);
       return;
     }
-
-    debug("Resuming provisioning");
     runProvisioning();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
 
-  // ═══════════════════════════════════════════════════════════
-  // SUCCESS — refresh profile from server, then redirect.
-  // We skip the countdown gate: the user already saw the account
-  // number on the previous screen. This gets them to the dashboard
-  // immediately with fresh data.
-  // ═══════════════════════════════════════════════════════════
+  // Success redirect
   useEffect(() => {
     if (step !== "success") return;
-  
     clearLocalProgress();
-  
     let cancelled = false;
-  
+
     (async () => {
       try {
         const res = await fetch("/api/user/me", {
           credentials: "include",
           headers: { "Cache-Control": "no-cache" },
         });
-  
         if (res.ok) {
           const fresh = await res.json();
-          if (fresh?.id && !cancelled) {
-            setUserData(fresh); // persists via wrapper
-          }
+          if (fresh?.id && !cancelled) setUserData(fresh);
         }
-      } catch (err) {
-        console.warn(
-          "[IdentityFlow] Post-success refresh failed (non-fatal):",
-          err,
-        );
+      } catch (e) {
+        console.warn("[IdentityFlow] Post-success refresh failed:", e);
       } finally {
-        if (!cancelled) {
-          router.replace("/dashboard");
-        }
+        if (!cancelled) router.replace("/dashboard");
       }
     })();
-  
+
     return () => {
       cancelled = true;
     };
   }, [step, router, setUserData]);
-  // ═══════════════════════════════════════════════════════════
-  // CORE: Save identity result
-  // ═══════════════════════════════════════════════════════════
-  async function handlePremblyResult(response: any) {
+
+  // ─── Step 1: submit identity ───
+  const handleVerifyIdentity = async () => {
     setIdentityError(null);
     setNetworkError(null);
 
-    if (response?.code === "E02") {
-      setIdentityLoading(false);
-      setIdentityError("Verification cancelled. You can try again anytime.");
+    if (!/^\d{11}$/.test(idNumber)) {
+      setIdentityError(`${idType.toUpperCase()} must be exactly 11 digits.`);
+      return;
+    }
+    if (!selfie) {
+      setIdentityError("Please take a selfie first.");
       return;
     }
 
-    if (response?.code !== "00" || response?.status !== "success") {
-      setIdentityLoading(false);
-      setIdentityError(
-        response?.message || "Identity verification failed. Please try again."
-      );
-      return;
-    }
-
+    setIdentityLoading(true);
     try {
       const res = await fetchWithRetry("/api/verify/identity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ premblyResponse: response }),
+        body: JSON.stringify({
+          idType,
+          idNumber,
+          imageBase64: selfie,
+        }),
         retries: 2,
+        timeoutMs: 30000,
       });
-
       const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data));
 
-      if (!res.ok) {
-        throw new Error(JSON.stringify(data));
-      }
+      const verified = data.verifiedName as string;
+      setVerifiedName(verified);
+      setFaceConfidence(data.faceConfidence ?? null);
+      setNameMatched(data.nameMatched ?? true);
 
       setUserData({
         ...userData,
         bvnVerification: "verified",
         identityVerified: true,
+        fullName: verified,
       });
 
       setIdentityLoading(false);
-      setStep(2);
-    } catch (err: any) {
-      setIdentityLoading(false);
-
-      if (isNetworkError(err)) {
-        setNetworkError(
-          "Connection lost. Check your internet and try again."
-        );
-        setRetryAction(() => () => handlePremblyResult(response));
-        return;
-      }
-
-      const apiErr = parseApiError(err);
-
-      if (apiErr.step === "identity") {
-        setIdentityError(apiErr.error);
-        return;
-      }
-
-      setIdentityError(apiErr.error);
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // HANDLE: Prembly redirect back from SDK
-  // ═══════════════════════════════════════════════════════════
-  useEffect(() => {
-    if (!premblyResult || processedResultRef.current) return;
-    if (!premblyResult.code || !premblyResult.status) return;
-
-    processedResultRef.current = true;
-
-    const handleReturn = async () => {
-      setIdentityLoading(true);
-      setIdentityError(null);
-
-      if (premblyResult.code === "E02") {
-        setIdentityLoading(false);
-        setIdentityError("Verification cancelled. You can try again anytime.");
-        cleanUrl();
-        return;
-      }
-
-      if (premblyResult.code !== "00" || premblyResult.status !== "success") {
-        setIdentityLoading(false);
-        setIdentityError(
-          premblyResult.message || "Verification failed. Please try again."
-        );
-        cleanUrl();
-        return;
-      }
-
-      const premblyResponse = {
-        code: premblyResult.code,
-        status: premblyResult.status,
-        message: premblyResult.message,
-        session_id: premblyResult.sessionId,
-      };
-
-      await handlePremblyResult(premblyResponse);
-      cleanUrl();
-    };
-
-    handleReturn();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [premblyResult]);
-
-  // ═══════════════════════════════════════════════════════════
-  // START: Identity verification
-  // ═══════════════════════════════════════════════════════════
-  const handleStartIdentity = async () => {
-    setIdentityLoading(true);
-    setIdentityError(null);
-    setNetworkError(null);
-
-    try {
-      const returnUrl = `${window.location.origin}/verification`;
-      await startPremblyVerification(returnUrl);
-      // Page navigates away — nothing below runs.
+      setShowNameConfirmation(true);
     } catch (err: any) {
       setIdentityLoading(false);
       if (isNetworkError(err)) {
         setNetworkError("Connection lost. Check your internet and try again.");
-        setRetryAction(() => handleStartIdentity);
-      } else {
-        setIdentityError(err.message || "Could not start verification.");
+        setRetryAction(() => handleVerifyIdentity);
+        return;
       }
+      const apiErr = parseApiError(err);
+      setIdentityError(apiErr.error);
     }
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // SAVE: PIN
-  // ═══════════════════════════════════════════════════════════
+  const handleNameConfirmed = () => {
+    setShowNameConfirmation(false);
+    setStep(2);
+  };
+
+  // ─── Step 2: PIN ───
   const handleSavePin = async () => {
     setPinError(null);
     setNetworkError(null);
-
     if (!/^\d{4}$/.test(pin)) {
       setPinError("PIN must be exactly 4 digits");
       return;
@@ -405,17 +263,12 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         retries: 2,
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(JSON.stringify(data));
 
       setUserData({ ...userData, pinSet: true });
       setPinLoading(false);
-
-      if (isRegisteredBusiness) {
-        setStep(3);
-      } else {
-        await runProvisioning();
-      }
+      if (isRegisteredBusiness) setStep(3);
+      else await runProvisioning();
     } catch (err: any) {
       setPinLoading(false);
       if (isNetworkError(err)) {
@@ -428,13 +281,10 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
     }
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // VERIFY: CAC
-  // ═══════════════════════════════════════════════════════════
+  // ─── Step 3: CAC ───
   const handleVerifyCAC = async () => {
     setCacError(null);
     setNetworkError(null);
-
     if (!rcNumber.trim()) {
       setCacError("Enter your RC number");
       return;
@@ -446,31 +296,26 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          rcNumber: rcNumber.trim(),
-          companyType: "RC",
-        }),
+        body: JSON.stringify({ rcNumber: rcNumber.trim() }),
         retries: 2,
+        timeoutMs: 30000,
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(JSON.stringify(data));
 
+      setVerifiedBusinessName(data.verifiedBusinessName || null);
       setCacLoading(false);
-      await runProvisioning();
+      setShowBusinessConfirmation(true);
     } catch (err: any) {
       setCacLoading(false);
-
       if (isNetworkError(err)) {
         setNetworkError("Connection lost. Check your internet and try again.");
         setRetryAction(() => handleVerifyCAC);
         return;
       }
-
       const apiErr = parseApiError(err);
       const newAttempts = cacAttempts + 1;
       setCacAttempts(newAttempts);
-
       if (newAttempts >= 3) {
         Swal.fire({
           icon: "warning",
@@ -480,23 +325,22 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
             "We couldn't verify your CAC after 3 attempts. Please contact support.",
           confirmButtonColor: "#FDC020",
         });
-        setCacError(
-          apiErr.error || "Verification failed after 3 attempts."
-        );
+        setCacError(apiErr.error);
         return;
       }
-
       setCacError(`${apiErr.error} (Attempt ${newAttempts}/3)`);
     }
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // PROVISION: Account creation
-  // ═══════════════════════════════════════════════════════════
+  const handleBusinessConfirmed = async () => {
+    setShowBusinessConfirmation(false);
+    await runProvisioning();
+  };
+
+  // ─── Provisioning ───
   const runProvisioning = async () => {
     setStep("provisioning");
     setNetworkError(null);
-
     try {
       const res = await fetchWithRetry("/api/verify/provision-account", {
         method: "POST",
@@ -504,10 +348,9 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         credentials: "include",
         body: JSON.stringify({}),
         retries: 3,
-        timeoutMs: 30_000,
+        timeoutMs: 30000,
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(JSON.stringify(data));
 
       setAccount({
@@ -518,7 +361,6 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         accountType: data.accountType,
       });
 
-      // Sync all state so the dashboard knows the user is verified
       setUserData({
         ...userData,
         ...(data.updates || {}),
@@ -541,10 +383,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         setStep("provisioning");
         return;
       }
-
       const apiErr = parseApiError(err);
-
-      // Route back to the right step if the server says so
       if (apiErr.step === "pin") {
         setStep(2);
         setPinError(apiErr.error);
@@ -555,75 +394,41 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         setIdentityError(apiErr.error);
         return;
       }
-      if (apiErr.step === "cac") {
-        setStep(3);
-        setCacError(apiErr.error);
-        return;
-      }
-
       Swal.fire({
         icon: "error",
         title: "Account Creation Failed",
         text: apiErr.error || "Please try again in a moment.",
         confirmButtonColor: "#FDC020",
       });
-
       setStep(isRegisteredBusiness ? 3 : 2);
     }
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // Confetti
-  // ═══════════════════════════════════════════════════════════
   const triggerConfetti = () => {
     const end = Date.now() + 1500;
     const colors = ["#00B64F", "#FDC020", "#191919", "#FFFFFF"];
     const frame = () => {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors,
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors,
-      });
+      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors });
+      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors });
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // Copy account number
-  // ═══════════════════════════════════════════════════════════
   const handleCopy = async () => {
     if (!account) return;
     try {
       await navigator.clipboard.writeText(account.accountNumber);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback — do nothing
-    }
+    } catch {}
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // Derived state
-  // ═══════════════════════════════════════════════════════════
   const stepNumber = typeof step === "number" ? step : totalSteps;
   const pct = (stepNumber / totalSteps) * 100;
 
-  // ═══════════════════════════════════════════════════════════
-  // Render
-  // ═══════════════════════════════════════════════════════════
   return (
     <div className="space-y-10">
-      {/* ─── Progress bar ─── */}
       {typeof step === "number" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
@@ -643,14 +448,11 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ─── Network error banner (persistent, retryable) ─── */}
       {networkError && (
         <div className="flex items-start gap-3 p-4 rounded-lg bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30">
           <WifiOff className="h-5 w-5 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm text-(--text-primary) font-medium mb-2">
-              {networkError}
-            </p>
+            <p className="text-sm text-(--text-primary) font-medium mb-2">{networkError}</p>
             {retryAction && (
               <button
                 onClick={() => {
@@ -667,75 +469,160 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          STEP 1 — Identity
-          ═══════════════════════════════════════════════════════ */}
-      {step === 1 && (
+      {/* STEP 1 — IDENTITY */}
+      {step === 1 && !showNameConfirmation && (
         <div className="space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] text-(--text-primary)">
               Verify your identity
             </h1>
             <p className="text-lg text-(--text-secondary) max-w-xl">
-              We use Prembly to verify your BVN, NIN, or other government ID.
-              This keeps Zidwell safe for everyone.
+              Enter your BVN or NIN and take a selfie. We&apos;ll match your
+              face to the photo on file.
             </p>
           </div>
 
-          <div className="squircle-lg bg-(--bg-primary) border border-(--border-color) p-6 sm:p-8 shadow-[var(--shadow-soft)] space-y-5">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 squircle-md bg-(--color-accent-yellow)/20 flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="h-6 w-6 text-(--color-accent-yellow)" />
+          <div className="squircle-lg bg-(--bg-primary) border border-(--border-color) p-6 sm:p-8 shadow-[var(--shadow-soft)] space-y-6">
+            {/* ID type toggle */}
+            <div className="space-y-2">
+              <Label className="text-(--text-primary)">Choose ID type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["bvn", "nin"] as IdType[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setIdType(t);
+                      setIdNumber("");
+                    }}
+                    disabled={identityLoading}
+                    className={cn(
+                      "h-12 squircle-md border-2 font-semibold text-sm transition-all cursor-pointer",
+                      idType === t
+                        ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/5 text-(--text-primary)"
+                        : "border-(--border-color) bg-(--bg-primary) text-(--text-secondary) hover:border-(--text-secondary)/40"
+                    )}
+                  >
+                    {t.toUpperCase()}
+                  </button>
+                ))}
               </div>
-              <div>
-                <h3 className="font-semibold text-(--text-primary)">
-                  Secure identity check
-                </h3>
-                <p className="text-sm text-(--text-secondary) mt-1">
-                  Choose BVN, NIN, Passport, Driver&apos;s License, or
-                  Voter&apos;s card. Takes about 60 seconds.
-                </p>
-              </div>
+            </div>
+
+            {/* ID number */}
+            <div className="space-y-2">
+              <Label htmlFor="idNumber" className="text-(--text-primary)">
+                {idType.toUpperCase()} Number
+              </Label>
+              <Input
+                id="idNumber"
+                inputMode="numeric"
+                maxLength={11}
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ""))}
+                placeholder="Enter 11 digits"
+                disabled={identityLoading}
+                className="h-14 squircle-md px-5 text-base tracking-widest border-(--border-color) bg-(--bg-secondary) text-(--text-primary)"
+              />
+            </div>
+
+            {/* Selfie */}
+            <div className="space-y-2">
+              <Label className="text-(--text-primary)">Selfie</Label>
+              <SelfieCapture
+                onCapture={(d) => setSelfie(d)}
+                onClear={() => setSelfie(null)}
+                disabled={identityLoading}
+              />
             </div>
 
             <div className="flex items-start gap-2 p-3 rounded-lg bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30">
               <Info className="h-4 w-4 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
               <p className="text-sm text-(--text-primary)">
-                You&apos;ll be redirected to a secure verification page and
-                brought back here automatically.
+                Ensure good lighting and a clear view of your face. Your selfie
+                is compared to the photo on file for your {idType.toUpperCase()}.
               </p>
             </div>
 
             {identityError && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                 <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  {identityError}
-                </p>
+                <p className="text-sm text-red-600 dark:text-red-400">{identityError}</p>
               </div>
             )}
 
             <Button
-              onClick={handleStartIdentity}
-              disabled={identityLoading}
-              className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
+              onClick={handleVerifyIdentity}
+              disabled={identityLoading || idNumber.length !== 11 || !selfie}
+              className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {identityLoading ? (
                 <>
                   <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Redirecting to verification...
+                  Verifying your identity...
                 </>
               ) : (
-                "Start Identity Verification"
+                "Verify Identity"
               )}
             </Button>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          STEP 2 — PIN
-          ═══════════════════════════════════════════════════════ */}
+      {/* STEP 1 — NAME CONFIRMATION */}
+      {step === 1 && showNameConfirmation && (
+        <div className="space-y-8">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto h-20 w-20 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">
+              <BadgeCheck className="h-10 w-10 text-(--color-lemon-green)" strokeWidth={3} />
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] text-(--text-primary)">
+              Identity verified
+            </h1>
+            <p className="text-lg text-(--text-secondary) max-w-xl mx-auto">
+              Here&apos;s the name on record. This is how your name will appear
+              across Zidwell.
+            </p>
+          </div>
+
+          <div className="squircle-lg bg-(--bg-primary) border-2 border-(--color-lemon-green)/40 p-6 sm:p-8 space-y-5">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-(--text-secondary)">Verified Name</p>
+              <p className="text-2xl font-bold text-(--text-primary) tracking-tight">
+                {verifiedName}
+              </p>
+            </div>
+
+            {faceConfidence !== null && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-(--text-secondary)">Face Match Confidence</p>
+                <p className="text-lg font-semibold text-(--text-primary)">
+                  {faceConfidence.toFixed(2)}%
+                </p>
+              </div>
+            )}
+
+            {nameMatched === false && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-(--color-accent-yellow)/10 border border-(--color-accent-yellow)/30">
+                <AlertCircle className="h-4 w-4 text-(--color-accent-yellow) flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-(--text-primary)">
+                  The name on your ID is slightly different from what you entered
+                  at signup. Your account will use the ID-verified name above.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={handleNameConfirmed}
+            className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
+          >
+            Continue
+          </Button>
+        </div>
+      )}
+
+      {/* STEP 2 — PIN */}
       {step === 2 && (
         <div className="space-y-8">
           <div className="space-y-3">
@@ -754,9 +641,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                 <Lock className="h-6 w-6 text-(--color-accent-yellow)" />
               </div>
               <div>
-                <h3 className="font-semibold text-(--text-primary)">
-                  Keep it memorable but private
-                </h3>
+                <h3 className="font-semibold text-(--text-primary)">Keep it memorable but private</h3>
                 <p className="text-sm text-(--text-secondary) mt-1">
                   Avoid 1234, 0000, or your birth year.
                 </p>
@@ -765,9 +650,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-(--text-primary)">
-                  Transaction PIN
-                </Label>
+                <Label className="text-(--text-primary)">Transaction PIN</Label>
                 <Input
                   type="password"
                   inputMode="numeric"
@@ -787,9 +670,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                   maxLength={4}
                   placeholder="••••"
                   value={confirmPin}
-                  onChange={(e) =>
-                    setConfirmPin(e.target.value.replace(/\D/g, ""))
-                  }
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))}
                   disabled={pinLoading}
                   className="h-14 squircle-md px-5 text-base tracking-[0.5em] text-center border-(--border-color) bg-(--bg-secondary) text-(--text-primary)"
                 />
@@ -799,17 +680,13 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
             {pinError && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                 <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  {pinError}
-                </p>
+                <p className="text-sm text-red-600 dark:text-red-400">{pinError}</p>
               </div>
             )}
 
             <Button
               onClick={handleSavePin}
-              disabled={
-                pinLoading || pin.length !== 4 || confirmPin.length !== 4
-              }
+              disabled={pinLoading || pin.length !== 4 || confirmPin.length !== 4}
               className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {pinLoading ? (
@@ -827,18 +704,15 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          STEP 3 — CAC (registered business only)
-          ═══════════════════════════════════════════════════════ */}
-      {step === 3 && (
+      {/* STEP 3 — CAC */}
+      {step === 3 && !showBusinessConfirmation && (
         <div className="space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] text-(--text-primary)">
               Verify your business
             </h1>
             <p className="text-lg text-(--text-secondary) max-w-xl">
-              Enter your CAC registration number to verify your business and
-              unlock full business accounts.
+              Enter your CAC registration number to verify your business.
             </p>
           </div>
 
@@ -848,9 +722,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                 <Building2 className="h-6 w-6 text-(--color-accent-yellow)" />
               </div>
               <div>
-                <h3 className="font-semibold text-(--text-primary)">
-                  CAC / RC number
-                </h3>
+                <h3 className="font-semibold text-(--text-primary)">CAC / RC number</h3>
                 <p className="text-sm text-(--text-secondary) mt-1">
                   Found on your CAC certificate. Format: RC1234567 or 1234567.
                 </p>
@@ -871,9 +743,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
             {cacError && (
               <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                 <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  {cacError}
-                </p>
+                <p className="text-sm text-red-600 dark:text-red-400">{cacError}</p>
               </div>
             )}
 
@@ -888,16 +758,48 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                   Verifying CAC...
                 </>
               ) : (
-                "Verify & Create Business Account"
+                "Verify Business"
               )}
             </Button>
           </div>
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          PROVISIONING
-          ═══════════════════════════════════════════════════════ */}
+      {/* STEP 3 — BUSINESS CONFIRMATION */}
+      {step === 3 && showBusinessConfirmation && (
+        <div className="space-y-8">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto h-20 w-20 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">
+              <BadgeCheck className="h-10 w-10 text-(--color-lemon-green)" strokeWidth={3} />
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold leading-[1.05] text-(--text-primary)">
+              Business verified
+            </h1>
+            <p className="text-lg text-(--text-secondary) max-w-xl mx-auto">
+              Here&apos;s the company name on record. This is how your business
+              name will appear across Zidwell.
+            </p>
+          </div>
+
+          <div className="squircle-lg bg-(--bg-primary) border-2 border-(--color-lemon-green)/40 p-6 sm:p-8 space-y-5">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-(--text-secondary)">Verified Company Name</p>
+              <p className="text-2xl font-bold text-(--text-primary) tracking-tight">
+                {verifiedBusinessName}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleBusinessConfirmed}
+            className="w-full h-14 squircle-md text-base font-semibold bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
+          >
+            Continue
+          </Button>
+        </div>
+      )}
+
+      {/* PROVISIONING */}
       {step === "provisioning" && (
         <div className="text-center space-y-6 py-16">
           <div className="mx-auto h-16 w-16 rounded-full bg-(--color-accent-yellow)/20 flex items-center justify-center">
@@ -914,45 +816,29 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════════════════
-          SUCCESS
-          ═══════════════════════════════════════════════════════ */}
+      {/* SUCCESS */}
       {step === "success" && account && (
         <div className="space-y-8 text-center">
           <div className="mx-auto h-20 w-20 rounded-full bg-(--color-lemon-green)/20 flex items-center justify-center">
             <Check className="h-10 w-10 text-(--color-lemon-green)" strokeWidth={3} />
           </div>
-      
+
           <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-(--text-primary)">
-              You&apos;re verified!
-            </h1>
-            <p className="text-(--text-secondary)">
-              Your Zidwell account is ready to use.
-            </p>
+            <h1 className="text-4xl font-bold text-(--text-primary)">You&apos;re verified!</h1>
+            <p className="text-(--text-secondary)">Your Zidwell account is ready to use.</p>
           </div>
-      
+
           <div className="squircle-lg bg-(--bg-primary) border border-(--border-color) p-6 sm:p-8 shadow-[var(--shadow-soft)] space-y-5 text-left">
             <div className="space-y-1">
-              <p className="text-sm text-(--text-secondary) font-medium">
-                Bank Name
-              </p>
-              <p className="text-lg font-semibold text-(--text-primary)">
-                {account.bankName}
-              </p>
+              <p className="text-sm text-(--text-secondary) font-medium">Bank Name</p>
+              <p className="text-lg font-semibold text-(--text-primary)">{account.bankName}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-(--text-secondary) font-medium">
-                Account Name
-              </p>
-              <p className="text-lg font-semibold text-(--text-primary)">
-                {account.accountName}
-              </p>
+              <p className="text-sm text-(--text-secondary) font-medium">Account Name</p>
+              <p className="text-lg font-semibold text-(--text-primary)">{account.accountName}</p>
             </div>
             <div className="space-y-2">
-              <p className="text-sm text-(--text-secondary) font-medium">
-                Account Number
-              </p>
+              <p className="text-sm text-(--text-secondary) font-medium">Account Number</p>
               <div className="flex items-center gap-3 flex-wrap">
                 <p className="text-2xl font-bold tracking-widest text-(--text-primary)">
                   {account.accountNumber}
@@ -963,14 +849,10 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
                     "h-10 px-4 squircle-md text-sm font-semibold flex items-center gap-2 transition-colors cursor-pointer",
                     copied
                       ? "bg-(--color-lemon-green) text-white"
-                      : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color)",
+                      : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color)"
                   )}
                 >
-                  {copied ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
+                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   {copied ? "Copied" : "Copy"}
                 </button>
               </div>
@@ -984,7 +866,7 @@ const IdentityVerificationFlow = ({ premblyResult = null }: Props) => {
               </span>
             </div>
           </div>
-      
+
           <div className="space-y-3">
             <div className="flex items-center justify-center gap-2 text-(--text-secondary)">
               <Loader2 className="h-4 w-4 animate-spin" />

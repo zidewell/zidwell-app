@@ -1,9 +1,14 @@
 // lib/prembly.ts
 const PREMBLY_BASE = "https://api.prembly.com";
-const PREMBLY_BACKEND = "https://backend.prembly.com";
+
+const debug = (label: string, data?: any) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[PREMBLY] ${label}`, data ?? "");
+  }
+};
 
 // ─────────────────────────────────────────────────────────────
-// CAC Basic
+// CAC Basic verification (unchanged)
 // ─────────────────────────────────────────────────────────────
 
 export interface CACBasicParams {
@@ -24,7 +29,6 @@ export async function verifyCACBasic(
   params: CACBasicParams
 ): Promise<CACBasicResult> {
   const secretKey = process.env.PREMBLY_SECRET_KEY;
-
   if (!secretKey) {
     return { ok: false, error: "Prembly secret key not configured" };
   }
@@ -34,6 +38,8 @@ export async function verifyCACBasic(
     company_name: params.companyName || undefined,
     company_type: params.companyType || "RC",
   };
+
+  debug("CAC Basic request", body);
 
   try {
     const res = await fetch(`${PREMBLY_BASE}/verification/cac/basic`, {
@@ -46,6 +52,7 @@ export async function verifyCACBasic(
     });
 
     const raw = await res.json();
+    debug("CAC Basic response", raw);
 
     if (!res.ok) {
       return {
@@ -68,12 +75,7 @@ export async function verifyCACBasic(
       };
     }
 
-    return {
-      ok: true,
-      data: raw?.data,
-      verification: raw?.verification,
-      raw,
-    };
+    return { ok: true, data: raw?.data, verification: raw?.verification, raw };
   } catch (err: any) {
     console.error("[PREMBLY] CAC Basic exception:", err.message);
     return { ok: false, error: err.message };
@@ -81,234 +83,131 @@ export async function verifyCACBasic(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Session fetch
+// BVN with Face Verification
 // ─────────────────────────────────────────────────────────────
 
-export interface PremblySession {
-  session_id: string;
-  status: string;
-  channel?: string;
-  verification_data?: any;
-  overall_result?: string;
-  verification_steps?: any[];
-  metadata?: Record<string, any>;
-  [k: string]: any;
+export interface FaceVerificationParams {
+  number: string;      // 11-digit BVN or NIN
+  imageBase64: string; // data:image/jpeg;base64,...
 }
 
-export interface PremblySessionResult {
+export interface FaceVerificationResult {
   ok: boolean;
-  session?: PremblySession;
+  faceMatched?: boolean;
+  faceConfidence?: number;
+  faceMessage?: string;
+  verifiedName?: string;
+  reference?: string;
+  data?: any;
   error?: string;
   raw?: any;
 }
 
-export async function getPremblySession(
-  sessionId: string
-): Promise<PremblySessionResult> {
-  const secretKey = process.env.PREMBLY_SECRET_KEY;
+function normalizeFaceResponse(
+  raw: any
+): { ok: boolean; faceMatched: boolean; confidence: number; name?: string; reference?: string; error?: string } {
+  if (!raw) {
+    return { ok: false, faceMatched: false, confidence: 0, error: "Empty response" };
+  }
 
+  if (raw.status !== true) {
+    return {
+      ok: false,
+      faceMatched: false,
+      confidence: 0,
+      error: raw.detail || raw.message || "Verification failed",
+    };
+  }
+
+  const data = raw.data || {};
+  const face = data.face_data || {};
+  const verification = raw.verification || {};
+
+  const faceMatched =
+    face.status === true && typeof face.confidence === "number";
+  const confidence =
+    typeof face.confidence === "number" ? face.confidence : 0;
+
+  const name = [data.firstName, data.middleName, data.lastName]
+    .filter((p: any) => typeof p === "string" && p.trim().length > 0)
+    .map((p: string) => p.trim().toUpperCase())
+    .join(" ");
+
+  return {
+    ok: verification.status === "VERIFIED",
+    faceMatched,
+    confidence,
+    name: name || undefined,
+    reference: verification.reference,
+    error: face.message || undefined,
+  };
+}
+
+async function callFaceEndpoint(
+  path: string,
+  params: FaceVerificationParams
+): Promise<FaceVerificationResult> {
+  const secretKey = process.env.PREMBLY_SECRET_KEY;
   if (!secretKey) {
     return { ok: false, error: "Prembly secret key not configured" };
   }
 
-  const candidates = [
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/${sessionId}/`,
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/${sessionId}`,
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/details/${sessionId}/`,
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/get/${sessionId}/`,
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/sessions/${sessionId}/details/`,
-    `${PREMBLY_BACKEND}/api/v1/checker-widget/sdk/session/${sessionId}/`,
-  ];
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "x-api-key": secretKey,
-        },
-      });
-
-      if (res.status === 404) continue;
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.status) continue;
-
-      const session = data?.data?.session || data?.data;
-      if (session?.session_id || session?.id) {
-        return { ok: true, session, raw: data };
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-
-  return { ok: false, error: "Could not fetch session details" };
-}
-
-// ─────────────────────────────────────────────────────────────
-// BVN / NIN extraction from any Prembly payload shape
-// ─────────────────────────────────────────────────────────────
-
-const PLACEHOLDER_BVN = "00000000000";
-
-const VERIFIED_BVN_PATHS = [
-  "verification_data.verification_response_data.data.bvn",
-  "verification_data.data.bvn",
-  "addon_results.data_verification_response.data.bvn",
-  "data.bvn",
-  "bvn",
-];
-
-const VERIFIED_NIN_PATHS = [
-  "verification_data.verification_response_data.data.nin",
-  "verification_data.data.nin",
-  "addon_results.data_verification_response.data.nin",
-  "data.nin",
-  "nin",
-];
-
-const REQUEST_BVN_PATHS = [
-  "metadata.sdk_verification_details.data.payload.number",
-  "metadata.failure_reasons.bvn.request_data.number",
-  "verification_steps.0.request_data.number",
-];
-
-const REQUEST_NIN_PATHS = [
-  "metadata.sdk_verification_details.data.payload.number_nin",
-  "metadata.failure_reasons.nin.request_data.number_nin",
-  "verification_steps.0.request_data.number_nin",
-];
-
-const BVN_KEYS = [
-  "bvn",
-  "bvnNumber",
-  "bvn_number",
-  "verified_bvn",
-  "Bvn",
-  "BVN",
-  "bvnValue",
-  "bvn_value",
-];
-
-const NIN_KEYS = [
-  "nin",
-  "ninNumber",
-  "nin_number",
-  "verified_nin",
-  "Nin",
-  "NIN",
-  "ninValue",
-  "nin_value",
-];
-
-function getPath(obj: any, path: string): string | undefined {
-  if (!obj || typeof obj !== "object") return undefined;
-  const parts = path.split(".");
-  let cur: any = obj;
-  for (const part of parts) {
-    if (cur == null) return undefined;
-    const idx = Number(part);
-    if (!isNaN(idx) && Array.isArray(cur)) {
-      cur = cur[idx];
-    } else {
-      cur = cur[part];
-    }
-  }
-  return typeof cur === "string" && cur.length > 0 ? cur : undefined;
-}
-
-function cleanId(val?: string): string | undefined {
-  if (!val) return undefined;
-  const cleaned = String(val).replace(/\s+/g, "");
-  if (/^\d{11}$/.test(cleaned) && cleaned !== PLACEHOLDER_BVN) {
-    return cleaned;
-  }
-  return undefined;
-}
-
-function recursiveFind(
-  obj: any,
-  keys: string[],
-  depth = 0
-): string | undefined {
-  if (!obj || typeof obj !== "object" || depth > 8) return undefined;
-
-  for (const key of keys) {
-    const val = obj[key];
-    if (
-      typeof val === "string" &&
-      /^\d{11}$/.test(val) &&
-      val !== PLACEHOLDER_BVN
-    ) {
-      return val;
-    }
-    if (typeof val === "number") {
-      const s = String(val);
-      if (/^\d{11}$/.test(s) && s !== PLACEHOLDER_BVN) return s;
-    }
-  }
-
-  for (const val of Object.values(obj)) {
-    if (val && typeof val === "object") {
-      const found = recursiveFind(val, keys, depth + 1);
-      if (found) return found;
-    }
-  }
-
-  return undefined;
-}
-
-export function extractIdentityNumbers(payload: any): {
-  bvn?: string;
-  nin?: string;
-} {
-  if (!payload) return {};
-
-  // ─── BVN ───
-  let bvn: string | undefined;
-
-  for (const path of VERIFIED_BVN_PATHS) {
-    bvn = cleanId(getPath(payload, path));
-    if (bvn) break;
-  }
-
-  if (!bvn) {
-    for (const path of REQUEST_BVN_PATHS) {
-      bvn = cleanId(getPath(payload, path));
-      if (bvn) break;
-    }
-  }
-
-  if (!bvn) {
-    bvn = cleanId(recursiveFind(payload, BVN_KEYS));
-  }
-
-  // ─── NIN ───
-  let nin: string | undefined;
-
-  for (const path of VERIFIED_NIN_PATHS) {
-    nin = cleanId(getPath(payload, path));
-    if (nin) break;
-  }
-
-  if (!nin) {
-    for (const path of REQUEST_NIN_PATHS) {
-      nin = cleanId(getPath(payload, path));
-      if (nin) break;
-    }
-  }
-
-  if (!nin) {
-    nin = cleanId(recursiveFind(payload, NIN_KEYS));
-  }
-
-  console.log("[extractIdentityNumbers] Result:", {
-    bvn: bvn || "(not found)",
-    nin: nin || "(not found)",
+  debug(`${path} request`, {
+    numberPrefix: params.number.slice(0, 3) + "****",
+    imageLength: params.imageBase64.length,
   });
 
-  return { bvn, nin };
+  try {
+    const res = await fetch(`${PREMBLY_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        "x-api-key": secretKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        number: params.number,
+        image: params.imageBase64,
+      }),
+    });
+
+    const raw = await res.json();
+    debug(`${path} response`, raw);
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: raw?.detail || raw?.message || "Verification failed",
+        raw,
+      };
+    }
+
+    const normalized = normalizeFaceResponse(raw);
+
+    return {
+      ok: normalized.ok,
+      faceMatched: normalized.faceMatched,
+      faceConfidence: normalized.confidence,
+      faceMessage: normalized.error,
+      verifiedName: normalized.name,
+      reference: normalized.reference,
+      data: raw?.data,
+      raw,
+      error: normalized.ok ? undefined : normalized.error,
+    };
+  } catch (err: any) {
+    console.error(`[PREMBLY] ${path} exception:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+export async function verifyBVNWithFace(
+  params: FaceVerificationParams
+): Promise<FaceVerificationResult> {
+  return callFaceEndpoint("/verification/bvn_w_face", params);
+}
+
+export async function verifyNINWithFace(
+  params: FaceVerificationParams
+): Promise<FaceVerificationResult> {
+  return callFaceEndpoint("/verification/nin_w_face", params);
 }

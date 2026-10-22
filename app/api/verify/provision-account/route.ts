@@ -9,12 +9,16 @@ import { createNombaAccount } from "@/lib/nomba";
 import type { Database } from "@/types/supabase";
 
 type UserUpdate = Database["public"]["Tables"]["users"]["Update"];
+type BusinessUpdate = Database["public"]["Tables"]["businesses"]["Update"];
 
 function splitName(fullName: string): { first: string; last: string } {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length === 1) return { first: parts[0], last: parts[0] };
   return { first: parts[0], last: parts.slice(1).join(" ") };
 }
+
+const debug = (label: string, data?: any) =>
+  console.log(`[/provision] ${label}`, data ?? "");
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,18 +33,26 @@ export async function POST(req: NextRequest) {
     const { data: profile, error: userErr } = await supabase
       .from("users")
       .select(
-        "id, full_name, email, phone, purpose, is_business_registered, bvn_data, pin_set"
+        "id, full_name, email, phone, purpose, is_business_registered, bvn_data, pin_set, bank_account_number"
       )
       .eq("id", userId)
       .single();
 
     if (userErr || !profile) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    // Idempotency: already provisioned
+    if (profile.bank_account_number) {
+      debug("Already provisioned — returning cached");
+      const resp = { success: true, alreadyProvisioned: true };
+      if (newTokens) return createAuthResponse(resp, { status: 200, newTokens });
+      return NextResponse.json(resp);
     }
 
     if (!profile.pin_set) {
       return NextResponse.json(
-        { error: "Transaction PIN must be set before creating an account" },
+        { error: "Please set your transaction PIN first.", code: "PIN_NOT_SET", step: "pin" },
         { status: 400 }
       );
     }
@@ -49,17 +61,14 @@ export async function POST(req: NextRequest) {
     const isRegisteredBusiness =
       isBusiness && profile.is_business_registered === true;
 
-    const { first, last } = splitName(profile.full_name || "Zidwell User");
-
     const bvnData = (profile.bvn_data as any) || {};
     const extractedBvn: string | undefined = bvnData.bvn;
-
     if (!extractedBvn) {
       return NextResponse.json(
         {
-          error:
-            "A BVN is required for account creation. Please verify your BVN.",
+          error: "A BVN is required. Please verify your identity first.",
           code: "MISSING_BVN",
+          step: "identity",
         },
         { status: 400 }
       );
@@ -76,15 +85,9 @@ export async function POST(req: NextRequest) {
     }
 
     const accountName =
-      isRegisteredBusiness && businessName
-        ? businessName
-        : profile.full_name;
+      isRegisteredBusiness && businessName ? businessName : profile.full_name;
 
-    console.log("[/provision] Creating Nomba account:", {
-      accountName,
-      accountRef: profile.id,
-      hasBvn: !!extractedBvn,
-    });
+    debug("Creating Nomba account", { accountName, isRegisteredBusiness });
 
     const nombaResult = await createNombaAccount({
       accountName,
@@ -95,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (!nombaResult.ok || !nombaResult.account) {
       console.error("[/provision] Nomba failed:", nombaResult.error);
       return NextResponse.json(
-        { error: nombaResult.error || "Account creation failed" },
+        { error: nombaResult.error || "Account creation failed.", code: "NOMBA_FAILED" },
         { status: 500 }
       );
     }
@@ -116,6 +119,15 @@ export async function POST(req: NextRequest) {
     };
 
     await supabase.from("users").update(update).eq("id", userId);
+
+    if (isRegisteredBusiness) {
+      const bizUpdate: BusinessUpdate = {
+        bank_name: acc.bankName,
+        bank_account_name: acc.bankAccountName,
+        bank_account_number: acc.bankAccountNumber,
+      };
+      await supabase.from("businesses").update(bizUpdate).eq("user_id", userId);
+    }
 
     const responseBody = {
       success: true,
@@ -141,9 +153,9 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json(responseBody);
   } catch (err: any) {
-    console.error("[/api/verify/provision-account] Exception:", err.message);
+    console.error("[/provision] Exception:", err.message);
     return NextResponse.json(
-      { error: err.message || "Internal server error" },
+      { error: "Something went wrong. Please try again.", code: "UNEXPECTED_ERROR" },
       { status: 500 }
     );
   }
