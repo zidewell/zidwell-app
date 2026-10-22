@@ -148,7 +148,7 @@ export function Hero() {
           className="lg:col-span-7 flex justify-center lg:justify-end lg:-mr-4 xl:-mr-8"
           style={
             {
-              "--ink": "#191919",
+              "--ink": "#191919" ,
               "--background": "#FFFFFF",
             } as React.CSSProperties
           }
