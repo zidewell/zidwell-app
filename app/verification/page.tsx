@@ -2,11 +2,13 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import Carousel from "@/app/components/Carousel";
 import IdentityVerificationFlow from "@/app/components/IdentityVerificationFlow";
 
 function VerificationPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const sessionId =
@@ -27,9 +29,6 @@ function VerificationPageInner() {
 
   const hasPremblyResult = !!(premblyResult.code && premblyResult.status);
 
-  // ═══════════════════════════════════════════════════════════
-  // DEBUG: dump everything Prembly sent us
-  // ═══════════════════════════════════════════════════════════
   useEffect(() => {
     const allParams: Record<string, string> = {};
     searchParams.forEach((value, key) => {
@@ -37,21 +36,47 @@ function VerificationPageInner() {
     });
 
     console.log("\n═══ [Prembly Redirect Received] ═══");
-    console.log("Full URL:", typeof window !== "undefined" ? window.location.href : "N/A");
+    console.log(
+      "Full URL:",
+      typeof window !== "undefined" ? window.location.href : "N/A"
+    );
     console.log("All query params:", JSON.stringify(allParams, null, 2));
     console.log("Session ID (resolved):", sessionId);
-    console.log("Session ID from sessionStorage:", typeof window !== "undefined"
-      ? sessionStorage.getItem("prembly_session_id")
-      : "N/A");
+    console.log(
+      "Session ID from sessionStorage:",
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("prembly_session_id")
+        : "N/A"
+    );
     console.log("Parsed premblyResult:", JSON.stringify(premblyResult, null, 2));
     console.log("hasPremblyResult:", hasPremblyResult);
     console.log("════════════════════════════════════\n");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleBack = () => {
+    router.push("/dashboard");
+  };
+
   return (
     <div className="min-h-screen bg-(--bg-primary) lg:h-screen lg:overflow-hidden lg:flex lg:flex-row">
       <div className="w-full lg:w-1/2 lg:flex-shrink-0 lg:h-screen lg:overflow-y-auto flex flex-col">
+        {/* ─── Top bar with back button ─── */}
+        <header className="sticky top-0 z-40 bg-(--bg-primary)/85 backdrop-blur-md border-b border-(--border-color)">
+          <div className="mx-auto max-w-2xl px-5 py-3 flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className="h-10 w-10 -ml-2 rounded-full flex items-center justify-center hover:bg-(--bg-secondary) transition-colors cursor-pointer"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="h-5 w-5 text-(--text-primary)" />
+            </button>
+            <span className="text-sm font-medium text-(--text-secondary)">
+              Back to dashboard
+            </span>
+          </div>
+        </header>
+
         <main className="flex-1 mx-auto w-full max-w-2xl px-5 pt-10 pb-16 sm:pt-16">
           <IdentityVerificationFlow
             premblyResult={hasPremblyResult ? premblyResult : null}
