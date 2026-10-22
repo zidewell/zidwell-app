@@ -39,7 +39,7 @@ export function Hero() {
             Built for ambitious SMEs
           </span>
 
-          <h1 className="mt-6 text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
+          <h1 className="font-narrow-display mt-6 text-[42px] font-semibold leading-[1.04] sm:text-6xl lg:text-[64px]">
             Run Your business From
             <span style={{ color: "var(--gold)" }}> One App</span>
           </h1>

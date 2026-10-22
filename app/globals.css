@@ -681,3 +681,11 @@ button, a, [role="button"] {
 button:disabled {
   cursor: not-allowed;
 }
+
+
+.font-narrow-display {
+  font-family: var(--font-agrandir-narrow), var(--font-space-grotesk),
+    "Space Grotesk", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
