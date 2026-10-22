@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Site Map - Zidwell",
+  title: "Site Map - Zidwell ",
   description:
     "Complete list of all pages on Zidwell platform. Find sign up, login, pricing, features and more.",
   keywords: [
