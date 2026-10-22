@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
-import { fetchWithRetry, isNetworkError } from "@/lib/fetch-with-retry";
+import { fetchWithRetry, isNetworkError } from "@/lib/fetch-with-retry"; 
 import {
   Check,
   ShieldCheck,
