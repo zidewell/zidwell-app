@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useUserContextData } from "../context/userData";
 
 const FloatingWhatsApp = () => {
   const phoneNumber = "7069175399";
   const whatsappUrl = `https://wa.me/${phoneNumber}`;
 
   const pathname = usePathname();
+  const { userData, loading } = useUserContextData();
 
   const handleClick = () => {
     window.open(whatsappUrl, "_blank");
@@ -44,6 +46,9 @@ const FloatingWhatsApp = () => {
 
     // Dashboard root (exact match)
     "/dashboard",
+
+    // Store root (exact match — sub-routes handled below via startsWith)
+    "/store",
   ];
 
   // Also hide from any path that starts with these (sub-routes)
@@ -53,14 +58,21 @@ const FloatingWhatsApp = () => {
     "/admin/",
     "/blog/admin/",
     "/blog/",
-    "/dashboard/", // hides ALL dashboard-related pages
+    "/dashboard/",
+    "/store/",       // ← hides /store/lolovestore/... and any nested store route
   ];
 
+  // ─── Gate 1: must be authenticated ───
+  if (loading) return null;
+  if (!userData?.id) return null;
+
+  // ─── Gate 2: hide on restricted pages ───
   if (hideOnPages.includes(pathname)) return null;
 
   if (hideOnPathStartsWith.some((path) => pathname?.startsWith(path)))
     return null;
 
+  // ─── Otherwise: show ───
   return (
     <div
       className="fixed bottom-7 right-5 z-40 cursor-pointer transition-all duration-200 hover:scale-105"

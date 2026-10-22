@@ -1,7 +1,7 @@
 // app/api/webhook/services/payout-refund.service.ts
 
 import { createClient } from "@supabase/supabase-js";
-import { sendWithdrawalEmail } from "../helpers/email-helpers";
+import { sendRefundEmail } from "../helpers/email-helpers";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -78,6 +78,10 @@ export async function processPayoutRefund(
   const wasDeducted =
     originalTx.status === "success" && originalTx.deducted_at != null;
 
+  // ─────────────────────────────────────────────────────────────
+  // Case A: user was never deducted — nothing to credit back.
+  //         Tag the original tx so it's auditable and move on.
+  // ─────────────────────────────────────────────────────────────
   if (!wasDeducted) {
     console.log(
       "ℹ️ User was never deducted for this tx — nothing to refund. Just tagging.",
@@ -89,15 +93,20 @@ export async function processPayoutRefund(
         ...originalTx.external_response,
         refund_data: payload,
         refund_processed: true,
+        refund_processed_at: new Date().toISOString(),
         refund_amount: 0,
         refunded_at: new Date().toISOString(),
         refund_note:
           "Nomba refunded to corporate wallet, but user was never debited",
+        nomba_wallet_before: walletBalanceBefore,
+        nomba_wallet_after: walletBalanceAfter,
       },
       updated_at: new Date().toISOString(),
     };
 
-    // Only record reference if we don't already have one
+    // Only set `reference` here if it's currently empty. We don't want to
+    // overwrite an existing reference (UNIQUE constraint) or clash with
+    // another row that already holds the Nomba id.
     if (!originalTx.reference && nombaTransactionId) {
       updateData.reference = nombaTransactionId;
     }
@@ -110,6 +119,9 @@ export async function processPayoutRefund(
     return { success: true, message: "Refund noted — no user credit needed" };
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // Case B: user WAS deducted — credit the wallet back.
+  // ─────────────────────────────────────────────────────────────
   console.log(
     `💰 Crediting ₦${totalRefund} back to user ${originalTx.user_id}`,
   );
@@ -132,6 +144,7 @@ export async function processPayoutRefund(
   const balanceBefore = Number(userRow.wallet_balance);
   const balanceAfter = balanceBefore + totalRefund;
 
+  // ─── 1. Credit the wallet ───
   const { error: creditError } = await supabase
     .from("users")
     .update({
@@ -148,7 +161,18 @@ export async function processPayoutRefund(
 
   console.log(`✅ Credited ₦${totalRefund} — new balance ₦${balanceAfter}`);
 
-  const { error: refundTxError } = await supabase
+  // ─── 2. Insert refund ledger row ───
+  //
+  // `reference` is UNIQUE, so we use a deterministic refund reference.
+  // The Nomba tx id is stashed in metadata (it already exists on the
+  // original tx — duplicating it in `merchant_tx_ref` would violate
+  // the `unique_merchant_tx_ref` constraint).
+  //
+  // `balance_before` / `balance_after` are set at INSERT time so the
+  // journal trigger captures them.
+  const refundReference = `REFUND-${originalTx.id}-${nombaTransactionId}`;
+
+  const { data: refundTx, error: refundTxError } = await supabase
     .from("transactions")
     .insert({
       user_id: originalTx.user_id,
@@ -157,8 +181,8 @@ export async function processPayoutRefund(
       fee: 0,
       net_amount: totalRefund,
       status: "success",
-      reference: `REFUND-${originalTx.id}-${nombaTransactionId}`,
-      merchant_tx_ref: merchantTxRef ? `REFUND-${merchantTxRef}` : null,
+      reference: refundReference,                // ✅ UNIQUE
+      merchant_tx_ref: null,                     // ✅ Nomba id lives on the original tx
       description: `Refund for failed transfer to ${
         originalTx.receiver?.name || "recipient"
       }`,
@@ -166,17 +190,28 @@ export async function processPayoutRefund(
       channel: "payout_refund",
       sender: originalTx.receiver || null,
       receiver: originalTx.sender || null,
-      balance_before: balanceBefore,
-      balance_after: balanceAfter,
+      balance_before: balanceBefore,             // ✅ on insert
+      balance_after: balanceAfter,               // ✅ on insert
       deducted_at: new Date().toISOString(),
+      metadata: {
+        refunded_transaction_id: originalTx.id,
+        refunded_transaction_reference: originalTx.reference,
+        refunded_transaction_merchant_tx_ref: originalTx.merchant_tx_ref,
+        nomba_transaction_id: nombaTransactionId,
+        refund_amount: totalRefund,
+        wallet_balance_before: balanceBefore,
+        wallet_balance_after: balanceAfter,
+        nomba_wallet_before: walletBalanceBefore,
+        nomba_wallet_after: walletBalanceAfter,
+      },
       external_response: {
         refunded_transaction_id: originalTx.id,
         nomba_transaction_id: nombaTransactionId,
-        nomba_wallet_before: walletBalanceBefore,
-        nomba_wallet_after: walletBalanceAfter,
         refund_data: payload,
       },
-    });
+    })
+    .select("id")
+    .single();
 
   if (refundTxError) {
     console.error(
@@ -185,15 +220,21 @@ export async function processPayoutRefund(
     );
   }
 
-  // Update original tx — only set reference if missing
+  // ─── 3. Update original tx — record refund + wallet balance snapshot ───
   const originalUpdate: any = {
     status: "refunded",
     external_response: {
       ...originalTx.external_response,
       refund_data: payload,
       refund_processed: true,
+      refund_processed_at: new Date().toISOString(),
+      refund_tx_id: refundTx?.id || null,
       refund_amount: totalRefund,
       refunded_at: new Date().toISOString(),
+      wallet_balance_before_refund: balanceBefore,
+      wallet_balance_after_refund: balanceAfter,
+      nomba_wallet_before: walletBalanceBefore,
+      nomba_wallet_after: walletBalanceAfter,
     },
     updated_at: new Date().toISOString(),
   };
@@ -207,17 +248,17 @@ export async function processPayoutRefund(
     .update(originalUpdate)
     .eq("id", originalTx.id);
 
+  // ─── 4. Notify the user (email signature unchanged) ───
   const receiver = originalTx.receiver || {};
-  await sendWithdrawalEmail(
+  await sendRefundEmail(
     originalTx.user_id,
-    "failed",
-    originalTx.amount,
+    Number(originalTx.amount),
+    totalRefund,
     receiver.name || "N/A",
     receiver.accountNumber || "N/A",
     receiver.bankName || "N/A",
     originalTx.id,
-    `Transfer was refunded by the bank. ₦${totalRefund.toLocaleString()} has been returned to your wallet.`,
-    originalTx.fee,
+    Number(originalTx.fee || 0),
   ).catch((err) => console.error("Refund email failed:", err));
 
   return {

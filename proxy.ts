@@ -12,7 +12,6 @@ import {
   isBvnVerified,
   type UserDetails,
 } from "@/lib/supabase-admin";
-import { canAccessPaymentPage } from "@/lib/constants";
 
 export const TIER_HIERARCHY = [
   "free",
@@ -98,7 +97,7 @@ const publicPaths = [
   "/auth/blocked",
   "/auth/verify",
   "/auth/verify-success",
-  "/auth/callback", // ← added
+  "/auth/callback",
   "/api/auth/verify",
   "/api/auth/resend-verification",
   "/",
@@ -108,7 +107,7 @@ const publicPaths = [
   "/privacy",
   "/terms",
   "/blog",
-   "/auth/session-timeout",
+  "/auth/session-timeout",
 ];
 
 const sortedPremiumRoutes = [...premiumRoutes].sort(
@@ -122,14 +121,6 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
     }
   }
   return null;
-}
-
-function requiresPaymentEmailRestriction(pathname: string): boolean {
-  return (
-    pathname === "/dashboard/services/payment" ||
-    pathname === "/dashboard/services/payment/create" ||
-    pathname === "/dashboard/services/payment/create-link"
-  );
 }
 
 function requiresStoreOwnership(pathname: string): boolean {
@@ -406,7 +397,6 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!userDetails) {
-    // Could not load profile. Don't log out — likely transient.
     console.warn("⚠️ Could not load user details — allowing request through");
     return NextResponse.next();
   }
@@ -429,23 +419,10 @@ export async function proxy(req: NextRequest) {
     return res;
   };
 
-  if (requiresPaymentEmailRestriction(currentPath)) {
-    const email = user.email?.toLowerCase();
-    if (!canAccessPaymentPage(email)) {
-      const res = NextResponse.redirect(new URL("/dashboard", req.url));
-      res.cookies.set(
-        "payment_access_denied",
-        "You don't have permission to access the payment page",
-        { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
-      );
-      return res;
-    }
-  }
-
-  const emailForStore = user.email?.toLowerCase();
-  const isAuthorizedPaymentUser = canAccessPaymentPage(emailForStore);
-
-  if (requiresStoreOwnership(currentPath) && !isAuthorizedPaymentUser) {
+  // ── Store ownership check ──
+  // Applied to everyone — no email allow-list bypass. A user must own
+  // a store and have it activated before accessing the store sub-pages.
+  if (requiresStoreOwnership(currentPath)) {
     try {
       const supabase = getSupabaseAdmin();
       const { data: store, error: storeError } = await supabase

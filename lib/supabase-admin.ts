@@ -68,14 +68,41 @@ export interface UserDetails {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate that a value is a well-formed UUID string.
+ *
+ * Used to reject non-user-id values (Nomba references, session strings,
+ * the literal string "undefined", etc.) before they reach the database,
+ * where they would surface as PGRST116 or produce silently wrong results.
+ */
+export function isValidUserId(userId: unknown): userId is string {
+  return typeof userId === "string" && UUID_PATTERN.test(userId);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Get user with full details
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getUserWithDetails(
   userId: string,
 ): Promise<UserDetails | null> {
-  const cached = userCache.get(userId);
+  // ── Guard: reject obviously invalid input before hitting the DB ──
+  if (!isValidUserId(userId)) {
+    console.warn(
+      "⚠️ getUserWithDetails called with invalid userId (expected UUID):",
+      { userId, type: typeof userId },
+    );
+    return null;
+  }
 
+  // ── Cache hit ──
+  const cached = userCache.get(userId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.data;
   }
@@ -115,14 +142,23 @@ export async function getUserWithDetails(
     `,
     )
     .eq("id", userId)
-    .single();
+    .maybeSingle(); // ← was .single(); returns null instead of PGRST116
 
+  // ── Real DB error (RLS, malformed query, timeout) — log & bail ──
   if (error) {
-    console.error("❌ getUserWithDetails error:", error);
+    console.error("❌ getUserWithDetails DB error:", {
+      userId,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
     return null;
   }
 
+  // ── User not found — normal, not an error ──
   if (!user) {
+    console.warn("⚠️ getUserWithDetails: no user found for id", userId);
     return null;
   }
 
