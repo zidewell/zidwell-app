@@ -237,9 +237,9 @@ function DashboardPage() {
             </div>
 
             {/* Announcement Slider */}
-            <section>
+            {/*<section>
               <AnnouncementSlider />
-            </section>
+            </section>*/}
 
             {/* Quick Actions / Service Cards */}
             <section className="mt-16">

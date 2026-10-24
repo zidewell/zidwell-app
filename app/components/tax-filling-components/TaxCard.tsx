@@ -45,70 +45,8 @@ export function TaxCard({
 }: TaxCardProps) {
   const [showUpgradeTooltip, setShowUpgradeTooltip] = useState(false);
 
-  // Get tier-specific messaging
-  const getTierMessage = () => {
-    if (userTier === "free") {
-      return {
-        icon: Lock,
-        title: "SME Plan Required",
-        message: "Upgrade to SME plan to access tax calculations",
-        buttonText: "View Plans",
-        buttonLink: "/pricing?upgrade=sme",
-        bgColor: "bg-gray-100 dark:bg-gray-800",
-        textColor: "text-gray-700 dark:text-gray-300",
-        borderColor: "border-gray-200 dark:border-gray-700",
-      };
-    }
-    if (userTier === "solopreneur") {
-      return {
-        icon: Zap,
-        title: "SME Plan Required",
-        message: "Tax calculator requires SME plan or higher",
-        buttonText: "Upgrade to SME",
-        buttonLink: "/pricing?upgrade=sme",
-        bgColor: "bg-blue-100 dark:bg-blue-900/20",
-        textColor: "text-blue-700 dark:text-blue-400",
-        borderColor: "border-blue-200 dark:border-blue-800",
-      };
-    }
-    if (userTier === "sme") {
-      return {
-        icon: Star,
-        title: "Basic Tax Calculator",
-        message: "You have access to basic calculations. Upgrade to Enterprise for filing support.",
-        buttonText: "Upgrade to Enterprise",
-        buttonLink: "/pricing?upgrade=enterprise",
-        bgColor: "bg-(--color-accent-yellow)/10",
-        textColor: "text-(--color-accent-yellow)",
-        borderColor: "border-(--color-accent-yellow)/30",
-      };
-    }
-    if (userTier === "enterprise") {
-      return {
-        icon: Crown,
-        title: "Enterprise Feature",
-        message: "You have full access to all tax calculations and filing support",
-        buttonText: "Upgrade to Corporation",
-        buttonLink: "/pricing?upgrade=corporation",
-        bgColor: "bg-amber-100 dark:bg-amber-900/20",
-        textColor: "text-amber-700 dark:text-amber-400",
-        borderColor: "border-amber-200 dark:border-amber-800",
-      };
-    }
-    if (userTier === "corporation") {
-      return {
-        icon: Sparkles,
-        title: "Corporation Feature",
-        message: "You have full access including comprehensive tax filing support",
-        buttonText: "Contact Support",
-        buttonLink: "/contact",
-        bgColor: "bg-purple-100 dark:bg-purple-900/20",
-        textColor: "text-purple-700 dark:text-purple-400",
-        borderColor: "border-purple-200 dark:border-purple-800",
-      };
-    }
-    return null;
-  };
+  // Only Enterprise/Corporation users have filing support
+  const hasFilingSupport = userTier === "enterprise" || userTier === "corporation";
 
   // Get tier icon for badge
   const getTierIcon = () => {
@@ -120,7 +58,6 @@ export function TaxCard({
     return Lock;
   };
 
-  const tierInfo = getTierMessage();
   const TierIcon = getTierIcon();
 
   // Get tier colors for badge
@@ -180,37 +117,14 @@ export function TaxCard({
               {userTier === "solopreneur"
                 ? "Solopreneur"
                 : userTier === "free"
-                ? "Free Trial"
+                ? "Free"
                 : userTier}
             </span>
           </div>
         )}
       </div>
 
-      {/* Premium overlay for users without access */}
-      {!isPremium && (
-        <div
-          className="absolute inset-0 z-10 rounded-2xl bg-(--bg-primary)/60 backdrop-blur-[2px] flex items-center justify-center cursor-pointer"
-          onClick={onPremiumClick}
-        >
-          <div className="text-center space-y-3 p-6 max-w-sm">
-            <div className="w-16 h-16 mx-auto bg-(--color-accent-yellow)/10 rounded-full flex items-center justify-center">
-              <Lock className="w-8 h-8 text-(--color-accent-yellow)" />
-            </div>
-            <p className="font-subheading text-lg font-semibold text-(--text-primary)">
-              {tierInfo?.title || "Premium Feature"}
-            </p>
-            <p className="text-sm text-(--text-secondary)">
-              {tierInfo?.message || "Click to unlock tax calculations"}
-            </p>
-            <Link href={tierInfo?.buttonLink || "/pricing"}>
-              <button className="mt-2 px-6 py-2 bg-(--color-accent-yellow) text-(--color-ink) rounded-lg text-sm font-semibold hover:bg-(--color-accent-yellow)/90 transition-colors">
-                {tierInfo?.buttonText || "View Plans"}
-              </button>
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* NO premium overlay — calculator is free for everyone */}
 
       {/* Inputs */}
       <div className="space-y-4">{children}</div>
@@ -219,15 +133,13 @@ export function TaxCard({
       <div className="flex gap-3">
         <button
           onClick={onCalculate}
-          disabled={!isPremium}
-          className="px-6 py-2.5 rounded-xl bg-(--color-accent-yellow) text-(--color-ink) font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+          className="px-6 py-2.5 rounded-xl bg-(--color-accent-yellow) text-(--color-ink) font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           Calculate
         </button>
         <button
           onClick={onReset}
-          disabled={!isPremium}
-          className="px-4 py-2.5 rounded-xl border border-(--border-color) text-(--text-secondary) text-sm hover:bg-(--bg-secondary) transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+          className="px-4 py-2.5 rounded-xl border border-(--border-color) text-(--text-secondary) text-sm hover:bg-(--bg-secondary) transition-colors flex items-center gap-1.5"
         >
           <RotateCcw className="w-3.5 h-3.5" /> Reset
         </button>
@@ -283,7 +195,7 @@ export function TaxCard({
       </p>
 
       {/* Filing Link - Only show for Enterprise+ users */}
-      {(userTier === "enterprise" || userTier === "corporation") && (
+      {hasFilingSupport && (
         <div className="space-y-2">
           <a
             href="https://taxpromax.firs.gov.ng"
@@ -302,25 +214,19 @@ export function TaxCard({
         </div>
       )}
 
-      {/* Upgrade prompt for non-Enterprise users */}
-      {(userTier === "free" ||
-        userTier === "solopreneur" ||
-        userTier === "sme") && (
+      {/* Filing upsell for non-Enterprise users */}
+      {!hasFilingSupport && (
         <div className="border-t border-(--border-color) pt-4">
           <p className="text-xs text-(--text-secondary) flex items-center gap-1">
             <Lock className="w-3 h-3" />
-            Tax filing available on Enterprise and Corporation plans
+            Tax filing support available on Enterprise and Corporation plans
           </p>
-          {userTier === "sme" && (
-            <p className="text-xs text-(--color-accent-yellow) mt-1">
-              Upgrade to Enterprise for tax filing support
-            </p>
-          )}
-          {userTier === "solopreneur" && (
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Upgrade to SME for tax calculator access
-            </p>
-          )}
+          <Link
+            href="/pricing?upgrade=enterprise"
+            className="text-xs text-(--color-accent-yellow) mt-1 inline-block hover:underline"
+          >
+            Upgrade to Enterprise for tax filing support →
+          </Link>
         </div>
       )}
     </div>
