@@ -494,6 +494,8 @@ const IdentityVerificationFlow = () => {
                     onClick={() => {
                       setIdType(t);
                       setIdNumber("");
+                      setSelfie(null);        // ← force retake
+                      setIdentityError(null);
                     }}
                     disabled={identityLoading}
                     className={cn(
@@ -533,6 +535,8 @@ const IdentityVerificationFlow = () => {
                 onCapture={(d) => setSelfie(d)}
                 onClear={() => setSelfie(null)}
                 disabled={identityLoading}
+                cameraEnabled={idNumber.length === 11}
+                disabledHint="Enter your 11-digit ID number above to enable the camera."
               />
             </div>
 

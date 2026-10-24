@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, RotateCcw, Upload, X, Loader2 } from "lucide-react";
+import { Camera, RotateCcw, X, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,10 @@ interface SelfieCaptureProps {
   onCapture: (dataUrl: string) => void;
   onClear?: () => void;
   disabled?: boolean;
+  /** When false, the "Open Camera" button is disabled with a hint. */
+  cameraEnabled?: boolean;
+  /** Message shown when cameraEnabled is false. */
+  disabledHint?: string;
 }
 
 type State = "idle" | "requesting" | "streaming" | "captured" | "error";
@@ -17,10 +21,11 @@ export default function SelfieCapture({
   onCapture,
   onClear,
   disabled,
+  cameraEnabled = true,
+  disabledHint = "Complete the fields above to enable the camera.",
 }: SelfieCaptureProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [state, setState] = useState<State>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -40,6 +45,8 @@ export default function SelfieCapture({
   }, []);
 
   const startCamera = async () => {
+    if (!cameraEnabled) return;
+
     setErrorMessage(null);
     setState("requesting");
 
@@ -58,14 +65,14 @@ export default function SelfieCapture({
       const name = err?.name || "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
         setErrorMessage(
-          "Camera access was denied. You can upload a photo instead."
+          "Camera access was denied. Please allow camera access in your browser settings, then try again."
         );
       } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
         setErrorMessage(
-          "No camera found on this device. Please upload a photo instead."
+          "No camera found on this device. Verification requires a working camera."
         );
       } else {
-        setErrorMessage("Could not access the camera. Please upload a photo.");
+        setErrorMessage("Could not access the camera. Please try again.");
       }
       setState("error");
     }
@@ -101,40 +108,6 @@ export default function SelfieCapture({
     startCamera();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setErrorMessage("Please choose an image file.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-
-      // Compress via canvas
-      const img = new Image();
-      img.onload = () => {
-        const maxWidth = 640;
-        const scale = Math.min(1, maxWidth / img.width);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressed = canvas.toDataURL("image/jpeg", 0.8);
-        setCapturedImage(compressed);
-        setState("captured");
-        onCapture(compressed);
-      };
-      img.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
     <div className="space-y-3">
       {/* Preview / camera box */}
@@ -162,8 +135,11 @@ export default function SelfieCapture({
               <Camera className="h-7 w-7 text-(--color-accent-yellow)" />
             </div>
             <p className="text-sm text-(--text-secondary) max-w-xs">
-              {errorMessage ||
-                "Take a clear selfie in good lighting. Make sure your full face is visible."}
+              {state === "error"
+                ? errorMessage
+                : cameraEnabled
+                ? "Take a clear selfie in good lighting. Make sure your full face is visible."
+                : disabledHint}
             </p>
           </div>
         )}
@@ -189,27 +165,15 @@ export default function SelfieCapture({
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         {state === "idle" && (
-          <>
-            <Button
-              type="button"
-              onClick={startCamera}
-              disabled={disabled}
-              className="h-11 px-4 squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Open Camera
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              className="h-11 px-4 squircle-md border-(--border-color) text-(--text-primary) cursor-pointer"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Photo
-            </Button>
-          </>
+          <Button
+            type="button"
+            onClick={startCamera}
+            disabled={disabled || !cameraEnabled}
+            className="h-11 px-4 squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            Open Camera
+          </Button>
         )}
 
         {state === "streaming" && (
@@ -238,27 +202,15 @@ export default function SelfieCapture({
         )}
 
         {state === "error" && (
-          <>
-            <Button
-              type="button"
-              onClick={startCamera}
-              disabled={disabled}
-              className="h-11 px-4 squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 cursor-pointer"
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Try Camera Again
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              className="h-11 px-4 squircle-md border-(--border-color) text-(--text-primary) cursor-pointer"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Photo
-            </Button>
-          </>
+          <Button
+            type="button"
+            onClick={startCamera}
+            disabled={disabled || !cameraEnabled}
+            className="h-11 px-4 squircle-md bg-(--color-accent-yellow) text-(--color-ink) hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            Try Camera Again
+          </Button>
         )}
 
         {state === "captured" && (
@@ -274,15 +226,6 @@ export default function SelfieCapture({
           </Button>
         )}
       </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="user"
-        className="hidden"
-        onChange={handleFileUpload}
-      />
     </div>
   );
 }
