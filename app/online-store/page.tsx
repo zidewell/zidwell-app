@@ -16,6 +16,8 @@ import {
   FileSpreadsheet,
   Check,
   Minus,
+  Play,
+  ExternalLink,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Footer from "../components/home-component/Footer";
@@ -23,6 +25,10 @@ import Link from "next/link";
 import Image from "next/image";
 
 const heading = "font-['Space_Grotesk',sans-serif]";
+
+const VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
+const EMBED_URL =
+  "https://www.youtube.com/embed/iGCQ8AGhuS8?rel=0&modestbranding=1";
 
 const features = [
   { icon: Store, title: "Online Store", desc: "Create a beautiful online store for your products and services." },
@@ -113,14 +119,14 @@ const Landing = () => {
           </Link>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("https://youtu.be/iGCQ8AGhuS8")}
-              className="hidden rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-[#6B6B6B] hover:text-[#191919] sm:inline-flex"
+              onClick={() => router.push(VIDEO_URL)}
+              className="hidden cursor-pointer rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-[#6B6B6B] hover:text-[#191919] sm:inline-flex"
             >
               Watch Tutorial
             </button>
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="rounded-3xl  bg-[#FDC020] px-6 py-2  font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
+              className="cursor-pointer rounded-3xl bg-[#FDC020] px-6 py-2 font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
             >
               Create Your Store
             </button>
@@ -148,13 +154,13 @@ const Landing = () => {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => router.push("/dashboard/services/payment/dashboard")}
-                className="inline-flex items-center justify-center gap-2 rounded-3xl bg-[#FDC020] px-8 py-4 text-[17px] font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-[#FDC020] px-8 py-4 text-[17px] font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
               >
                 Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
               </button>
               <button
-                onClick={() => router.push("https://youtu.be/iGCQ8AGhuS8")}
-                className="inline-flex items-center justify-center gap-2 rounded-3xl border border-[#ECECEC] px-8 py-4 text-[17px] font-bold text-[#191919] transition-colors hover:border-[#191919]"
+                onClick={() => router.push(VIDEO_URL)}
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl border border-[#ECECEC] px-8 py-4 text-[17px] font-bold text-[#191919] transition-colors hover:border-[#191919]"
               >
                 Watch Tutorial
               </button>
@@ -210,6 +216,58 @@ const Landing = () => {
           </div>
         </div>
       </header>
+
+      {/* ============== TUTORIAL VIDEO ============== */}
+      <section className="mx-auto mt-20 max-w-[1200px] px-5 md:mt-28 md:px-8">
+        <div className="rounded-[40px] bg-[#191919] p-8 text-white md:p-14">
+          <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.25fr]">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-white/80">
+                <Play className="h-3.5 w-3.5 text-[#FDC020]" />
+                Tutorial
+              </span>
+              <h2 className={`${heading} mt-5 text-[32px] font-bold leading-[1.08] tracking-tight md:text-[42px]`}>
+                Watch how to set up your ZidStore in minutes.
+              </h2>
+              <p className="mt-4 text-[16px] font-medium leading-relaxed text-white/70 md:text-[17px]">
+                The complete walkthrough — from signing up and activating your store, to uploading
+                products, sharing your link and getting paid. No guesswork.
+              </p>
+              <div className="mt-6">
+                <a
+                  href={VIDEO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-[#FDC020] px-7 py-3.5 text-[16px] font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
+                >
+                  <Play className="h-[18px] w-[18px]" />
+                  Watch on YouTube
+                  <ExternalLink className="h-[14px] w-[14px]" />
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <div className="overflow-hidden rounded-[28px] bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
+                <div className="relative w-full aspect-video">
+                  <iframe
+                    src={EMBED_URL}
+                    title="ZidStore tutorial — How to set it up"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="absolute inset-0 h-full w-full border-0"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-center text-[13px] font-medium text-white/50">
+                ZidStore tutorial · How to set it up
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Problem */}
       <section className="mx-auto mt-24 max-w-[1200px] px-5 md:mt-32 md:px-8">
@@ -407,7 +465,7 @@ const Landing = () => {
             </ul>
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="mt-8 inline-flex items-center gap-2 rounded-3xl bg-[#FDC020] px-7 py-3.5 text-[16px] font-bold text-[#191919] hover:bg-[#e6a800]"
+              className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-[#FDC020] px-7 py-3.5 text-[16px] font-bold text-[#191919] hover:bg-[#e6a800]"
             >
               Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
             </button>
@@ -427,13 +485,13 @@ const Landing = () => {
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="inline-flex items-center justify-center gap-2 rounded-3xl bg-[#FDC020] px-8 py-4 text-[17px] font-bold text-[#191919] hover:bg-[#e6a800]"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-[#FDC020] px-8 py-4 text-[17px] font-bold text-[#191919] hover:bg-[#e6a800]"
             >
               Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
             </button>
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="inline-flex items-center justify-center rounded-3xl border border-[#ECECEC] bg-white px-8 py-4 text-[17px] font-bold text-[#191919] hover:border-[#191919]"
+              className="inline-flex cursor-pointer items-center justify-center rounded-3xl border border-[#ECECEC] bg-white px-8 py-4 text-[17px] font-bold text-[#191919] hover:border-[#191919]"
             >
               Get Early Access
             </button>

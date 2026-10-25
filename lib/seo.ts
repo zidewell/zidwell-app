@@ -12,7 +12,43 @@ export const siteConfig = {
   type: "website" as const,
 };
 
-// ─── Schema.org Generators ───
+// ─────────────────────────────────────────────────────────────────────────────
+// ZIDSTORE CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * ZidStore lives on its own subdomain in production:
+ *   https://store.zidwell.com
+ *
+ * In development (or if the env var is unset), it falls back to
+ *   https://zidwell.com/online-store
+ * so previews and local runs still produce valid absolute URLs.
+ */
+export const ZIDSTORE_HOST =
+  process.env.NEXT_PUBLIC_ZIDSTORE_HOST?.toLowerCase() || "";
+
+export const ZIDSTORE_BASE_URL = ZIDSTORE_HOST
+  ? `https://${ZIDSTORE_HOST}`
+  : `${siteConfig.url}/online-store`;
+
+/** The dedicated OG/social card for ZidStore. Must live in /public. */
+export const ZIDSTORE_OG_IMAGE = "/seo-online-store-feature-image.png";
+
+export const ZIDSTORE_VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
+
+export const zidStoreConfig = {
+  name: "ZidStore",
+  tagline: "The Shopify alternative for African businesses",
+  description:
+    "Launch your own online store, sell to customers across Africa and beyond, and get paid — wired into your Zidwell books. One-time activation, no monthly subscription.",
+  url: ZIDSTORE_BASE_URL,
+  ogImage: `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`,
+  locale: siteConfig.locale,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Schema.org Generators — Zidwell (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function generateOrganizationSchema() {
   return {
@@ -60,7 +96,7 @@ export function generateWebsiteSchema() {
 }
 
 export function generateBreadcrumbSchema(
-  items: { name: string; item: string }[]
+  items: { name: string; item: string }[],
 ) {
   return {
     "@context": "https://schema.org",
@@ -156,7 +192,9 @@ export function generateLocalBusinessSchema() {
   };
 }
 
-// ─── Metadata Generator (General) ───
+// ─────────────────────────────────────────────────────────────────────────────
+// Metadata Generator (General)
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface PageMetaOptions {
   title: string;
@@ -241,7 +279,7 @@ export function generatePageMetadata(options: PageMetaOptions): Metadata {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ONLINE STORE SEO
+// ONLINE STORE (storefront) SEO — unchanged public helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Strip HTML and normalize whitespace from a description field. */
@@ -257,7 +295,7 @@ function plainText(raw: string | null | undefined, fallback: string): string {
 /** Merge store keywords into a base list, dedupe, drop empty. */
 function mergeKeywords(
   base: string[],
-  extra: (string | null | undefined)[] | undefined
+  extra: (string | null | undefined)[] | undefined,
 ): string[] {
   const out = new Set<string>();
   for (const k of base) if (k) out.add(k);
@@ -282,8 +320,6 @@ export function generateStoreMetadata(store: {
 
   const fallbackDescription = `Shop at ${store.name} on Zidwell. Browse products, pay securely, and enjoy fast checkout.`;
 
-  // If the description is very short, enrich with keywords so search
-  // engines still get a meaty snippet.
   const rawPlain = plainText(store.description, "");
   const keywordPhrase =
     Array.isArray(store.keywords) && store.keywords.length > 0
@@ -294,10 +330,10 @@ export function generateStoreMetadata(store: {
     rawPlain.length >= 60
       ? rawPlain
       : rawPlain
-      ? `${rawPlain} — ${keywordPhrase || locationLine}.`
-      : keywordPhrase
-      ? `${store.name} — ${keywordPhrase} in ${locationLine}. Shop securely on Zidwell.`
-      : fallbackDescription;
+        ? `${rawPlain} — ${keywordPhrase || locationLine}.`
+        : keywordPhrase
+          ? `${store.name} — ${keywordPhrase} in ${locationLine}. Shop securely on Zidwell.`
+          : fallbackDescription;
 
   const storeUrl = `${siteConfig.url}/store/${store.slug}`;
   const image = store.logo || `${siteConfig.url}/images/og-image.png`;
@@ -316,7 +352,7 @@ export function generateStoreMetadata(store: {
         "Zidwell",
         "secure checkout",
       ],
-      store.keywords
+      store.keywords,
     ),
     alternates: {
       canonical: storeUrl,
@@ -445,7 +481,6 @@ export function generateProductMetadata(product: {
   coverImage?: string | null;
   storeName: string;
   storeSlug: string;
-  /** Optional store-level keywords to inherit, e.g. ["phones", "iphones"] */
   storeKeywords?: string[] | null;
 }): Metadata {
   const fallbackDescription = `Buy ${product.title} on ${product.storeName}. Secure checkout with card or bank transfer on Zidwell.`;
@@ -457,8 +492,8 @@ export function generateProductMetadata(product: {
     Array.isArray(product.productImages) && product.productImages.length > 0
       ? product.productImages
       : product.coverImage
-      ? [product.coverImage]
-      : [`${siteConfig.url}/images/og-image.png`];
+        ? [product.coverImage]
+        : [`${siteConfig.url}/images/og-image.png`];
 
   const priceFormatted = `₦${(Number(product.price) || 0).toLocaleString()}`;
 
@@ -476,7 +511,7 @@ export function generateProductMetadata(product: {
         "Nigeria",
         priceFormatted,
       ],
-      product.storeKeywords
+      product.storeKeywords,
     ),
     alternates: {
       canonical: productUrl,
@@ -532,7 +567,6 @@ export function generateProductSchema(product: {
   storeSlug: string;
   inStock?: boolean;
   pageType?: string;
-  /** Optional store keywords to enrich the schema */
   storeKeywords?: string[] | null;
 }) {
   const productUrl = `${siteConfig.url}/store/${product.storeSlug}/${product.slug}`;
@@ -540,8 +574,8 @@ export function generateProductSchema(product: {
     Array.isArray(product.productImages) && product.productImages.length > 0
       ? product.productImages
       : product.coverImage
-      ? [product.coverImage]
-      : [`${siteConfig.url}/images/og-image.png`];
+        ? [product.coverImage]
+        : [`${siteConfig.url}/images/og-image.png`];
 
   const availability =
     product.inStock === false
@@ -611,4 +645,202 @@ export function generateProductSchema(product: {
   }
 
   return baseSchema;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ZIDSTORE LANDING PAGE SEO  ← NEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Metadata for the ZidStore landing page (`/online-store`, served on
+ * store.zidwell.com in production).
+ *
+ * The canonical URL is the subdomain root when NEXT_PUBLIC_ZIDSTORE_HOST is
+ * set, otherwise zidwell.com/online-store (dev / preview).
+ */
+export function generateZidStoreMetadata(): Metadata {
+  const canonical = ZIDSTORE_BASE_URL;
+  const ogImage = `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`;
+
+  const keywords = [
+    "ZidStore",
+    "Shopify alternative for Africa",
+    "Shopify alternative Nigeria",
+    "online store builder Nigeria",
+    "ecommerce platform Nigeria",
+    "sell online in Africa",
+    "create an online store Nigeria",
+    "payment links Nigeria",
+    "accept payments online Nigeria",
+    "online store for SMEs",
+    "Zidwell store",
+    "ecommerce Africa",
+    "digital storefront Nigeria",
+    "one-time activation online store",
+  ];
+
+  const title = "ZidStore — The Shopify alternative for African businesses";
+  const description =
+    "Launch your online store in minutes, sell across Africa and beyond, and get paid — all wired into your Zidwell books. One-time activation, no monthly subscription.";
+
+  return {
+    metadataBase: new URL(ZIDSTORE_BASE_URL),
+    title,
+    description,
+    keywords,
+    applicationName: "ZidStore",
+    authors: [{ name: "Zidwell Technologies", url: siteConfig.url }],
+    creator: "Zidwell Technologies",
+    publisher: "Zidwell",
+    category: "Ecommerce",
+    alternates: {
+      canonical,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonical,
+      siteName: "ZidStore",
+      locale: siteConfig.locale,
+      type: "website",
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: "ZidStore — the Shopify alternative for African businesses",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@zidwellapp",
+      creator: "@zidwellapp",
+      title,
+      description,
+      images: [ogImage],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+    other: {
+      // Helps Facebook / WhatsApp build a richer preview card
+      "og:image:alt":
+        "ZidStore — the Shopify alternative for African businesses",
+    },
+  };
+}
+
+/**
+ * Structured data for the ZidStore landing page.
+ * Includes a SoftwareApplication entry + a HowTo (from the tutorial video)
+ * and a BreadcrumbList. Safe to inline in a <script type="application/ld+json">.
+ */
+export function generateZidStoreSchema() {
+  const canonical = ZIDSTORE_BASE_URL;
+  const ogImage = `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`;
+
+  const softwareApp = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": `${canonical}#app`,
+    name: "ZidStore",
+    applicationCategory: "BusinessApplication",
+    applicationSubCategory: "EcommercePlatform",
+    operatingSystem: "Web",
+    url: canonical,
+    image: ogImage,
+    description: zidStoreConfig.description,
+    featureList: [
+      "Online storefront",
+      "Product pages",
+      "Payment links",
+      "Store wallet",
+      "Connected bookkeeping",
+      "Tax management",
+      "Naira and international payments",
+    ],
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "NGN",
+      availability: "https://schema.org/InStock",
+      url: canonical,
+      description:
+        "One-time activation. No monthly subscription. Small commission per sale.",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Zidwell",
+      url: siteConfig.url,
+      logo: `${siteConfig.url}/logo.png`,
+    },
+  };
+
+  const howTo = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to set up your ZidStore in minutes",
+    description:
+      "Step-by-step setup for launching your online store on ZidStore — the Shopify alternative for African businesses.",
+    image: ogImage,
+    totalTime: "PT5M",
+    video: {
+      "@type": "VideoObject",
+      name: "ZidStore tutorial — How to set it up",
+      description:
+        "Watch the complete walkthrough for launching your ZidStore online store.",
+      thumbnailUrl: ogImage,
+      uploadDate: "2025-01-01",
+      contentUrl: ZIDSTORE_VIDEO_URL,
+      embedUrl: "https://www.youtube.com/embed/iGCQ8AGhuS8",
+    },
+    step: [
+      {
+        "@type": "HowToStep",
+        position: 1,
+        name: "Create your store",
+        text: "Sign up on Zidwell, claim your store name and complete the one-time activation.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 2,
+        name: "Add your products",
+        text: "Upload product photos, prices, currencies and delivery options from the ZidStore dashboard.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 3,
+        name: "Share your store link",
+        text: "Share your ZidStore link, product pages and payment links on WhatsApp, Instagram and social media.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 4,
+        name: "Get paid",
+        text: "Customers pay securely with card, bank transfer or USSD. Every sale flows into your Zidwell books.",
+      },
+    ],
+  };
+
+  const breadcrumb = generateBreadcrumbSchema([
+    { name: "Home", item: siteConfig.url },
+    { name: "ZidStore", item: canonical },
+  ]);
+
+  return { softwareApp, howTo, breadcrumb };
+}
+
+/** Convenience: returns the ZidStore landing page schema as an array. */
+export function generateZidStorePageSchemaArray() {
+  const { softwareApp, howTo, breadcrumb } = generateZidStoreSchema();
+  return [softwareApp, howTo, breadcrumb];
 }
