@@ -22,6 +22,7 @@ import {
   generateZidStoreMetadata,
   generateZidStorePageSchemaArray,
   ZIDSTORE_HOST,
+  ZIDSTORE_OG_IMAGE,
 } from "@/lib/seo";
 import { BlogProvider } from "./context/BlogContext";
 
@@ -39,7 +40,6 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: "swap",
 });
 
-// ✅ Accessibility + SEO friendly viewport (no maximumScale, no userScalable lock)
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#FDC020" },
@@ -50,15 +50,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dynamic metadata — branch on host so ZidStore gets its own tags.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function generateMetadata(): Promise<Metadata> {
   const host = (await headers()).get("host")?.split(":")[0]?.toLowerCase();
   const isZidStore = Boolean(ZIDSTORE_HOST && host === ZIDSTORE_HOST);
 
-  // Shared base metadata (icons, manifest, etc.) applied everywhere.
   const shared: Metadata = {
     applicationName: isZidStore ? "ZidStore" : "Zidwell",
     authors: [{ name: "Zidwell Team", url: "https://zidwell.com" }],
@@ -91,7 +86,6 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     manifest: "/manifest.json",
     other: {
-      // Verification meta only belongs on the main marketing domain.
       ...(isZidStore
         ? {}
         : {
@@ -101,13 +95,11 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   };
 
-  // ── ZidStore subdomain: lean, canonical to store.zidwell.com ──
   if (isZidStore) {
     const zidStoreMeta = generateZidStoreMetadata();
     return {
       ...shared,
       ...zidStoreMeta,
-      // Ensure overrides win when merging
       metadataBase: zidStoreMeta.metadataBase,
       title: zidStoreMeta.title,
       description: zidStoreMeta.description,
@@ -117,7 +109,6 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
-  // ── Main Zidwell domain: existing defaults, no page-specific tags ──
   return {
     ...shared,
     metadataBase: new URL("https://zidwell.com"),
@@ -140,7 +131,6 @@ export default async function RootLayout({
   const host = (await headers()).get("host")?.split(":")[0]?.toLowerCase();
   const isZidStore = Boolean(ZIDSTORE_HOST && host === ZIDSTORE_HOST);
 
-  // Pick the right set of JSON-LD blocks for the current host.
   const zidwellSchemas = isZidStore
     ? []
     : [
@@ -163,7 +153,6 @@ export default async function RootLayout({
       className={`${spaceGrotesk.variable} ${beVietnamPro.variable}`}
     >
       <head>
-        {/* Theme initialization — prevents flash of wrong theme */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -181,7 +170,6 @@ export default async function RootLayout({
           }}
         />
 
-        {/* ✅ Structured Data — Zidwell on main domain, ZidStore on subdomain */}
         {allSchemas.map((schema, i) => (
           <script
             key={i}
@@ -190,7 +178,6 @@ export default async function RootLayout({
           />
         ))}
 
-        {/* Sitemap */}
         <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         {!isZidStore && (
           <link
@@ -200,7 +187,6 @@ export default async function RootLayout({
           />
         )}
 
-        {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://cdn.zidwell.com" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -209,15 +195,10 @@ export default async function RootLayout({
           crossOrigin="anonymous"
         />
 
-        {/* Preload critical resources */}
         <link rel="preload" href="/logo.png" as="image" type="image/png" />
         <link
           rel="preload"
-          href={
-            isZidStore
-              ? "/seo-online-store-feature-image.png"
-              : "/images/og-image.png"
-          }
+          href={isZidStore ? ZIDSTORE_OG_IMAGE : "/images/og-image.png"}
           as="image"
           type="image/png"
         />
@@ -226,7 +207,6 @@ export default async function RootLayout({
         className="bg-(--bg-primary) text-(--text-primary) antialiased"
         suppressHydrationWarning={true}
       >
-        {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"
@@ -240,7 +220,6 @@ export default async function RootLayout({
           `}
         </Script>
 
-        {/* Google AdSense — main domain only (ZidStore is not ad-supported) */}
         {!isZidStore && (
           <Script
             id="adsbygoogle-init"
@@ -259,11 +238,7 @@ export default async function RootLayout({
                     <StoreProvider>
                       {children}
                       <GlobalVerificationModal />
-                      {/* <div className="fixed bottom-4 right-4 z-50">
-                        <InstallPrompt />
-                      </div> */}
                       <FloatingWhatsApp />
-                      {/* <NotificationToast /> */}
                     </StoreProvider>
                   </VerificationModalProvider>
                 </SessionWatcher>

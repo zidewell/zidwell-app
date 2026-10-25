@@ -33,8 +33,24 @@ export const ZIDSTORE_BASE_URL = ZIDSTORE_HOST
 
 /** The dedicated OG/social card for ZidStore. Must live in /public. */
 export const ZIDSTORE_OG_IMAGE = "/seo-online-store-feature-image.png";
+export const ZIDSTORE_OG_IMAGE_WIDTH = 1200;
+export const ZIDSTORE_OG_IMAGE_HEIGHT = 630;
+export const ZIDSTORE_OG_IMAGE_ALT =
+  "ZidStore — the Shopify alternative for African businesses";
 
 export const ZIDSTORE_VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
+
+/**
+ * Resolve a public asset path (e.g. "/logo.png") into an absolute URL on the
+ * given origin. Handles both "https://store.zidwell.com" (host root) and
+ * "https://zidwell.com/online-store" (sub-path) correctly — the asset always
+ * resolves against the *origin*, never the sub-path.
+ */
+function absoluteAsset(path: string, baseUrl: string): string {
+  // Use the URL constructor with a leading "/" to strip any sub-path on baseUrl.
+  const origin = new URL(baseUrl).origin;
+  return new URL(path.startsWith("/") ? path : `/${path}`, origin).toString();
+}
 
 export const zidStoreConfig = {
   name: "ZidStore",
@@ -42,7 +58,7 @@ export const zidStoreConfig = {
   description:
     "Launch your own online store, sell to customers across Africa and beyond, and get paid — wired into your Zidwell books. One-time activation, no monthly subscription.",
   url: ZIDSTORE_BASE_URL,
-  ogImage: `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`,
+  ogImage: absoluteAsset(ZIDSTORE_OG_IMAGE, ZIDSTORE_BASE_URL),
   locale: siteConfig.locale,
 };
 
@@ -279,10 +295,9 @@ export function generatePageMetadata(options: PageMetaOptions): Metadata {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ONLINE STORE (storefront) SEO — unchanged public helpers
+// ONLINE STORE (storefront) SEO
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Strip HTML and normalize whitespace from a description field. */
 function plainText(raw: string | null | undefined, fallback: string): string {
   if (!raw) return fallback;
   const stripped = raw
@@ -292,7 +307,6 @@ function plainText(raw: string | null | undefined, fallback: string): string {
   return stripped.length > 0 ? stripped.slice(0, 300) : fallback;
 }
 
-/** Merge store keywords into a base list, dedupe, drop empty. */
 function mergeKeywords(
   base: string[],
   extra: (string | null | undefined)[] | undefined,
@@ -648,19 +662,23 @@ export function generateProductSchema(product: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ZIDSTORE LANDING PAGE SEO  ← NEW
+// ZIDSTORE LANDING PAGE SEO  ← FIXED
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Metadata for the ZidStore landing page (`/online-store`, served on
  * store.zidwell.com in production).
  *
- * The canonical URL is the subdomain root when NEXT_PUBLIC_ZIDSTORE_HOST is
- * set, otherwise zidwell.com/online-store (dev / preview).
+ * IMPORTANT: og:image is resolved against the *origin* of ZIDSTORE_BASE_URL,
+ * not its full URL. Otherwise when NEXT_PUBLIC_ZIDSTORE_HOST is unset and
+ * ZIDSTORE_BASE_URL = "https://zidwell.com/online-store", you'd end up with
+ * "https://zidwell.com/online-store/seo-online-store-feature-image.png"
+ * → 404 → no og:image → social platforms fall back to the first img on page
+ * (the nav logo).
  */
 export function generateZidStoreMetadata(): Metadata {
   const canonical = ZIDSTORE_BASE_URL;
-  const ogImage = `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`;
+  const ogImage = absoluteAsset(ZIDSTORE_OG_IMAGE, ZIDSTORE_BASE_URL);
 
   const keywords = [
     "ZidStore",
@@ -706,9 +724,10 @@ export function generateZidStoreMetadata(): Metadata {
       images: [
         {
           url: ogImage,
-          width: 1200,
-          height: 630,
-          alt: "ZidStore — the Shopify alternative for African businesses",
+          width: ZIDSTORE_OG_IMAGE_WIDTH,
+          height: ZIDSTORE_OG_IMAGE_HEIGHT,
+          alt: ZIDSTORE_OG_IMAGE_ALT,
+          type: "image/png",
         },
       ],
     },
@@ -718,7 +737,14 @@ export function generateZidStoreMetadata(): Metadata {
       creator: "@zidwellapp",
       title,
       description,
-      images: [ogImage],
+      images: [
+        {
+          url: ogImage,
+          width: ZIDSTORE_OG_IMAGE_WIDTH,
+          height: ZIDSTORE_OG_IMAGE_HEIGHT,
+          alt: ZIDSTORE_OG_IMAGE_ALT,
+        },
+      ],
     },
     robots: {
       index: true,
@@ -731,22 +757,15 @@ export function generateZidStoreMetadata(): Metadata {
         "max-snippet": -1,
       },
     },
-    other: {
-      // Helps Facebook / WhatsApp build a richer preview card
-      "og:image:alt":
-        "ZidStore — the Shopify alternative for African businesses",
-    },
   };
 }
 
 /**
  * Structured data for the ZidStore landing page.
- * Includes a SoftwareApplication entry + a HowTo (from the tutorial video)
- * and a BreadcrumbList. Safe to inline in a <script type="application/ld+json">.
  */
 export function generateZidStoreSchema() {
   const canonical = ZIDSTORE_BASE_URL;
-  const ogImage = `${ZIDSTORE_BASE_URL}${ZIDSTORE_OG_IMAGE}`;
+  const ogImage = absoluteAsset(ZIDSTORE_OG_IMAGE, ZIDSTORE_BASE_URL);
 
   const softwareApp = {
     "@context": "https://schema.org",
@@ -839,7 +858,6 @@ export function generateZidStoreSchema() {
   return { softwareApp, howTo, breadcrumb };
 }
 
-/** Convenience: returns the ZidStore landing page schema as an array. */
 export function generateZidStorePageSchemaArray() {
   const { softwareApp, howTo, breadcrumb } = generateZidStoreSchema();
   return [softwareApp, howTo, breadcrumb];
