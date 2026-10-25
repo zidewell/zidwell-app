@@ -1,3 +1,4 @@
+// app/components/home-component/Nav.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,6 +6,20 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, Sun, Moon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+
+const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
+
+/**
+ * In dev (or if NEXT_PUBLIC_ZIDSTORE_HOST is unset), fall back to the
+ * internal /online-store route so local development works.
+ * In production, this resolves to https://store.zidwell.com.
+ */
+const getZidStoreHref = (): { href: string; external: boolean } => {
+  if (process.env.NODE_ENV === "development" || !ZIDSTORE_HOST) {
+    return { href: "/online-store", external: false };
+  }
+  return { href: `https://${ZIDSTORE_HOST}`, external: true };
+};
 
 export function Nav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -45,7 +60,12 @@ export function Nav() {
     return () => document.body.classList.remove("overflow-hidden");
   }, [isMenuOpen]);
 
-  const handleNavigation = (href: string) => {
+  const handleNavigation = (href: string, external = false) => {
+    if (external) {
+      window.open(href, "_blank", "noopener,noreferrer");
+      setIsMenuOpen(false);
+      return;
+    }
     if (href.startsWith("/")) {
       router.push(href);
     } else {
@@ -63,12 +83,15 @@ export function Nav() {
     setIsMenuOpen(false);
   };
 
+  const zidStore = getZidStoreHref();
+
   const navLinks = [
-    { name: "Invoice", href: "/features/invoice" },
-    { name: "Receipt", href: "/features/receipt" },
-    { name: "Schools", href: "/schools" },
-    { name: "Blog", href: "/blog" },
-    { name: "Contact", href: "contact" },
+    { name: "Invoice", href: "/features/invoice", external: false },
+    { name: "Receipt", href: "/features/receipt", external: false },
+    { name: "Schools", href: "/schools", external: false },
+    { name: "ZidStore", href: zidStore.href, external: zidStore.external },
+    { name: "Blog", href: "/blog", external: false },
+    { name: "Contact", href: "contact", external: false },
   ];
 
   return (
@@ -100,7 +123,7 @@ export function Nav() {
             {navLinks.map((link) => (
               <button
                 key={link.name}
-                onClick={() => handleNavigation(link.href)}
+                onClick={() => handleNavigation(link.href, link.external)}
                 className="font-medium text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:text-[oklch(0.17_0_0)] dark:hover:text-[oklch(0.98_0_0)] transition-colors relative group font-['Be_Vietnam_Pro',system-ui,sans-serif]"
               >
                 {link.name}
@@ -170,7 +193,7 @@ export function Nav() {
               {navLinks.map((link) => (
                 <button
                   key={link.name}
-                  onClick={() => handleNavigation(link.href)}
+                  onClick={() => handleNavigation(link.href, link.external)}
                   className="w-full text-left font-medium text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:text-[oklch(0.17_0_0)] dark:hover:text-[oklch(0.98_0_0)] transition-colors py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
                 >
                   {link.name}
@@ -179,7 +202,9 @@ export function Nav() {
 
               {/* Mobile Theme Toggle */}
               <div className="flex items-center gap-2 pt-4 border-t border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%]">
-                <span className="text-sm text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">Theme:</span>
+                <span className="text-sm text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
+                  Theme:
+                </span>
                 <div className="flex items-center gap-1 p-1 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-xl">
                   <button
                     onClick={toggleTheme}

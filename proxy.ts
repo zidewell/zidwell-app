@@ -1,6 +1,6 @@
 // proxy.ts
 // ─────────────────────────────────────────────────────────────────────────────
-// Simplified session validation for Next.js 16.
+// Session validation + subdomain routing for Next.js 16.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -21,6 +21,9 @@ export const TIER_HIERARCHY = [
 ] as const;
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
+
+const ZIDSTORE_HOST =
+  process.env.NEXT_PUBLIC_ZIDSTORE_HOST?.toLowerCase() || "store.zidwell.com";
 
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   { path: "/dashboard/bookkeeping", requiredTier: "sme" },
@@ -100,6 +103,8 @@ const publicPaths = [
   "/terms",
   "/blog",
   "/auth/session-timeout",
+  // ── ZidStore landing page (public in dev; 308'd to subdomain in prod) ──
+  "/online-store",
 ];
 
 const sortedPremiumRoutes = [...premiumRoutes].sort(
@@ -201,6 +206,8 @@ function setAuthCookies(
 ) {
   const secure = process.env.NODE_ENV === "production";
   const maxAge = 60 * 60 * 24 * 7;
+  // Share the session across zidwell.com and store.zidwell.com
+  const domain = secure ? ".zidwell.com" : undefined;
 
   response.cookies.set("sb-access-token", accessToken, {
     httpOnly: true,
@@ -208,6 +215,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
   response.cookies.set("sb-refresh-token", refreshToken, {
     httpOnly: true,
@@ -215,6 +223,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
   response.cookies.set("sb-client-session", "true", {
     httpOnly: false,
@@ -222,6 +231,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
 }
 
@@ -339,7 +349,55 @@ async function validateOrRefresh(
 
 export async function proxy(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
+  const hostname = req.headers.get("host")?.split(":")[0]?.toLowerCase();
+  const isProd = process.env.NODE_ENV === "production";
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Subdomain: store.zidwell.com
+  //   - "/"                          → rewrite to /online-store (URL stays "/")
+  //   - "/online-store"              → 308 to "/" (canonicalize)
+  //   - anything else (assets, API)  → pass through
+  // ─────────────────────────────────────────────────────────────────────
+  if (hostname === ZIDSTORE_HOST) {
+    if (
+      currentPath.startsWith("/_next") ||
+      currentPath.startsWith("/api") ||
+      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/.test(
+        currentPath,
+      )
+    ) {
+      return NextResponse.next();
+    }
+
+    if (currentPath === "/online-store" || currentPath === "/online-store/") {
+      return NextResponse.redirect(new URL("/", req.url), 308);
+    }
+
+    if (currentPath === "/") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/online-store";
+      return NextResponse.rewrite(url);
+    }
+
+    return NextResponse.next();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Main domain: zidwell.com
+  //   - "/online-store" in prod      → 308 to https://store.zidwell.com/
+  //   - "/online-store" in dev       → serve normally (publicPaths)
+  // ─────────────────────────────────────────────────────────────────────
+  if (
+    isProd &&
+    (currentPath === "/online-store" || currentPath.startsWith("/online-store/"))
+  ) {
+    const suffix = currentPath.replace(/^\/online-store/, "");
+    const target = new URL(suffix || "/", `https://${ZIDSTORE_HOST}`);
+    target.search = req.nextUrl.search;
+    return NextResponse.redirect(target, 308);
+  }
+
+  // ── Public storefront slug validation ──
   if (isPublicStoreFront(currentPath)) {
     if (!areStoreFrontSlugsValid(currentPath)) {
       return NextResponse.redirect(new URL("/", req.url));
@@ -347,6 +405,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Public routes (login, signup, /online-store in dev, etc.) ──
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
@@ -355,6 +414,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  // ── Auth ──
   const accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 
@@ -412,8 +472,6 @@ export async function proxy(req: NextRequest) {
   };
 
   // ── Store ownership check ──
-  // Applied to everyone — no email allow-list bypass. A user must own
-  // a store and have it activated before accessing the store sub-pages.
   if (requiresStoreOwnership(currentPath)) {
     try {
       const supabase = getSupabaseAdmin();
@@ -467,7 +525,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // BVN check — uses the canonical helper
+  // ── BVN check ──
   if (bvnRequiredRoutes.has(currentPath) && !isBvnVerified(userDetails)) {
     const res = NextResponse.redirect(
       new URL(
@@ -483,6 +541,7 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
+  // ── Tier check ──
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier && !hasSufficientTier(userDetails, requiredTier)) {
     const res = NextResponse.redirect(
@@ -501,6 +560,7 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
+  // ── Admin check ──
   if (
     currentPath.startsWith("/admin") ||
     currentPath.startsWith("/blog/admin")
@@ -518,7 +578,9 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/app",
+    "/online-store",
     "/dashboard/:path*",
     "/admin/:path*",
     "/blog/admin/:path*",
@@ -527,5 +589,11 @@ export const config = {
     "/payment-page/status",
     "/payment/callback",
     "/payment-page-success",
+    /*
+     * Also catch arbitrary paths on the ZidStore subdomain so the "/" rewrite
+     * works. Middleware's matcher runs before routing, and "/" is already in
+     * the list above, so no extra entry is strictly required — but keeping
+     * this comment makes it obvious why "/" is not prefixed with a domain.
+     */
   ],
 };

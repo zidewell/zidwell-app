@@ -113,14 +113,14 @@ const Landing = () => {
           </Link>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push("/dashboard/services/payment/dashboard")}
+              onClick={() => router.push("https://youtu.be/iGCQ8AGhuS8")}
               className="hidden rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-[#6B6B6B] hover:text-[#191919] sm:inline-flex"
             >
-              Get Early Access
+              Watch Tutorial
             </button>
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="rounded-3xl bg-[#191919] px-5 py-2.5 text-[15px] font-bold text-white transition-colors hover:bg-[#000]"
+              className="rounded-3xl  bg-[#FDC020] px-6 py-2  font-bold text-[#191919] transition-colors hover:bg-[#e6a800]"
             >
               Create Your Store
             </button>
@@ -136,7 +136,7 @@ const Landing = () => {
               Built for African commerce
             </span>
             <h1 className={`${heading} mt-6 text-[42px] font-bold leading-[1.03] tracking-tight md:text-[64px]`}>
-              The simpler Shopify alternative for African businesses.
+              The simplified Shopify alternative for African businesses.
             </h1>
             <p className={`${heading} mt-5 text-[20px] font-bold leading-snug text-[#191919] md:text-[24px]`}>
               Create your store. Sell your products. Get paid. Manage your money.
@@ -153,10 +153,10 @@ const Landing = () => {
                 Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
               </button>
               <button
-                onClick={() => router.push("/dashboard/services/payment/dashboard")}
+                onClick={() => router.push("https://youtu.be/iGCQ8AGhuS8")}
                 className="inline-flex items-center justify-center gap-2 rounded-3xl border border-[#ECECEC] px-8 py-4 text-[17px] font-bold text-[#191919] transition-colors hover:border-[#191919]"
               >
-                Get Early Access
+                Watch Tutorial
               </button>
             </div>
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-semibold text-[#6B6B6B]">
