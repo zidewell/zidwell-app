@@ -95,32 +95,16 @@ export function Hero() {
             </a>
           </div>
 
-          <div
-            className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs"
-            style={{ color: "rgba(255,255,255,0.6)" }}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "var(--leaf)" }} />
-              Built for everyday selling
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "var(--leaf)" }} />
-              Clean financial records
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="h-4 w-4" style={{ color: "var(--leaf)" }} />
-              One simple dashboard
-            </span>
-          </div>
+          
 
           {/* Real African faces trust strip */}
           <div className="mt-10 flex items-center gap-3">
             <div className="flex -space-x-2">
               {[
-                "https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=80&h=80&fit=crop&crop=face",
-                "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=80&h=80&fit=crop&crop=face",
-                "https://images.pexels.com/photos/5669602/pexels-photo-5669602.jpeg?auto=compress&cs=tinysrgb&w=80&h=80&fit=crop&crop=face",
-                "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=80&h=80&fit=crop&crop=face",
+                "https://images.unsplash.com/photo-1605980776566-0486c3ac7617?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
+                "https://images.unsplash.com/photo-1595211877493-41a4e5f236b3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
+                "https://images.unsplash.com/photo-1783012039560-5690190a9b9b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
+                "https://images.unsplash.com/photo-1715005881129-266ccdd75e43?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
               ].map((src, i) => (
                 <Image
                   key={i}
