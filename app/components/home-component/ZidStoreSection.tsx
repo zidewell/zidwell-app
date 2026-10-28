@@ -1,110 +1,71 @@
-// app/components/home-component/ZidStoreSection.tsx
-"use client";
-
-import { ArrowRight, ShoppingBag, Globe, Truck, ShieldCheck, ExternalLink } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { Store, ArrowRight, Play, ExternalLink } from "lucide-react";
+
+const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
+const VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
+const EMBED_URL =
+  "https://www.youtube.com/embed/iGCQ8AGhuS8?rel=0&modestbranding=1";
+
+const getZidStoreHref = (): { href: string; external: boolean } => {
+  if (process.env.NODE_ENV === "development" || !ZIDSTORE_HOST) {
+    return { href: "/online-store", external: false };
+  }
+  return { href: `https://${ZIDSTORE_HOST}`, external: true };
+};
 
 export function ZidStoreSection() {
+  const zidStore = getZidStoreHref();
+
   return (
-    <section
-      id="zidstore"
-      // Always-dark section: literal dark bg so it stays dark in both modes
-      className="py-28 bg-[#0f0f0f] text-white relative overflow-hidden"
-    >
-      <div className="absolute inset-0 grain-bg opacity-40" />
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-          {/* Left — copy */}
+    <section id="zidstore" className="py-24 sm:py-32 bg-[var(--bg-secondary)]">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-6">
-            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium border border-white/15 bg-white/5 text-white/80">
-              <ShoppingBag className="h-3.5 w-3.5" style={{ color: "var(--gold)" }} />
+            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-yellow)]/15 px-3 py-1.5 text-xs font-medium text-(--text-primary)">
+              <Store className="h-3.5 w-3.5 text-[var(--color-accent-yellow)]" />
               New · ZidStore
             </span>
-
-            <h2 className="mt-6 font-narrow-display text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
-              The{" "}
-              <span style={{ color: "var(--gold)" }}>Shopify alternative</span>{" "}
-              for African businesses.
+            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-(--text-primary)">
+              The Shopify alternative for African businesses.
             </h2>
-
-            <p className="mt-5 text-base sm:text-lg text-white/70 leading-relaxed max-w-xl">
-              Launch a storefront in minutes. Accept payments in Naira, sell
-              physical or digital products, and manage inventory — all from the
-              same dashboard you already use to run your books.
+            <p className="mt-4 text-(--text-secondary)">
+              Launch your own online store, sell to customers across Africa and
+              beyond, and get paid — all wired into your Zidwell books.
             </p>
-
-            <ul className="mt-8 space-y-3 text-sm text-white/80">
-              {[
-                { icon: Globe, t: "Custom domain + mobile-first storefront" },
-                { icon: Truck, t: "Built-in delivery and logistics tracking" },
-                { icon: ShieldCheck, t: "Paystack, Flutterwave & bank transfer built in" },
-              ].map((f) => {
-                const Icon = f.icon;
-                return (
-                  <li key={f.t} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/10">
-                      <Icon className="h-3.5 w-3.5" style={{ color: "var(--gold)" }} />
-                    </span>
-                    {f.t}
-                  </li>
-                );
-              })}
-            </ul>
-
-            <div className="mt-9 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <Link
-                href="/online-store"
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 py-3.5 text-sm font-semibold transition hover:opacity-90 cursor-pointer"
-                style={{ backgroundColor: "var(--gold)", color: "var(--ink)" }}
+                href={zidStore.href}
+                {...(zidStore.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-sm font-semibold hover:opacity-90 transition shadow-float"
               >
-                Visit ZidStore <ExternalLink className="h-4 w-4" />
+                Explore ZidStore <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/auth/signup"
-                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 py-3.5 text-sm font-semibold border border-white/20 bg-white/5 text-white transition hover:bg-white/10 cursor-pointer"
+                href={VIDEO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-(--bg-primary) border border-(--border-color) text-sm font-semibold text-(--text-primary) hover:bg-[var(--bg-secondary)] transition"
               >
-                Start your store <ArrowRight className="h-4 w-4" />
+                <Play className="h-4 w-4 text-[var(--color-lemon-green)]" />
+                Watch tutorial
+                <ExternalLink className="h-3.5 w-3.5 text-(--text-secondary)" />
               </Link>
             </div>
-
-            <p className="mt-6 text-xs text-white/50">
-              Everything you need to sell online — live in under 5 minutes.
-            </p>
           </div>
-
-          {/* Right — video + African merchant photo */}
           <div className="lg:col-span-6">
-            <div className="relative">
-              <div className="rotate-[-1.5deg] squircle-lg overflow-hidden border border-white/15 shadow-float bg-black">
-                <div className="relative w-full aspect-video">
-                  <iframe
-                    src="https://www.youtube.com/embed/iGCQ8AGhuS8"
-                    title="How to set up ZidStore"
-                    className="absolute inset-0 h-full w-full"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-
-              {/* Floating African merchant photo card */}
-              <div className="hidden sm:block absolute -bottom-10 -left-6 w-56 squircle-lg overflow-hidden border border-white/15 shadow-float bg-black">
-                <Image
-                  src="https://images.pexels.com/photos/6956903/pexels-photo-6956903.jpeg?auto=compress&cs=tinysrgb&w=640"
-                  alt="African woman running her online store with ZidStore"
-                  width={400}
-                  height={300}
-                  className="h-40 w-full object-cover"
+            <div className="squircle-lg overflow-hidden border border-(--border-color) shadow-float bg-black">
+              <div className="relative w-full aspect-video">
+                <iframe
+                  src={EMBED_URL}
+                  title="ZidStore — The Shopify alternative for African businesses (setup tutorial)"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  className="absolute inset-0 h-full w-full border-0"
                 />
-                <div className="p-3">
-                  <p className="text-[10px] font-medium text-white/60">Live storefront</p>
-                  <p className="text-sm font-semibold text-white">mara-home.zidstore.com</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">₦0 setup · Live in 5 minutes</p>
-                </div>
               </div>
             </div>
           </div>

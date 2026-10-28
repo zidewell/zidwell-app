@@ -26,8 +26,12 @@ export default function HomePage() {
       <main className="pt-16 md:pt-20">
         <Hero />
         <TrustMarquee />
-        <HowItWorks />
+
+        {/* Feature cards — Bookkeeping, ZidStore, Invoice, Receipt,
+            Tax Manager, Contracts, Business Account */}
         <ToolsBento />
+
+        <HowItWorks />
         <DashboardTabs />
         <BankingRow />
         <ApprovalNote />

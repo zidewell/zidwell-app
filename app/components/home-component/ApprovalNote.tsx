@@ -1,4 +1,3 @@
-// app/components/home-component/ApprovalNote.tsx
 import { Shield, Layers, Users, Eye } from "lucide-react";
 
 export function ApprovalNote() {
@@ -16,7 +15,7 @@ export function ApprovalNote() {
             <p className="mt-4 text-muted-foreground leading-relaxed">
               Roles, approvals, and a full audit log — so your ops lead can pay a
               supplier without you having to be on WhatsApp at midnight.
-             </p>
+            </p>
 
             <div className="mt-8 flex flex-wrap gap-2">
               {[

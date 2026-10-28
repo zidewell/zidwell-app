@@ -225,7 +225,7 @@ const getFeatures = () => {
   baseFeatures.push({
     id: 1.5,
     title: "Online Store",
-    desc: "Buy products online",
+    desc: "Sell products online",
     icon: Store,
     gradient: "from-fuchsia-500 to-purple-600",
     iconBg: "bg-fuchsia-50 dark:bg-fuchsia-950/30",

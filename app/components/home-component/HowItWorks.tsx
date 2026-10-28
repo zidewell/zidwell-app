@@ -1,7 +1,10 @@
-// app/components/home-component/HowItWorksNew.tsx
+// app/components/home-component/HowItWorks.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+
+const VIDEO_ID = "DTX24f8IGpQ";
+const EMBED_URL = `https://www.youtube.com/embed/${VIDEO_ID}?rel=0&modestbranding=1&playsinline=1`;
 
 const steps = [
   {
@@ -11,7 +14,7 @@ const steps = [
   {
     n: "02",
     t: "Complete KYC",
-    videoUrl: "https://www.youtube.com/embed/DTX24f8IGpQ",
+    videoUrl: EMBED_URL,
   },
   {
     n: "03",
@@ -45,7 +48,7 @@ export function HowItWorks() {
 
   return (
     <section id="how" className="py-20 sm:py-24">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+      <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-3">
             How it works
@@ -57,12 +60,9 @@ export function HowItWorks() {
 
         <div className="relative mt-10 sm:mt-12">
           {/* ───── Desktop: two-column grid ───── */}
-          <div className="hidden lg:grid lg:grid-cols-[1fr_400px] lg:gap-10">
-            {/* Left column — vertical timeline, stretched to fill the
-                same height as the video on the right. */}
-            <div className="relative flex min-h-[300px] flex-col justify-between py-2">
-              {/* Single continuous gold connector, animated by scaleY.
-                  Line sits at the EXACT center of the 16px dots (8px). */}
+          <div className="hidden lg:grid lg:grid-cols-[1fr_560px] lg:gap-12">
+            {/* Left column — vertical timeline */}
+            <div className="relative flex min-h-[360px] flex-col justify-between py-2">
               <span
                 ref={lineRef}
                 aria-hidden
@@ -77,7 +77,6 @@ export function HowItWorks() {
 
               {steps.map((s) => (
                 <div key={s.n} className="relative flex gap-5">
-                  {/* Dot — 16px wide, centered on the line */}
                   <span
                     className="relative z-10 mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full"
                     style={{
@@ -91,7 +90,6 @@ export function HowItWorks() {
                     />
                   </span>
 
-                  {/* Content */}
                   <div className="min-w-0 pt-0.5">
                     <p className="text-xs font-mono text-muted-foreground">
                       {s.n}
@@ -104,15 +102,14 @@ export function HowItWorks() {
               ))}
             </div>
 
-            {/* Right column — embedded YouTube tutorial */}
+            {/* Right column — bigger embedded YouTube tutorial */}
             <div className="relative">
               <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float bg-black">
                 <div className="relative w-full aspect-video">
                   <iframe
-                    src={steps[1].videoUrl}
+                    src={EMBED_URL}
                     title="Zidwell tutorial — how it works"
-                    className="absolute inset-0 h-full w-full"
-                    frameBorder="0"
+                    className="absolute inset-0 h-full w-full border-0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
@@ -123,13 +120,12 @@ export function HowItWorks() {
             </div>
           </div>
 
-          {/* ───── Mobile: stacked rows ───── */}
+          {/* ───── Mobile: stacked rows, full-width video ───── */}
           <div className="space-y-8 lg:hidden">
             {steps.map((s, i) => {
               const isLast = i === steps.length - 1;
               return (
                 <div key={s.n} className="relative flex gap-5">
-                  {/* Left: dot + connector segment */}
                   <div className="relative flex w-4 shrink-0 flex-col items-center">
                     <span
                       className="relative z-10 mt-1 flex h-4 w-4 items-center justify-center rounded-full"
@@ -156,7 +152,6 @@ export function HowItWorks() {
                     )}
                   </div>
 
-                  {/* Right: content, then video below */}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono text-muted-foreground">
                       {s.n}
@@ -165,13 +160,12 @@ export function HowItWorks() {
                       {s.t}
                     </h3>
                     {s.videoUrl && (
-                      <div className="mt-4 max-w-[280px] rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
+                      <div className="mt-4 w-full rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
                         <div className="relative w-full aspect-video">
                           <iframe
-                            src={s.videoUrl}
+                            src={EMBED_URL}
                             title="Zidwell tutorial — how it works"
-                            className="absolute inset-0 h-full w-full"
-                            frameBorder="0"
+                            className="absolute inset-0 h-full w-full border-0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             referrerPolicy="strict-origin-when-cross-origin"
                             allowFullScreen

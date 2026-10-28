@@ -206,6 +206,14 @@
     outline-width: 2px;
     outline-offset: 2px;
   }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);

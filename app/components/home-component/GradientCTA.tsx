@@ -2,7 +2,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import Image from "next/image";
+import { PhoneMock } from "./PhoneMock";
 
 export function GradientCTA() {
   return (
@@ -20,8 +20,16 @@ export function GradientCTA() {
           />
           <div className="absolute inset-0 grain-bg opacity-40 pointer-events-none" />
 
-          <div className="relative grid lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7 text-white">
+          <div className="relative grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* PhoneMock — left column */}
+            <div className="order-2 lg:order-1 lg:col-span-5 flex justify-center lg:justify-start">
+              <div className="relative rotate-[-4deg]">
+                <PhoneMock />
+              </div>
+            </div>
+
+            {/* Copy — right column */}
+            <div className="order-1 lg:order-2 lg:col-span-7 text-white">
               <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
                 Start free · No card required
               </p>
@@ -48,22 +56,6 @@ export function GradientCTA() {
                 >
                   See pricing
                 </a>
-              </div>
-            </div>
-
-            <div className="lg:col-span-5 flex justify-center lg:justify-end">
-              <div className="relative w-[260px] sm:w-[300px] rotate-[4deg]">
-                <div className="rounded-[36px] bg-black p-2 shadow-float border border-white/10">
-                  <div className="rounded-[28px] overflow-hidden">
-                    <Image
-                      src="https://images.pexels.com/photos/887987/pexels-photo-887987.jpeg?auto=compress&cs=tinysrgb&w=600"
-                      alt="African business owner using the Zidwell dashboard on mobile"
-                      width={600}
-                      height={900}
-                      className="h-[520px] w-full object-cover"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           </div>

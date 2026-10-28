@@ -1,4 +1,3 @@
-// app/components/home-component/VideoTestimonials.tsx
 "use client";
 
 import Image from "next/image";
@@ -10,7 +9,7 @@ const testimonials = [
     quote:
       "I stopped doing spreadsheets. Zidwell just knows where the money went — and I finally close my books on the 1st.",
     avatar:
-      "https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1592520113018-180c8bc831c9?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
   {
     name: "Tunde A.",
@@ -18,7 +17,7 @@ const testimonials = [
     quote:
       "My accountant sees exactly the same numbers I do now. No more back-and-forth WhatsApp screenshots.",
     avatar:
-      "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1605980776566-0486c3ac7617?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
   {
     name: "Amaka O.",
@@ -26,7 +25,7 @@ const testimonials = [
     quote:
       "First time I've closed my books on time in three years. The auto-receipts alone paid for the plan.",
     avatar:
-      "https://images.pexels.com/photos/5669602/pexels-photo-5669602.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1512790862206-20df5c0e6479?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
   {
     name: "Chidi N.",
@@ -34,7 +33,7 @@ const testimonials = [
     quote:
       "The storefront and the bookkeeping live in one place. I stopped paying for three separate tools.",
     avatar:
-      "https://images.pexels.com/photos/3777943/pexels-photo-3777943.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1595211877493-41a4e5f236b3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
   {
     name: "Fatima B.",
@@ -42,7 +41,7 @@ const testimonials = [
     quote:
       "My team now has roles and approval limits. I don't get woken up at midnight to approve payments anymore.",
     avatar:
-      "https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1784652952096-ea98d4601d7a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
   {
     name: "Ngozi E.",
@@ -50,7 +49,7 @@ const testimonials = [
     quote:
       "The bank account, the invoices, the contracts — all in one dashboard. It feels like it was built for us.",
     avatar:
-      "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=120&h=120&fit=crop&crop=face",
+      "https://images.unsplash.com/photo-1715005881129-266ccdd75e43?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
   },
 ];
 
