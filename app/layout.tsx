@@ -215,6 +215,11 @@ export default async function RootLayout({
           as="image"
           type="image/png"
         />
+
+        <link
+                 rel="stylesheet"
+                 href="https://cdn.jsdelivr.net/npm/tubeplayer@0.4.0/dist/style.css"
+               />
       </head>
       <body
         className="bg-(--bg-primary) text-(--text-primary) antialiased"

@@ -4,10 +4,7 @@ import { Hero } from "./components/home-component/Hero";
 import { TrustMarquee } from "./components/home-component/TrustMarquee";
 import { ToolsBento } from "./components/home-component/ToolsBento";
 
-import { DashboardTabs } from "./components/home-component/DashboardTabs";
 import { BankingRow } from "./components/home-component/BankingRow";
-import { ApprovalNote } from "./components/home-component/ApprovalNote";
-import { StatementsPreview } from "./components/home-component/StatementsPreview";
 import { EditorialQuote } from "./components/home-component/EditorialQuote";
 import { PricingNew } from "./components/home-component/PricingNew";
 import { FAQNew } from "./components/home-component/FAQNew";
@@ -32,10 +29,8 @@ export default function HomePage() {
         <ToolsBento />
 
         <HowItWorks />
-        <DashboardTabs />
         <BankingRow />
-        <ApprovalNote />
-        <StatementsPreview />
+
         <ZidStoreSection />
         <VideoTestimonials />
         <EditorialQuote />

@@ -2,9 +2,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+// 1. Import TubePlayer
+import TubePlayer from "tubeplayer";
+// 2. Import its CSS (critical, otherwise custom controls won't display)
 
 const VIDEO_ID = "DTX24f8IGpQ";
-const EMBED_URL = `https://www.youtube.com/embed/${VIDEO_ID}?rel=0&modestbranding=1&playsinline=1`;
 
 const steps = [
   {
@@ -14,7 +16,6 @@ const steps = [
   {
     n: "02",
     t: "Complete KYC",
-    videoUrl: EMBED_URL,
   },
   {
     n: "03",
@@ -25,6 +26,11 @@ const steps = [
 export function HowItWorks() {
   const lineRef = useRef<HTMLSpanElement>(null);
   const [inView, setInView] = useState(false);
+
+  // 3. Initialize TubePlayer (after component mounts)
+  useEffect(() => {
+    TubePlayer.init();
+  }, []);
 
   useEffect(() => {
     const el = lineRef.current;
@@ -59,9 +65,8 @@ export function HowItWorks() {
         </div>
 
         <div className="relative mt-10 sm:mt-12">
-          {/* ───── Desktop: two-column grid ───── */}
+          {/* ===== Desktop ===== */}
           <div className="hidden lg:grid lg:grid-cols-[1fr_560px] lg:gap-12">
-            {/* Left column — vertical timeline */}
             <div className="relative flex min-h-[360px] flex-col justify-between py-2">
               <span
                 ref={lineRef}
@@ -89,7 +94,6 @@ export function HowItWorks() {
                       style={{ backgroundColor: "var(--gold)" }}
                     />
                   </span>
-
                   <div className="min-w-0 pt-0.5">
                     <p className="text-xs font-mono text-muted-foreground">
                       {s.n}
@@ -102,25 +106,23 @@ export function HowItWorks() {
               ))}
             </div>
 
-            {/* Right column — bigger embedded YouTube tutorial */}
+            {/* 4. Replace iframe with TubePlayer inline container */}
             <div className="relative">
               <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float bg-black">
                 <div className="relative w-full aspect-video">
-                  <iframe
-                    src={EMBED_URL}
-                    title="Zidwell tutorial — how it works"
-                    className="absolute inset-0 h-full w-full border-0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                    loading="lazy"
+                  <div
+                    data-tube-inline={VIDEO_ID}
+                    data-tube-theme="dark"
+                    data-tube-controls="play,progress,time,mute,volume,fullscreen"
+                    data-tube-autoplay="false"
+                    className="absolute inset-0 h-full w-full"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ───── Mobile: stacked rows, full-width video ───── */}
+          {/* ===== Mobile ===== */}
           <div className="space-y-8 lg:hidden">
             {steps.map((s, i) => {
               const isLast = i === steps.length - 1;
@@ -159,17 +161,17 @@ export function HowItWorks() {
                     <h3 className="mt-0.5 font-display text-lg font-semibold">
                       {s.t}
                     </h3>
-                    {s.videoUrl && (
+
+                    {/* The video only appears on the second step (i === 1) */}
+                    {i === 1 && (
                       <div className="mt-4 w-full rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
                         <div className="relative w-full aspect-video">
-                          <iframe
-                            src={EMBED_URL}
-                            title="Zidwell tutorial — how it works"
-                            className="absolute inset-0 h-full w-full border-0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            referrerPolicy="strict-origin-when-cross-origin"
-                            allowFullScreen
-                            loading="lazy"
+                          <div
+                            data-tube-inline={VIDEO_ID}
+                            data-tube-theme="dark"
+                            data-tube-controls="play,progress,time,mute,volume,fullscreen"
+                            data-tube-autoplay="false"
+                            className="absolute inset-0 h-full w-full"
                           />
                         </div>
                       </div>

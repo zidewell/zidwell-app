@@ -1,10 +1,14 @@
+// app/components/home-component/ZidStoreSection.tsx
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import { Store, ArrowRight, Play, ExternalLink } from "lucide-react";
+import TubePlayer from "tubeplayer";
 
 const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
 const VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
-const EMBED_URL =
-  "https://www.youtube.com/embed/iGCQ8AGhuS8?rel=0&modestbranding=1";
+const VIDEO_ID = "iGCQ8AGhuS8";
 
 const getZidStoreHref = (): { href: string; external: boolean } => {
   if (process.env.NODE_ENV === "development" || !ZIDSTORE_HOST) {
@@ -15,6 +19,11 @@ const getZidStoreHref = (): { href: string; external: boolean } => {
 
 export function ZidStoreSection() {
   const zidStore = getZidStoreHref();
+
+  // Initialize TubePlayer
+  useEffect(() => {
+    TubePlayer.init();
+  }, []);
 
   return (
     <section id="zidstore" className="py-24 sm:py-32 bg-[var(--bg-secondary)]">
@@ -54,17 +63,17 @@ export function ZidStoreSection() {
               </Link>
             </div>
           </div>
+
           <div className="lg:col-span-6">
             <div className="squircle-lg overflow-hidden border border-(--border-color) shadow-float bg-black">
               <div className="relative w-full aspect-video">
-                <iframe
-                  src={EMBED_URL}
-                  title="ZidStore — The Shopify alternative for African businesses (setup tutorial)"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  className="absolute inset-0 h-full w-full border-0"
+                {/* Replace iframe with TubePlayer inline container */}
+                <div
+                  data-tube-inline={VIDEO_ID}
+                  data-tube-theme="dark"
+                  data-tube-controls="play,progress,time,mute,volume,fullscreen"
+                  data-tube-autoplay="false"
+                  className="absolute inset-0 h-full w-full"
                 />
               </div>
             </div>
