@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
         wallet_id: null,
         wallet_updated_at: null,
         // Admin fields
-        admin_role: null,
+        admin_role: "user",
         // Block status
         is_blocked: false,
         blocked_at: null,
