@@ -14,7 +14,7 @@ import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
-import { resolveFullName } from "@/app/lib/resolve-name";
+import { resolveFullName } from "@/lib/resolve-name"; 
 import Swal from "sweetalert2";
 
 type UserCategory = "all" | "verified" | "unverified" | "pending_kyc";

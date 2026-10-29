@@ -1,7 +1,7 @@
 // app/store/[storeSlug]/[productSlug]/components/ProductImageGallery.tsx
 "use client";
 
-import { ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { Package } from "lucide-react";
 
 interface Props {
   productImages: string[];
@@ -17,63 +17,49 @@ export function ProductImageGallery({
   title,
 }: Props) {
   return (
-    <div className="relative lg:pt-1">
-      <div className="overflow-hidden rounded-2xl border border-border bg-muted/30">
+    <div className="flex flex-col-reverse gap-3 sm:flex-row">
+      {/* Thumbnails (vertical on desktop, horizontal on mobile) */}
+      {productImages.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto sm:flex-col sm:overflow-y-auto sm:overflow-x-hidden sm:max-h-[420px]">
+          {productImages.map((img, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setCurrentImage(() => i)}
+              className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition ${
+                i === currentImage
+                  ? "border-[#FDC020]"
+                  : "border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              <img
+                src={img}
+                alt={`${title} ${i + 1}`}
+                className="h-full w-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main image */}
+      <div className="flex-1 overflow-hidden rounded-lg border border-gray-200 bg-white">
         {productImages.length > 0 ? (
           <img
             src={productImages[currentImage]}
             alt={title}
-            className="aspect-square w-full object-cover"
+            className="aspect-square w-full object-contain p-2"
             onError={(e) => {
               e.currentTarget.src = "/placeholder-image.png";
               e.currentTarget.onerror = null;
             }}
           />
         ) : (
-          <div className="aspect-square w-full flex items-center justify-center">
-            <Package className="h-20 w-20 text-foreground/20" />
+          <div className="flex aspect-square w-full items-center justify-center">
+            <Package className="h-20 w-20 text-gray-300" />
           </div>
         )}
       </div>
-
-      {productImages.length > 1 && (
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            className="rounded-full border border-border p-2 text-foreground/60 transition hover:bg-muted"
-            type="button"
-            aria-label="Previous image"
-            onClick={() =>
-              setCurrentImage((c) =>
-                c === 0 ? productImages.length - 1 : c - 1
-              )
-            }
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex gap-2">
-            {productImages.map((_, i) => (
-              <span
-                key={i}
-                className={`size-2 rounded-full ${
-                  i === currentImage ? "bg-[#FDC020]" : "bg-border"
-                }`}
-              />
-            ))}
-          </div>
-          <button
-            className="rounded-full border border-border p-2 text-foreground/60 transition hover:bg-muted"
-            type="button"
-            aria-label="Next image"
-            onClick={() =>
-              setCurrentImage((c) =>
-                c === productImages.length - 1 ? 0 : c + 1
-              )
-            }
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

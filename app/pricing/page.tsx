@@ -11,9 +11,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/home-component-old/Footer";
+import Footer from "../components/home-component/Footer"; 
 import { Button } from "../components/ui/button";
-import Header from "../components/home-component-old/Header";
+import { Nav } from "../components/home-component/Nav";
+
 
 const plans = [
   {
@@ -230,8 +231,8 @@ function PricingPage() {
 
   return (
     <>
-      <Header />
-      <section id="pricing" className="py-20 md:py-32 bg-[var(--bg-primary)]">
+      <Nav />
+      <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
         <div className="container mx-auto px-4">
           {/* Success Message */}
           {showSuccess && (
@@ -251,11 +252,11 @@ function PricingPage() {
 
           {/* Section Header */}
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-[var(--text-primary)]">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
               Simple plans that{" "}
               <span className="text-[var(--color-accent-yellow)]">grow</span> with you
             </h2>
-            <p className="text-lg text-[var(--text-secondary)]">
+            <p className="text-lg text-(--text-secondary)">
               Choose the plan that matches your business goals. Each plan is a
               clear upgrade in capability, not just more limits.
             </p>
@@ -274,7 +275,7 @@ function PricingPage() {
             {/* Current Plan Display */}
             {subscription && subscription.tier !== "free" && (
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
-                <span className="text-sm text-[var(--text-primary)]">
+                <span className="text-sm text-(--text-primary)">
                   Current Plan:
                 </span>
                 <SubscriptionBadge />
@@ -283,14 +284,14 @@ function PricingPage() {
 
             {/* Billing Toggle */}
             <div className="flex items-center justify-center mt-8">
-              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-[var(--border-color)]">
+              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-(--border-color)">
                 <button
                   onClick={() => setSelectedBilling("monthly")}
                   disabled={processingTier !== null}
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "monthly"
                       ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-[var(--text-primary)] hover:text-[var(--text-primary)]/80"
+                      : "text-(--text-primary) hover:text-(--text-primary)/80"
                   } disabled:opacity-50`}
                 >
                   Monthly
@@ -301,7 +302,7 @@ function PricingPage() {
                   className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
                     selectedBilling === "yearly"
                       ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-[var(--text-primary)] hover:text-[var(--text-primary)]/80"
+                      : "text-(--text-primary) hover:text-(--text-primary)/80"
                   } disabled:opacity-50`}
                 >
                   Yearly <span className="text-xs ml-1">Save up to 20%</span>
@@ -324,12 +325,12 @@ function PricingPage() {
                   id={`plan-${plan.tier}`}
                   className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
                     isFeatured
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-[var(--border-color)] shadow-[6px_6px_0px_var(--border-color)]"
-                      : "bg-[var(--bg-primary)] border-2 border-[var(--border-color)] shadow-[4px_4px_0px_var(--border-color)]"
+                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
+                      : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
                   } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
                 >
                   {isFeatured && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-[var(--text-primary)] text-xs font-bold flex items-center gap-1 rounded-full">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-(--text-primary) text-xs font-bold flex items-center gap-1 rounded-full">
                       <Sparkles className="w-3 h-3" />
                       POPULAR
                     </div>
@@ -344,7 +345,7 @@ function PricingPage() {
                   <div className="mb-6">
                     <h3
                       className={`text-xl font-bold mb-2 ${
-                        isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
+                        isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
                       }`}
                     >
                       {plan.name}
@@ -352,7 +353,7 @@ function PricingPage() {
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-3xl font-black ${
-                          isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
+                          isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
                         }`}
                       >
                         {selectedBilling === "yearly" && plan.yearlyAmount
@@ -361,7 +362,7 @@ function PricingPage() {
                       </span>
                       <span
                         className={`text-sm ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"
+                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
                         }`}
                       >
                         {selectedBilling === "yearly" ? "/year" : plan.suffix}
@@ -370,7 +371,7 @@ function PricingPage() {
                     {selectedBilling === "yearly" && plan.yearlyPrice && (
                       <p
                         className={`text-xs mt-1 ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-[var(--text-secondary)]"
+                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
                         }`}
                       >
                         {plan.yearlyPrice}
@@ -378,7 +379,7 @@ function PricingPage() {
                     )}
                     <p
                       className={`text-sm mt-3 ${
-                        isFeatured ? "text-[var(--color-ink)]/80" : "text-[var(--text-secondary)]"
+                        isFeatured ? "text-[var(--color-ink)]/80" : "text-(--text-secondary)"
                       }`}
                     >
                       {plan.note}
@@ -397,7 +398,7 @@ function PricingPage() {
                         )}
                         <span
                           className={`${
-                            isFeatured ? "text-[var(--color-ink)]" : "text-[var(--text-primary)]"
+                            isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
                           } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
                         >
                           {feature}
@@ -410,7 +411,7 @@ function PricingPage() {
                     variant={isFeatured ? "outline" : "default"}
                     className={`w-full rounded-xl ${
                       isFeatured
-                        ? "bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] border-2 border-[var(--border-color)]"
+                        ? "bg-(--bg-primary) text-(--text-primary) hover:bg-[var(--bg-secondary)] border-2 border-(--border-color)"
                         : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                     }`}
                     onClick={() => handleSubscribe(plan)}
@@ -442,7 +443,7 @@ export default function Pricing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
+        <div className="min-h-screen flex items-center justify-center bg-(--bg-primary)">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)]" />
         </div>
       }

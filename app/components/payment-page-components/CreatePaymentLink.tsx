@@ -18,7 +18,7 @@ import {
   Shield,
   Calendar,
   Info,
-  Eye, // ← ADDED
+  Eye,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -29,7 +29,7 @@ import { useUserContextData } from "@/app/context/userData";
 import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
-import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview"; // ← ADDED
+import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview";
 
 // ============================================================
 // CONSTANTS
@@ -43,7 +43,16 @@ const PRODUCT_IMAGE_SPECS = {
   formats: [".jpg", ".jpeg", ".png", ".webp", ".heic"],
 };
 
-const ZIDWELL_FEE_RATE = 0.03;
+const ZIDWELL_FEE_RATE = 0.035;
+
+// ✅ FIX: one source of truth for the fee-payer union + its option list
+type FeePayer = "customers" | "merchant(me)" | "split between both parties";
+
+const FEE_PAYER_OPTIONS: { value: FeePayer; label: string }[] = [
+  { value: "customers", label: "Customers pay fee" },
+  { value: "merchant(me)", label: "Merchant (me) pays fee" },
+  { value: "split between both parties", label: "Split between both parties" },
+];
 
 const slugify = (text: string) =>
   text
@@ -88,14 +97,40 @@ function LinkPricingSummaryCard({
   installmentCount,
   installmentPeriod,
   installmentAmount,
+  feePayer,
 }: {
   priceType: "fixed" | "installment";
   price: number;
   installmentCount: string;
   installmentPeriod: string;
   installmentAmount: number;
+  feePayer?: string;
 }) {
   if (price <= 0) return null;
+
+  const halfFeeRate = ZIDWELL_FEE_RATE / 2;
+  const isSplit = feePayer === "split between both parties";
+  const feeRateApplied = isSplit ? halfFeeRate : ZIDWELL_FEE_RATE;
+  const buyerTotal = isSplit
+    ? price + price * halfFeeRate
+    : feePayer === "customers"
+      ? price + price * ZIDWELL_FEE_RATE
+      : price;
+  const youReceiveTotal = isSplit
+    ? price - price * halfFeeRate
+    : feePayer === "merchant(me)"
+      ? price - price * ZIDWELL_FEE_RATE
+      : price;
+  const perInstallmentBuyer = isSplit
+    ? installmentAmount + installmentAmount * halfFeeRate
+    : feePayer === "customers"
+      ? installmentAmount + installmentAmount * ZIDWELL_FEE_RATE
+      : installmentAmount;
+  const perInstallmentYouReceive = isSplit
+    ? installmentAmount - installmentAmount * halfFeeRate
+    : feePayer === "merchant(me)"
+      ? installmentAmount - installmentAmount * ZIDWELL_FEE_RATE
+      : installmentAmount;
 
   const isInstallment =
     priceType === "installment" && Number(installmentCount) > 1;
@@ -121,7 +156,7 @@ function LinkPricingSummaryCard({
                   Per installment ({installmentCount}× {installmentPeriod})
                 </span>
                 <span className="font-bold text-(--text-primary)">
-                  {formatNaira(installmentAmount)}
+                  {formatNaira(perInstallmentBuyer)}
                 </span>
               </div>
             )}
@@ -130,7 +165,7 @@ function LinkPricingSummaryCard({
                 {isInstallment ? "Total across all installments" : "Amount"}
               </span>
               <span className="font-bold text-(--text-primary)">
-                {formatNaira(price)}
+                {formatNaira(buyerTotal)}
               </span>
             </div>
           </div>
@@ -147,7 +182,7 @@ function LinkPricingSummaryCard({
               <div className="flex justify-between text-sm">
                 <span className="text-(--text-secondary)">Per installment</span>
                 <span className="font-semibold text-(--color-lemon-green)">
-                  {formatNaira(installmentAmount * (1 - ZIDWELL_FEE_RATE))}
+                  {formatNaira(perInstallmentYouReceive)}
                 </span>
               </div>
             )}
@@ -158,7 +193,7 @@ function LinkPricingSummaryCard({
                   : "Total payout"}
               </span>
               <span className="font-bold text-(--color-lemon-green)">
-                {formatNaira(price * (1 - ZIDWELL_FEE_RATE))}
+                {formatNaira(youReceiveTotal)}
               </span>
             </div>
           </div>
@@ -193,12 +228,20 @@ const CreatePaymentLink = () => {
 
   const [config, setConfig] = useState<LinkConfig>(defaultConfig);
   const [isMounted, setIsMounted] = useState(false);
+
+  // ✅ FIX: use the shared FeePayer type
+  const [feePayer, setFeePayer] = useState<FeePayer>("merchant(me)");
+
   const [isCreating, setIsCreating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdSlug, setCreatedSlug] = useState("");
   const [copied, setCopied] = useState(false);
 
-  // ─── PREVIEW STATE (NEW) ───
+  // ─── WhatsApp Contact Me ───
+  const [whatsappContactEnabled, setWhatsappContactEnabled] = useState(false);
+  const [whatsappContactNumber, setWhatsappContactNumber] = useState("");
+
+  // ─── PREVIEW STATE ───
   const [showPreview, setShowPreview] = useState(false);
 
   // Slug validation state
@@ -381,14 +424,14 @@ const CreatePaymentLink = () => {
 
   const canCreate = Boolean(
     title.trim() &&
-      !slugValidation.isChecking &&
-      isSlugAvailable &&
-      (config.amountMode === "variable" ||
-        (Number(price) > 0 &&
-          (priceType === "fixed" ||
-            (priceType === "installment" &&
-              Number(installmentCount) >= 2 &&
-              Number(installmentCount) <= 24)))),
+    !slugValidation.isChecking &&
+    isSlugAvailable &&
+    (config.amountMode === "variable" ||
+      (Number(price) > 0 &&
+        (priceType === "fixed" ||
+          (priceType === "installment" &&
+            Number(installmentCount) >= 2 &&
+            Number(installmentCount) <= 24)))),
   );
 
   const generateFinalSlug = () => slug || slugify(title);
@@ -472,6 +515,15 @@ const CreatePaymentLink = () => {
         linkConfig,
       };
 
+      // ─── WhatsApp Contact Me ───
+      if (whatsappContactEnabled && whatsappContactNumber.trim()) {
+        metadata.whatsappContactEnabled = true;
+        metadata.whatsappContactNumber = whatsappContactNumber.trim();
+      }
+
+      // ─── Transaction Fee Payer ───
+      metadata.feePayer = feePayer || "merchant(me)";
+
       if (isInstallment) {
         const totalAmount = Number(price) || 0;
         const count = Number(installmentCount);
@@ -527,7 +579,7 @@ const CreatePaymentLink = () => {
 
   if (!isMounted || loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+      <div className="min-h-screen bg-(--bg-primary) flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[var(--color-accent-yellow)]" />
       </div>
     );
@@ -535,13 +587,13 @@ const CreatePaymentLink = () => {
 
   if (!hasStore) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)]">
+      <div className="min-h-screen bg-(--bg-primary)">
         <div className="max-w-3xl mx-auto py-20 px-4 text-center">
-          <Package className="h-16 w-16 mx-auto text-[var(--text-secondary)] mb-4" />
-          <h3 className="text-xl font-bold text-[var(--text-primary)]">
+          <Package className="h-16 w-16 mx-auto text-(--text-secondary) mb-4" />
+          <h3 className="text-xl font-bold text-(--text-primary)">
             No Store Found
           </h3>
-          <p className="text-[var(--text-secondary)] mt-2">
+          <p className="text-(--text-secondary) mt-2">
             Please create a store first before creating a payment link.
           </p>
           <Button
@@ -559,14 +611,14 @@ const CreatePaymentLink = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* ─── HEADER WITH PREVIEW BUTTON ─── */}
-     <button
-  onClick={() => router.back()}
-  className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6 transition-colors"
->
-  <ArrowLeft className="h-4 w-4" />
-  Back
-</button>
+      {/* ─── HEADER ─── */}
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-2 text-sm text-(--text-secondary) hover:text-(--color-accent-yellow) mb-6 transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back
+      </button>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -852,6 +904,7 @@ const CreatePaymentLink = () => {
               installmentCount={installmentCount}
               installmentPeriod={installmentPeriod}
               installmentAmount={installmentAmount}
+              feePayer={feePayer}
             />
           </>
         )}
@@ -1062,20 +1115,86 @@ const CreatePaymentLink = () => {
           </div>
         </div>
 
+        {/* ─── WhatsApp Contact Me ─── */}
+        <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
+          <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">
+            WhatsApp Contact
+          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <Label className="text-sm font-semibold text-(--text-primary)">
+                WhatsApp Contact Me
+              </Label>
+              <p className="text-xs text-(--text-secondary)">
+                Enable to allow buyers to contact you via WhatsApp
+              </p>
+            </div>
+            <Switch
+              checked={whatsappContactEnabled}
+              onCheckedChange={setWhatsappContactEnabled}
+              className="data-[state=checked]:bg-(--color-accent-yellow)"
+            />
+          </div>
+          {whatsappContactEnabled && (
+            <div>
+              <Label className="text-sm font-semibold mb-2 block text-(--text-primary)">
+                WhatsApp Number
+              </Label>
+              <Input
+                placeholder="e.g. 2348012345678"
+                value={whatsappContactNumber}
+                onChange={(e) => setWhatsappContactNumber(e.target.value)}
+                className="h-11 border border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:border-(--color-accent-yellow) focus:ring-0"
+              />
+              <p className="text-xs text-(--text-secondary) mt-1">
+                Enter your WhatsApp number with country code (e.g. 2348012345678
+                for Nigeria)
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Transaction Fee Option */}
+        <div className="p-5 rounded-2xl border border-(--border-color) bg-(--bg-secondary)">
+          <h3 className="font-bold text-sm mb-4 text-(--color-accent-yellow)">
+            Transaction Fee (3.5%)
+          </h3>
+          <div className="space-y-2">
+            {FEE_PAYER_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className="flex items-center gap-3 p-3 rounded-xl border border-(--border-color) bg-(--bg-primary) cursor-pointer hover:border-(--color-accent-yellow)/50 transition-colors"
+              >
+                <input
+                  type="radio"
+                  name="feePayer"
+                  value={opt.value}
+                  checked={feePayer === opt.value}
+                  // ✅ FIX: cast to FeePayer union so TS accepts the assignment
+                  onChange={(e) => setFeePayer(e.target.value as FeePayer)}
+                  className="h-4 w-4 text-(--color-accent-yellow) border-(--border-color) focus:ring-(--color-accent-yellow)"
+                />
+                <span className="text-sm text-(--text-primary)">
+                  {opt.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* Sticky CTA */}
         <div className="sticky bottom-0 -mx-4 md:-mx-6 lg:-mx-8 mt-8 bg-(--bg-secondary)/90 backdrop-blur-lg border-t border-(--border-color) p-4 z-40">
           <div className="max-w-3xl mx-auto flex gap-3">
-            {/* Preview button (mobile-friendly duplicate) */}
-        <Button
-  type="button"
-  variant="outline"
-  size="lg"
-  className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
-  onClick={() => setShowPreview(true)}
->
-  <Eye className="h-5 w-5" />
-  <span className="ml-2 hidden sm:inline">Preview</span>
-</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="py-6 px-5 border-(--color-accent-yellow) text-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10"
+              onClick={() => setShowPreview(true)}
+            >
+              <Eye className="h-5 w-5" />
+              <span className="ml-2 hidden sm:inline">Preview</span>
+            </Button>
 
             <Button
               variant="default"
@@ -1114,6 +1233,8 @@ const CreatePaymentLink = () => {
           storeSlug: store?.slug || "",
           config,
           pageType: "link",
+          whatsappContactEnabled: whatsappContactEnabled,
+          whatsappContactNumber: whatsappContactNumber,
         }}
       />
 
@@ -1131,27 +1252,27 @@ const CreatePaymentLink = () => {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
+              className="bg-(--bg-primary) rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg w-full text-center shadow-2xl border border-(--border-color) mx-4"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">
                 🎉
               </div>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-(--text-primary) mb-2">
                 Payment Link Created!
               </h2>
-              <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+              <p className="text-sm sm:text-base text-(--text-secondary) mb-4 sm:mb-6">
                 Your payment link is now live and ready to collect payments.
               </p>
 
-              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
+              <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-(--border-color)">
                 <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
                   Your Payment Link:
                 </Label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
+                  <div className="flex items-center gap-2 flex-1 bg-(--bg-primary) rounded-lg p-2 sm:p-3 border border-(--border-color)">
                     <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-                    <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                    <code className="text-xs sm:text-sm font-mono text-(--text-primary) break-all flex-1 text-left">
                       {pageUrl}
                     </code>
                   </div>
@@ -1191,7 +1312,7 @@ const CreatePaymentLink = () => {
 
               <button
                 onClick={handleCloseSuccess}
-                className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="mt-4 text-xs sm:text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
               >
                 Close
               </button>

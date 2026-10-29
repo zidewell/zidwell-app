@@ -234,7 +234,7 @@ export async function POST(request: Request) {
       args: ["--no-api", "--disable-setuid-api"],
     });
     const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: "networkidle0" });
+    await page.setContent(htmlContent, { waitUntil: "load" });
     const pdfBytes = await page.pdf({ format: "A4", printBackground: true });
     const pdfBuffer = Buffer.from(pdfBytes);
     await browser.close();

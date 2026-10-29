@@ -99,10 +99,10 @@ export default function SignContractForm({
         <div className="w-16 h-16 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mb-4">
           <CheckCircle className="h-8 w-8 text-[var(--color-lemon-green)]" />
         </div>
-        <p className="text-lg font-semibold text-[var(--text-primary)]">
+        <p className="text-lg font-semibold text-(--text-primary)">
           Thank you for signing.
         </p>
-        <p className="text-sm text-[var(--text-secondary)] mt-2">
+        <p className="text-sm text-(--text-secondary) mt-2">
           Your contract has been successfully signed.
         </p>
       </div>
@@ -110,16 +110,16 @@ export default function SignContractForm({
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-[var(--bg-primary)] rounded-2xl border border-[var(--border-color)] shadow-soft squircle-lg">
+    <div className="max-w-md mx-auto p-6 bg-(--bg-primary) rounded-2xl border border-(--border-color) shadow-soft squircle-lg">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 bg-[var(--color-accent-yellow)]/10 rounded-xl flex items-center justify-center">
           <Shield className="h-5 w-5 text-[var(--color-accent-yellow)]" />
         </div>
         <div>
-          <h3 className="font-semibold text-[var(--text-primary)]">
+          <h3 className="font-semibold text-(--text-primary)">
             Sign Contract
           </h3>
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-(--text-secondary)">
             Enter your details to sign
           </p>
         </div>
@@ -127,27 +127,27 @@ export default function SignContractForm({
 
       <div className="space-y-4">
         <div>
-          <label className="block mb-2 text-sm font-medium text-[var(--text-primary)]">
+          <label className="block mb-2 text-sm font-medium text-(--text-primary)">
             Your Full Name *
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] transition-all"
+            className="w-full px-4 py-2.5 rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) transition-all"
             placeholder="Enter your full name"
           />
         </div>
 
         <div>
-          <label className="block mb-2 text-sm font-medium text-[var(--text-primary)]">
+          <label className="block mb-2 text-sm font-medium text-(--text-primary)">
             Verification Code *
           </label>
           <input
             type="text"
             value={verificationCode}
             onChange={(e) => setVerificationCode(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)] transition-all"
+            className="w-full px-4 py-2.5 rounded-xl border border-(--border-color) bg-(--bg-primary) text-(--text-primary) placeholder:text-(--text-secondary) focus:outline-none focus:ring-2 focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow) transition-all"
             placeholder="Enter 6-digit code"
           />
         </div>

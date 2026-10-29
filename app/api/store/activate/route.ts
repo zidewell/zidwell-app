@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 200;
+const ACTIVATION_FEE_NAIRA = 500;
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? "http://localhost:3000"
@@ -27,6 +27,13 @@ function cleanSlug(input: string): string {
     .replace(/[^a-z0-9-]/g, "")
     .replace(/\s/g, "-")
     .replace(/-+/g, "-");
+}
+
+function normalizeWhatsapp(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const digits = input.trim().replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15) return null;
+  return digits;
 }
 
 function validateStoreData(storeData: any): string | null {
@@ -72,6 +79,7 @@ function buildStorePayload(storeData: any) {
     latitude,
     longitude,
     locationAccuracy,
+    whatsappNumber,
   } = storeData;
 
   return {
@@ -89,6 +97,7 @@ function buildStorePayload(storeData: any) {
     longitude: typeof longitude === "number" ? longitude : null,
     location_accuracy:
       typeof locationAccuracy === "number" ? locationAccuracy : null,
+    whatsapp_number: normalizeWhatsapp(whatsappNumber),
   };
 }
 

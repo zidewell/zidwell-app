@@ -41,27 +41,27 @@ export function SuccessModal({
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
-          className="bg-[var(--bg-primary)] rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-[var(--border-color)] mx-4"
+          className="bg-(--bg-primary) rounded-3xl p-4 sm:p-6 md:p-8 max-w-[90%] sm:max-w-md md:max-w-lg lg:max-w-xl w-full text-center shadow-2xl border border-(--border-color) mx-4"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-4xl sm:text-5xl md:text-6xl mb-3 sm:mb-4">
             🎉
           </div>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-(--text-primary) mb-2">
             Payment Page Created!
           </h2>
-          <p className="text-sm sm:text-base text-[var(--text-secondary)] mb-4 sm:mb-6">
+          <p className="text-sm sm:text-base text-(--text-secondary) mb-4 sm:mb-6">
             Your page is now live and ready to collect payments.
           </p>
 
-          <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-[var(--border-color)]">
+          <div className="bg-[var(--bg-secondary)] rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-(--border-color)">
             <Label className="text-xs sm:text-sm font-semibold text-[var(--color-accent-yellow)] mb-2 block text-left">
               Your Payment Link:
             </Label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <div className="flex items-center gap-2 flex-1 bg-[var(--bg-primary)] rounded-lg p-2 sm:p-3 border border-[var(--border-color)]">
+              <div className="flex items-center gap-2 flex-1 bg-(--bg-primary) rounded-lg p-2 sm:p-3 border border-(--border-color)">
                 <Link2 className="h-4 w-4 text-[var(--color-accent-yellow)] shrink-0" />
-                <code className="text-xs sm:text-sm font-mono text-[var(--text-primary)] break-all flex-1 text-left">
+                <code className="text-xs sm:text-sm font-mono text-(--text-primary) break-all flex-1 text-left">
                   {pageUrl}
                 </code>
               </div>
@@ -89,7 +89,7 @@ export function SuccessModal({
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               variant="outline"
-              className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+              className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)]"
               onClick={onPreview}
             >
               Preview Page
@@ -105,7 +105,7 @@ export function SuccessModal({
 
           <button
             onClick={onClose}
-            className="mt-4 text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="mt-4 text-xs sm:text-sm text-(--text-secondary) hover:text-(--text-primary) transition-colors"
           >
             Close
           </button>

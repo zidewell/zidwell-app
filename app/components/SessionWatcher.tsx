@@ -2,18 +2,15 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
-import Swal from "sweetalert2";
+import SessionTimeoutBanner from "./SessionTimeoutBanner";
+import {
+  SESSION_TIMEOUT_MS,
+  WARNING_THRESHOLD_MS,
+  SESSION_TIMEOUT_DISABLED,
+} from "@/lib/session-config";
 
-const SESSION_TIMEOUT =
-  process.env.NEXT_PUBLIC_NODE_ENV === "production"
-    ? 15 * 60 * 1000
-    : -1;
-
-const IDLE_WARNING_TIME = 60 * 1000;
-
-// Public route patterns — session watcher must NEVER run on these.
 const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/$/,
   /^\/auth(\/.*)?$/,
@@ -23,15 +20,20 @@ const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/privacy(\/.*)?$/,
   /^\/terms(\/.*)?$/,
   /^\/blog(\/.*)?$/,
-  // Public storefronts
   /^\/store\/[^\/]+$/,
   /^\/store\/[^\/]+\/[^\/]+$/,
-  // Public payment pages
   /^\/pay\/[^\/]+$/,
   /^\/payment-page\/status/,
   /^\/payment\/callback/,
   /^\/payment-page-success/,
 ];
+
+const ACTIVITY_EVENTS = [
+  "mousedown",
+  "keydown",
+  "touchstart",
+  "pointerdown",
+] as const;
 
 export default function SessionWatcher({
   children,
@@ -39,257 +41,279 @@ export default function SessionWatcher({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { userData, loading, handleSessionExpired } = useUserContextData();
 
-  const [sessionExpired, setSessionExpired] = useState(false);
-  const [idleWarningShown, setIdleWarningShown] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
-
+  const sessionExpiredRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const extendTimerRef = useRef<NodeJS.Timeout | null>(null);
   const logoutInProgress = useRef(false);
-  const isDev = process.env.NEXT_PUBLIC_NODE_ENV !== "production";
-  const networkErrorCount = useRef(0);
-  const maxNetworkErrors = 3;
+  const [isOnline, setIsOnline] = useState(true);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 1. PATH RESOLUTION
-  // ─────────────────────────────────────────────────────────────────────
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [warningDismissed, setWarningDismissed] = useState(false);
+
   const resolvePath = useCallback((): string => {
     if (pathname) return pathname;
     if (typeof window !== "undefined") return window.location.pathname;
     return "";
   }, [pathname]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 2. PUBLIC ROUTE DETECTION
-  // ─────────────────────────────────────────────────────────────────────
   const isPublicRoute = useCallback((): boolean => {
     const path = resolvePath();
     if (!path) return false;
     return PUBLIC_ROUTE_PATTERNS.some((re) => re.test(path));
   }, [resolvePath]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 3. SESSION CHECK GATE
-  // ─────────────────────────────────────────────────────────────────────
   const canCheckSession = useCallback((): boolean => {
     return (
       !!userData && !isPublicRoute() && !loading && !logoutInProgress.current
     );
   }, [userData, isPublicRoute, loading]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 4. RESET TIMER
-  // Must be declared BEFORE handleLogout, showIdleWarning, checkSession,
-  // because they all reference it.
-  // ─────────────────────────────────────────────────────────────────────
-  const resetTimer = useCallback(() => {
-    if (SESSION_TIMEOUT === -1) return;
-    if (!canCheckSession()) return;
-
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (warningTimerRef.current) {
-      clearTimeout(warningTimerRef.current);
-      warningTimerRef.current = null;
-    }
-
-    sessionStorage.setItem("lastActivity", Date.now().toString());
-    networkErrorCount.current = 0;
-
-    if (SESSION_TIMEOUT > IDLE_WARNING_TIME) {
-      warningTimerRef.current = setTimeout(() => {
-        const lastActivity = sessionStorage.getItem("lastActivity");
-        const now = Date.now();
-        if (lastActivity && now - parseInt(lastActivity) < SESSION_TIMEOUT) {
-          showIdleWarning();
-        }
-      }, SESSION_TIMEOUT - IDLE_WARNING_TIME);
-    }
-
-    timerRef.current = setTimeout(() => {
-      const lastActivity = sessionStorage.getItem("lastActivity");
-      const now = Date.now();
-      if (lastActivity && now - parseInt(lastActivity) < SESSION_TIMEOUT) {
-        resetTimer();
-      } else {
-        checkSession();
-      }
-    }, SESSION_TIMEOUT);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canCheckSession]);
-
-  // ─────────────────────────────────────────────────────────────────────
-  // 5. HANDLE LOGOUT
-  // Depends on: resetTimer, isPublicRoute, userData, loading,
-  //             handleSessionExpired
-  // ─────────────────────────────────────────────────────────────────────
-  const handleLogout = useCallback(
-    async (
-      reason: string = "Session expired",
-      showAlert: boolean = true,
-      isNetworkError: boolean = false
-    ) => {
-      // Never log out from a public route
-      if (isPublicRoute()) return;
-
-      if (isNetworkError) {
-        networkErrorCount.current += 1;
-        if (networkErrorCount.current < maxNetworkErrors) {
-          resetTimer();
-          return;
-        }
-      }
-
-      if (logoutInProgress.current || !userData || loading) return;
-
+  // ─── Redirect to /auth/session-timeout ───
+  const redirectToTimeout = useCallback(
+    async (reason: "idle" | "invalidated" = "idle") => {
+      if (logoutInProgress.current) return;
       logoutInProgress.current = true;
 
-      try {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-        if (warningTimerRef.current) {
-          clearTimeout(warningTimerRef.current);
-          warningTimerRef.current = null;
-        }
-
-        if (showAlert && reason !== "Session expired" && !isNetworkError) {
-          try {
-            await Swal.fire({
-              icon: "warning",
-              title: "Session Ended",
-              text: reason,
-              confirmButtonColor: "var(--color-accent-yellow)",
-            });
-          } catch (err) {
-            console.warn("Swal warning failed:", err);
-          }
-        }
-
-        setSessionExpired(true);
-        await handleSessionExpired();
-      } catch (error) {
-        console.error("Logout error:", error);
-      } finally {
-        setTimeout(() => {
-          logoutInProgress.current = false;
-        }, 1000);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      if (extendTimerRef.current) {
+        clearTimeout(extendTimerRef.current);
+        extendTimerRef.current = null;
+      }
+
+      const current = resolvePath();
+      const callback = current && !isPublicRoute() ? current : "/dashboard";
+
+      await handleSessionExpired(
+        `/auth/session-timeout?callbackUrl=${encodeURIComponent(
+          callback,
+        )}&reason=${reason}`,
+      );
     },
-    [userData, isPublicRoute, loading, handleSessionExpired, resetTimer]
+    [resolvePath, isPublicRoute, handleSessionExpired],
   );
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 6. IDLE WARNING
-  // Depends on: handleLogout, resetTimer
-  // ─────────────────────────────────────────────────────────────────────
-  const showIdleWarning = useCallback(() => {
-    if (idleWarningShown || isDev || isPublicRoute()) return;
+  // ─── Banner countdown ───
+  const startWarningCountdown = useCallback(() => {
+    setWarningDismissed(false);
 
-    setIdleWarningShown(true);
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
 
-    Swal.fire({
-      icon: "warning",
-      title: "Session Expiring Soon",
-      html: `
-        <p>Your session will expire in <strong>1 minute</strong> due to inactivity.</p>
-        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-          Click "Stay Logged In" to continue your session.
-        </p>
-      `,
-      showCancelButton: true,
-      confirmButtonColor: "var(--color-accent-yellow)",
-      cancelButtonColor: "#6b6b6b",
-      confirmButtonText: "Stay Logged In",
-      cancelButtonText: "Logout Now",
-      timer: 60000,
-      timerProgressBar: true,
-      allowOutsideClick: false,
-    })
-      .then((result) => {
-        setIdleWarningShown(false);
+    const stored = sessionStorage.getItem("lastActivity");
+    const now = Date.now();
+    const last = stored ? parseInt(stored, 10) : now;
+    const expiresAt = last + SESSION_TIMEOUT_MS;
 
-        if (result.isConfirmed) {
-          resetTimer();
-          Swal.fire({
-            icon: "success",
-            title: "Session Extended",
-            text: "Your session has been extended.",
-            timer: 2000,
-            showConfirmButton: false,
-          }).catch(() => {
-            /* noop */
-          });
-        } else if (result.isDismissed) {
-          handleLogout("Session expired due to inactivity", false);
+    const tick = () => {
+      const remaining = Math.max(0, expiresAt - Date.now());
+      setSecondsRemaining(Math.ceil(remaining / 1000));
+      if (remaining <= 0) {
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
         }
-      })
-      .catch(() => {
-        // Swal may fail under Turbopack — don't crash the watcher
-        setIdleWarningShown(false);
-      });
-  }, [idleWarningShown, handleLogout, isDev, isPublicRoute, resetTimer]);
+        setSecondsRemaining(null);
+      }
+    };
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 7. CHECK SESSION
-  // Depends on: handleLogout, resetTimer
-  // ─────────────────────────────────────────────────────────────────────
-  const checkSession = useCallback(async () => {
-    if (!canCheckSession()) return;
-    if (!isOnline) return;
+    tick();
+    countdownIntervalRef.current = setInterval(tick, 1000);
+  }, []);
+
+  const stopWarningCountdown = useCallback(() => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setSecondsRemaining(null);
+    setWarningDismissed(false);
+  }, []);
+
+  const scheduleExpiry = useCallback(
+    (delayMs: number) => {
+      if (SESSION_TIMEOUT_DISABLED) return;
+
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+
+      const warningDelay = Math.max(0, delayMs - WARNING_THRESHOLD_MS);
+      warningTimerRef.current = setTimeout(() => {
+        if (!sessionExpiredRef.current) startWarningCountdown();
+      }, warningDelay);
+
+      timerRef.current = setTimeout(() => {
+        sessionExpiredRef.current = true;
+        stopWarningCountdown();
+        redirectToTimeout("idle");
+      }, delayMs);
+    },
+    [redirectToTimeout, startWarningCountdown, stopWarningCountdown],
+  );
+
+  const handleExtendFromBanner = useCallback(async () => {
+    const now = Date.now();
+    try {
+      sessionStorage.setItem("lastActivity", now.toString());
+    } catch {
+      // ignore
+    }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch("/api/auth/validate-session", {
+      await fetch("/api/auth/extend-session", {
+        method: "POST",
         credentials: "include",
-        headers: { "Cache-Control": "no-cache" },
-        signal: controller.signal,
       });
-
-      clearTimeout(timeoutId);
-
-      const data = await response.json().catch(() => ({ valid: false }));
-
-      if (!data.valid && !isPublicRoute()) {
-        await handleLogout(data.reason || "Session expired", true, false);
-        return;
-      }
-
-      networkErrorCount.current = 0;
-      resetTimer();
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        console.log("⏱️ Session check timed out");
-      } else {
-        console.log("🌐 Network error during session check — will retry");
-        setTimeout(() => {
-          if (canCheckSession()) checkSession();
-        }, 30000);
-      }
+    } catch {
+      // Non-fatal.
     }
+
+    stopWarningCountdown();
+    scheduleExpiry(SESSION_TIMEOUT_MS);
+  }, [scheduleExpiry, stopWarningCountdown]);
+
+  const handleDismissWarning = useCallback(() => {
+    setWarningDismissed(true);
+  }, []);
+
+  const onActivity = useCallback(() => {
+    if (!canCheckSession()) return;
+
+    if (sessionExpiredRef.current) {
+      redirectToTimeout("idle");
+      return;
+    }
+
+    stopWarningCountdown();
+
+    try {
+      sessionStorage.setItem("lastActivity", Date.now().toString());
+    } catch {
+      // ignore
+    }
+
+    scheduleExpiry(SESSION_TIMEOUT_MS);
+
+    if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
+    extendTimerRef.current = setTimeout(async () => {
+      if (sessionExpiredRef.current) return;
+      try {
+        await fetch("/api/auth/extend-session", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch {
+        // ignore
+      }
+    }, 5000);
   }, [
     canCheckSession,
-    isOnline,
-    isPublicRoute,
-    handleLogout,
-    resetTimer,
+    redirectToTimeout,
+    scheduleExpiry,
+    stopWarningCountdown,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 8. ONLINE / OFFLINE
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── Register activity listeners ───
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      if (canCheckSession()) checkSession();
+    if (SESSION_TIMEOUT_DISABLED) return;
+    if (!canCheckSession()) return;
+
+    const stored = sessionStorage.getItem("lastActivity");
+    const now = Date.now();
+    const last = stored ? parseInt(stored, 10) : now;
+    const elapsed = now - last;
+    const remaining = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
+
+    // Fresh window from "now" — either continuing or starting over.
+    sessionStorage.setItem("lastActivity", now.toString());
+
+    if (remaining === 0) {
+      // Stale lastActivity — reset silently instead of expiring.
+      scheduleExpiry(SESSION_TIMEOUT_MS);
+    } else {
+      scheduleExpiry(remaining);
+    }
+
+    // ✅ Fire ONE immediate extend POST so the server's DB expiry
+    //    matches the client's fresh countdown. Without this, the
+    //    very first extend wouldn't happen until the user interacts,
+    //    and the DB expiry could lag behind the client timer.
+    void fetch("/api/auth/extend-session", {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {
+      // Non-fatal.
+    });
+
+    ACTIVITY_EVENTS.forEach((evt) =>
+      window.addEventListener(evt, onActivity, {
+        passive: true,
+        capture: true,
+      }),
+    );
+
+    return () => {
+      ACTIVITY_EVENTS.forEach((evt) =>
+        window.removeEventListener(evt, onActivity, { capture: true }),
+      );
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
     };
+  }, [canCheckSession, onActivity, redirectToTimeout, scheduleExpiry]);
+
+  // ─── Capture-phase interceptor ───
+  useEffect(() => {
+    if (SESSION_TIMEOUT_DISABLED) return;
+    if (!canCheckSession()) return;
+
+    const interceptor = (e: Event) => {
+      if (!sessionExpiredRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
+      redirectToTimeout("idle");
+    };
+
+    const events = ["click", "submit", "keydown", "pointerdown"] as const;
+
+    events.forEach((evt) =>
+      document.addEventListener(evt, interceptor, {
+        capture: true,
+        passive: false,
+      }),
+    );
+
+    return () => {
+      events.forEach((evt) =>
+        document.removeEventListener(evt, interceptor, { capture: true }),
+      );
+    };
+  }, [canCheckSession, redirectToTimeout]);
+
+  // ─── Online / offline ───
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener("online", handleOnline);
@@ -299,92 +323,81 @@ export default function SessionWatcher({
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [canCheckSession, checkSession]);
+  }, []);
 
-  // ─────────────────────────────────────────────────────────────────────
-  // 9. ACTIVITY LISTENERS
-  // ─────────────────────────────────────────────────────────────────────
+  // ─── Visibility change ───
   useEffect(() => {
+    if (SESSION_TIMEOUT_DISABLED) return;
     if (!canCheckSession()) return;
-    if (SESSION_TIMEOUT === -1) return;
 
-    const updateActivity = () => {
-      sessionStorage.setItem("lastActivity", Date.now().toString());
-      resetTimer();
+    const handleVisibility = () => {
+      if (document.hidden) return;
+
+      const stored = sessionStorage.getItem("lastActivity");
+      const now = Date.now();
+      const last = stored ? parseInt(stored, 10) : now;
+      const elapsed = now - last;
+
+      if (elapsed >= SESSION_TIMEOUT_MS) {
+        sessionExpiredRef.current = true;
+        redirectToTimeout("idle");
+      }
     };
 
-    const events = [
-      "mousedown",
-      "click",
-      "keydown",
-      "scroll",
-      "touchstart",
-      "mousemove",
-    ];
-    events.forEach((event) =>
-      window.addEventListener(event, updateActivity, { passive: true })
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, [canCheckSession, redirectToTimeout]);
+
+  // ─── Server-side validation heartbeat ───
+  useEffect(() => {
+    if (SESSION_TIMEOUT_DISABLED) return;
+    if (!canCheckSession()) return;
+
+    const interval = setInterval(
+      async () => {
+        if (document.hidden) return;
+        if (sessionExpiredRef.current) return;
+
+        try {
+          const res = await fetch("/api/auth/validate-session", {
+            credentials: "include",
+            headers: { "Cache-Control": "no-cache" },
+          });
+          const data = await res.json().catch(() => ({ valid: false }));
+
+          if (!data.valid && !isPublicRoute()) {
+            console.warn(
+              "[session] validate-session returned invalid:",
+              data.reason,
+            );
+            sessionExpiredRef.current = true;
+            redirectToTimeout(
+              data.reason === "session_id_mismatch"
+                ? "invalidated"
+                : "idle",
+            );
+          }
+        } catch {
+          // Network error — do not log out.
+        }
+      },
+      2 * 60 * 1000,
     );
 
-    updateActivity();
+    return () => clearInterval(interval);
+  }, [canCheckSession, isPublicRoute, redirectToTimeout]);
 
-    return () => {
-      events.forEach((event) =>
-        window.removeEventListener(event, updateActivity)
-      );
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      if (warningTimerRef.current) {
-        clearTimeout(warningTimerRef.current);
-        warningTimerRef.current = null;
-      }
-    };
-  }, [canCheckSession, resetTimer]);
-
-  // ─────────────────────────────────────────────────────────────────────
-  // 10. VISIBILITY (bfcache-safe)
-  // ─────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!canCheckSession()) return;
-    if (SESSION_TIMEOUT === -1) return;
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        checkSession();
-      } else {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-        if (warningTimerRef.current) {
-          clearTimeout(warningTimerRef.current);
-          warningTimerRef.current = null;
-        }
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [canCheckSession, checkSession]);
-
-  // ─────────────────────────────────────────────────────────────────────
-  // 11. INITIAL CHECK
-  // ─────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (canCheckSession() && isOnline) {
-      const timer = setTimeout(() => {
-        checkSession();
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [canCheckSession, checkSession, isOnline]);
-
-  if (sessionExpired && !isPublicRoute()) {
-    return null;
-  }
-
-  return <>{children}</>;
+  return (
+    <>
+      {!warningDismissed && secondsRemaining !== null && (
+        <SessionTimeoutBanner
+          secondsRemaining={secondsRemaining}
+          onExtend={handleExtendFromBanner}
+          onDismiss={handleDismissWarning}
+        />
+      )}
+      {children}
+    </>
+  );
 }

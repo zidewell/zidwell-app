@@ -52,9 +52,7 @@ function compactNumber(n: number): string {
   if (Math.abs(v) < 1_000_000_000)
     return `${(v / 1_000_000).toFixed(v % 1_000_000 === 0 ? 0 : 1)}M`;
   if (Math.abs(v) < 1_000_000_000_000)
-    return `${(v / 1_000_000_000).toFixed(
-      v % 1_000_000_000 === 0 ? 0 : 1
-    )}B`;
+    return `${(v / 1_000_000_000).toFixed(v % 1_000_000_000 === 0 ? 0 : 1)}B`;
   return `${(v / 1_000_000_000_000).toFixed(1)}T`;
 }
 
@@ -90,14 +88,14 @@ function StatCard({
       className={cn(
         "rounded-[2rem] border border-border p-7 transition-all bg-card shadow-sm min-w-0 overflow-hidden",
         highlight ? "bg-foreground text-background" : "bg-card",
-        empty && "opacity-50"
+        empty && "opacity-50",
       )}
     >
       <div className="flex items-center justify-between">
         <span
           className={cn(
             "flex size-11 shrink-0 items-center justify-center rounded-2xl",
-            highlight ? "bg-primary text-primary-foreground" : "bg-muted"
+            highlight ? "bg-primary text-primary-foreground" : "bg-muted",
           )}
         >
           <Icon className="size-5" strokeWidth={2.3} />
@@ -109,8 +107,8 @@ function StatCard({
               highlight
                 ? "bg-background/15 text-background"
                 : deltaPositive
-                ? "bg-[#E8F5E9] text-[#2E7D32] dark:bg-[#2E7D32]/20 dark:text-[#66BB6A]"
-                : "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+                  ? "bg-[#E8F5E9] text-[#2E7D32] dark:bg-[#2E7D32]/20 dark:text-[#66BB6A]"
+                  : "bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400",
             )}
           >
             <ArrowUpRight
@@ -123,7 +121,7 @@ function StatCard({
       <p
         className={cn(
           "eyebrow mt-8",
-          highlight ? "text-background/60" : "text-muted-foreground"
+          highlight ? "text-background/60" : "text-muted-foreground",
         )}
       >
         {label}
@@ -158,8 +156,7 @@ function PaymentPageCard({
   };
 
   const getFullPageUrl = () => {
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
     const path = getPageUrl();
     return `${origin}${path}`;
   };
@@ -200,7 +197,7 @@ function PaymentPageCard({
       if (result.isConfirmed) {
         await updatePage(page.id, { isPublished: newStatus });
         toast.success(
-          `Page ${newStatus ? "activated" : "deactivated"} successfully!`
+          `Page ${newStatus ? "activated" : "deactivated"} successfully!`,
         );
         onRefresh();
       }
@@ -273,22 +270,20 @@ function PaymentPageCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      onClick={() =>
-        router.push(`/dashboard/services/payment/page/${page.id}`)
-      }
+      onClick={() => router.push(`/dashboard/services/payment/page/${page.id}`)}
       className="group flex min-w-0 flex-col overflow-hidden rounded-3xl border border-border bg-card p-4 transition-shadow hover:shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] cursor-pointer shadow-sm"
     >
       <div className="relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted/30">
-        {page.coverImage ? (
+        {page.productImages && page.productImages.length > 0 ? (
           <img
-            src={page.coverImage}
+            src={page.productImages[0]}
             alt={page.title}
             className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
           />
-        ) : page.productImages && page.productImages.length > 0 ? (
+        ) : page.coverImage ? (
           <img
-            src={page.productImages[0]}
+            src={page.coverImage}
             alt={page.title}
             className="h-full w-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -304,7 +299,7 @@ function PaymentPageCard({
             "absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest",
             isActive
               ? "bg-background text-foreground"
-              : "bg-foreground text-background"
+              : "bg-foreground text-background",
           )}
         >
           {isActive ? "Active" : "Inactive"}
@@ -350,7 +345,7 @@ function PaymentPageCard({
               onClick={handleToggleActive}
               className={cn(
                 "cursor-pointer",
-                isActive ? "text-yellow-600" : "text-green-600"
+                isActive ? "text-yellow-600" : "text-green-600",
               )}
             >
               <EyeOff className="size-4 mr-2" />{" "}
@@ -496,7 +491,7 @@ export default function PaymentDashboardPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
   const [dataReady, setDataReady] = useState(false);
-
+ 
   const isRefreshingRef = useRef(false);
   const lastRefreshTime = useRef(0);
   const MIN_REFRESH_INTERVAL = 2000;
@@ -558,7 +553,7 @@ export default function PaymentDashboardPage() {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
         filtered = filtered.filter(
-          (page) => new Date(page.createdAt) >= cutoffDate
+          (page) => new Date(page.createdAt) >= cutoffDate,
         );
       }
     } else if (period === "custom" && range?.from) {
@@ -601,22 +596,22 @@ export default function PaymentDashboardPage() {
   const metrics = useMemo(() => {
     const totalRevenue = filteredPages.reduce(
       (sum, p) => sum + (p.totalRevenue || 0),
-      0
+      0,
     );
     const totalPayments = filteredPages.reduce(
       (sum, p) => sum + (p.totalPayments || 0),
-      0
+      0,
     );
     const totalViews = filteredPages.reduce(
       (sum, p) => sum + (p.pageViews || 0),
-      0
+      0,
     );
     const avgOrder =
       filteredPages.length > 0 && totalPayments > 0
         ? totalRevenue / totalPayments
         : 0;
     const activePages = filteredPages.filter(
-      (p) => p.isPublished === true
+      (p) => p.isPublished === true,
     ).length;
     return {
       totalRevenue,
@@ -629,9 +624,7 @@ export default function PaymentDashboardPage() {
   }, [filteredPages]);
 
   const walletBalance =
-    wallet?.available_balance != null
-      ? Number(wallet.available_balance)
-      : null;
+    wallet?.available_balance != null ? Number(wallet.available_balance) : null;
   const walletReady = !walletLoading && walletBalance !== null;
 
   // ─── LOADING ───
@@ -675,9 +668,7 @@ export default function PaymentDashboardPage() {
               Visit storefront
             </a>
             <button
-              onClick={() =>
-                router.push("/dashboard/services/payment/create")
-              }
+              onClick={() => router.push("/dashboard/services/payment/create")}
               className="flex items-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] transition-all duration-200 shadow-lg shadow-primary/20"
             >
               <Plus className="size-4" /> Add New product
@@ -712,9 +703,7 @@ export default function PaymentDashboardPage() {
       <section className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total balance"
-          value={
-            walletReady ? formatCurrencyCompact(walletBalance!) : "—"
-          }
+          value={walletReady ? formatCurrencyCompact(walletBalance!) : "—"}
           delta="0%"
           icon={Coins}
           highlight
@@ -722,9 +711,7 @@ export default function PaymentDashboardPage() {
         />
         <StatCard
           label="Total revenue"
-          value={
-            isEmpty ? "₦0" : formatCurrencyCompact(metrics.totalRevenue)
-          }
+          value={isEmpty ? "₦0" : formatCurrencyCompact(metrics.totalRevenue)}
           delta="0%"
           icon={TrendingUp}
           empty={isEmpty}
@@ -771,7 +758,7 @@ export default function PaymentDashboardPage() {
             key={s.label}
             className={cn(
               "rounded-[2rem] p-7 bg-card border border-border shadow-sm min-w-0 overflow-hidden",
-              isEmpty ? "bg-muted/30 border border-border" : "bg-card"
+              isEmpty ? "bg-muted/30 border border-border" : "bg-card",
             )}
           >
             <p className="eyebrow text-muted-foreground">{s.label}</p>
@@ -796,13 +783,11 @@ export default function PaymentDashboardPage() {
               No pages yet
             </h3>
             <p className="mt-2 max-w-md text-muted-foreground">
-              Create your first payment page to start collecting money
-              from your customers.
+              Create your first payment page to start collecting money from your
+              customers.
             </p>
             <button
-              onClick={() =>
-                router.push("/dashboard/services/payment/create")
-              }
+              onClick={() => router.push("/dashboard/services/payment/create")}
               className="mt-6 flex items-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
             >
               <Plus className="size-4" />
@@ -819,10 +804,7 @@ export default function PaymentDashboardPage() {
                 </h2>
               </div>
               <p className="text-base font-medium text-muted-foreground">
-                {
-                  filteredPages.filter((p) => p.isPublished === true)
-                    .length
-                }{" "}
+                {filteredPages.filter((p) => p.isPublished === true).length}{" "}
                 active pages
               </p>
             </div>

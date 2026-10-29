@@ -37,7 +37,8 @@ export function StoreWallet() {
   const [walletLoading, setWalletLoading] = useState(true);
 
   const isVerified = userData?.bvnVerification === "verified";
-const router = useRouter()
+  const router = useRouter();
+
   // ─── FETCH WALLET ───
   const fetchWallet = useCallback(async () => {
     if (!userData?.id) {
@@ -110,75 +111,64 @@ const router = useRouter()
   };
 
   // ─── CONFIRM WITHDRAWAL ───
-  // Called by WithdrawalModal.onConfirm.
-  // - Does ONE API call to the wallet withdraw endpoint.
-  // - Shows SweetAlert on success or error.
-  // - Only closes modal + refreshes on SUCCESS.
-  // - On failure: shows SweetAlert error, then THROWS so the modal
-  //   stays open and the user can retry.
-const handleWithdrawConfirm = async (amount: number) => {
-  try {
-    const res = await fetch("/api/store/wallet/withdraw", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount }),
-    });
+  const handleWithdrawConfirm = async (amount: number) => {
+    try {
+      const res = await fetch("/api/store/wallet/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.error || "Withdrawal failed");
+      if (!res.ok) {
+        throw new Error(data.error || "Withdrawal failed");
+      }
+
+      const reference =
+        data.withdrawal?.reference ||
+        `WDR-${Date.now().toString().slice(-8)}`;
+
+      setIsWithdrawModalOpen(false);
+      fetchWallet();
+
+      await Swal.fire({
+        icon: "success",
+        title: "Withdrawal Successful!",
+        html: `
+          <div class="text-left">
+            <p class="mb-2 font-semibold text-green-600">
+              ✅ ₦${amount.toLocaleString()} withdrawn!
+            </p>
+            <p class="text-sm text-gray-600">
+              The funds are now in your main wallet.
+            </p>
+            <p class="text-xs text-gray-500 mt-2">
+              Reference: ${reference}
+            </p>
+          </div>
+        `,
+        confirmButtonColor: "#F5B81B",
+        confirmButtonText: "Done",
+      });
+    } catch (error: any) {
+      await Swal.fire({
+        icon: "error",
+        title: "Withdrawal Failed",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">${error.message || "Something went wrong"}</p>
+            <p class="text-sm text-gray-600">
+              The form is still open — please try again.
+            </p>
+          </div>
+        `,
+        confirmButtonColor: "#F5B81B",
+      });
+
+      throw error;
     }
-
-    const reference =
-      data.withdrawal?.reference || `WDR-${Date.now().toString().slice(-8)}`;
-
-    // ✅ CLOSE MODAL FIRST — before showing the alert
-    setIsWithdrawModalOpen(false);
-
-    // ✅ Refresh wallet in the background (don't await — let the alert show)
-    fetchWallet();
-
-    // ✅ THEN show success alert
-    await Swal.fire({
-      icon: "success",
-      title: "Withdrawal Successful!",
-      html: `
-        <div class="text-left">
-          <p class="mb-2 font-semibold text-green-600">
-            ✅ ₦${amount.toLocaleString()} withdrawn!
-          </p>
-          <p class="text-sm text-gray-600">
-            The funds are now in your main wallet.
-          </p>
-          <p class="text-xs text-gray-500 mt-2">
-            Reference: ${reference}
-          </p>
-        </div>
-      `,
-      confirmButtonColor: "#F5B81B",
-      confirmButtonText: "Done",
-    });
-  } catch (error: any) {
-    // ✅ Keep modal open on failure — just show the error alert
-    await Swal.fire({
-      icon: "error",
-      title: "Withdrawal Failed",
-      html: `
-        <div class="text-left">
-          <p class="mb-2">${error.message || "Something went wrong"}</p>
-          <p class="text-sm text-gray-600">
-            The form is still open — please try again.
-          </p>
-        </div>
-      `,
-      confirmButtonColor: "#F5B81B",
-    });
-
-    // Re-throw so WithdrawalModal knows to stay on the input step
-    throw error;
-  }
-};
+  };
 
   const handleVerify = () => {
     setIsWithdrawModalOpen(false);
@@ -203,10 +193,10 @@ const handleWithdrawConfirm = async (amount: number) => {
 
   return (
     <div>
-      {/* ─── Balance Card ─── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-foreground to-foreground/80 p-8 text-background">
-        <div className="absolute right-0 top-0 h-64 w-64 translate-x-12 -translate-y-12 rounded-full bg-gold/10" />
-        <div className="absolute bottom-0 left-0 h-32 w-32 translate-x-8 translate-y-8 rounded-full bg-gold/5" />
+      {/* ─── Balance Card — always dark, independent of theme ─── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#191919] to-[#2A2A2A] p-8 text-white">
+        <div className="absolute right-0 top-0 h-64 w-64 translate-x-12 -translate-y-12 rounded-full bg-yellow-500/10" />
+        <div className="absolute bottom-0 left-0 h-32 w-32 translate-x-8 translate-y-8 rounded-full bg-yellow-500/5" />
         <div className="relative">
           <div className="flex items-center gap-2">
             <Wallet className="size-5" />
@@ -227,12 +217,18 @@ const handleWithdrawConfirm = async (amount: number) => {
             {canWithdraw && (
               <button
                 onClick={handleOpenWithdraw}
-                className="rounded-2xl bg-gold px-6 py-3 text-sm font-bold text-gold-foreground hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 rounded-2xl bg-yellow-500 px-6 py-3 text-sm font-bold text-black shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 active:scale-[0.98] transition-all"
               >
+                <ArrowUpRight className="size-4" />
                 Withdraw Funds
               </button>
             )}
-            <button onClick={() => router.push("/store/transactions")} className="rounded-2xl border border-background/20 px-6 py-3 text-sm font-bold hover:bg-background/10 transition-colors">
+            <button
+              onClick={() =>
+                router.push("/dashboard/services/payment/store/transactions")
+              }
+              className="rounded-2xl border border-white/30 bg-white/5 px-6 py-3 text-sm font-bold text-white hover:bg-white/15 transition-colors"
+            >
               Transaction History
             </button>
           </div>
@@ -278,7 +274,7 @@ const handleWithdrawConfirm = async (amount: number) => {
         </div>
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <CreditCard className="size-4 text-gold" />
+            <CreditCard className="size-4 text-yellow-500" />
             <p className="text-sm">Total Payments</p>
           </div>
           <p className="text-xl font-bold">{totalPayments}</p>
@@ -327,7 +323,7 @@ const handleWithdrawConfirm = async (amount: number) => {
                   <div
                     className={cn(
                       "flex h-10 w-10 items-center justify-center rounded-2xl",
-                      realBal > 0 ? "bg-gold/10" : "bg-muted"
+                      realBal > 0 ? "bg-yellow-500/10" : "bg-muted"
                     )}
                   >
                     <ArrowUpRight

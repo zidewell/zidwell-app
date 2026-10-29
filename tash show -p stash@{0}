@@ -1,0 +1,247 @@
+[1mdiff --git a/next.config.ts b/next.config.ts[m
+[1mindex 29deec1..758130b 100644[m
+[1m--- a/next.config.ts[m
+[1m+++ b/next.config.ts[m
+[36m@@ -1,156 +1,102 @@[m
+[31m-/** @type {import('next').NextConfig} */[m
+[32m+[m[32m<<<<<<< Updated upstream[m
+ [m
+ const withPWA = require("next-pwa")({[m
+   dest: "public",[m
+[31m-  disable: process.env.NODE_ENV === "development",[m
+[32m+[m[32m  disable: true,[m
+   register: true,[m
+   skipWaiting: true,[m
+   scope: "/",[m
+   sw: "sw.js",[m
+ [m
+[31m-  runtimeCaching: [[m
+[31m-    {[m
+[31m-      urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,[m
+[31m-      handler: "CacheFirst",[m
+[31m-      options: {[m
+[31m-        cacheName: "google-fonts",[m
+[31m-        expiration: {[m
+[31m-          maxEntries: 4,[m
+[31m-          maxAgeSeconds: 365 * 24 * 60 * 60, // 365 days[m
+[31m-        },[m
+[31m-      },[m
+[31m-    },[m
+[31m-    {[m
+[31m-      urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,[m
+[31m-      handler: "StaleWhileRevalidate",[m
+[31m-      options: {[m
+[31m-        cacheName: "static-font-assets",[m
+[31m-        expiration: {[m
+[31m-          maxEntries: 4,[m
+[31m-          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days[m
+[31m-        },[m
+[31m-      },[m
+[31m-    },[m
+[31m-    {[m
+[31m-      urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,[m
+[31m-      handler: "StaleWhileRevalidate",[m
+[31m-      options: {[m
+[31m-        cacheName: "static-image-assets",[m
+[31m-        expiration: {[m
+[31m-          maxEntries: 64,[m
+[31m-          maxAgeSeconds: 24 * 60 * 60,[m
+[31m-        },[m
+[31m-      },[m
+[31m-    },[m
+[31m-    {[m
+[31m-      urlPattern: /\/_next\/static\/.+$/i,[m
+[31m-      handler: "CacheFirst",[m
+[31m-      options: {[m
+[31m-        cacheName: "next-static",[m
+[31m-        expiration: {[m
+[31m-          maxEntries: 64,[m
+[31m-          maxAgeSeconds: 365 * 24 * 60 * 60,[m
+[31m-        },[m
+[31m-      },[m
+[31m-    },[m
+[31m-  ],[m
+[31m-});[m
+[31m-[m
+[32m+[m[32mconst nextConfig: NextConfig = {[m
+[32m+[m[32m=======[m
+[32m+[m[32m/** @type {import('next').NextConfig} */[m
+ const nextConfig = {[m
+[32m+[m[32m>>>>>>> Stashed changes[m
+   reactStrictMode: true,[m
+[32m+[m[32m  turbopack: {},[m
+[32m+[m[32m  // Image optimization[m
+   images: {[m
+     unoptimized: true,[m
+[31m-    domains: ["zidwell.com"],[m
+[32m+[m[32m    remotePatterns: [[m
+[32m+[m[32m      {[m
+[32m+[m[32m        protocol: "https",[m
+[32m+[m[32m        hostname: "zidwell.com",[m
+[32m+[m[32m      },[m
+[32m+[m[32m    ],[m
+     formats: ["image/webp", "image/avif"],[m
+   },[m
+ [m
+[31m-  // SEO Optimizations[m
+[32m+[m[32m<<<<<<< Updated upstream[m
+[32m+[m[32m  // SEO / Performance[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> Stashed changes[m
+   trailingSlash: false,[m
+   poweredByHeader: false,[m
+   compress: true,[m
+ [m
+[31m-  // Webpack configuration to suppress warnings[m
+[32m+[m[32m<<<<<<< Updated upstream[m
+[32m+[m[32m  // Remove unnecessary console output in production.[m
+[32m+[m[32m  // Keep warn/error available for debugging.[m
+[32m+[m[32m  compiler: {[m
+[32m+[m[32m    removeConsole:[m
+[32m+[m[32m      process.env.NODE_ENV === "production"[m
+[32m+[m[32m        ? {[m
+[32m+[m[32m            exclude: ["error", "warn"],[m
+[32m+[m[32m          }[m
+[32m+[m[32m        : false,[m
+[32m+[m[32m  },[m
+[32m+[m
+[32m+[m[32m  // Webpack configuration[m
+[32m+[m[32m  webpack: (config) => {[m
+[32m+[m[32m=======[m
+   webpack: (config, { isServer }) => {[m
+[31m-    // Ignore specific warnings from Supabase realtime-js[m
+[32m+[m[32m>>>>>>> Stashed changes[m
+     if (!config.ignoreWarnings) {[m
+       config.ignoreWarnings = [];[m
+     }[m
+[31m-[m
+     config.ignoreWarnings.push([m
+[31m-      {[m
+[31m-        module: /@supabase\/realtime-js/,[m
+[31m-      },[m
+[32m+[m[32m      { module: /@supabase\/realtime-js/ },[m
+       {[m
+         message:[m
+           /Critical dependency: the request of a dependency is an expression/,[m
+       },[m
+     );[m
+[31m-[m
+     return config;[m
+   },[m
+ [m
+[31m-  // Headers for security and PWA[m
+[32m+[m[32m<<<<<<< Updated upstream[m
+[32m+[m[32m  // Security headers[m
+[32m+[m[32m=======[m
+[32m+[m[32m>>>>>>> Stashed changes[m
+   async headers() {[m
+     return [[m
+       {[m
+         source: "/(.*)",[m
+         headers: [[m
+[31m-          {[m
+[31m-            key: "X-Content-Type-Options",[m
+[31m-            value: "nosniff",[m
+[31m-          },[m
+[31m-          {[m
+[31m-            key: "X-Frame-Options",[m
+[31m-            value: "DENY",[m
+[31m-          },[m
+[31m-          {[m
+[31m-            key: "X-XSS-Protection",[m
+[31m-            value: "1; mode=block",[m
+[31m-          },[m
+[31m-          {[m
+[31m-            key: "Referrer-Policy",[m
+[31m-            value: "origin-when-cross-origin",[m
+[31m-          },[m
+[32m+[m[32m          { key: "X-Content-Type-Options", value: "nosniff" },[m
+[32m+[m[32m          { key: "X-Frame-Options", value: "DENY" },[m
+[32m+[m[32m          { key: "X-XSS-Protection", value: "1; mode=block" },[m
+[32m+[m[32m          { key: "Referrer-Policy", value: "origin-when-cross-origin" },[m
+         ],[m
+       },[m
+       {[m
+         source: "/sitemap.xml",[m
+[31m-        headers: [[m
+[31m-          {[m
+[31m-            key: "Content-Type",[m
+[31m-            value: "application/xml; charset=utf-8",[m
+[31m-          },[m
+[31m-        ],[m
+[32m+[m[32m        headers: [{ key: "Content-Type", value: "application/xml; charset=utf-8" }],[m
+       },[m
+       {[m
+         source: "/robots.txt",[m
+[31m-        headers: [[m
+[31m-          {[m
+[31m-            key: "Content-Type",[m
+[31m-            value: "text/plain; charset=utf-8",[m
+[31m-          },[m
+[31m-        ],[m
+[32m+[m[32m        headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],[m
+       },[m
+     ];[m
+   },[m
+ [m
+[32m+[m[32m  // Redirects[m
+   async redirects() {[m
+     return [[m
+[31m-      {[m
+[31m-        source: "/home",[m
+[31m-        destination: "/",[m
+[31m-        permanent: true,[m
+[31m-      },[m
+[31m-      {[m
+[31m-        source: "/signin",[m
+[31m-        destination: "/auth/login",[m
+[31m-        permanent: true,[m
+[31m-      },[m
+[31m-      {[m
+[31m-        source: "/register",[m
+[31m-        destination: "/auth/signup",[m
+[31m-        permanent: true,[m
+[31m-      },[m
+[32m+[m[32m      { source: "/home", destination: "/", permanent: true },[m
+[32m+[m[32m      { source: "/signin", destination: "/auth/login", permanent: true },[m
+[32m+[m[32m      { source: "/register", destination: "/auth/signup", permanent: true },[m
+     ];[m
+   },[m
+ [m
+[36m@@ -158,124 +104,6 @@[m [mconst nextConfig = {[m
+     SITE_URL: process.env.SITE_URL || "zidwell.com",[m
+     SITE_NAME: "Zidwell",[m
+   },[m
+[31m-[m
+[31m-  compiler: {[m
+[31m-    removeConsole: process.env.NODE_ENV === "production",[m
+[31m-  },[m
+ };[m
+ [m
+[31m-module.exports = withPWA(nextConfig);[m
+[31m-[m
+[31m-// // next.config.js - Simplified version without Serwist[m
+[31m-// /** @type {import('next').NextConfig} */[m
+[31m-// const nextConfig = {[m
+[31m-//   reactStrictMode: true,[m
+[31m-//    experimental: {[m
+[31m-//       runtime: 'nodejs', // Force Node.js runtime instead of edge[m
+[31m-//     },[m
+[31m-//   images: {[m
+[31m-//     unoptimized: true,[m
+[31m-//     domains: ["zidwell.com"],[m
+[31m-//     formats: ["image/webp", "image/avif"],[m
+[31m-//   },[m
+[31m-[m
+[31m-//   trailingSlash: false,[m
+[31m-//   poweredByHeader: false,[m
+[31m-//   compress: true,[m
+[31m-[m
+[31m-//   webpack: (config, { isServer }) => {[m
+[31m-//     if (!config.ignoreWarnings) {[m
+[31m-//       config.ignoreWarnings = [];[m
+[31m-//     }[m
+[31m-[m
+[31m-//     config.ignoreWarnings.push([m
+[31m-//       {[m
+[31m-//     

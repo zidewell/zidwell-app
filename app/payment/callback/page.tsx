@@ -207,12 +207,12 @@ function PaymentCallbackContent() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[var(--bg-primary)] rounded-lg shadow-soft p-8 border border-[var(--border-color)] text-center">
+        <div className="max-w-md w-full bg-(--bg-primary) rounded-lg shadow-soft p-8 border border-(--border-color) text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)] mx-auto mb-4"></div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)] mb-2">Verifying Payment</h1>
-          <p className="text-[var(--text-secondary)]">{message || "Please wait while we confirm your payment..."}</p>
+          <h1 className="text-xl font-bold text-(--text-primary) mb-2">Verifying Payment</h1>
+          <p className="text-(--text-secondary)">{message || "Please wait while we confirm your payment..."}</p>
           {orderReference && (
-            <p className="text-xs text-[var(--text-secondary)] mt-4">Reference: {orderReference}</p>
+            <p className="text-xs text-(--text-secondary) mt-4">Reference: {orderReference}</p>
           )}
         </div>
       </div>
@@ -222,23 +222,23 @@ function PaymentCallbackContent() {
   if (status === "success") {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-[var(--bg-primary)] rounded-lg shadow-soft p-8 border border-[var(--border-color)] text-center">
+        <div className="max-w-md w-full bg-(--bg-primary) rounded-lg shadow-soft p-8 border border-(--border-color) text-center">
           <div className="w-16 h-16 bg-[var(--color-lemon-green)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-[var(--color-lemon-green)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-[var(--color-lemon-green)] mb-2">Payment Successful!</h1>
-          <p className="text-[var(--text-secondary)] mb-4">{message}</p>
+          <p className="text-(--text-secondary) mb-4">{message}</p>
           
           <div className="bg-[var(--color-lemon-green)]/10 border border-[var(--color-lemon-green)]/20 rounded-lg p-4 mb-6">
-            <p className="text-[var(--text-secondary)] text-sm">Thank you for your payment. A receipt has been sent to your email.</p>
+            <p className="text-(--text-secondary) text-sm">Thank you for your payment. A receipt has been sent to your email.</p>
             {orderReference && (
-              <p className="text-[var(--text-secondary)] text-sm mt-2">Reference: <strong>{orderReference}</strong></p>
+              <p className="text-(--text-secondary) text-sm mt-2">Reference: <strong>{orderReference}</strong></p>
             )}
           </div>
 
-          <div className="text-sm text-[var(--text-secondary)]">
+          <div className="text-sm text-(--text-secondary)">
             Redirecting{redirectUrl ? ` to ${redirectUrl}` : ''}...
           </div>
         </div>
@@ -249,14 +249,14 @@ function PaymentCallbackContent() {
   // Failed status
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-[var(--bg-primary)] rounded-lg shadow-soft p-8 border border-[var(--border-color)] text-center">
+      <div className="max-w-md w-full bg-(--bg-primary) rounded-lg shadow-soft p-8 border border-(--border-color) text-center">
         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-red-600 mb-2">Payment Failed</h1>
-        <p className="text-[var(--text-secondary)] mb-4">{message || "Unable to process your payment."}</p>
+        <p className="text-(--text-secondary) mb-4">{message || "Unable to process your payment."}</p>
 
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
           <p className="text-red-800 text-sm">Please check your payment details and try again. If the problem persists, contact support.</p>
@@ -272,7 +272,7 @@ function PaymentCallbackContent() {
           >
             Try Again
           </button>
-          <Link href="/" className="block text-sm text-[var(--text-secondary)] hover:text-[var(--color-accent-yellow)]">
+          <Link href="/" className="block text-sm text-(--text-secondary) hover:text-[var(--color-accent-yellow)]">
             Return Home
           </Link>
         </div>
@@ -288,7 +288,7 @@ export default function PaymentCallbackPage() {
         <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-accent-yellow)] mx-auto mb-4"></div>
-            <p className="text-[var(--text-secondary)]">Loading payment status...</p>
+            <p className="text-(--text-secondary)">Loading payment status...</p>
           </div>
         </div>
       }

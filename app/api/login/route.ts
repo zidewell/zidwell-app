@@ -2,7 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
-import { getUserWithDetails } from "@/lib/suabase-admin";
+import {
+  getUserWithDetails,
+  invalidateUserCache,
+} from "@/lib/supabase-admin";
 import { supabase } from "@/app/supabase/supabase";
 import {
   getClientIp,
@@ -13,6 +16,7 @@ import {
   generateSessionId,
   type DeviceInfo,
 } from "@/lib/security";
+import { SESSION_TIMEOUT_MS } from "@/lib/session-config";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
@@ -20,10 +24,39 @@ const RATE_LIMIT_WINDOW = 15 * 60 * 1000;
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
+  { auth: { autoRefreshToken: false, persistSession: false } },
 );
 
-// ─── Deterministic fallback fingerprint ───
+// ─── Network error detection ───
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
+
+  const name = err?.name || "";
+  const msg = (err?.message || "").toLowerCase();
+
+  if (name === "AuthRetryableFetchError") return true;
+  if (name === "AuthUnknownError" && msg.includes("fetch")) return true;
+  if (name === "TypeError" && msg.includes("fetch")) return true;
+  if (name === "AbortError") return true;
+
+  const networkSignals = [
+    "fetch failed",
+    "econnrefused",
+    "econnreset",
+    "enotfound",
+    "etimedout",
+    "eai_again",
+    "und_err",
+    "network",
+    "socket hang up",
+    "connection timeout",
+    "connect timeout",
+    "getaddrinfo",
+  ];
+
+  return networkSignals.some((s) => msg.includes(s));
+}
+
 function buildFallbackFingerprint(parts: string[]): string {
   const str = parts.join("::");
   let hash = 0;
@@ -49,7 +82,7 @@ export async function POST(request: NextRequest) {
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email and password are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -59,7 +92,7 @@ export async function POST(request: NextRequest) {
     const ipLimit = checkRateLimit(
       `ip:${ip}`,
       MAX_FAILED_ATTEMPTS,
-      RATE_LIMIT_WINDOW
+      RATE_LIMIT_WINDOW,
     );
     if (!ipLimit.allowed) {
       return NextResponse.json(
@@ -67,14 +100,14 @@ export async function POST(request: NextRequest) {
           error: "Too many login attempts. Please try again in 15 minutes.",
           retryAfter: Math.ceil((ipLimit.resetTime - Date.now()) / 1000),
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
     const emailLimit = checkRateLimit(
       `email:${email.toLowerCase()}`,
       MAX_FAILED_ATTEMPTS,
-      RATE_LIMIT_WINDOW
+      RATE_LIMIT_WINDOW,
     );
     if (!emailLimit.allowed) {
       return NextResponse.json(
@@ -83,7 +116,7 @@ export async function POST(request: NextRequest) {
             "Too many failed attempts for this account. Please try again later.",
           retryAfter: Math.ceil((emailLimit.resetTime - Date.now()) / 1000),
         },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -98,7 +131,6 @@ export async function POST(request: NextRequest) {
       timezone: "unknown",
     };
 
-    // ✅ Always ensure a fingerprint exists
     if (!device.fingerprint) {
       device.fingerprint = buildFallbackFingerprint([
         device.userAgent || "unknown",
@@ -124,7 +156,7 @@ export async function POST(request: NextRequest) {
 
         if (!authListError && authUsers?.users) {
           userExists = authUsers.users.some(
-            (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+            (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
           );
         }
       } catch (e) {
@@ -156,11 +188,11 @@ export async function POST(request: NextRequest) {
           error: "No account found with this email address.",
           userNotFound: true,
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // ─── ✅ EMAIL VERIFICATION (with self-heal) ───
+    // ─── EMAIL VERIFICATION (with self-heal) ───
     if (existingUser && !existingUser.email_verified) {
       let isVerifiedInSupabase = false;
       try {
@@ -172,7 +204,6 @@ export async function POST(request: NextRequest) {
       }
 
       if (isVerifiedInSupabase) {
-        // 🔧 SELF-HEAL stale flag
         console.log(`🔧 Auto-healing stale email_verified for ${email}`);
         try {
           await supabaseAdmin
@@ -186,9 +217,7 @@ export async function POST(request: NextRequest) {
         } catch (e) {
           console.error("Failed to self-heal email_verified:", e);
         }
-        // Fall through to auth
       } else {
-        // 🔒 Genuinely unverified
         console.log(`🔒 Login blocked: ${email} - email not verified`);
 
         let hasPendingToken = false;
@@ -196,7 +225,7 @@ export async function POST(request: NextRequest) {
           const { data: tokenRow } = await supabaseAdmin
             .from("users")
             .select(
-              "email_verification_token, email_verification_token_expires"
+              "email_verification_token, email_verification_token_expires",
             )
             .eq("id", existingUser.id)
             .maybeSingle();
@@ -221,7 +250,7 @@ export async function POST(request: NextRequest) {
             hasPendingToken,
             resendAvailable: true,
           },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -232,6 +261,20 @@ export async function POST(request: NextRequest) {
 
     if (authError || !authData?.session) {
       console.error("Auth error:", authError?.message);
+
+      // Distinguish a network failure from a genuine credential failure.
+      // Network failures must NOT be counted as failed login attempts —
+      // otherwise a slow network locks the user out after 5 attempts.
+      if (isNetworkError(authError)) {
+        return NextResponse.json(
+          {
+            error:
+              "Authentication service is temporarily unreachable. Please try again in a moment.",
+            retryable: true,
+          },
+          { status: 503 },
+        );
+      }
 
       try {
         await supabase.from("failed_login_attempts").insert({
@@ -249,31 +292,34 @@ export async function POST(request: NextRequest) {
       trackFailedAttempt(`email:${email.toLowerCase()}`, email);
 
       if (
-        authError?.message?.toLowerCase().includes("invalid login credentials") ||
+        authError?.message
+          ?.toLowerCase()
+          .includes("invalid login credentials") ||
         authError?.message?.toLowerCase().includes("invalid password")
       ) {
         return NextResponse.json(
           { error: "Invalid password. Please try again." },
-          { status: 401 }
+          { status: 401 },
         );
       }
 
       return NextResponse.json(
         { error: authError?.message || "Invalid email or password" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
-    const { access_token, refresh_token, expires_in } = authData.session;
+    const { access_token, refresh_token } = authData.session;
     const userId = authData.user.id;
 
-    // ─── USER PROFILE & BLOCK CHECK ───
+    // ─── INVALIDATE CACHE AND LOAD USER PROFILE ───
+    invalidateUserCache(userId);
     const userProfile = await getUserWithDetails(userId);
 
     if (!userProfile) {
       return NextResponse.json(
         { error: "Account not found. Please sign up first." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -286,17 +332,63 @@ export async function POST(request: NextRequest) {
           blockedReason: userProfile.block_reason,
           blockedAt: userProfile.blocked_at,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
-    // ─── SECURITY ANALYSIS ───
-    let securityContext = await analyzeLoginRisk(supabase, userId, {
-      ip,
-      location,
-      device,
-      timestamp,
-    });
+    // ─── SESSION TOKEN ───
+    const sessionToken = generateSessionId();
+    const sessionExpiresAt = new Date(Date.now() + SESSION_TIMEOUT_MS);
+    // ─── PARALLELIZE INDEPENDENT CALLS ───
+    // Security analysis, session write, business lookup, and store lookup
+    // are independent — run them together instead of sequentially.
+    const [
+      securityContextResult,
+      sessionWriteResult,
+      businessResult,
+      storeResult,
+    ] = await Promise.allSettled([
+      analyzeLoginRisk(supabase, userId, {
+        ip,
+        location,
+        device,
+        timestamp,
+      }),
+
+      supabaseAdmin
+        .from("users")
+        .update({
+          current_session_id: sessionToken,
+          current_session_ip: ip,
+          current_session_device: `${device.platform} | ${device.userAgent?.slice(0, 60)}`,
+          current_session_expires_at: sessionExpiresAt.toISOString(),
+        })
+        .eq("id", userId),
+
+      supabase
+        .from("businesses")
+        .select("business_name")
+        .eq("user_id", userId)
+        .maybeSingle(),
+
+      supabaseAdmin
+        .from("online_stores")
+        .select(
+          "id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at",
+        )
+        .eq("owner_id", userId)
+        .maybeSingle(),
+    ]);
+
+    // ─── SECURITY CONTEXT ───
+    let securityContext =
+      securityContextResult.status === "fulfilled"
+        ? securityContextResult.value
+        : {
+            riskScore: 0,
+            reasons: [] as string[],
+            isKnownDevice: true,
+          };
 
     console.log(`🔐 Login security analysis for ${email}:`, {
       riskScore: securityContext.riskScore,
@@ -311,7 +403,7 @@ export async function POST(request: NextRequest) {
 
     if (isDevLocalhost) {
       console.log(
-        "🔓 Development localhost detected — bypassing geo/time risk checks"
+        "🔓 Development localhost detected — bypassing geo/time risk checks",
       );
       securityContext = {
         ...securityContext,
@@ -325,88 +417,54 @@ export async function POST(request: NextRequest) {
 
     if (isSuspicious) {
       console.warn(
-        `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`
+        `⚠️ Suspicious login allowed for ${email} from ${location.city}, ${location.country} (score: ${securityContext.riskScore})`,
       );
     }
 
-    // ─── GENERATE SESSION TOKEN ───
-    const sessionToken = generateSessionId();
-    const sessionExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    try {
-      await supabaseAdmin
-        .from("users")
-        .update({
-          current_session_id: sessionToken,
-          current_session_ip: ip,
-          current_session_device: `${device.platform} | ${device.userAgent?.slice(0, 60)}`,
-          current_session_expires_at: sessionExpiresAt.toISOString(),
-        })
-        .eq("id", userId);
-    } catch (e) {
-      console.error("Failed to update session in DB:", e);
+    if (sessionWriteResult.status === "rejected") {
+      console.error("Failed to update session in DB:", sessionWriteResult.reason);
     }
 
-    console.log(`🔑 Session ${sessionToken.slice(0, 8)}... created for ${email}`);
+    console.log(
+      `🔑 Session ${sessionToken.slice(0, 8)}... created for ${email}`,
+    );
 
-    // ─── BUSINESS INFO ───
-    const { data: businessData, error: businessError } = await supabase
-      .from("businesses")
-      .select("business_name")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (businessError && businessError.code !== "PGRST116") {
-      console.error("Error fetching business:", businessError.message);
-    }
-
+    // ─── BUSINESS NAME ───
+    const businessData =
+      businessResult.status === "fulfilled" ? businessResult.value.data : null;
     const displayName = businessData?.business_name || userProfile.full_name;
 
-    // ─── FETCH STORE DATA (non-blocking) ───
+    // ─── STORE DATA ───
     let storeData = null;
-    try {
-      const { data: store, error: storeError } = await supabaseAdmin
-        .from("online_stores")
-        .select(
-          "id, name, slug, description, keywords, cac_number, logo_url, cover_url, country, state, city, street_address, location_enabled, is_active, activation_paid, activated_at, activation_reference, wallet_balance, total_revenue, total_orders, total_views, created_at, updated_at"
-        )
-        .eq("owner_id", userId)
-        .maybeSingle();
-
-      if (!storeError && store) {
-        storeData = {
-          id: store.id,
-          owner_id: userId,
-          name: store.name,
-          slug: store.slug,
-          description: store.description || "",
-          keywords: store.keywords || [],
-          cac_number: store.cac_number,
-          logo_url: store.logo_url,
-          cover_url: store.cover_url,
-          country: store.country || "Nigeria",
-          state: store.state || "",
-          city: store.city || "",
-          street_address: store.street_address || "",
-          location_enabled: store.location_enabled !== false,
-          is_active: store.is_active || false,
-          activation_paid: store.activation_paid || false,
-          activated_at: store.activated_at,
-          activation_reference: store.activation_reference,
-          wallet_balance: store.wallet_balance || 0,
-          total_revenue: store.total_revenue || 0,
-          total_orders: store.total_orders || 0,
-          total_views: store.total_views || 0,
-          created_at: store.created_at,
-          updated_at: store.updated_at,
-        };
-        console.log("✅ Store data fetched:", storeData.slug);
-      }
-    } catch (storeFetchError) {
-      console.debug(
-        "Store fetch skipped or failed (non-critical):",
-        storeFetchError
-      );
+    if (storeResult.status === "fulfilled" && storeResult.value.data) {
+      const store = storeResult.value.data;
+      storeData = {
+        id: store.id,
+        owner_id: userId,
+        name: store.name,
+        slug: store.slug,
+        description: store.description || "",
+        keywords: store.keywords || [],
+        cac_number: store.cac_number,
+        logo_url: store.logo_url,
+        cover_url: store.cover_url,
+        country: store.country || "Nigeria",
+        state: store.state || "",
+        city: store.city || "",
+        street_address: store.street_address || "",
+        location_enabled: store.location_enabled !== false,
+        is_active: store.is_active || false,
+        activation_paid: store.activation_paid || false,
+        activated_at: store.activated_at,
+        activation_reference: store.activation_reference,
+        wallet_balance: store.wallet_balance || 0,
+        total_revenue: store.total_revenue || 0,
+        total_orders: store.total_orders || 0,
+        total_views: store.total_views || 0,
+        created_at: store.created_at,
+        updated_at: store.updated_at,
+      };
+      console.log("✅ Store data fetched:", storeData.slug);
     }
 
     // ─── SET COOKIES ───
@@ -441,13 +499,17 @@ export async function POST(request: NextRequest) {
         path: "/",
         maxAge: 60 * 60,
       }),
-      cookieStore.set("sb-session-risk", securityContext.riskScore.toString(), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24,
-      }),
+      cookieStore.set(
+        "sb-session-risk",
+        securityContext.riskScore.toString(),
+        {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 60 * 60 * 24,
+        },
+      ),
       cookieStore.set("sb-session-id", sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -457,7 +519,7 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // ─── LOG SUCCESSFUL LOGIN (fire and forget) ───
+    // ─── FIRE-AND-FORGET SIDE EFFECTS ───
     Promise.resolve().then(async () => {
       try {
         await supabase.from("login_history").insert({
@@ -484,7 +546,6 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // ─── ✅ TRUSTED DEVICES (matches YOUR schema exactly) ───
     Promise.resolve().then(async () => {
       try {
         const deviceName = `${device.platform || "Unknown"} - ${(
@@ -505,7 +566,7 @@ export async function POST(request: NextRequest) {
             },
             {
               onConflict: "user_id,device_fingerprint",
-            }
+            },
           );
 
         if (upsertError) {
@@ -517,6 +578,8 @@ export async function POST(request: NextRequest) {
     });
 
     // ─── RESPONSE ───
+    // NOTE: We do NOT return access_token or refresh_token.
+    // They live exclusively in httpOnly cookies.
     const profile = {
       id: userProfile.id,
       fullName: displayName,
@@ -526,6 +589,7 @@ export async function POST(request: NextRequest) {
       zidcoinBalance: userProfile.zidcoin_balance,
       walletBalance: userProfile.wallet_balance,
       bvnVerification: userProfile.bvn_verification,
+      isBvnVerified: userProfile.bvn_verification === "verified",
       role: userProfile.admin_role,
       referralCode: userProfile.referral_code,
       state: userProfile.state,
@@ -548,16 +612,13 @@ export async function POST(request: NextRequest) {
 
     const responseTime = Date.now() - startTime;
     console.log(
-      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`
+      `✅ Login completed in ${responseTime}ms for ${email}${storeData ? ` (Store: ${storeData.slug})` : ""}`,
     );
 
     return NextResponse.json({
       profile,
-      isVerified: profile.bvnVerification === "verified",
+      isVerified: profile.isBvnVerified,
       sessionEstablished: true,
-      access_token,
-      refresh_token,
-      expires_in,
       security: {
         riskScore: securityContext.riskScore,
         isSuspicious,
@@ -571,9 +632,21 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     console.error("Secure Login API Error:", err.message);
+
+    if (isNetworkError(err)) {
+      return NextResponse.json(
+        {
+          error:
+            "Authentication service is temporarily unreachable. Please try again in a moment.",
+          retryable: true,
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

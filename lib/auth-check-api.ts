@@ -1,14 +1,17 @@
 // lib/auth-check-api.ts
 // ─────────────────────────────────────────────────────────────────────────────
 // FIXES:
-//  1. createAuthResponse now preserves the ORIGINAL status code. The old
-//     version always returned 200, silently downgrading 401/403 responses.
-//  2. isAuthenticatedWithRefresh now attempts a token refresh whenever the
-//     access token is missing OR invalid, not only on "JWT expired".
-//  3. Supabase clients are now module-level singletons (no new client per call).
-//  4. Debug logging is gated behind NODE_ENV !== "production".
-//  5. checkFeatureAccess caches subscription_features for 5 minutes.
+//  1. createAuthResponse preserves the ORIGINAL status code.
+//  2. isAuthenticatedWithRefresh attempts refresh on missing OR invalid access.
+//  3. Supabase clients are module-level singletons.
+//  4. Debug logging gated behind NODE_ENV !== "production".
+//  5. Removed the in-memory auth cache (unsafe on Vercel serverless).
 //  6. hasRequiredTier treats undefined is_subscription_active as "not blocking".
+//  7. NEW: Distinguishes network failures ("unavailable") from genuine
+//     auth failures ("unauthenticated"). requireAuth / hasRequiredTier /
+//     checkFeatureAccess now return 503 instead of 401 when Supabase is
+//     unreachable, so client code doesn't log the user out on a network
+//     blip.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from "next/server";
@@ -33,22 +36,19 @@ export interface AuthResult {
     accessToken: string;
     refreshToken: string;
   };
+  // ✅ NEW — true when we couldn't reach Supabase to verify
+  unavailable?: boolean;
 }
 
-// ─── Logging helper ───
-// Auth debug logs are noisy. Keep them in dev, silence them in prod.
 const IS_DEV = process.env.NODE_ENV !== "production";
 const authLog = (...args: any[]) => {
   if (IS_DEV) console.log(...args);
 };
 const authError = (...args: any[]) => {
-  // Always log errors — but you can route these to Sentry/Logtail in prod
   console.error(...args);
 };
 
 // ─── Supabase clients (module-level singletons) ───
-// Creating a new client on every call was wasteful. Supabase clients hold
-// an HTTP connection pool and auth state; reuse them.
 let _adminClient: SupabaseClient | null = null;
 let _anonClient: SupabaseClient | null = null;
 
@@ -58,11 +58,8 @@ const getSupabaseAdmin = (): SupabaseClient => {
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+        auth: { autoRefreshToken: false, persistSession: false },
+      },
     );
   }
   return _adminClient;
@@ -74,43 +71,63 @@ const getSupabaseAnon = (): SupabaseClient => {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+        auth: { autoRefreshToken: false, persistSession: false },
+      },
     );
   }
   return _anonClient;
 };
 
-// ─── Auth result cache (5s) ───
-// Multiple API routes on the same page load (e.g. wallet + subscription)
-// each call isAuthenticatedWithRefresh. Cache the result briefly so we
-// don't hit Supabase 5x per page render.
-interface CachedAuth {
-  result: AuthResult;
-  timestamp: number;
-}
-const AUTH_CACHE_TTL = 5_000;
-const authCache = new Map<string, CachedAuth>();
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ NEW — Network error detection
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Determine whether a Supabase auth error is a network/socket failure
+ * (meaning "we couldn't verify right now") vs. a genuine auth failure
+ * (meaning "the token is bad").
+ *
+ * Used by every auth helper in this file to decide between returning a
+ * 401 (log out) and a 503 (retry later).
+ */
+function isNetworkError(err: any): boolean {
+  if (!err) return false;
 
-function getAuthCacheKey(accessToken: string | undefined, refreshToken: string | undefined): string | null {
-  // Cache by the token itself — different users have different tokens.
-  // We don't cache if either token is missing (nothing to key on safely).
-  if (!accessToken && !refreshToken) return null;
-  return `${(accessToken || "").slice(-32)}|${(refreshToken || "").slice(-32)}`;
+  const name = err?.name || "";
+  const msg = (err?.message || "").toLowerCase();
+
+  // Supabase's own retryable-fetch error class
+  if (name === "AuthRetryableFetchError") return true;
+  if (name === "AuthUnknownError" && msg.includes("fetch")) return true;
+  if (name === "TypeError" && msg.includes("fetch")) return true;
+  if (name === "AbortError") return true;
+
+  const networkSignals = [
+    "fetch failed",
+    "econnrefused",
+    "econnreset",
+    "enotfound",
+    "etimedout",
+    "eai_again",
+    "und_err",
+    "network",
+    "socket hang up",
+    "connection timeout",
+    "connect timeout",
+    "getaddrinfo",
+  ];
+
+  return networkSignals.some((s) => msg.includes(s));
 }
 
 export async function isAuthenticated(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<AuthenticatedUser | null> {
   const result = await isAuthenticatedWithRefresh(req);
   return result.user;
 }
 
 export async function isAuthenticatedWithRefresh(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<AuthResult> {
   try {
     const accessToken = req.cookies.get("sb-access-token")?.value;
@@ -121,75 +138,91 @@ export async function isAuthenticatedWithRefresh(
       return { user: null };
     }
 
-    // ─── Cache lookup ───
-    const cacheKey = getAuthCacheKey(accessToken, refreshToken);
-    if (cacheKey) {
-      const cached = authCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < AUTH_CACHE_TTL) {
-        return cached.result;
-      }
-    }
-
     const supabaseAdmin = getSupabaseAdmin();
     let user: any = null;
     let newTokens: AuthResult["newTokens"] = undefined;
+    let sawNetworkError = false;
 
-    // ─── Try to validate the access token ───
-    // FIX #2: We now attempt refresh when the access token is MISSING
-    // as well as when it's invalid. The old code only refreshed on
-    // "JWT expired", so a missing access token with a valid refresh
-    // token would fail silently.
+    // ─── 1. Validate access token ───
     if (accessToken) {
-      const {
-        data: { user: userData },
-        error: tokenError,
-      } = await supabaseAdmin.auth.getUser(accessToken);
+      try {
+        const {
+          data: { user: userData },
+          error: tokenError,
+        } = await supabaseAdmin.auth.getUser(accessToken);
 
-      if (!tokenError && userData) {
-        user = userData;
-      } else if (tokenError) {
-        authLog("🔴 Token validation error:", tokenError.message);
+        if (!tokenError && userData) {
+          user = userData;
+        } else if (tokenError) {
+          authLog("🔴 Token validation error:", tokenError.message);
+          if (isNetworkError(tokenError)) {
+            sawNetworkError = true;
+          }
+        }
+      } catch (err: any) {
+        if (isNetworkError(err)) {
+          sawNetworkError = true;
+        } else {
+          authLog("🔴 Token validation threw:", err?.message);
+        }
       }
     }
 
-    // ─── Attempt refresh if we still don't have a user ───
-    if (!user && refreshToken) {
+    // ─── 2. Attempt refresh if we still don't have a user ───
+    //         (Skip if the access-token check hit a network error —
+    //          refresh would hit the same wall.)
+    if (!user && refreshToken && !sawNetworkError) {
       authLog("🔄 Attempting token refresh...");
 
-      const supabaseAnon = getSupabaseAnon();
-      const { data: refreshData, error: refreshError } =
-        await supabaseAnon.auth.refreshSession({
-          refresh_token: refreshToken,
-        });
+      try {
+        const supabaseAnon = getSupabaseAnon();
+        const { data: refreshData, error: refreshError } =
+          await supabaseAnon.auth.refreshSession({
+            refresh_token: refreshToken,
+          });
 
-      if (!refreshError && refreshData.session) {
-        authLog("✅ Token refreshed successfully");
+        if (!refreshError && refreshData.session) {
+          authLog("✅ Token refreshed successfully");
 
-        const { data: { user: refreshedUser } } =
-          await supabaseAdmin.auth.getUser(
-            refreshData.session.access_token
+          const {
+            data: { user: refreshedUser },
+          } = await supabaseAdmin.auth.getUser(
+            refreshData.session.access_token,
           );
 
-        if (refreshedUser) {
-          user = refreshedUser;
-          newTokens = {
-            accessToken: refreshData.session.access_token,
-            refreshToken: refreshData.session.refresh_token!,
-          };
+          if (refreshedUser) {
+            user = refreshedUser;
+            newTokens = {
+              accessToken: refreshData.session.access_token,
+              refreshToken: refreshData.session.refresh_token!,
+            };
+          }
+        } else if (refreshError) {
+          authLog("❌ Token refresh failed:", refreshError.message);
+          if (isNetworkError(refreshError)) {
+            sawNetworkError = true;
+          }
         }
-      } else {
-        authLog("❌ Token refresh failed:", refreshError?.message);
+      } catch (err: any) {
+        if (isNetworkError(err)) {
+          sawNetworkError = true;
+        } else {
+          authLog("❌ Token refresh threw:", err?.message);
+        }
       }
     }
 
     if (!user) {
+      // ✅ Distinguish "we couldn't verify" from "auth failed"
+      if (sawNetworkError) {
+        authLog("🌐 Supabase unreachable — returning unavailable");
+        return { user: null, unavailable: true };
+      }
       authLog("🔴 No valid user found");
-      // Negative results are NOT cached — a fresh refresh token on the
-      // next request should be allowed to try again.
       return { user: null };
     }
 
-    // ─── Fetch subscription fields from the users table ───
+    // ─── 3. Fetch subscription fields from the users table ───
     const { data: userData, error: dbError } = await supabaseAdmin
       .from("users")
       .select("subscription_tier, subscription_expires_at")
@@ -197,6 +230,12 @@ export async function isAuthenticatedWithRefresh(
       .single();
 
     if (dbError) {
+      // Network failure fetching the profile — do NOT treat as unauthenticated.
+      if (isNetworkError(dbError)) {
+        authLog("🌐 User-profile fetch unreachable — returning unavailable");
+        return { user: null, unavailable: true };
+      }
+
       authError("🔴 Error fetching user data:", dbError);
       const basicUser: AuthenticatedUser = {
         id: user.id,
@@ -204,14 +243,9 @@ export async function isAuthenticatedWithRefresh(
         subscription_tier: "free",
         is_subscription_active: true,
       };
-      const result = { user: basicUser, newTokens };
-      if (cacheKey) {
-        authCache.set(cacheKey, { result, timestamp: Date.now() });
-      }
-      return result;
+      return { user: basicUser, newTokens };
     }
 
-    // ─── Subscription status ───
     let isSubscriptionActive = true;
     if (userData.subscription_tier && userData.subscription_tier !== "free") {
       if (userData.subscription_expires_at) {
@@ -235,39 +269,23 @@ export async function isAuthenticatedWithRefresh(
       refreshed: !!newTokens,
     });
 
-    const result: AuthResult = { user: authenticatedUser, newTokens };
-    if (cacheKey) {
-      authCache.set(cacheKey, { result, timestamp: Date.now() });
-    }
-    return result;
+    return { user: authenticatedUser, newTokens };
   } catch (error) {
+    // ✅ If the outer catch fires due to a network issue, mark unavailable.
+    if (isNetworkError(error)) {
+      authError("🌐 Auth threw network error — returning unavailable");
+      return { user: null, unavailable: true };
+    }
     authError("🔴 Auth error:", error);
     return { user: null };
   }
 }
 
 // ─── Response helper ───
-// FIX #1: Preserve the ORIGINAL status code. The old version always
-// returned 200, so callers that passed `{ error: "..." }, { status: 401 }`
-// silently had their 401 downgraded to 200.
-//
-// Two call signatures are supported:
-//
-//   1. NEW (recommended):
-//      createAuthResponse({ success: true }, { status: 200, newTokens })
-//
-//   2. LEGACY (still supported for backward compat):
-//      createAuthResponse(data, newTokens)
-//
-// The legacy signature is kept so existing call sites keep working
-// without a mass edit.
-export function createAuthResponse(
-  data: any,
-  second?: any
-) {
-  // Detect which signature was used:
-  //   - If `second` has { accessToken, refreshToken }, it's the legacy form.
-  //   - If `second` has { status, newTokens } or { status }, it's the new form.
+// Two call signatures supported:
+//   NEW (recommended):  createAuthResponse({ ... }, { status: 401, newTokens })
+//   LEGACY:             createAuthResponse(data, newTokens)
+export function createAuthResponse(data: any, second?: any) {
   let status = 200;
   let newTokens: { accessToken: string; refreshToken: string } | undefined;
 
@@ -292,7 +310,6 @@ export function createAuthResponse(
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     response.cookies.set("sb-refresh-token", newTokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -300,27 +317,39 @@ export function createAuthResponse(
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     authLog("🔄 New tokens set in response");
   }
 
   return response;
 }
 
-// Enhanced requireAuth that handles token refresh
 export async function requireAuth(req: NextRequest) {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
+
+  // ✅ Supabase unreachable → 503 with retryable: true.
+  //    Callers should NOT log the user out on this.
+  if (unavailable) {
+    return {
+      authenticated: false as const,
+      response: NextResponse.json(
+        {
+          error: "Service temporarily unavailable",
+          message:
+            "We can't verify your session right now. Please try again in a moment.",
+          retryable: true,
+        },
+        { status: 503 },
+      ),
+    };
+  }
 
   if (!user) {
     return {
       authenticated: false as const,
       response: NextResponse.json(
-        {
-          error: "Unauthorized",
-          message: "Session expired",
-          logout: true,
-        },
-        { status: 401 }
+        { error: "Unauthorized", message: "Session expired", logout: true },
+        { status: 401 },
       ),
     };
   }
@@ -339,25 +368,33 @@ const TIER_HIERARCHY = [
 
 export async function hasRequiredTier(
   req: NextRequest,
-  requiredTier: (typeof TIER_HIERARCHY)[number]
+  requiredTier: (typeof TIER_HIERARCHY)[number],
 ): Promise<{
   hasAccess: boolean;
   user: AuthenticatedUser | null;
   newTokens?: AuthResult["newTokens"];
   error?: string;
+  unavailable?: boolean; // ✅ NEW
 }> {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
 
-  if (!user) {
+  // ✅ Propagate the unavailable flag so callers can 503 instead of 401.
+  if (unavailable) {
     return {
       hasAccess: false,
       user: null,
-      error: "Authentication required",
+      unavailable: true,
+      error: "Authentication service is temporarily unavailable",
     };
   }
 
+  if (!user) {
+    return { hasAccess: false, user: null, error: "Authentication required" };
+  }
+
   const userTierIndex = TIER_HIERARCHY.indexOf(
-    (user.subscription_tier || "free") as (typeof TIER_HIERARCHY)[number]
+    (user.subscription_tier || "free") as (typeof TIER_HIERARCHY)[number],
   );
   const requiredTierIndex = TIER_HIERARCHY.indexOf(requiredTier);
 
@@ -372,13 +409,8 @@ export async function hasRequiredTier(
     };
   }
 
-  // FIX #6: Only block if is_subscription_active is EXPLICITLY false.
-  // If it's undefined (e.g. when the users table lookup failed), we
-  // don't want to block a paying user.
-  if (
-    requiredTier !== "free" &&
-    user.is_subscription_active === false
-  ) {
+  // Only block if is_subscription_active is EXPLICITLY false.
+  if (requiredTier !== "free" && user.is_subscription_active === false) {
     return {
       hasAccess: false,
       user,
@@ -391,13 +423,13 @@ export async function hasRequiredTier(
   return { hasAccess: true, user, newTokens };
 }
 
-// ─── Feature cache (5 minutes) ───
-// subscription_features is a near-static table. Cache it per tier.
+// ─── Feature access ───
 interface FeatureRow {
   feature_key: string;
   feature_value: string;
   feature_limit: number | null;
 }
+
 const FEATURE_CACHE_TTL = 5 * 60 * 1000;
 const featureCache = new Map<
   string,
@@ -406,7 +438,7 @@ const featureCache = new Map<
 
 async function getFeaturesForTier(
   supabaseAdmin: SupabaseClient,
-  tier: string
+  tier: string,
 ): Promise<FeatureRow[] | null> {
   const cached = featureCache.get(tier);
   if (cached && Date.now() - cached.timestamp < FEATURE_CACHE_TTL) {
@@ -428,31 +460,37 @@ async function getFeaturesForTier(
   return rows;
 }
 
-// Check feature access based on subscription
 export async function checkFeatureAccess(
   req: NextRequest,
   featureKey: string,
-  currentCount?: number
+  currentCount?: number,
 ): Promise<{
   hasAccess: boolean;
   user: AuthenticatedUser | null;
   newTokens?: AuthResult["newTokens"];
   limit?: number;
   error?: string;
+  unavailable?: boolean; // ✅ NEW
 }> {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+  const { user, newTokens, unavailable } =
+    await isAuthenticatedWithRefresh(req);
 
-  if (!user) {
+  // ✅ 503 path — Supabase unreachable.
+  if (unavailable) {
     return {
       hasAccess: false,
       user: null,
-      error: "Authentication required",
+      unavailable: true,
+      error: "Feature service is temporarily unavailable",
     };
+  }
+
+  if (!user) {
+    return { hasAccess: false, user: null, error: "Authentication required" };
   }
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Utility features always allowed
   const utilityFeatures = ["transfer_fee"];
   if (utilityFeatures.includes(featureKey)) {
     return { hasAccess: true, user, newTokens };
@@ -461,7 +499,7 @@ export async function checkFeatureAccess(
   try {
     const features = await getFeaturesForTier(
       supabaseAdmin,
-      user.subscription_tier || "free"
+      user.subscription_tier || "free",
     );
 
     if (features === null) {
@@ -500,7 +538,7 @@ export async function checkFeatureAccess(
           limit: feature.feature_limit,
           error: `You've reached your ${featureKey.replace(
             /_/g,
-            " "
+            " ",
           )} limit of ${feature.feature_limit} for the ${
             user.subscription_tier
           } plan`,
@@ -515,8 +553,20 @@ export async function checkFeatureAccess(
     }
 
     return { hasAccess: true, user, newTokens };
-  } catch (error) {
+  } catch (error: any) {
     authError("Error in checkFeatureAccess:", error);
+
+    // ✅ Network error during feature lookup → unavailable, not blocked.
+    if (isNetworkError(error)) {
+      return {
+        hasAccess: false,
+        user,
+        newTokens,
+        unavailable: true,
+        error: "Feature service is temporarily unavailable",
+      };
+    }
+
     return {
       hasAccess: false,
       user,
@@ -526,7 +576,6 @@ export async function checkFeatureAccess(
   }
 }
 
-// Get user subscription details
 export async function getUserSubscriptionDetails(userId: string) {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -559,19 +608,21 @@ export async function getUserSubscriptionDetails(userId: string) {
     const features = await getFeaturesForTier(supabaseAdmin, tier);
 
     const featuresMap =
-      features?.reduce((acc, feature) => {
-        acc[feature.feature_key] = {
-          value: feature.feature_value,
-          limit: feature.feature_limit,
-        };
-        return acc;
-      }, {} as Record<string, any>) || {};
+      features?.reduce(
+        (acc, feature) => {
+          acc[feature.feature_key] = {
+            value: feature.feature_value,
+            limit: feature.feature_limit,
+          };
+          return acc;
+        },
+        {} as Record<string, any>,
+      ) || {};
 
     return {
       tier,
       status:
-        subscription?.status ||
-        (tier === "free" ? "active" : "inactive"),
+        subscription?.status || (tier === "free" ? "active" : "inactive"),
       expiresAt: user.subscription_expires_at,
       features: featuresMap,
       subscriptionId: subscription?.id,

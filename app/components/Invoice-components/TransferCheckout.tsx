@@ -69,14 +69,14 @@ function DetailRow({
     !value || value === "Account details not provided" || value === "";
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-[var(--border-color)] last:border-0">
+    <div className="flex items-center justify-between py-2 border-b border-(--border-color) last:border-0">
       <div>
-        <p className="text-xs text-[var(--text-secondary)] mb-1">{label}</p>
+        <p className="text-xs text-(--text-secondary) mb-1">{label}</p>
         <p
           className={`font-medium ${
             highlight
               ? "text-[var(--color-accent-yellow)] font-mono"
-              : "text-[var(--text-primary)]"
+              : "text-(--text-primary)"
           } ${isInvalidValue ? "text-gray-500 italic" : ""}`}
         >
           {isInvalidValue ? "Not provided in invoice" : value}
@@ -92,7 +92,7 @@ function DetailRow({
         {isCopied ? (
           <Check className="w-4 h-4 text-[var(--color-lemon-green)]" />
         ) : (
-          <Copy className="w-4 h-4 text-[var(--text-secondary)]" />
+          <Copy className="w-4 h-4 text-(--text-secondary)" />
         )}
       </Button>
     </div>
@@ -390,7 +390,7 @@ export function TransferCheckout({
         <h1 className="text-2xl font-bold mb-2 text-[var(--color-accent-yellow)]">
           Bank Transfer Payment
         </h1>
-        <p className="text-[var(--text-secondary)]">
+        <p className="text-(--text-secondary)">
           Complete your payment via bank transfer
         </p>
 
@@ -455,9 +455,9 @@ export function TransferCheckout({
       </div>
 
       {/* Amount Card */}
-      <div className="bg-[var(--bg-primary)] rounded-xl p-6 border border-[var(--border-color)] shadow-soft mb-6 squircle-lg">
+      <div className="bg-(--bg-primary) rounded-xl p-6 border border-(--border-color) shadow-soft mb-6 squircle-lg">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[var(--text-secondary)] text-sm">Amount Due</span>
+          <span className="text-(--text-secondary) text-sm">Amount Due</span>
           {safeInvoiceDetails.dueDate && (
             <span className="text-xs text-[var(--color-accent-yellow)]">
               Due: {safeInvoiceDetails.dueDate}
@@ -470,7 +470,7 @@ export function TransferCheckout({
             safeInvoiceDetails.currency,
           )}
         </div>
-        <p className="text-sm text-[var(--text-secondary)]">
+        <p className="text-sm text-(--text-secondary)">
           {safeInvoiceDetails.description}
         </p>
       </div>
@@ -485,13 +485,13 @@ export function TransferCheckout({
             <p className="text-xs text-[var(--color-accent-yellow)] font-medium uppercase tracking-wide">
               Invoice ID (Add to Narration)
             </p>
-            <p className="text-xs text-[var(--text-secondary)]">
+            <p className="text-xs text-(--text-secondary)">
               Include this in your transfer narration for verification
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-between bg-[var(--bg-primary)]/50 rounded-lg p-4">
-          <span className="font-mono text-xl font-bold text-[var(--text-primary)] tracking-wider">
+        <div className="flex items-center justify-between bg-(--bg-primary)/50 rounded-lg p-4">
+          <span className="font-mono text-xl font-bold text-(--text-primary) tracking-wider">
             {safeInvoiceDetails.invoiceId}
           </span>
           <Button
@@ -514,16 +514,16 @@ export function TransferCheckout({
 
       {/* Bank Details */}
       {safeBankDetails && (
-        <div className="bg-[var(--bg-primary)] rounded-xl p-6 border border-[var(--border-color)] shadow-soft mb-6 squircle-lg">
+        <div className="bg-(--bg-primary) rounded-xl p-6 border border-(--border-color) shadow-soft mb-6 squircle-lg">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-[var(--text-secondary)]" />
+              <Building2 className="w-5 h-5 text-(--text-secondary)" />
             </div>
             <div>
               <h3 className="font-semibold text-[var(--color-accent-yellow)]">
                 Bank Transfer Details
               </h3>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <p className="text-xs text-(--text-secondary)">
                 Transfer to the account below
               </p>
             </div>
@@ -574,7 +574,7 @@ export function TransferCheckout({
           <CreditCard className="w-4 h-4 text-[var(--color-accent-yellow)]" />
           How to Complete Your Transfer
         </h4>
-        <ol className="space-y-2 text-sm text-[var(--text-secondary)]">
+        <ol className="space-y-2 text-sm text-(--text-secondary)">
           <li className="flex gap-2">
             <span className="text-[var(--color-accent-yellow)] font-semibold">
               1.
@@ -668,7 +668,7 @@ export function TransferCheckout({
         <Button
           onClick={handleStopPolling}
           variant="outline"
-          className="w-full mb-4 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] squircle-md"
+          className="w-full mb-4 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)] squircle-md"
           size="lg"
         >
           <Loader2 className="w-5 h-5 mr-2" />

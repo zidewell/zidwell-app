@@ -529,7 +529,7 @@ async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   await page.setViewport({ width: 1200, height: 800 });
   
   await page.setContent(html, { 
-    waitUntil: "networkidle0",
+    waitUntil: "load",
     timeout: 30000 
   });
   

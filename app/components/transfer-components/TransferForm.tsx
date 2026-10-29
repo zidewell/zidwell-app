@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -10,6 +11,7 @@ import BankAccountFields from "./BankAccountFields";
 import P2PFields from "./P2PFields";
 import ExpenseCategoryDropdown from "./ExpenseCategoryDropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { calculateFees, type AccountTier } from "@/lib/fee";
 
 interface TransferFormProps {
   transferType: "my-account" | "other-bank" | "p2p";
@@ -31,7 +33,9 @@ interface TransferFormProps {
   isDisabled: boolean;
   loading: boolean;
   onSubmit: (e: React.FormEvent) => void;
-  // Props for child components
+  accountTier?: AccountTier;
+  customOutflowPercent?: number | null;
+  customOutflowMin?: number | null;
   loading2: boolean;
   userDetails: any;
   savedAccounts: any[];
@@ -56,12 +60,7 @@ interface TransferFormProps {
   setRecepientAcc: (acc: string) => void;
   p2pDetails: any;
   setP2pDetails: (details: any) => void;
-  saveAccount: boolean;
-  setSaveAccount: (save: boolean) => void;
-  saveP2PBeneficiary: boolean;
-  setSaveP2PBeneficiary: (save: boolean) => void;
   lookupLoading: boolean;
-  // Beneficiary suggestions
   showBeneficiarySuggestions: boolean;
   matchingBeneficiaries: any[];
   onSelectBeneficiary: (beneficiary: any) => void;
@@ -101,6 +100,9 @@ export default function TransferForm({
   isDisabled,
   loading,
   onSubmit,
+  accountTier = "tier_3",
+  customOutflowPercent = null,
+  customOutflowMin = null,
   loading2,
   userDetails,
   savedAccounts,
@@ -125,10 +127,6 @@ export default function TransferForm({
   setRecepientAcc,
   p2pDetails,
   setP2pDetails,
-  saveAccount,
-  setSaveAccount,
-  saveP2PBeneficiary,
-  setSaveP2PBeneficiary,
   lookupLoading,
   showBeneficiarySuggestions,
   matchingBeneficiaries,
@@ -148,6 +146,35 @@ export default function TransferForm({
   handleSelectBank,
   getAllBeneficiaries,
 }: TransferFormProps) {
+  const computedFee = amount
+    ? calculateFees(
+        Number(amount),
+        "transfer",
+        "bank_transfer",
+        accountTier,
+        "outflow",
+        {
+          custom_outflow_percent: customOutflowPercent,
+          custom_outflow_min: customOutflowMin,
+        }
+      )
+    : undefined;
+
+  useEffect(() => {
+    if (computedFee) {
+      setCalculatedFee(computedFee.totalFee);
+      setTotalDebit(computedFee.totalDebit);
+    } else {
+      setCalculatedFee(0);
+      setTotalDebit(0);
+    }
+  }, [
+    computedFee?.totalFee,
+    computedFee?.totalDebit,
+    setCalculatedFee,
+    setTotalDebit,
+  ]);
+
   return (
     <Card className="shadow-xl border rounded-2xl bg-(--bg-primary) border-(--border-color)">
       <CardHeader>
@@ -161,13 +188,11 @@ export default function TransferForm({
 
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-6">
-          {/* Transfer Type */}
           <TransferTypeSelector
             transferType={transferType}
             setTransferType={setTransferType}
           />
 
-          {/* Amount */}
           <div className="space-y-1">
             <Label className="text-(--text-primary)">Amount (₦)</Label>
             <Input
@@ -182,21 +207,25 @@ export default function TransferForm({
                 type="transfer"
                 amount={Number(amount)}
                 paymentMethod="bank_transfer"
-                onFeeCalculated={(fee, total) => {
-                  setCalculatedFee(fee);
-                  setTotalDebit(total);
-                }}
+                tier={accountTier}
+                direction="outflow"
+                customOutflowPercent={customOutflowPercent}
+                customOutflowMin={customOutflowMin}
               />
             )}
-            {errors.amount && <p className="text-red-600 text-sm">{errors.amount}</p>}
+            {errors.amount && (
+              <p className="text-red-600 text-sm">{errors.amount}</p>
+            )}
           </div>
 
-          {/* My Account Details */}
           {transferType === "my-account" && (
-            <MyAccountDetails loading2={loading2} userDetails={userDetails} error={errors.myAccount} />
+            <MyAccountDetails
+              loading2={loading2}
+              userDetails={userDetails}
+              error={errors.myAccount}
+            />
           )}
 
-          {/* Other Bank Fields */}
           {transferType === "other-bank" && (
             <BankAccountFields
               savedAccounts={savedAccounts}
@@ -212,8 +241,6 @@ export default function TransferForm({
               setAccountNumber={setAccountNumber}
               accountName={accountName}
               setAccountName={setAccountName}
-              saveAccount={saveAccount}
-              setSaveAccount={setSaveAccount}
               lookupLoading={lookupLoading}
               errors={errors}
               showBeneficiarySuggestions={showBeneficiarySuggestions}
@@ -235,7 +262,6 @@ export default function TransferForm({
             />
           )}
 
-          {/* P2P Fields */}
           {transferType === "p2p" && (
             <P2PFields
               savedP2PBeneficiaries={savedP2PBeneficiaries}
@@ -247,8 +273,6 @@ export default function TransferForm({
               setRecepientAcc={setRecepientAcc}
               p2pDetails={p2pDetails}
               setP2pDetails={setP2pDetails}
-              saveP2PBeneficiary={saveP2PBeneficiary}
-              setSaveP2PBeneficiary={setSaveP2PBeneficiary}
               lookupLoading={lookupLoading}
               errors={errors}
               showBeneficiarySuggestions={showBeneficiarySuggestions}
@@ -263,7 +287,6 @@ export default function TransferForm({
             />
           )}
 
-          {/* Expense Category Dropdown */}
           <ExpenseCategoryDropdown
             expenseCategories={expenseCategories}
             expenseCategory={expenseCategory}
@@ -274,11 +297,12 @@ export default function TransferForm({
             onToggleFavorite={onToggleFavorite}
           />
 
-          {/* Narration */}
           <div className="space-y-1">
             <Label className="text-(--text-primary)">
               Narration{" "}
-              <span className="text-sm text-(--text-secondary)">(purpose of transaction)</span>
+              <span className="text-sm text-(--text-secondary)">
+                (purpose of transaction)
+              </span>
             </Label>
             <Input
               type="text"
@@ -288,10 +312,11 @@ export default function TransferForm({
               maxLength={100}
               className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
             />
-            {errors.narration && <p className="text-red-600 text-sm">{errors.narration}</p>}
+            {errors.narration && (
+              <p className="text-red-600 text-sm">{errors.narration}</p>
+            )}
           </div>
 
-          {/* Submit Button */}
           <Button
             type="submit"
             disabled={isDisabled}

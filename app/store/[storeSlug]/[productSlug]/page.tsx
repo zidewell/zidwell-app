@@ -1,31 +1,21 @@
 // app/store/[storeSlug]/[productSlug]/page.tsx
-// ─────────────────────────────────────────────────────────────────────────────
-// SEO:
-//   • generateProductMetadata()  → title with price, OG image, product:price tags
-//   • generateProductSchema()    → JSON-LD Product / Service / DigitalDocument / FinancialProduct
-//   • generateBreadcrumbSchema() → Home > Store > Product breadcrumbs
-//   • ISR (revalidate = 60)
-//   • Slug sanitization
-//   • Public paid-students map for school pages
-// ─────────────────────────────────────────────────────────────────────────────
-
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import StoreProductClient from "./client";
 import {
-
   generateProductMetadata,
   generateProductSchema,
   generateBreadcrumbSchema,
 } from "@/lib/seo";
+import SimpleFooter from "./components/Footer";
 
 
 export const revalidate = 60;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 interface StoreProductPageProps {
@@ -36,7 +26,6 @@ function isValidSlug(slug: string): boolean {
   return /^[a-z0-9][a-z0-9-]{0,100}$/i.test(slug);
 }
 
-// ─── SEO: Dynamic metadata ───
 export async function generateMetadata({ params }: StoreProductPageProps) {
   const { storeSlug, productSlug } = await params;
   if (!isValidSlug(storeSlug) || !isValidSlug(productSlug)) {
@@ -49,13 +38,13 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
   const [storeRes, productRes] = await Promise.all([
     supabase
       .from("online_stores")
-      .select("name, slug, is_active, activation_paid")
+      .select("name, slug, is_active, activation_paid, keywords")
       .eq("slug", storeSlug)
       .maybeSingle(),
     supabase
       .from("payment_pages")
       .select(
-        "title, description, product_images, cover_image, price, price_type, slug, page_type"
+        "title, description, product_images, cover_image, price, price_type, slug, page_type, metadata",
       )
       .eq("slug", productSlug)
       .eq("is_published", true)
@@ -90,15 +79,38 @@ export async function generateMetadata({ params }: StoreProductPageProps) {
     }
   }
 
+  // ✅ Compute lowest variant price for metadata
+  let metadata = (product as any).metadata;
+  if (typeof metadata === "string") {
+    try {
+      metadata = JSON.parse(metadata);
+    } catch {
+      metadata = null;
+    }
+  }
+  const variants = Array.isArray(metadata?.variants) ? metadata.variants : [];
+  let lowestVariantPrice: number | null = null;
+  for (const v of variants) {
+    const p = Number(v?.price);
+    if (Number.isFinite(p) && p > 0) {
+      if (lowestVariantPrice === null || p < lowestVariantPrice) {
+        lowestVariantPrice = p;
+      }
+    }
+  }
+  const displayPrice =
+    lowestVariantPrice ?? (Number(product.price) || 0);
+
   return generateProductMetadata({
     title: product.title,
     slug: product.slug,
     description: product.description,
-    price: Number(product.price) || 0,
+    price: displayPrice,
     productImages: images,
     coverImage: product.cover_image,
     storeName: store.name,
     storeSlug: store.slug,
+    storeKeywords: store.keywords,
   });
 }
 
@@ -136,9 +148,7 @@ export default async function StoreProductPage({
     .select("*")
     .eq("slug", productSlug)
     .eq("is_published", true)
-    .or(
-      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
-    )
+    .or(`user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`)
     .maybeSingle();
 
   if (pageError || !page) {
@@ -181,7 +191,7 @@ export default async function StoreProductPage({
     }
   }
 
-  // ─── Public paid-students map for school pages ───
+  // Public paid-students map for school pages
   let initialPaidStudents: Record<string, number> = {};
 
   if (page.page_type === "school") {
@@ -198,7 +208,6 @@ export default async function StoreProductPage({
     for (const p of payments || []) {
       const amount = Number(p.amount) || 0;
       const names: string[] = [];
-
       const rawSelected: any = p.selected_students;
 
       if (Array.isArray(rawSelected) && rawSelected.length > 0) {
@@ -249,6 +258,25 @@ export default async function StoreProductPage({
     }
   }
 
+  // ✅ Compute the "display price" for physical products with variants:
+  // use the LOWEST variant price, so the product page shows "From ₦X".
+  let displayPrice = Number(page.price) || 0;
+  if (page.page_type === "physical") {
+    const variants = Array.isArray(parsedMetadata?.variants)
+      ? parsedMetadata.variants
+      : [];
+    if (variants.length > 0) {
+      let lowest: number | null = null;
+      for (const v of variants) {
+        const p = Number(v?.price);
+        if (Number.isFinite(p) && p > 0) {
+          if (lowest === null || p < lowest) lowest = p;
+        }
+      }
+      if (lowest !== null) displayPrice = lowest;
+    }
+  }
+
   const cleanPage = {
     id: page.id,
     title: page.title,
@@ -258,7 +286,7 @@ export default async function StoreProductPage({
     logo: page.logo || null,
     productImages: productImages,
     priceType: page.price_type || "fixed",
-    price: Number(page.price) || 0,
+    price: displayPrice, // ✅ lowest variant price for physical products
     installmentCount: page.installment_count || undefined,
     feeMode: page.fee_mode || "bearer",
     pageType: page.page_type || "physical",
@@ -274,30 +302,25 @@ export default async function StoreProductPage({
     updatedAt: page.updated_at || null,
   };
 
-  // ─── Fetch more products from the same store (excluding current) ───
   const { data: moreProducts } = await supabase
     .from("payment_pages")
     .select(
-      "id, title, slug, description, price, price_type, product_images, cover_image, page_type, metadata"
+      "id, title, slug, description, price, price_type, product_images, cover_image, page_type, metadata",
     )
     .eq("is_published", true)
     .neq("id", page.id)
-    .or(
-      `user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`
-    )
+    .or(`user_id.eq.${storeData.owner_id},metadata->>storeSlug.eq.${storeSlug}`)
     .order("created_at", { ascending: false })
     .limit(8);
 
-  // ─── SEO: Determine stock status ───
   const stockValue = parsedMetadata?.stock;
   const inStock = stockValue == null ? true : Number(stockValue) > 0;
 
-  // ─── SEO: JSON-LD schemas ───
   const productSchema = generateProductSchema({
     title: page.title,
     slug: page.slug,
     description: page.description,
-    price: Number(page.price) || 0,
+    price: displayPrice, // ✅ lowest variant price
     priceType: page.price_type,
     productImages: productImages,
     coverImage: coverImage,
@@ -305,6 +328,7 @@ export default async function StoreProductPage({
     storeSlug: storeData.slug,
     inStock,
     pageType: page.page_type,
+    storeKeywords: storeData.keywords,
   });
 
   const breadcrumbSchema = generateBreadcrumbSchema([
@@ -315,7 +339,6 @@ export default async function StoreProductPage({
 
   return (
     <>
-      {/* ─── SEO: JSON-LD structured data ─── */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
@@ -339,8 +362,7 @@ export default async function StoreProductPage({
           moreProducts={moreProducts || []}
         />
       </Suspense>
-
-
+      <SimpleFooter />
     </>
   );
 }

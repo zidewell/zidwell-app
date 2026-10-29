@@ -1,7 +1,6 @@
 // app/api/payment-page/public/card-payment/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getNombaToken } from "@/lib/nomba";
 import { computeNextDueDate } from "@/lib/installment-utils";
 
 const supabase = createClient(
@@ -12,17 +11,23 @@ const supabase = createClient(
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? "http://localhost:3000"
-    : "https://zidwell.com";
+    : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
-const FEE_CONFIG = {
-  ZIDWELL_FEE_PERCENTAGE: 0.03,
-  NOMBA_FEE_PERCENTAGE: 0.004,
-  TOTAL_FEE_PERCENTAGE: 0.034,
-};
+// ─── FEE CONFIG ───
+// Zidwell takes 3%. Processor fee uses Paystack NG formula:
+//   min(1.5% * amount + ₦100, ₦2,000)
+// The DB column is still named `nomba_fee` (cosmetic — it holds the
+// processor fee regardless of provider).
+const ZIDWELL_FEE_PERCENTAGE = 0.03;
+
+function calculatePaystackFee(amountNaira: number): number {
+  const fee = 0.015 * amountNaira + 100;
+  return Math.min(fee, 2000);
+}
 
 function calculateFees(amount: number) {
-  const nombaFee = amount * FEE_CONFIG.NOMBA_FEE_PERCENTAGE;
-  const zidwellFee = amount * FEE_CONFIG.ZIDWELL_FEE_PERCENTAGE;
+  const nombaFee = calculatePaystackFee(amount);
+  const zidwellFee = amount * ZIDWELL_FEE_PERCENTAGE;
   const totalFee = nombaFee + zidwellFee;
   return {
     gross: amount,
@@ -30,7 +35,8 @@ function calculateFees(amount: number) {
     zidwellFee: Math.round(zidwellFee * 100) / 100,
     totalFee: Math.round(totalFee * 100) / 100,
     netAmount: Math.round((amount - totalFee) * 100) / 100,
-    feePercentage: FEE_CONFIG.TOTAL_FEE_PERCENTAGE * 100,
+    feePercentage:
+      amount > 0 ? Math.round((totalFee / amount) * 10000) / 100 : 0,
   };
 }
 
@@ -38,10 +44,10 @@ const generateOrderReference = (pageId: string): string => {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).substring(2, 6);
   const shortId = pageId.slice(-12);
+  // Paystack reference rules: alphanumeric + `-`, `.`, `=`. This is safe.
   return `CARD-${shortId}-${timestamp}-${random}`;
 };
 
-/** Safely parse a metadata column that may be a JSON string or object. */
 function parseMetadata(raw: any): any {
   if (!raw) return {};
   if (typeof raw === "string") {
@@ -54,12 +60,6 @@ function parseMetadata(raw: any): any {
   return raw;
 }
 
-/**
- * Sum how many units of a given variant have already been sold on this page.
- *
- * For installment buyers, `metadata.quantity` is the FULL committed amount,
- * so we count every unit from the first installment onward.
- */
 async function getSoldUnitsForVariant(
   pageId: string,
   variantSku: string
@@ -108,6 +108,14 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      console.error("[card-payment] PAYSTACK_SECRET_KEY is not set");
+      return NextResponse.json(
+        { error: "Payment provider not configured" },
+        { status: 503 }
+      );
+    }
+
     const { data: page, error: pageError } = await supabase
       .from("payment_pages")
       .select("*")
@@ -149,13 +157,9 @@ export async function POST(request: Request) {
       }
 
       const rawStock = variant.stock;
-
-      // ✅ Only null / undefined / "" mean "unlimited".
-      //    A numeric 0 is a real cap of zero (sold out).
       const isUnlimitedStock = rawStock == null || rawStock === "";
       const declaredStock = isUnlimitedStock ? 0 : Number(rawStock);
-      const hasRealStock =
-        !isUnlimitedStock && Number.isFinite(declaredStock);
+      const hasRealStock = !isUnlimitedStock && Number.isFinite(declaredStock);
 
       if (hasRealStock) {
         const requestedQty = Math.max(1, Number(metadata?.quantity) || 1);
@@ -187,8 +191,6 @@ export async function POST(request: Request) {
           );
         }
 
-        // ✅ THE FIX: block multi-unit orders that exceed remaining stock.
-        //    This is what allowed the 2-unit purchase on 1-unit stock.
         if (requestedQty > remaining) {
           return NextResponse.json(
             {
@@ -202,7 +204,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determine amount
+    // ─── Determine amount ───
     let finalAmount = Number(amount) || 0;
     if (!finalAmount) {
       if (
@@ -286,7 +288,8 @@ export async function POST(request: Request) {
         storeSlug,
         redirectUrl: successRedirectUrl,
         fee_breakdown: feeBreakdown,
-        fee_percentage: 3.4,
+        fee_percentage: feeBreakdown.feePercentage,
+        provider: "paystack",
         entity_ids: metadata?.entityIds || ["default"],
         installment_plan: isInstallment
           ? {
@@ -299,7 +302,6 @@ export async function POST(request: Request) {
       },
     };
 
-    // School: student tracking
     if (page.page_type === "school") {
       const selectedStudents = metadata?.selectedStudents || [];
       if (selectedStudents.length === 1) {
@@ -311,7 +313,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // Physical: variant + shipping + quantity (variant already validated)
     if (page.page_type === "physical") {
       if (metadata?.selectedVariantSku) {
         paymentData.metadata.selectedVariantSku =
@@ -326,7 +327,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Services: booking + note
     if (page.page_type === "services") {
       if (metadata?.bookingDate) {
         paymentData.metadata.bookingDate = metadata.bookingDate;
@@ -339,14 +339,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Digital: delivery info
     if (page.page_type === "digital") {
       paymentData.metadata.emailDelivery = metadata?.emailDelivery !== false;
       paymentData.metadata.downloadUrl = metadata?.downloadUrl || null;
       paymentData.metadata.accessLink = metadata?.accessLink || null;
     }
 
-    // Donation: message
     if (page.page_type === "donation" && metadata?.donorMessage) {
       paymentData.metadata.donorMessage = metadata.donorMessage;
     }
@@ -365,73 +363,92 @@ export async function POST(request: Request) {
       );
     }
 
-    const accessToken = await getNombaToken();
-    if (!accessToken) {
-      await supabase
-        .from("payment_page_payments")
-        .update({ status: "failed" })
-        .eq("id", payment.id);
-      return NextResponse.json(
-        { error: "Payment service unavailable" },
-        { status: 503 }
-      );
-    }
-
-    const sessionId = `${payment.id}_${Date.now()}`;
-    const callbackUrl = `${baseUrl}/payment/callback?session_id=${sessionId}`;
-
-    const checkoutPayload = {
-      order: {
-        callbackUrl,
-        customerEmail,
-        amount: feeBreakdown.gross.toString(),
-        currency: "NGN",
-        orderReference,
-        customerId: page.user_id,
-        accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card", "Transfer"],
-        metadata: {
-          type: "payment_page",
-          paymentPageId: page.id,
-          paymentId: payment.id,
-          pageSlug,
-          storeSlug,
-          redirectUrl: successRedirectUrl,
-          fee_breakdown: feeBreakdown,
-          isInstallment,
-          entityIds: metadata?.entityIds || ["default"],
-          selectedVariantSku: metadata?.selectedVariantSku || null,
-        },
+    // ─────────────────────────────────────────────────────────────────
+    // ✅ PAYSTACK INITIALIZE
+    // ─────────────────────────────────────────────────────────────────
+    const paystackPayload = {
+      email: customerEmail,
+      amount: Math.round(feeBreakdown.gross * 100), // kobo
+      currency: "NGN",
+      reference: orderReference,
+      callback_url: `${baseUrl}/api/payment-page/callback?reference=${orderReference}`,
+      // Card + Bank Transfer only (matches old Nomba channels)
+      channels: ["card", "bank_transfer"],
+      metadata: {
+        type: "payment_page",
+        paymentPageId: page.id,
+        paymentId: payment.id,
+        pageSlug,
+        storeSlug,
+        redirectUrl: successRedirectUrl,
+        isInstallment,
+        entityIds: metadata?.entityIds || ["default"],
+        selectedVariantSku: metadata?.selectedVariantSku || null,
+        // Custom fields (for link pages)
+        customFields: metadata?.customFields || null,
+        referenceCode: metadata?.referenceCode || null,
+        // School
+        selectedStudents: metadata?.selectedStudents || null,
+        parentName: metadata?.parentName || null,
+        // Physical
+        quantity: metadata?.quantity || null,
+        shippingAddress: metadata?.shippingAddress || null,
+        // Services
+        bookingDate: metadata?.bookingDate || null,
+        bookingTime: metadata?.bookingTime || null,
+        customerNote: metadata?.customerNote || null,
+        // Installment details
+        installmentPlan: isInstallment
+          ? {
+              totalAmount: metadata?.totalAmount || finalAmount,
+              installmentCount: totalInstallments,
+              installmentAmount: metadata?.installmentAmount,
+              period: metadata?.installmentPeriod || "monthly",
+            }
+          : null,
       },
-      tokenizeCard: false,
     };
 
+    console.log("[card-payment] 📤 Paystack init:", {
+      reference: orderReference,
+      amount_kobo: paystackPayload.amount,
+      email: customerEmail,
+    });
+
     const response = await fetch(
-      `${process.env.NOMBA_URL}/v1/checkout/order`,
+      "https://api.paystack.co/transaction/initialize",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
-          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(checkoutPayload),
+        body: JSON.stringify(paystackPayload),
       }
     );
 
     const data = await response.json();
 
-    if (!response.ok || data.code !== "00") {
+    console.log("[card-payment] 📥 Paystack response:", {
+      status: data?.status,
+      message: data?.message,
+      reference: data?.data?.reference,
+    });
+
+    if (!response.ok || !data?.status) {
       await supabase
         .from("payment_page_payments")
         .update({ status: "failed" })
         .eq("id", payment.id);
-      throw new Error(data.description || "Failed to create checkout");
+
+      throw new Error(
+        data?.message || "Failed to initialize Paystack transaction"
+      );
     }
 
     return NextResponse.json({
       success: true,
-      checkoutLink: data.data.checkoutLink,
+      checkoutLink: data.data.authorization_url,
       orderReference,
       amount: feeBreakdown.gross,
       redirectUrl: successRedirectUrl,
@@ -440,7 +457,10 @@ export async function POST(request: Request) {
       isInstallment,
     });
   } catch (error: any) {
-    console.error("Card payment error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[card-payment] ❌ Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Internal error" },
+      { status: 500 }
+    );
   }
 }

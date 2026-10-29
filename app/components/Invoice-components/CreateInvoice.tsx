@@ -533,14 +533,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     const draftsHTML = userDrafts
       .map(
         (draft, index) => `
-      <div class="draft-item p-3 border-b border-[var(--border-color)] hover:bg-[var(--bg-secondary)] cursor-pointer" 
+      <div class="draft-item p-3 border-b border-(--border-color) hover:bg-[var(--bg-secondary)] cursor-pointer" 
            data-draft-id="${draft.id}">
         <div class="flex justify-between items-center">
           <div>
-            <strong class="text-[var(--text-primary)]">${
+            <strong class="text-(--text-primary)">${
               draft.business_name || "Untitled Invoice"
             }</strong>
-            <div class="text-sm text-[var(--text-secondary)] mt-1">
+            <div class="text-sm text-(--text-secondary) mt-1">
               ${draft.invoice_id} • ${new Date(
                 draft.created_at,
               ).toLocaleDateString()}
@@ -560,11 +560,11 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
     modal.className =
       "fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4";
     modal.innerHTML = `
-      <div class="bg-[var(--bg-primary)] rounded-lg shadow-pop max-w-2xl w-full max-h-[80vh] overflow-hidden squircle-lg">
-        <div class="p-6 border-b border-[var(--border-color)]">
+      <div class="bg-(--bg-primary) rounded-lg shadow-pop max-w-2xl w-full max-h-[80vh] overflow-hidden squircle-lg">
+        <div class="p-6 border-b border-(--border-color)">
           <div class="flex justify-between items-center">
-            <h3 class="text-xl font-bold text-[var(--text-primary)]">All Drafts (${userDrafts.length})</h3>
-            <button class="close-modal text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <h3 class="text-xl font-bold text-(--text-primary)">All Drafts (${userDrafts.length})</h3>
+            <button class="close-modal text-(--text-secondary) hover:text-(--text-primary)">
               ✕
             </button>
           </div>
@@ -572,8 +572,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
         <div class="p-6 overflow-y-auto max-h-[60vh]">
           ${draftsHTML}
         </div>
-        <div class="p-6 border-t border-[var(--border-color)]">
-          <button class="start-fresh-btn w-full py-2 px-4 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded hover:bg-[var(--bg-secondary)]/80 transition-colors squircle-md">
+        <div class="p-6 border-t border-(--border-color)">
+          <button class="start-fresh-btn w-full py-2 px-4 bg-[var(--bg-secondary)] text-(--text-primary) rounded hover:bg-[var(--bg-secondary)]/80 transition-colors squircle-md">
             Start New Invoice
           </button>
         </div>
@@ -1154,14 +1154,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--bg-primary)] rounded-xl max-w-md w-full p-6 squircle-lg shadow-pop">
+          <div className="bg-(--bg-primary) rounded-xl max-w-md w-full p-6 squircle-lg shadow-pop">
             <div className="w-12 h-12 bg-destructive/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Crown className="w-6 h-6 text-destructive" />
             </div>
-            <h3 className="text-xl font-bold text-center mb-2 text-[var(--text-primary)]">
+            <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
               Invoice Limit Reached
             </h3>
-            <p className="text-[var(--text-secondary)] text-center mb-6">
+            <p className="text-(--text-secondary) text-center mb-6">
               {isSolopreneurUser
                 ? "You've used all your Solopreneur invoices. Upgrade to continue creating unlimited invoices!"
                 : "You've used all your free invoices. Upgrade to continue creating unlimited invoices!"}
@@ -1169,7 +1169,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-[var(--border-color)] text-[var(--text-secondary)]"
+                className="flex-1 border-(--border-color) text-(--text-secondary)"
                 onClick={() => setShowUpgradePrompt(false)}
               >
                 Cancel
@@ -1248,7 +1248,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h1 className="md:text-3xl text-xl font-bold text-[var(--text-primary)]">
+                        <h1 className="md:text-3xl text-xl font-bold text-(--text-primary)">
                           Create Invoice
                         </h1>
                         <div
@@ -1269,7 +1269,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           </span>
                         )}
                       </div>
-                      <p className="text-[var(--text-secondary)]">
+                      <p className="text-(--text-secondary)">
                         Generate a professional invoice and share the link for
                         payments
                       </p>
@@ -1374,7 +1374,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   </div>
                 )}
 
-                <Card className="p-6 bg-[var(--bg-primary)] border border-[var(--border-color)] shadow-soft squircle-lg">
+                <Card className="p-6 bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
                   <LogoUpload
                     logo={form.business_logo || ""}
                     onLogoChange={(logoDataUrl: string) =>
@@ -1387,7 +1387,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                   />
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-[var(--text-secondary)]">
+                      <Label className="text-(--text-secondary)">
                         Business Name *
                       </Label>
                       <Input
@@ -1399,7 +1399,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           }))
                         }
                         placeholder="Your Business Name"
-                        className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                        className="mt-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow)"
                         style={{ outline: "none", boxShadow: "none" }}
                         disabled={isFormLocked}
                       />
@@ -1411,7 +1411,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                     </div>
 
                     <div>
-                      <Label className="text-[var(--text-secondary)]">
+                      <Label className="text-(--text-secondary)">
                         Invoice Number
                       </Label>
                       <Input
@@ -1422,23 +1422,23 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             invoice_id: e.target.value,
                           }))
                         }
-                        className="mt-1 border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
+                        className="mt-1 border-(--border-color) bg-[var(--bg-secondary)] text-(--text-secondary)"
                         disabled={true}
                       />
                     </div>
 
-                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
+                    <div className="border-t border-(--border-color) pt-4 mt-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-[var(--text-primary)]">
+                        <h3 className="font-semibold text-(--text-primary)">
                           Bill To
                         </h3>
-                        <span className="text-xs text-[var(--text-secondary)]">
+                        <span className="text-xs text-(--text-secondary)">
                           (Optional - leave blank for client to fill)
                         </span>
                       </div>
                       <div className="space-y-3">
                         <div>
-                          <Label className="text-[var(--text-secondary)]">
+                          <Label className="text-(--text-secondary)">
                             Client Name
                           </Label>
                           <Input
@@ -1446,13 +1446,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             onChange={handleFormChange}
                             name="name"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            className="mt-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow)"
                             style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
                         </div>
                         <div>
-                          <Label className="text-[var(--text-secondary)]">
+                          <Label className="text-(--text-secondary)">
                             Client Email
                           </Label>
                           <Input
@@ -1461,7 +1461,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             onChange={handleFormChange}
                             name="email"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            className="mt-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow)"
                             style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
@@ -1472,7 +1472,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           )}
                         </div>
                         <div>
-                          <Label className="text-[var(--text-secondary)]">
+                          <Label className="text-(--text-secondary)">
                             Client Phone
                           </Label>
                           <Input
@@ -1480,7 +1480,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                             onChange={handleFormChange}
                             name="clientPhone"
                             placeholder="Leave blank for client to fill"
-                            className="mt-1 border-[var(--border-color)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:ring-[var(--color-accent-yellow)] focus:border-[var(--color-accent-yellow)]"
+                            className="mt-1 border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:ring-(--color-accent-yellow)"
                             style={{ outline: "none", boxShadow: "none" }}
                             disabled={isFormLocked}
                           />
@@ -1488,14 +1488,14 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                       </div>
                     </div>
 
-                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
+                    <div className="border-t border-(--border-color) pt-4 mt-6">
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <h3 className="font-semibold text-[var(--text-primary)]">
+                          <h3 className="font-semibold text-(--text-primary)">
                             Items
                           </h3>
                           {form.invoice_items.length > 0 && (
-                            <p className="text-xs text-[var(--text-secondary)] mt-1">
+                            <p className="text-xs text-(--text-secondary) mt-1">
                               {form.invoice_items.length} item
                               {form.invoice_items.length !== 1 ? "s" : ""} •
                               Total: ₦
@@ -1521,7 +1521,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                       {form.invoice_items.length > 0 ? (
                         <div>
-                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-[var(--text-secondary)]">
+                          <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-(--text-secondary)">
                             <div className="md:col-span-5">DESCRIPTION</div>
                             <div className="md:col-span-1 text-center">QTY</div>
                             <div className="md:col-span-2 text-right">
@@ -1547,10 +1547,10 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-[var(--text-secondary)] border border-dashed border-[var(--border-color)] rounded-md">
+                        <div className="text-center py-8 text-(--text-secondary) border border-dashed border-(--border-color) rounded-md">
                           <div className="flex flex-col items-center gap-2">
                             <div className="w-12 h-12 bg-[var(--bg-secondary)] rounded-full flex items-center justify-center">
-                              <Plus className="h-6 w-6 text-[var(--text-secondary)]" />
+                              <Plus className="h-6 w-6 text-(--text-secondary)" />
                             </div>
                             <p className="text-sm font-medium">
                               No items added yet
@@ -1569,18 +1569,18 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                     </div>
 
                     {/* Email Automation Toggle */}
-                    <div className="border-t border-[var(--border-color)] pt-4 mt-6">
+                    <div className="border-t border-(--border-color) pt-4 mt-6">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <Label className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                          <Label className="font-medium text-(--text-primary) flex items-center gap-2">
                             {form.sendEmailAutomatically ? (
                               <Mail className="w-4 h-4 text-[var(--color-lemon-green)]" />
                             ) : (
-                              <Mail className="w-4 h-4 text-[var(--text-secondary)]" />
+                              <Mail className="w-4 h-4 text-(--text-secondary)" />
                             )}
                             Send invoice automatically to client
                           </Label>
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                          <p className="text-xs text-(--text-secondary) mt-1">
                             {form.sendEmailAutomatically
                               ? "An email will be sent to the client with the invoice link"
                               : "You'll need to share the invoice link manually with the client"}
@@ -1606,7 +1606,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                         variant="outline"
                         onClick={() => handleSubmit(true)}
                         disabled={draftLoading || isFormLocked || loading}
-                        className="flex-1 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                        className="flex-1 border-(--border-color) text-(--text-primary) hover:bg-[var(--bg-secondary)]"
                       >
                         <Save className="w-4 h-4 mr-2" />
                         {draftLoading ? "Saving..." : "Save Draft"}
@@ -1675,7 +1675,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
 
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <h1 className="md:text-3xl text-xl font-bold text-[var(--text-primary)]">
+                        <h1 className="md:text-3xl text-xl font-bold text-(--text-primary)">
                           Invoice Preview
                         </h1>
                         <div
@@ -1696,7 +1696,7 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                           </span>
                         )}
                       </div>
-                      <p className="text-[var(--text-secondary)]">
+                      <p className="text-(--text-secondary)">
                         Live preview of your invoice as you fill out the form
                       </p>
                     </div>
@@ -1715,8 +1715,8 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
                 <div className="space-y-6">
                   <InvoicePreview invoice={previewInvoice} />
 
-                  <div className="flex justify-between items-center pt-4 border-t border-[var(--border-color)]">
-                    <div className="text-sm text-[var(--text-secondary)]">
+                  <div className="flex justify-between items-center pt-4 border-t border-(--border-color)">
+                    <div className="text-sm text-(--text-secondary)">
                       <p>
                         Switch to the "Create Invoice" tab to edit your invoice
                       </p>
@@ -1744,7 +1744,7 @@ export default function CreateInvoiceWithSuspense() {
   return (
     <Suspense
       fallback={
-        <div className="text-center p-8 text-[var(--text-primary)]">
+        <div className="text-center p-8 text-(--text-primary)">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--color-accent-yellow)] mx-auto mb-4" />
           <p>Loading invoice form...</p>
         </div>

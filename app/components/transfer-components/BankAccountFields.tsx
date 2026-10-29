@@ -11,7 +11,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "../ui/command";
-import { Check, ChevronsUpDown, Loader2, User, X } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SavedAccountsList from "./SavedAccountsList";
 import BeneficiarySuggestions from "./BeneficiarySuggestions";
@@ -35,8 +35,6 @@ interface BankAccountFieldsProps {
   setAccountNumber: (number: string) => void;
   accountName: string;
   setAccountName: (name: string) => void;
-  saveAccount: boolean;
-  setSaveAccount: (save: boolean) => void;
   lookupLoading: boolean;
   errors: { [key: string]: string };
   showBeneficiarySuggestions: boolean;
@@ -71,8 +69,6 @@ export default function BankAccountFields({
   setAccountNumber,
   accountName,
   setAccountName,
-  saveAccount,
-  setSaveAccount,
   lookupLoading,
   errors,
   showBeneficiarySuggestions,
@@ -94,7 +90,6 @@ export default function BankAccountFields({
 }: BankAccountFieldsProps) {
   return (
     <>
-      {/* Beneficiary Suggestions */}
       {showBeneficiarySuggestions && matchingBeneficiaries.length > 0 && (
         <BeneficiarySuggestions
           matchingBeneficiaries={matchingBeneficiaries}
@@ -104,7 +99,6 @@ export default function BankAccountFields({
         />
       )}
 
-      {/* Saved Accounts */}
       <SavedAccountsList
         type="bank"
         accounts={savedAccounts}
@@ -114,7 +108,6 @@ export default function BankAccountFields({
         selectedId={selectedSavedAccount?.id}
       />
 
-      {/* Bank Selection */}
       <div className="space-y-1">
         <Label className="text-(--text-primary)">Select Bank Name</Label>
         <Popover open={open} onOpenChange={setOpen}>
@@ -138,7 +131,9 @@ export default function BankAccountFields({
                 className="bg-(--bg-primary) border-(--border-color) text-(--text-primary)"
               />
               <CommandList>
-                <CommandEmpty className="text-(--text-secondary)">No bank found.</CommandEmpty>
+                <CommandEmpty className="text-(--text-secondary)">
+                  No bank found.
+                </CommandEmpty>
                 <CommandGroup>
                   {filteredBanks.map((bank) => (
                     <CommandItem
@@ -160,10 +155,11 @@ export default function BankAccountFields({
             </Command>
           </PopoverContent>
         </Popover>
-        {errors.otherBank && <p className="text-red-600 text-sm">{errors.otherBank}</p>}
+        {errors.otherBank && (
+          <p className="text-red-600 text-sm">{errors.otherBank}</p>
+        )}
       </div>
 
-      {/* Account Number */}
       <div className="space-y-1 relative beneficiary-input-trigger">
         <Label className="text-(--text-primary)">Account Number</Label>
         <Input
@@ -173,60 +169,39 @@ export default function BankAccountFields({
           pattern="[0-9]*"
           maxLength={10}
           value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
-          onFocus={() => {
-            setIsInputFocused(true);
-            if (accountNumber.length > 0) {
-              const allBeneficiaries = getAllBeneficiaries();
-              const matches = allBeneficiaries.filter(
-                (b) =>
-                  b.account_number.includes(accountNumber) ||
-                  b.account_name.toLowerCase().includes(accountNumber.toLowerCase())
-              );
-              if (matches.length > 0) {
-                // This would need to be handled by parent
-              }
-            }
-          }}
+          onChange={(e) =>
+            setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
+          }
+          onFocus={() => setIsInputFocused(true)}
           onBlur={() => {
             setTimeout(() => {
-              if (!document.activeElement?.closest(".beneficiary-suggestions-container")) {
+              if (
+                !document.activeElement?.closest(
+                  ".beneficiary-suggestions-container"
+                )
+              ) {
                 setIsInputFocused(false);
               }
             }, 200);
           }}
           placeholder="10-digit account number"
-          className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary) [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="bg-(--bg-primary) border-(--border-color) text-(--text-primary) placeholder:text-(--text-secondary)"
         />
-        {errors.accountNumber && <p className="text-red-600 text-sm">{errors.accountNumber}</p>}
+        {errors.accountNumber && (
+          <p className="text-red-600 text-sm">{errors.accountNumber}</p>
+        )}
       </div>
 
-      {/* Account Name */}
       {lookupLoading && (
         <p className="text-(--color-accent-yellow) text-sm flex items-center gap-2">
           <Loader2 className="animate-spin" /> Verifying account...
         </p>
       )}
+
       {accountName && !errors.accountNumber && (
-        <div className="space-y-2">
-          <p className="text-(--color-accent-yellow) text-sm font-semibold">
-            Account Name: {accountName}
-          </p>
-          {!selectedSavedAccount && accountNumber.length === 10 && accountName && (
-            <div className="flex items-center justify-between p-3 bg-(--bg-secondary) rounded-lg border border-(--border-color)">
-              <span className="text-sm font-medium text-(--text-primary)">Save to beneficiaries</span>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveAccount}
-                  onChange={(e) => setSaveAccount(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-(--color-accent-yellow) dark:bg-gray-600"></div>
-              </label>
-            </div>
-          )}
-        </div>
+        <p className="text-(--color-accent-yellow) text-sm font-semibold">
+          Account Name: {accountName}
+        </p>
       )}
     </>
   );

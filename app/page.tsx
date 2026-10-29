@@ -21,6 +21,7 @@ import { PlansSection } from "./components/home-component/PlansSection";
 import { SocialBar } from "./components/home-component/SocialBar";
 import { StatementsSection } from "./components/home-component/StatementsSection";
 import { TeamControl } from "./components/home-component/TeamControl";
+import { ZidStoreSection } from "./components/home-component/ZidStoreSection";
 
 
  const metadata = {
@@ -100,6 +101,7 @@ function LandingContent() {
       { id: "socialBar", name: "SocialBar" },
       { id: "howItWorks", name: "HowItWorks" },
       { id: "connectedAccounts", name: "ConnectedAccounts" },
+      { id: "zidStoreSection", name: "ZidStoreSection" },
       { id: "moneyFlowSection", name: "MoneyFlowSection" },
       { id: "statementsSection", name: "StatementsSection" },
       { id: "bonusTools", name: "BonusTools" },
@@ -122,31 +124,32 @@ function LandingContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-(--bg-primary) text-(--text-primary)">
       {componentSettings.map((component) => (
         <div
-          key={component.id}
-          data-aos={aosLoaded ? component.animation : undefined}
-          data-aos-delay={aosLoaded ? component.delay : undefined}
-          data-aos-duration={aosLoaded ? component.duration : undefined}
-        >
-          {component.id === "nav" && <Nav />}
-          {component.id === "hero" && <Hero />}
-          {component.id === "socialBar" && <SocialBar />}
-          {component.id === "howItWorks" && <HowItWorks />}
-          {component.id === "connectedAccounts" && <ConnectedAccounts />}
-          {component.id === "moneyFlowSection" && <MoneyFlowSection />}
-          {component.id === "statementsSection" && <StatementsSection />}
-          {component.id === "bonusTools" && <BonusTools />}
-          {component.id === "teamControl" && <TeamControl />}
-          {component.id === "categories" && <Categories />}
-          {component.id === "builtForReal" && <BuiltForReal />}
-          {component.id === "dashboardSection" && <DashboardSection />}
-          {component.id === "healthSection" && <HealthSection />}
-          {component.id === "plansSection" && <PlansSection />}
-          {component.id === "aiSection" && <AISection />}
-          {component.id === "finalCTA" && <FinalCTA />}
-        </div>
+                key={component.id}
+                data-aos={aosLoaded ? component.animation : undefined}
+                data-aos-delay={aosLoaded ? component.delay : undefined}
+                data-aos-duration={aosLoaded ? component.duration : undefined}
+              >
+                {component.id === "nav" && <Nav />}
+                {component.id === "hero" && <Hero />}
+                {component.id === "socialBar" && <SocialBar />}
+                {component.id === "howItWorks" && <HowItWorks />}
+                {component.id === "connectedAccounts" && <ConnectedAccounts />}
+                {component.id === "moneyFlowSection" && <MoneyFlowSection />}
+                {component.id === "statementsSection" && <StatementsSection />}
+                {component.id === "bonusTools" && <BonusTools />}
+                {component.id === "zidStoreSection" && <ZidStoreSection />}
+                {component.id === "teamControl" && <TeamControl />}
+                {component.id === "categories" && <Categories />}
+                {component.id === "builtForReal" && <BuiltForReal />}
+                {component.id === "dashboardSection" && <DashboardSection />}
+                {component.id === "healthSection" && <HealthSection />}
+                {component.id === "plansSection" && <PlansSection />}
+                {component.id === "aiSection" && <AISection />}
+                {component.id === "finalCTA" && <FinalCTA />}
+              </div>
       ))}
       <Footer />
     </div>

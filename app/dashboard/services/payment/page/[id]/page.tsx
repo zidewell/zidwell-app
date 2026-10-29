@@ -46,7 +46,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
 
 const typeLabels: Record<string, string> = {
@@ -89,7 +89,7 @@ function getPaymentExtraInfo(payment: any) {
 // ─── HELPER: compute the buyer's installment sequence number ───
 function computeInstallmentSequence(
   payment: any,
-  allPayments: any[]
+  allPayments: any[],
 ): { current: number; total: number } | null {
   const info = getPaymentExtraInfo(payment);
   if (!info.isInstallment || !info.totalInstallments) return null;
@@ -108,7 +108,7 @@ function computeInstallmentSequence(
     .sort(
       (a, b) =>
         new Date(a.paid_at || a.created_at).getTime() -
-        new Date(b.paid_at || b.created_at).getTime()
+        new Date(b.paid_at || b.created_at).getTime(),
     );
 
   const index = sameBuyer.findIndex((p) => p.id === payment.id);
@@ -309,6 +309,10 @@ const PageDetail = () => {
   const isVerified = userData?.bvnVerification === "verified";
 
   useEffect(() => {
+    if (id) loadPageDetails();
+  }, [id]);
+
+  useEffect(() => {
     const foundPage = pages.find((p) => p.id === id);
     if (foundPage) {
       setPage(foundPage);
@@ -464,7 +468,7 @@ const PageDetail = () => {
   const assignPaymentToStudent = async (
     paymentId: string,
     studentName: string,
-    amount: number
+    amount: number,
   ) => {
     if (!studentName) {
       await Swal.fire({
@@ -491,7 +495,8 @@ const PageDetail = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Failed to assign payment");
+      if (!response.ok)
+        throw new Error(data.error || "Failed to assign payment");
 
       await Swal.fire({
         icon: "success",
@@ -635,13 +640,14 @@ const PageDetail = () => {
 
       const paymentDate =
         payment.paid_at || payment.created_at || new Date().toISOString();
-      if (paymentDate > customer.lastPayment) customer.lastPayment = paymentDate;
+      if (paymentDate > customer.lastPayment)
+        customer.lastPayment = paymentDate;
       if (paymentDate < customer.firstPayment)
         customer.firstPayment = paymentDate;
     });
 
     return Array.from(customerMap.values()).sort(
-      (a, b) => b.totalPaid - a.totalPaid
+      (a, b) => b.totalPaid - a.totalPaid,
     );
   }, [payments, linkConfig]);
 
@@ -652,7 +658,7 @@ const PageDetail = () => {
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.email && c.email.toLowerCase().includes(q)) ||
-        (c.phone && c.phone.includes(q))
+        (c.phone && c.phone.includes(q)),
     );
   }, [customers, customerSearchQuery]);
 
@@ -745,7 +751,7 @@ const PageDetail = () => {
   let filteredStudents = studentsWithStatus;
   if (searchQuery)
     filteredStudents = filteredStudents.filter((s: any) =>
-      s.name?.toLowerCase().includes(searchQuery.toLowerCase())
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   if (activeTab === "paid")
     filteredStudents = filteredStudents.filter((s: any) => s.isFullyPaid);
@@ -753,22 +759,22 @@ const PageDetail = () => {
     filteredStudents = filteredStudents.filter((s: any) => s.isPartiallyPaid);
   else if (activeTab === "unpaid")
     filteredStudents = filteredStudents.filter(
-      (s: any) => !s.isFullyPaid && !s.isPartiallyPaid
+      (s: any) => !s.isFullyPaid && !s.isPartiallyPaid,
     );
 
   const fullyPaidCount = studentsWithStatus.filter(
-    (s: any) => s.isFullyPaid
+    (s: any) => s.isFullyPaid,
   ).length;
   const partiallyPaidCount = studentsWithStatus.filter(
-    (s: any) => s.isPartiallyPaid
+    (s: any) => s.isPartiallyPaid,
   ).length;
   const unpaidCount = studentsWithStatus.filter(
-    (s: any) => !s.isFullyPaid && !s.isPartiallyPaid
+    (s: any) => !s.isFullyPaid && !s.isPartiallyPaid,
   ).length;
 
   const totalCollected = studentsWithStatus.reduce(
     (sum: number, s: any) => sum + (s.paidAmount || 0),
-    0
+    0,
   );
   const totalExpected = studentsWithStatus.length * (page?.price || 0);
 
@@ -784,7 +790,7 @@ const PageDetail = () => {
 
   const totalPaymentsAmount = payments.reduce(
     (sum, p) => sum + (p.amount || 0),
-    0
+    0,
   );
 
   const pageType = page?.pageType || page?.page_type || "";
@@ -802,7 +808,10 @@ const PageDetail = () => {
 
   return (
     <div className="min-h-screen bg-(--bg-primary)">
-      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
       <div className="flex min-h-screen flex-col lg:pl-72">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 p-4 md:p-6 lg:p-8">
@@ -831,7 +840,13 @@ const PageDetail = () => {
             <div className="squircle-lg flex flex-col gap-4 border border-(--border-color) bg-(--bg-primary) p-6 shadow-(--shadow-soft) sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="squircle-md flex h-14 w-14 items-center justify-center overflow-hidden bg-(--bg-secondary)">
-                  {page.coverImage ? (
+                  {page.productImages && page.productImages.length > 0 ? (
+                    <img
+                      src={page.productImages[0]}
+                      className="h-full w-full object-cover"
+                      alt={page.title}
+                    />
+                  ) : page.coverImage ? (
                     <img
                       src={page.coverImage}
                       className="h-full w-full object-cover"
@@ -944,7 +959,7 @@ const PageDetail = () => {
                                 {labels[tab]}
                               </button>
                             );
-                          }
+                          },
                         )}
                       </div>
                     )}
@@ -982,7 +997,9 @@ const PageDetail = () => {
                   <>
                     <div className="border-b border-(--border-color) px-6 py-4">
                       <div className="mb-2 flex justify-between text-sm">
-                        <span className="text-(--text-secondary)">Progress</span>
+                        <span className="text-(--text-secondary)">
+                          Progress
+                        </span>
                         <span className="font-medium text-(--text-primary)">
                           ₦{totalCollected.toLocaleString()} / ₦
                           {totalExpected.toLocaleString()}
@@ -1092,10 +1109,9 @@ const PageDetail = () => {
                               payment.customer_name || "Unknown";
                             const paymentDate =
                               payment.paid_at || payment.created_at;
-                            const availableStudents =
-                              studentsWithStatus.filter(
-                                (s: any) => !s.isFullyPaid
-                              );
+                            const availableStudents = studentsWithStatus.filter(
+                              (s: any) => !s.isFullyPaid,
+                            );
 
                             return (
                               <div
@@ -1143,7 +1159,7 @@ const PageDetail = () => {
                                       assignPaymentToStudent(
                                         payment.id,
                                         selectedStudent[payment.id],
-                                        paymentAmount
+                                        paymentAmount,
                                       )
                                     }
                                     disabled={
@@ -1215,9 +1231,7 @@ const PageDetail = () => {
                         type="text"
                         placeholder="Search..."
                         value={customerSearchQuery}
-                        onChange={(e) =>
-                          setCustomerSearchQuery(e.target.value)
-                        }
+                        onChange={(e) => setCustomerSearchQuery(e.target.value)}
                         className="squircle-md border border-(--border-color) bg-(--bg-secondary) py-2 pl-9 pr-8 text-sm text-(--text-primary) placeholder:text-(--text-secondary) focus:border-(--color-accent-yellow) focus:outline-none"
                       />
                     </div>
@@ -1261,7 +1275,7 @@ const PageDetail = () => {
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />{" "}
                                   {new Date(
-                                    customer.firstPayment
+                                    customer.firstPayment,
                                   ).toLocaleDateString()}
                                 </span>
                               </div>
@@ -1294,16 +1308,16 @@ const PageDetail = () => {
                                   .sort(
                                     (a, b) =>
                                       new Date(
-                                        b.paid_at || b.created_at
+                                        b.paid_at || b.created_at,
                                       ).getTime() -
                                       new Date(
-                                        a.paid_at || a.created_at
-                                      ).getTime()
+                                        a.paid_at || a.created_at,
+                                      ).getTime(),
                                   )
                                   .map((p) => {
                                     const seq = computeInstallmentSequence(
                                       p,
-                                      payments
+                                      payments,
                                     );
                                     return (
                                       <div
@@ -1312,7 +1326,7 @@ const PageDetail = () => {
                                       >
                                         <span className="text-(--text-secondary)">
                                           {new Date(
-                                            p.paid_at || p.created_at
+                                            p.paid_at || p.created_at,
                                           ).toLocaleString()}
                                           {seq && (
                                             <span className="ml-2 text-(--text-secondary)/70">
@@ -1322,8 +1336,7 @@ const PageDetail = () => {
                                           )}
                                         </span>
                                         <span className="font-medium text-(--text-primary)">
-                                          ₦
-                                          {(p.amount || 0).toLocaleString()}
+                                          ₦{(p.amount || 0).toLocaleString()}
                                         </span>
                                       </div>
                                     );
@@ -1352,7 +1365,7 @@ const PageDetail = () => {
                                         {String(value)}
                                       </span>
                                     </div>
-                                  )
+                                  ),
                                 )}
                               </div>
                             </div>
@@ -1386,7 +1399,7 @@ const PageDetail = () => {
             <div className="flex flex-col items-center">
               <img
                 src={`/api/payment-page/qrcode?url=${encodeURIComponent(
-                  getPaymentPageUrl()
+                  getPaymentPageUrl(),
                 )}`}
                 alt="QR Code"
                 className="squircle-md h-48 w-48 bg-white p-2"
