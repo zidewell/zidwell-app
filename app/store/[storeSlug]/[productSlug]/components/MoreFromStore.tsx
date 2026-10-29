@@ -40,16 +40,16 @@ export function MoreFromStore({
     <section className="mx-auto max-w-[1320px] px-5 pb-16 lg:px-10">
       <div className="mb-5 flex items-baseline justify-between">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight sm:text-xl">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
             More from {storeName}
           </h2>
-          <p className="mt-1 text-xs text-foreground/50">
+          <p className="mt-1 text-xs text-muted-foreground">
             Other products you might like
           </p>
         </div>
         <Link
           href={`/store/${storeSlug}`}
-          className="text-xs font-medium text-foreground/60 underline hover:text-foreground"
+          className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
         >
           View all
         </Link>
@@ -77,7 +77,7 @@ export function MoreFromStore({
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center">
-                    <Package className="h-10 w-10 text-foreground/20" />
+                    <Package className="h-10 w-10 text-muted-foreground/30" />
                   </div>
                 )}
 
@@ -91,7 +91,7 @@ export function MoreFromStore({
               </div>
 
               <div className="flex flex-1 flex-col p-3">
-                <h3 className="line-clamp-1 text-sm font-semibold transition-colors group-hover:text-[#FDC020]">
+                <h3 className="line-clamp-1 text-sm font-semibold text-foreground transition-colors group-hover:text-[#FDC020]">
                   {p.title}
                 </h3>
                 <div className="mt-auto flex items-baseline justify-between pt-2">
@@ -99,7 +99,7 @@ export function MoreFromStore({
                     ₦{Number(p.price || 0).toLocaleString()}
                   </p>
                   {p.price_type === "installment" && (
-                    <span className="text-[10px] font-medium text-foreground/50">
+                    <span className="text-[10px] font-medium text-muted-foreground">
                       installments
                     </span>
                   )}

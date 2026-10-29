@@ -41,10 +41,36 @@ export interface PickupLocationSnapshot {
   phone: string | null;
 }
 
+export interface DeliveryZone {
+  id: string;
+  store_id: string;
+  label: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  fee: number;
+  free_threshold: number;
+  notes: string | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface DeliveryZoneSnapshot {
+  id: string;
+  label: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  fee: number;
+  notes: string | null;
+}
+
 export interface FulfillmentSelection {
-  // ✅ null = no method chosen yet
   method: "delivery" | "pickup" | null;
-  address: CustomerDeliveryAddress | null;
+  delivery: {
+    selected_zone: DeliveryZoneSnapshot | null;
+    customer_address: CustomerDeliveryAddress | null;
+  } | null;
   pickup: PickupLocationSnapshot | null;
   fee: number;
 }
@@ -79,22 +105,13 @@ export function resolveFulfillmentMethod(params: {
   return "delivery";
 }
 
-export function calculateDeliveryFee(params: {
-  deliveryEnabled: boolean;
-  method: FulfillmentMethod;
-  baseFee: number;
-  freeThreshold: number;
-  cartSubtotal: number;
-}): number {
-  const { deliveryEnabled, method, baseFee, freeThreshold, cartSubtotal } =
-    params;
-
-  if (method !== "delivery") return 0;
-  if (!deliveryEnabled) return 0;
-
-  const fee = Number(baseFee) || 0;
-  const threshold = Number(freeThreshold) || 0;
-
+export function calculateZoneFee(
+  zone: { fee: number; free_threshold: number } | null | undefined,
+  cartSubtotal: number,
+): number {
+  if (!zone) return 0;
+  const fee = Number(zone.fee) || 0;
+  const threshold = Number(zone.free_threshold) || 0;
   if (threshold > 0 && cartSubtotal >= threshold) return 0;
   return fee;
 }
@@ -129,10 +146,29 @@ export function snapshotPickupLocation(
   };
 }
 
+export function snapshotDeliveryZone(zone: DeliveryZone): DeliveryZoneSnapshot {
+  return {
+    id: zone.id,
+    label: zone.label,
+    address: zone.address,
+    city: zone.city,
+    state: zone.state,
+    fee: Number(zone.fee) || 0,
+    notes: zone.notes,
+  };
+}
+
 export function sortPickupLocations(
   locations: PickupLocation[],
 ): PickupLocation[] {
   return [...locations].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+export function sortDeliveryZones(zones: DeliveryZone[]): DeliveryZone[] {
+  return [...zones].sort((a, b) => {
     if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
     return a.label.localeCompare(b.label);
   });

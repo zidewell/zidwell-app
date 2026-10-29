@@ -1,7 +1,6 @@
-// app/store/[storeSlug]/[productSlug]/components/ProductHeader.tsx
 "use client";
 
-import { Store as StoreIcon, Search } from "lucide-react";
+import { Store as StoreIcon } from "lucide-react";
 import { StoreData } from "../utils/types";
 
 interface Props {
@@ -12,9 +11,8 @@ interface Props {
 
 export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) {
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 bg-white">
+    <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-4 px-4 lg:px-6">
-        {/* Logo / store name */}
         <a
           href={`/store/${store.slug}`}
           aria-label={`Back to ${store.name}`}
@@ -25,22 +23,9 @@ export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) 
           </span>
         </a>
 
-        {/* Fake search bar (Jumia style) */}
-        {/*<div className="hidden flex-1 sm:block">
-          <div className="flex h-9 items-center rounded-md border border-gray-300 bg-gray-50 px-3">
-            <Search className="h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={`Search in ${store.name}...`}
-              className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-            />
-          </div>
-        </div>*/}
-
-        {/* Store link */}
         <a
           href={`/store/${store.slug}`}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-[#FDC020] hover:text-[#FDC020]"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition hover:border-[#FDC020] hover:text-[#FDC020]"
           aria-label={`Go to ${store.name}`}
         >
           <StoreIcon className="h-3.5 w-3.5" />

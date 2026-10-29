@@ -1,4 +1,3 @@
-// app/components/store/SimpleFooter.tsx
 "use client";
 
 import Image from "next/image";
@@ -19,7 +18,7 @@ export default function SimpleFooter({
 
   return (
     <footer
-      className={`border-t border-(--border-color) bg-(--bg-secondary) ${className}`}
+      className={`border-t border-[var(--border-color)] bg-[var(--bg-secondary)] ${className}`}
     >
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 sm:flex-row sm:px-6 sm:py-8">
         <Link
@@ -35,12 +34,12 @@ export default function SimpleFooter({
               className="h-6 w-6 object-contain sm:h-7 sm:w-7"
             />
           )}
-          <span className="text-sm font-bold uppercase tracking-tight text-(--text-primary) sm:text-base">
+          <span className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)] sm:text-base">
             {companyName}
           </span>
         </Link>
 
-        <p className="text-xs text-(--text-secondary) sm:text-sm">
+        <p className="text-xs text-[var(--text-secondary)] sm:text-sm">
           © {currentYear} {companyName}. All rights reserved.
         </p>
       </div>

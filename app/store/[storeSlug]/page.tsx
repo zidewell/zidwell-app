@@ -1,4 +1,3 @@
-// app/store/[storeSlug]/page.tsx
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -14,7 +13,6 @@ import {
   generateBreadcrumbSchema,
 } from "@/lib/seo";
 import SimpleFooter from "./[productSlug]/components/Footer";
-
 
 export const revalidate = 60;
 
@@ -46,8 +44,6 @@ function toNumberOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// ✅ Compute the price to display on a product card.
-// Uses the lowest variant price for products that have variants.
 function getCardPrice(page: any): { price: number; isFrom: boolean } {
   const basePrice = Number(page.price) || 0;
 
@@ -203,7 +199,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
 
   return (
     <>
-      <div className="min-h-screen bg-(--bg-primary)">
+      <div className="min-h-screen bg-[var(--bg-primary)]">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(storeSchema) }}
@@ -213,10 +209,10 @@ export default async function PublicStorePage({ params }: StorePageProps) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
         />
 
-        <header className="border-b border-(--border-color) bg-(--bg-secondary)">
+        <header className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
           <div className="mx-auto max-w-6xl px-4 py-8 sm:py-12 md:py-14">
             {store.cover_url && (
-              <div className="squircle-lg mb-6 overflow-hidden border border-(--border-color)">
+              <div className="squircle-lg mb-6 overflow-hidden border border-[var(--border-color)]">
                 <img
                   src={store.cover_url}
                   alt={`${store.name} cover`}
@@ -227,7 +223,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
             )}
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
-              <div className="squircle-md flex h-16 w-16 shrink-0 items-center justify-center border border-(--border-color) bg-(--bg-primary) shadow-(--shadow-soft) sm:h-20 sm:w-20">
+              <div className="squircle-md flex h-16 w-16 shrink-0 items-center justify-center border border-[var(--border-color)] bg-[var(--bg-primary)] shadow-[var(--shadow-soft)] sm:h-20 sm:w-20">
                 {store.logo_url ? (
                   <img
                     src={store.logo_url}
@@ -235,19 +231,19 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                     className="squircle-md h-full w-full object-cover"
                   />
                 ) : (
-                  <StoreIcon className="h-8 w-8 text-(--color-accent-yellow) sm:h-10 sm:w-10" />
+                  <StoreIcon className="h-8 w-8 text-[var(--color-accent-yellow)] sm:h-10 sm:w-10" />
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="eyebrow text-(--text-secondary)">Online Store</p>
+                <p className="eyebrow text-[var(--text-secondary)]">Online Store</p>
 
-                <h1 className="mt-2 text-2xl font-bold tracking-tight text-(--text-primary) sm:text-3xl md:text-4xl">
+                <h1 className="mt-2 text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl md:text-4xl">
                   {store.name}
                 </h1>
 
                 {safeDescription && (
-                  <div className="prose prose-sm dark:prose-invert mt-4 max-w-2xl text-sm leading-6 text-(--text-secondary) prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:text-(--text-primary)">
+                  <div className="prose prose-sm dark:prose-invert mt-4 max-w-2xl text-sm leading-6 text-[var(--text-secondary)] prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-strong:text-[var(--text-primary)]">
                     <div
                       dangerouslySetInnerHTML={{
                         __html: safeDescription
@@ -267,14 +263,14 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                 )}
 
                 <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
+                  <span className="badge border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-medium text-[var(--text-secondary)]">
                     <Package className="mr-1.5 h-3.5 w-3.5" />
                     {validPages.length} product
                     {validPages.length !== 1 ? "s" : ""}
                   </span>
 
                   {store.city && store.state && (
-                    <span className="badge border border-(--border-color) bg-(--bg-primary) text-xs font-medium text-(--text-secondary)">
+                    <span className="badge border border-[var(--border-color)] bg-[var(--bg-primary)] text-xs font-medium text-[var(--text-secondary)]">
                       <MapPin className="mr-1.5 h-3.5 w-3.5" />
                       {store.city}, {store.state}
                     </span>
@@ -289,10 +285,10 @@ export default async function PublicStorePage({ params }: StorePageProps) {
           {validPages.length > 0 ? (
             <>
               <div className="mb-6 flex items-baseline justify-between">
-                <h2 className="text-lg font-semibold text-(--text-primary) sm:text-xl">
+                <h2 className="text-lg font-semibold text-[var(--text-primary)] sm:text-xl">
                   Products
                 </h2>
-                <span className="text-sm text-(--text-secondary)">
+                <span className="text-sm text-[var(--text-secondary)]">
                   {validPages.length} item{validPages.length !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -309,9 +305,9 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                       href={`/store/${productStoreSlug}/${page.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="squircle-lg group flex flex-col overflow-hidden border border-(--border-color) bg-(--bg-secondary) transition-all duration-300 hover:-translate-y-0.5 hover:border-(--color-accent-yellow)/40 hover:shadow-(--shadow-pop)"
+                      className="squircle-lg group flex flex-col overflow-hidden border border-[var(--border-color)] bg-[var(--bg-secondary)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--color-accent-yellow)]/40 hover:shadow-[var(--shadow-pop)]"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-(--bg-primary)">
+                      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--bg-primary)]">
                         {page.product_images && page.product_images.length > 0 ? (
                           <img
                             src={page.product_images[0]}
@@ -328,7 +324,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                           />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center">
-                            <Package className="h-10 w-10 text-(--text-secondary)/40 sm:h-12 sm:w-12" />
+                            <Package className="h-10 w-10 text-[var(--text-secondary)]/40 sm:h-12 sm:w-12" />
                           </div>
                         )}
 
@@ -340,13 +336,13 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                       </div>
 
                       <div className="flex flex-1 flex-col p-3 sm:p-4">
-                        <h3 className="line-clamp-1 text-sm font-semibold text-(--text-primary) transition-colors group-hover:text-(--color-accent-yellow)">
+                        <h3 className="line-clamp-1 text-sm font-semibold text-[var(--text-primary)] transition-colors group-hover:text-[var(--color-accent-yellow)]">
                           {page.title}
                         </h3>
 
                         {safeProductDesc && (
                           <div
-                            className="prose prose-sm dark:prose-invert mt-1 line-clamp-2 max-w-none text-xs leading-5 text-(--text-secondary) prose-p:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0"
+                            className="prose prose-sm dark:prose-invert mt-1 line-clamp-2 max-w-none text-xs leading-5 text-[var(--text-secondary)] prose-p:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0"
                             dangerouslySetInnerHTML={{
                               __html: safeProductDesc.replace(
                                 /<p>/g,
@@ -357,9 +353,9 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                         )}
 
                         <div className="mt-auto flex items-baseline justify-between pt-3">
-                          <p className="text-sm font-bold text-(--color-accent-yellow) sm:text-base">
+                          <p className="text-sm font-bold text-[var(--color-accent-yellow)] sm:text-base">
                             {isFrom && (
-                              <span className="mr-1 text-[10px] font-medium text-(--text-secondary)">
+                              <span className="mr-1 text-[10px] font-medium text-[var(--text-secondary)]">
                                 From
                               </span>
                             )}
@@ -367,7 +363,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                           </p>
                           {page.price_type === "installment" &&
                             page.installment_count && (
-                              <span className="text-[10px] font-medium text-(--text-secondary)">
+                              <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                                 {page.installment_count}×
                               </span>
                             )}
@@ -380,13 +376,13 @@ export default async function PublicStorePage({ params }: StorePageProps) {
             </>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="squircle-md flex h-16 w-16 items-center justify-center border border-(--border-color) bg-(--bg-secondary)">
-                <Package className="h-8 w-8 text-(--text-secondary)/50" />
+              <div className="squircle-md flex h-16 w-16 items-center justify-center border border-[var(--border-color)] bg-[var(--bg-secondary)]">
+                <Package className="h-8 w-8 text-[var(--text-secondary)]/50" />
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-(--text-primary)">
+              <h3 className="mt-5 text-lg font-semibold text-[var(--text-primary)]">
                 No products yet
               </h3>
-              <p className="mt-1.5 max-w-xs text-sm text-(--text-secondary)">
+              <p className="mt-1.5 max-w-xs text-sm text-[var(--text-secondary)]">
                 This store hasn&apos;t added any products yet. Check back soon.
               </p>
             </div>
@@ -394,36 +390,36 @@ export default async function PublicStorePage({ params }: StorePageProps) {
         </section>
 
         {(hasCoordinates || hasAddress) && (
-          <section className="border-t border-(--border-color) bg-(--bg-secondary)">
+          <section className="border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
               <div className="mb-6 flex items-baseline justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-(--text-primary) sm:text-xl">
+                  <h2 className="text-lg font-semibold text-[var(--text-primary)] sm:text-xl">
                     Visit this store
                   </h2>
-                  <p className="mt-1 text-sm text-(--text-secondary)">
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
                     Find us on the map or get directions.
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-                <div className="squircle-lg flex flex-col border border-(--border-color) bg-(--bg-primary) p-5 sm:p-6">
+                <div className="squircle-lg flex flex-col border border-[var(--border-color)] bg-[var(--bg-primary)] p-5 sm:p-6">
                   <div className="flex items-start gap-3">
-                    <div className="squircle-md flex h-10 w-10 shrink-0 items-center justify-center bg-(--bg-secondary)">
-                      <MapPin className="h-5 w-5 text-(--color-accent-yellow)" />
+                    <div className="squircle-md flex h-10 w-10 shrink-0 items-center justify-center bg-[var(--bg-secondary)]">
+                      <MapPin className="h-5 w-5 text-[var(--color-accent-yellow)]" />
                     </div>
                     <div className="min-w-0">
-                      <p className="eyebrow text-(--text-secondary)">Address</p>
-                      <p className="mt-1 text-sm font-semibold text-(--text-primary)">
+                      <p className="eyebrow text-[var(--text-secondary)]">Address</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--text-primary)]">
                         {addressLine || "Location details not provided"}
                       </p>
                     </div>
                   </div>
 
                   {store.location_enabled && hasCoordinates && (
-                    <p className="mt-4 text-xs text-(--text-secondary)">
-                      <span className="font-medium text-(--text-primary)">
+                    <p className="mt-4 text-xs text-[var(--text-secondary)]">
+                      <span className="font-medium text-[var(--text-primary)]">
                         Precise location enabled
                       </span>{" "}
                       · {lat!.toFixed(4)}, {lng!.toFixed(4)}
@@ -434,14 +430,14 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                     href={mapDirectionsHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="squircle-md mt-6 inline-flex items-center justify-center gap-2 bg-(--color-accent-yellow) px-4 py-3 text-sm font-semibold text-(--color-ink) transition-opacity hover:opacity-90"
+                    className="squircle-md mt-6 inline-flex items-center justify-center gap-2 bg-[var(--color-accent-yellow)] px-4 py-3 text-sm font-semibold text-[var(--color-ink)] transition-opacity hover:opacity-90"
                   >
                     <Navigation className="h-4 w-4" />
                     Get directions
                   </a>
                 </div>
 
-                <div className="squircle-lg overflow-hidden border border-(--border-color) bg-(--bg-primary) lg:col-span-2">
+                <div className="squircle-lg overflow-hidden border border-[var(--border-color)] bg-[var(--bg-primary)] lg:col-span-2">
                   {hasCoordinates || hasAddress ? (
                     <iframe
                       title={`Map of ${store.name}`}
@@ -453,7 +449,7 @@ export default async function PublicStorePage({ params }: StorePageProps) {
                     />
                   ) : (
                     <div className="flex h-72 w-full items-center justify-center sm:h-80">
-                      <p className="text-sm text-(--text-secondary)">
+                      <p className="text-sm text-[var(--text-secondary)]">
                         No location provided.
                       </p>
                     </div>
