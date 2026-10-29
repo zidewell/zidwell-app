@@ -2,32 +2,104 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// 1. Import TubePlayer
 import TubePlayer from "tubeplayer";
-// 2. Import its CSS (critical, otherwise custom controls won't display)
 
 const VIDEO_ID = "DTX24f8IGpQ";
 
 const steps = [
-  {
-    n: "01",
-    t: "Create your Zidwell account",
-  },
-  {
-    n: "02",
-    t: "Complete KYC",
-  },
-  {
-    n: "03",
-    t: "Start For Free, Upgrade to Pro as You Grow",
-  },
+  { n: "01", t: "Create your Zidwell account" },
+  { n: "02", t: "Complete KYC" },
+  { n: "03", t: "Start For Free, Upgrade to Pro as You Grow" },
 ];
+
+/**
+ * Full-area clickable overlay. Clicking anywhere on it will:
+ * 1. Hide the overlay
+ * 2. Find and click TubePlayer's actual play button
+ * So ONE click = video plays.
+ */
+function VideoPlayOverlay() {
+  const [playing, setPlaying] = useState(false);
+  if (playing) return null;
+
+  const handlePlay = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Hide overlay immediately
+    setPlaying(true);
+
+    // Find the video wrapper
+    const wrap = (e.currentTarget as HTMLElement).closest("[data-video-wrap]");
+    if (!wrap) return;
+
+    // Try every known selector for TubePlayer's play button
+    const selectors = [
+      ".tubeplayer-play-button",
+      ".tubeplayer-controls button[aria-label*='Play']",
+      ".tubeplayer-controls button[title*='Play']",
+      "[data-tube-inline] button",
+      "[data-tube-inline] iframe",
+      "iframe",
+    ];
+
+    for (const sel of selectors) {
+      const btn = wrap.querySelector<HTMLElement>(sel);
+      if (btn) {
+        btn.click();
+        // Also try the iframe postMessage API for YouTube
+        if (sel.includes("iframe") && btn instanceof HTMLIFrameElement) {
+          try {
+            btn.contentWindow?.postMessage(
+              JSON.stringify({ event: "command", func: "playVideo" }),
+              "*"
+            );
+          } catch {}
+        }
+        return;
+      }
+    }
+
+    // Fallback: try the YouTube IFrame API postMessage directly
+    const iframe = wrap.querySelector("iframe");
+    if (iframe?.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ event: "command", func: "playVideo" }),
+          "*"
+        );
+      } catch {}
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label="Play video"
+      onClick={handlePlay}
+      className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/20 hover:bg-black/30 transition-colors"
+    >
+      <span className="relative flex h-16 w-16 items-center justify-center">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30" />
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-float">
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="h-7 w-7 ml-0.5 text-ink"
+            aria-hidden="true"
+          >
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export function HowItWorks() {
   const lineRef = useRef<HTMLSpanElement>(null);
   const [inView, setInView] = useState(false);
 
-  // 3. Initialize TubePlayer (after component mounts)
   useEffect(() => {
     TubePlayer.init();
   }, []);
@@ -79,7 +151,6 @@ export function HowItWorks() {
                   transition: "transform 1.4s ease-out",
                 }}
               />
-
               {steps.map((s) => (
                 <div key={s.n} className="relative flex gap-5">
                   <span
@@ -106,10 +177,9 @@ export function HowItWorks() {
               ))}
             </div>
 
-            {/* 4. Replace iframe with TubePlayer inline container */}
             <div className="relative">
               <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float bg-black">
-                <div className="relative w-full aspect-video">
+                <div className="relative w-full aspect-video" data-video-wrap>
                   <div
                     data-tube-inline={VIDEO_ID}
                     data-tube-theme="dark"
@@ -117,6 +187,7 @@ export function HowItWorks() {
                     data-tube-autoplay="false"
                     className="absolute inset-0 h-full w-full"
                   />
+                  <VideoPlayOverlay />
                 </div>
               </div>
             </div>
@@ -162,10 +233,9 @@ export function HowItWorks() {
                       {s.t}
                     </h3>
 
-                    {/* The video only appears on the second step (i === 1) */}
                     {i === 1 && (
                       <div className="mt-4 w-full rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
-                        <div className="relative w-full aspect-video">
+                        <div className="relative w-full aspect-video" data-video-wrap>
                           <div
                             data-tube-inline={VIDEO_ID}
                             data-tube-theme="dark"
@@ -173,6 +243,7 @@ export function HowItWorks() {
                             data-tube-autoplay="false"
                             className="absolute inset-0 h-full w-full"
                           />
+                          <VideoPlayOverlay />
                         </div>
                       </div>
                     )}

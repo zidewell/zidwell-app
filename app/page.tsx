@@ -3,8 +3,6 @@ import { Nav } from "./components/home-component/Nav";
 import { Hero } from "./components/home-component/Hero";
 import { TrustMarquee } from "./components/home-component/TrustMarquee";
 import { ToolsBento } from "./components/home-component/ToolsBento";
-
-import { BankingRow } from "./components/home-component/BankingRow";
 import { EditorialQuote } from "./components/home-component/EditorialQuote";
 import { PricingNew } from "./components/home-component/PricingNew";
 import { FAQNew } from "./components/home-component/FAQNew";
@@ -24,12 +22,10 @@ export default function HomePage() {
         <Hero />
         <TrustMarquee />
 
-        {/* Feature cards — Bookkeeping, ZidStore, Invoice, Receipt,
-            Tax Manager, Contracts, Business Account */}
+      
         <ToolsBento />
 
         <HowItWorks />
-        <BankingRow />
 
         <ZidStoreSection />
         <VideoTestimonials />

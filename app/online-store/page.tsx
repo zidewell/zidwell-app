@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect } from "react"; // Added for TubePlayer init
-import TubePlayer from "tubeplayer"; // Added for TubePlayer
+import { useEffect, useRef, useState } from "react";
+import TubePlayer from "tubeplayer";
 import {
   ArrowRight,
   Store,
@@ -29,7 +29,7 @@ import Image from "next/image";
 const heading = "font-['Space_Grotesk',sans-serif]";
 
 const VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
-const VIDEO_ID = "iGCQ8AGhuS8"; // Extracted for TubePlayer
+const VIDEO_ID = "iGCQ8AGhuS8";
 
 const features = [
   { icon: Store, title: "Online Store", desc: "Create a beautiful online store for your products and services." },
@@ -106,13 +106,81 @@ const FloatingCard = ({
   </motion.div>
 );
 
-const Landing = () => {
-  const router = useRouter();
+/**
+ * Video block using TubePlayer's official inline JavaScript API.
+ * Guarantees a single click plays the video.
+ */
+function VideoBlock({
+  videoId,
+  className = "",
+}: {
+  videoId: string;
+  className?: string;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const [playerId] = useState(
+    () => `zid-inline-${Math.random().toString(36).substr(2, 9)}`
+  );
 
-  // Initialize TubePlayer to replace YouTube UI
   useEffect(() => {
     TubePlayer.init();
   }, []);
+
+  const handlePlay = () => {
+    // Use TubePlayer's documented API for inline players
+    const player = TubePlayer.getPlayer(playerId);
+    if (player && typeof player.play === "function") {
+      player.play();
+    }
+    // Hide the overlay regardless, so the user is never stuck
+    setPlaying(true);
+  };
+
+  return (
+    <div
+      className={`overflow-hidden rounded-[28px] bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)] ring-1 ring-white/10 ${className}`}
+    >
+      <div className="relative w-full aspect-video">
+        {/* TubePlayer Inline Mount Point */}
+        <div
+          id={playerId}
+          data-tube-inline={videoId}
+          data-tube-theme="dark"
+          data-tube-controls="play,progress,time,mute,volume,fullscreen"
+          data-tube-autoplay="false"
+          className="absolute inset-0 h-full w-full"
+        />
+
+        {/* Custom Play Icon Overlay */}
+        {!playing && (
+          <button
+            type="button"
+            aria-label="Play video"
+            onClick={handlePlay}
+            className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/20 hover:bg-black/30 transition-colors"
+          >
+            <span className="relative flex h-16 w-16 items-center justify-center">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30" />
+              <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-float">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="h-7 w-7 ml-0.5 text-ink"
+                  aria-hidden="true"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </span>
+            </span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const Landing = () => {
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-(--bg-primary) font-['Be_Vietnam_Pro',sans-serif] text-(--text-primary) antialiased">
@@ -196,7 +264,6 @@ const Landing = () => {
             </div>
           </motion.div>
 
-          {/* Visual composition */}
           <div className="relative">
             <div className="grid grid-cols-2 gap-4">
               <div className="relative aspect-[4/5] overflow-hidden rounded-[32px] bg-(--bg-secondary)">
@@ -233,7 +300,6 @@ const Landing = () => {
 
             <FloatingCard label="Payment received" value="₦125,000" className="absolute -left-3 top-8 md:-left-8" delay={0.3} />
             <FloatingCard label="New order" value="₦85,000" className="absolute -right-2 bottom-24 md:-right-6" delay={0.45} accent="plain" />
-            {/* Store URL pill — deliberately dark in both themes (brand accent) */}
             <div className="absolute -bottom-5 left-6 rounded-[22px] bg-[#191919] px-5 py-3 text-white shadow-[0_16px_40px_rgba(0,0,0,0.2)] ring-1 ring-white/10">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-white/60">Store</p>
               <p className={`${heading} text-[16px] font-bold`}>amaka.zidwell.com</p>
@@ -273,18 +339,7 @@ const Landing = () => {
             </div>
 
             <div>
-              {/* REPLACED IFRAME WITH TUBEPLAYER INLINE CONTAINER */}
-              <div className="overflow-hidden rounded-[28px] bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
-                <div className="relative w-full aspect-video">
-                  <div
-                    data-tube-inline={VIDEO_ID}
-                    data-tube-theme="dark"
-                    data-tube-controls="play,progress,time,mute,volume,fullscreen"
-                    data-tube-autoplay="false"
-                    className="absolute inset-0 h-full w-full"
-                  />
-                </div>
-              </div>
+              <VideoBlock videoId={VIDEO_ID} />
               <p className="mt-3 text-center text-[13px] font-medium text-white/50">
                 ZidStore tutorial · How to set it up
               </p>
@@ -496,7 +551,6 @@ const Landing = () => {
             </ul>
           </div>
 
-          {/* Zidwell card — deliberately dark in both themes (brand comparison accent) */}
           <div className="rounded-[32px] bg-[#191919] p-7 text-white shadow-[0_24px_60px_rgba(0,0,0,0.18)] ring-1 ring-white/10 md:p-9">
             <div className="flex items-center gap-3">
               <p className={`${heading} text-[24px] font-bold tracking-tight`}>Zidwell</p>
