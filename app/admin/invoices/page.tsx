@@ -4,15 +4,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import AdminLayout from "@/app/components/admin-components/layout";
-import AdminTable, { AdminTableColumn } = "@/app/components/admin-components/AdminTable";
+import AdminTable, { AdminTableColumn } from "@/app/components/admin-components/AdminTable";
 import KPICard from "@/app/components/admin-components/KPICard";
 import Loader from "@/app/components/Loader";
-import { Input } = "@/app/components/ui/input";
-import { Select } = "@/app/components/ui/select";
-import { Button } = "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Select } from "@/app/components/ui/select";
+import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
-import { formatCurrency, formatNumber } = "@/lib/dashboard-utils";
-import { useDebounce } = "@/app/lib/hooks/useDebounce";
+import { formatCurrency, formatNumber } from "@/lib/dashboard-utils";
+import { useDebounce } from "@/app/lib/hooks/useDebounce";
 
 export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,7 +116,7 @@ export default function InvoicesPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <KPICard title="Total Invoices" value={formatNumber(stats.total ?? total)} icon="▤" />
           <KPICard title="Paid" value={formatNumber(stats.paid ?? 0)} icon="✓" />
           <KPICard title="Overdue" value={formatNumber(stats.overdue ?? 0)} icon="✗" />
@@ -128,7 +128,7 @@ export default function InvoicesPage() {
           />
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4>
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex flex-1 gap-2">
             <Input
               placeholder="Search by invoice ID or client..."
@@ -161,7 +161,7 @@ export default function InvoicesPage() {
         <AdminTable columns={columns} rows={invoices} emptyMessage="No invoices found" />
 
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2>
+          <div className="flex justify-center gap-2">
             <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
               ← Prev
             </Button>

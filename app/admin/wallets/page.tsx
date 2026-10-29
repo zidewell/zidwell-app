@@ -12,7 +12,7 @@ import { Select } from "@/app/components/ui/select";
 import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
-import { resolveFullName, hasRealName } from "@/app/lib/resolve-name";
+import { resolveFullName, hasRealName } from "@/lib/resolve-name"; 
 
 export default function WalletsPage() {
   const [searchInput, setSearchInput] = useState("");

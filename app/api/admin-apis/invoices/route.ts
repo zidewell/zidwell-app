@@ -1,7 +1,7 @@
 // app/api/admin-apis/invoices/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { createAuditLog, getClientInfo } from "@/lib/audit-log";
 import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
@@ -9,14 +9,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// ENHANCED ADMIN INVOICES CACHE
-const adminInvoicesCache = new Map();
+// ─────────────────────────────────────────────────────────────
+// CACHES
+// ─────────────────────────────────────────────────────────────
+const adminInvoicesCache = new Map<string, { data: any; timestamp: number }>();
 const ADMIN_INVOICES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Statistics cache (separate for better performance)
-const invoicesStatsCache = new Map();
+const invoicesStatsCache = new Map<string, { data: any; timestamp: number }>();
 const STATS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+// ─────────────────────────────────────────────────────────────
+// DATE HELPERS
+// ─────────────────────────────────────────────────────────────
 function getRangeDates(range: string | null) {
   if (!range || range === "total") return null;
 
@@ -62,6 +66,9 @@ function getRangeDates(range: string | null) {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+// ─────────────────────────────────────────────────────────────
+// QUERY TYPE
+// ─────────────────────────────────────────────────────────────
 interface AdminInvoicesQuery {
   page: number;
   limit: number;
@@ -73,16 +80,20 @@ interface AdminInvoicesQuery {
   includeStats?: boolean;
 }
 
-// Cache management functions - NOT EXPORTED
+// ─────────────────────────────────────────────────────────────
+// CACHE MANAGEMENT
+// ─────────────────────────────────────────────────────────────
 function clearAdminInvoicesCache(filters?: Partial<AdminInvoicesQuery>) {
   if (filters) {
-    const cacheKey = `admin_invoices_${filters.page || 1}_${filters.limit || 10}_${filters.range || 'total'}_${filters.search || ''}_${filters.status || ''}_${filters.startDate || ''}_${filters.endDate || ''}_${filters.includeStats || false}`;
+    const cacheKey = `admin_invoices_${filters.page || 1}_${filters.limit || 10}_${
+      filters.range || "total"
+    }_${filters.search || ""}_${filters.status || ""}_${
+      filters.startDate || ""
+    }_${filters.endDate || ""}_${filters.includeStats || false}`;
     const existed = adminInvoicesCache.delete(cacheKey);
-    
     if (existed) {
       console.log(`🧹 Cleared specific admin invoices cache: ${cacheKey}`);
     }
-    
     return existed;
   } else {
     const count = adminInvoicesCache.size;
@@ -96,11 +107,9 @@ function clearInvoicesStatsCache(range?: string) {
   if (range) {
     const cacheKey = `invoices_stats_${range}`;
     const existed = invoicesStatsCache.delete(cacheKey);
-    
     if (existed) {
       console.log(`🧹 Cleared invoices stats cache for range: ${range}`);
     }
-    
     return existed;
   } else {
     const count = invoicesStatsCache.size;
@@ -113,27 +122,31 @@ function clearInvoicesStatsCache(range?: string) {
 function clearAllAdminInvoicesCache() {
   const invoicesCount = clearAdminInvoicesCache();
   const statsCount = clearInvoicesStatsCache();
-  
-  console.log(`🧹 Cleared all admin invoices cache (${invoicesCount} invoices, ${statsCount} stats)`);
+  console.log(
+    `🧹 Cleared all admin invoices cache (${invoicesCount} invoices, ${statsCount} stats)`
+  );
   return { invoicesCount, statsCount };
 }
 
+// ─────────────────────────────────────────────────────────────
+// STATS (cached)
+// ─────────────────────────────────────────────────────────────
 async function getCachedInvoicesStats(range: string = "total") {
   const cacheKey = `invoices_stats_${range}`;
   const cached = invoicesStatsCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < STATS_CACHE_TTL) {
+
+  if (cached && Date.now() - cached.timestamp < STATS_CACHE_TTL) {
     console.log("✅ Using cached invoices statistics");
     return cached.data;
   }
-  
+
   console.log("🔄 Fetching fresh invoices statistics");
-  
+
   const rangeDates = getRangeDates(range);
-  
+
   let statsQuery = supabaseAdmin
     .from("invoices")
-    .select("status, total_amount, created_at");
+    .select("status, total_amount, paid_amount, created_at");
 
   if (rangeDates) {
     statsQuery = statsQuery
@@ -150,29 +163,42 @@ async function getCachedInvoicesStats(range: string = "total") {
 
   const stats = {
     total: invoices?.length || 0,
-    draft: invoices?.filter(f => f.status === "draft").length || 0,
-    sent: invoices?.filter(f => f.status === "sent").length || 0,
-    paid: invoices?.filter(f => f.status === "paid").length || 0,
-    overdue: invoices?.filter(f => f.status === "overdue").length || 0,
-    cancelled: invoices?.filter(f => f.status === "cancelled").length || 0,
-    totalRevenue: invoices?.filter(f => f.status === "paid").reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
-    pendingRevenue: invoices?.filter(f => f.status === "sent").reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
-    byMonth: invoices?.reduce((acc, f) => {
-      const date = new Date(f.created_at);
-      const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-      acc[monthKey] = (acc[monthKey] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>) || {}
+    draft: invoices?.filter((f) => f.status === "draft").length || 0,
+    unpaid: invoices?.filter((f) => f.status === "unpaid").length || 0,
+    paid: invoices?.filter((f) => f.status === "paid").length || 0,
+    overdue: invoices?.filter((f) => f.status === "overdue").length || 0,
+    cancelled: invoices?.filter((f) => f.status === "cancelled").length || 0,
+    partially_paid:
+      invoices?.filter((f) => f.status === "partially_paid").length || 0,
+    totalValue:
+      invoices?.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0) ||
+      0,
+    paidValue:
+      invoices?.reduce((sum, inv) => sum + (Number(inv.paid_amount) || 0), 0) ||
+      0,
+    byMonth:
+      invoices?.reduce((acc, f) => {
+        const date = new Date(f.created_at);
+        const monthKey = date.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        });
+        acc[monthKey] = (acc[monthKey] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {},
   };
 
   invoicesStatsCache.set(cacheKey, {
     data: stats,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return stats;
 }
 
+// ─────────────────────────────────────────────────────────────
+// LIST (cached) — THE FIXED QUERY
+// ─────────────────────────────────────────────────────────────
 async function getCachedAdminInvoices({
   page,
   limit,
@@ -181,57 +207,60 @@ async function getCachedAdminInvoices({
   status,
   startDate,
   endDate,
-  includeStats = false
+  includeStats = false,
 }: AdminInvoicesQuery) {
   const cacheKey = `admin_invoices_${page}_${limit}_${range}_${search}_${status}_${startDate}_${endDate}_${includeStats}`;
   const cached = adminInvoicesCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < ADMIN_INVOICES_CACHE_TTL) {
+
+  if (cached && Date.now() - cached.timestamp < ADMIN_INVOICES_CACHE_TTL) {
     console.log("✅ Using cached admin invoices data");
-    return {
-      ...cached.data,
-      _fromCache: true
-    };
+    return { ...cached.data, _fromCache: true };
   }
-  
+
   console.log("🔄 Fetching fresh admin invoices data from database");
-  
+
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
-  // Build the query
+  // ── Only real schema columns — NO initiator_email / signee_email ──
   let query = supabaseAdmin
     .from("invoices")
-    .select("id, invoice_id, initiator_email, signee_email, status, total_amount, created_at", { count: "exact" })
+    .select(
+      "id, invoice_id, order_reference, user_id, business_name, from_email, from_name, client_name, client_email, client_phone, bill_to, status, payment_type, fee_option, subtotal, fee_amount, total_amount, paid_amount, issue_date, created_at, paid_at",
+      { count: "exact" }
+    )
     .order("created_at", { ascending: false });
 
-  // Apply search filter
+  // Search across columns that actually exist
   if (search) {
-    query = query.or(`invoice_id.ilike.%${search}%,initiator_email.ilike.%${search}%,signee_email.ilike.%${search}%`);
+    query = query.or(
+      `invoice_id.ilike.%${search}%,business_name.ilike.%${search}%,from_email.ilike.%${search}%,from_name.ilike.%${search}%,client_email.ilike.%${search}%,client_name.ilike.%${search}%`
+    );
   }
 
-  // Apply status filter
-  if (status) {
+  // Status filter
+  if (status && status !== "all") {
     query = query.eq("status", status);
   }
 
-  // Apply date range filter (priority: custom dates > predefined range)
+  // Date range filter (custom dates override range)
   if (startDate && endDate) {
-    // Custom date range
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
-    
-    query = query.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
+    query = query
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString());
   } else {
-    // Predefined range
     const rangeDates = getRangeDates(range);
     if (rangeDates) {
-      query = query.gte("created_at", rangeDates.start).lte("created_at", rangeDates.end);
+      query = query
+        .gte("created_at", rangeDates.start)
+        .lte("created_at", rangeDates.end);
     }
   }
 
-  // Get total count for pagination
+  // Count first (with same filters)
   const { data: countData, error: countError, count } = await query;
   const totalCount = count || 0;
 
@@ -239,7 +268,7 @@ async function getCachedAdminInvoices({
     throw new Error(`Count error: ${countError.message}`);
   }
 
-  // Apply pagination
+  // Then paginate
   query = query.range(from, to);
 
   const { data: invoices, error } = await query;
@@ -248,7 +277,6 @@ async function getCachedAdminInvoices({
     throw new Error(`Fetch error: ${error.message}`);
   }
 
-  // Get statistics if requested
   let stats = null;
   if (includeStats) {
     stats = await getCachedInvoicesStats(range);
@@ -264,62 +292,65 @@ async function getCachedAdminInvoices({
       search,
       status,
       startDate,
-      endDate
+      endDate,
     },
     stats,
-    _fromCache: false
+    _fromCache: false,
   };
 
-  // Cache the successful response
   adminInvoicesCache.set(cacheKey, {
     data: responseData,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
-  console.log(`✅ Cached ${invoices?.length || 0} admin invoices for page ${page}`);
-  
+  console.log(
+    `✅ Cached ${invoices?.length || 0} admin invoices for page ${page}`
+  );
+
   return responseData;
 }
 
-// Helper function to extract admin user info from cookies
+// ─────────────────────────────────────────────────────────────
+// ADMIN USER HELPER
+// ─────────────────────────────────────────────────────────────
 async function getAdminUserInfo(cookieHeader: string) {
   try {
-    // Extract access token from cookies
     const accessTokenMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
     if (!accessTokenMatch) return null;
 
     const accessToken = accessTokenMatch[1];
-    
-    // Verify the token and get user info
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(accessToken);
-    
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
     if (error || !user) {
-      console.error('Error getting admin user:', error);
+      console.error("Error getting admin user:", error);
       return null;
     }
 
-    return {
-      id: user.id,
-      email: user.email
-    };
+    return { id: user.id, email: user.email };
   } catch (error) {
-    console.error('Error extracting admin user info:', error);
+    console.error("Error extracting admin user info:", error);
     return null;
   }
 }
 
-// Only export HTTP methods
-// 📄 GET: List invoices with filters and pagination
+// ─────────────────────────────────────────────────────────────
+// GET
+// ─────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
 
-      const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
+    const allowedRoles = ["super_admin", "finance_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
 
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -332,10 +363,16 @@ export async function GET(req: NextRequest) {
     const includeStats = url.searchParams.get("includeStats") === "true";
     const nocache = url.searchParams.get("nocache") === "true";
 
-    // Clear cache if force refresh requested
     if (nocache) {
       clearAdminInvoicesCache({
-        page, limit, range, search, status, startDate, endDate, includeStats
+        page,
+        limit,
+        range,
+        search,
+        status,
+        startDate,
+        endDate,
+        includeStats,
       });
       if (includeStats) {
         clearInvoicesStatsCache(range);
@@ -351,12 +388,11 @@ export async function GET(req: NextRequest) {
       status,
       startDate,
       endDate,
-      includeStats
+      includeStats,
     });
 
     const { _fromCache, ...cleanResponse } = result;
 
- 
     return NextResponse.json({
       ...cleanResponse,
       _cache: {
@@ -365,41 +401,42 @@ export async function GET(req: NextRequest) {
         page,
         limit,
         range,
-        filters: {
-          search,
-          status,
-          startDate,
-          endDate
-        },
-        includeStats
-      }
+        filters: { search, status, startDate, endDate },
+        includeStats,
+      },
     });
   } catch (err: any) {
     console.error("Server error (invoices route):", err);
-  
-    
-    return NextResponse.json({ 
-      error: err?.message?.includes('Fetch error') 
-        ? 'Failed to fetch invoices' 
-        : err?.message?.includes('Count error')
-        ? 'Failed to count invoices'
-        : 'Server error'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: err?.message?.includes("Fetch error")
+          ? "Failed to fetch invoices"
+          : err?.message?.includes("Count error")
+          ? "Failed to count invoices"
+          : "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
 
-// 🔄 PATCH: Update invoice status
+// ─────────────────────────────────────────────────────────────
+// PATCH — update invoice status
+// ─────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'finance_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
-    const clientInfo = getClientInfo(req.headers);
+    if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "finance_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    const clientInfo = getClientInfo(req.headers);
     const { id, status, notes } = await req.json();
 
     if (!id || !status) {
@@ -409,7 +446,6 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    // Get current invoice state for audit log
     const { data: currentInvoice, error: fetchError } = await supabaseAdmin
       .from("invoices")
       .select("*")
@@ -417,7 +453,6 @@ export async function PATCH(req: NextRequest) {
       .single();
 
     if (fetchError) {
-      // 🕵️ AUDIT LOG: Track update attempt on non-existent invoice
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -428,31 +463,23 @@ export async function PATCH(req: NextRequest) {
         metadata: {
           invoiceId: id,
           attemptedStatus: status,
-          error: fetchError.message
+          error: fetchError.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    const updateData: any = { 
-      status, 
-      updated_at: new Date().toISOString() 
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString(),
     };
 
-    // Add payment timestamp if marking as paid
-    if (status === 'paid' && currentInvoice.status !== 'paid') {
+    if (status === "paid" && currentInvoice.status !== "paid") {
       updateData.paid_at = new Date().toISOString();
     }
-
-    // Add cancellation timestamp if marking as cancelled
-    if (status === 'cancelled' && currentInvoice.status !== 'cancelled') {
-      updateData.cancelled_at = new Date().toISOString();
-    }
-
-    // Add admin notes if provided
     if (notes) {
       updateData.admin_notes = notes;
     }
@@ -464,7 +491,6 @@ export async function PATCH(req: NextRequest) {
       .select();
 
     if (error) {
-      // 🕵️ AUDIT LOG: Track update failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -477,10 +503,10 @@ export async function PATCH(req: NextRequest) {
           invoiceNumber: currentInvoice.invoice_id,
           attemptedStatus: status,
           previousStatus: currentInvoice.status,
-          error: error.message
+          error: error.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -488,7 +514,6 @@ export async function PATCH(req: NextRequest) {
 
     const updatedInvoice = data?.[0];
 
-    // 🕵️ AUDIT LOG: Track successful status update
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -499,132 +524,52 @@ export async function PATCH(req: NextRequest) {
       metadata: {
         invoiceId: id,
         invoiceNumber: currentInvoice.invoice_id,
-        customerEmail: currentInvoice.signee_email,
+        customerEmail: currentInvoice.client_email,
         previousStatus: currentInvoice.status,
         newStatus: status,
         amount: currentInvoice.total_amount,
         adminNotes: notes,
-        updatedBy: adminUser?.email
+        updatedBy: adminUser?.email,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
-    // Special audit for payment
-    if (status === 'paid' && currentInvoice.status !== 'paid') {
-      await createAuditLog({
-        userId: adminUser?.id,
-        userEmail: adminUser?.email,
-        action: "mark_invoice_paid",
-        resourceType: "Invoice",
-        resourceId: id,
-        description: `Marked invoice ${id} as paid: $${currentInvoice.total_amount}`,
-        metadata: {
-          invoiceId: id,
-          invoiceNumber: currentInvoice.invoice_id,
-          customerEmail: currentInvoice.signee_email,
-          amount: currentInvoice.total_amount,
-          paidBy: adminUser?.email,
-          paymentTime: new Date().toISOString()
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
-      });
-    }
-
-    // Special audit for cancellation
-    if (status === 'cancelled' && currentInvoice.status !== 'cancelled') {
-      await createAuditLog({
-        userId: adminUser?.id,
-        userEmail: adminUser?.email,
-        action: "cancel_invoice",
-        resourceType: "Invoice",
-        resourceId: id,
-        description: `Cancelled invoice ${id}: $${currentInvoice.total_amount}`,
-        metadata: {
-          invoiceId: id,
-          invoiceNumber: currentInvoice.invoice_id,
-          customerEmail: currentInvoice.signee_email,
-          amount: currentInvoice.total_amount,
-          cancellationNotes: notes,
-          cancelledBy: adminUser?.email,
-          cancellationTime: new Date().toISOString()
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
-      });
-    }
-
-    // Special audit for overdue marking
-    if (status === 'overdue' && currentInvoice.status !== 'overdue') {
-      await createAuditLog({
-        userId: adminUser?.id,
-        userEmail: adminUser?.email,
-        action: "mark_invoice_overdue",
-        resourceType: "Invoice",
-        resourceId: id,
-        description: `Marked invoice ${id} as overdue: $${currentInvoice.total_amount}`,
-        metadata: {
-          invoiceId: id,
-          invoiceNumber: currentInvoice.invoice_id,
-          customerEmail: currentInvoice.signee_email,
-          amount: currentInvoice.total_amount,
-          markedBy: adminUser?.email,
-          overdueTime: new Date().toISOString()
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
-      });
-    }
-
-    // 🧹 CLEAR CACHE AFTER STATUS UPDATE
     console.log("🧹 Clearing cache after invoice status update...");
     clearAllAdminInvoicesCache();
 
-    return NextResponse.json({ 
-      message: "Invoice status updated", 
+    return NextResponse.json({
+      message: "Invoice status updated",
       data: updatedInvoice,
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (invoices PATCH):", err);
-    
-    // 🕵️ AUDIT LOG: Track unexpected errors
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-    
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "invoice_update_error",
-      resourceType: "Invoice",
-      description: `Unexpected error during invoice update: ${err.message}`,
-      metadata: {
-        error: err.message,
-        stack: err.stack
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
-    });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }
 
-// 🗑️ DELETE: Remove an invoice
+// ─────────────────────────────────────────────────────────────
+// DELETE
+// ─────────────────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'finance_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
-    const clientInfo = getClientInfo(req.headers);
+    if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "finance_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    const clientInfo = getClientInfo(req.headers);
     const { id } = await req.json();
 
     if (!id) {
@@ -634,7 +579,6 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Get invoice before deletion for audit log
     const { data: invoice, error: fetchError } = await supabaseAdmin
       .from("invoices")
       .select("*")
@@ -642,7 +586,6 @@ export async function DELETE(req: NextRequest) {
       .single();
 
     if (fetchError) {
-      // 🕵️ AUDIT LOG: Track deletion attempt on non-existent invoice
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -653,10 +596,10 @@ export async function DELETE(req: NextRequest) {
         metadata: {
           invoiceId: id,
           error: fetchError.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
@@ -668,7 +611,6 @@ export async function DELETE(req: NextRequest) {
       .eq("id", id);
 
     if (error) {
-      // 🕵️ AUDIT LOG: Track deletion failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -682,84 +624,70 @@ export async function DELETE(req: NextRequest) {
           invoiceStatus: invoice.status,
           amount: invoice.total_amount,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 🕵️ AUDIT LOG: Track successful invoice deletion
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "delete_invoice",
       resourceType: "Invoice",
       resourceId: id,
-      description: `Deleted invoice ${id}: ${invoice.invoice_id} - $${invoice.total_amount}`,
+      description: `Deleted invoice ${id}: ${invoice.invoice_id} - ₦${invoice.total_amount}`,
       metadata: {
         invoiceId: id,
         invoiceNumber: invoice.invoice_id,
         invoiceStatus: invoice.status,
-        customerEmail: invoice.signee_email,
+        customerEmail: invoice.client_email,
         amount: invoice.total_amount,
         deletedBy: adminUser?.email,
         deletionTime: new Date().toISOString(),
-        createdAt: invoice.created_at
+        createdAt: invoice.created_at,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
-    // 🧹 CLEAR CACHE AFTER DELETION
     console.log("🧹 Clearing cache after invoice deletion...");
     clearAllAdminInvoicesCache();
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Invoice deleted successfully",
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (invoices DELETE):", err);
-    
-    // 🕵️ AUDIT LOG: Track unexpected errors
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-    
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "invoice_delete_error",
-      resourceType: "Invoice",
-      description: `Unexpected error during invoice deletion: ${err.message}`,
-      metadata: {
-        error: err.message,
-        stack: err.stack
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
-    });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }
 
-// 📝 POST: Create a new invoice (if you have this functionality)
+// ─────────────────────────────────────────────────────────────
+// POST — create invoice
+// ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'finance_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
-    const clientInfo = getClientInfo(req.headers);
+    if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "finance_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    const clientInfo = getClientInfo(req.headers);
     const invoiceData = await req.json();
 
     if (!invoiceData.invoice_id || !invoiceData.total_amount) {
@@ -773,15 +701,13 @@ export async function POST(req: NextRequest) {
       .from("invoices")
       .insert({
         ...invoiceData,
-        created_by: adminUser?.id,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (error) {
-      // 🕵️ AUDIT LOG: Track invoice creation failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -791,68 +717,49 @@ export async function POST(req: NextRequest) {
         metadata: {
           invoiceData,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 🕵️ AUDIT LOG: Track successful invoice creation
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "create_invoice",
       resourceType: "Invoice",
       resourceId: data.id,
-      description: `Created new invoice ${data.invoice_id}: $${data.total_amount}`,
+      description: `Created new invoice ${data.invoice_id}: ₦${data.total_amount}`,
       metadata: {
         invoiceId: data.id,
         invoiceNumber: data.invoice_id,
-        customerEmail: data.signee_email,
+        customerEmail: data.client_email,
         amount: data.total_amount,
         status: data.status,
         createdBy: adminUser?.email,
-        creationTime: new Date().toISOString()
+        creationTime: new Date().toISOString(),
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
-    // 🧹 CLEAR CACHE AFTER CREATION
     console.log("🧹 Clearing cache after invoice creation...");
     clearAllAdminInvoicesCache();
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Invoice created successfully",
       data,
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (invoices POST):", err);
-    
-    // 🕵️ AUDIT LOG: Track unexpected errors
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-    
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "invoice_creation_error",
-      resourceType: "Invoice",
-      description: `Unexpected error during invoice creation: ${err.message}`,
-      metadata: {
-        error: err.message,
-        stack: err.stack
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
-    });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }

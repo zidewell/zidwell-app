@@ -11,7 +11,10 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
 
-  webpack: (config, { isServer }) => {
+  // 👇 ADD THIS — silences the Turbopack-vs-webpack warning
+  turbopack: {},
+
+  webpack: (config) => {
     if (!config.ignoreWarnings) {
       config.ignoreWarnings = [];
     }
@@ -20,7 +23,7 @@ const nextConfig = {
       {
         message:
           /Critical dependency: the request of a dependency is an expression/,
-      },
+      }
     );
     return config;
   },

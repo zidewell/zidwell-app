@@ -9,7 +9,6 @@ import GrowthIndicator from "@/app/components/admin-components/dashboard/GrowthI
 import Loader from "@/app/components/Loader";
 import fetcher from "@/app/lib/fetcher";
 import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
-
 export default function AdminDashboardPage() {
   const apiUrl = useMemo(
     () => `/api/admin-apis/dashboard/summary?includeStats=true`,
