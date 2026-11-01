@@ -1,4 +1,4 @@
-// app/api/paystack/webhook/route.ts
+// app/api/paystack/webhook/route.ts - UPDATED
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -7,10 +7,12 @@ import {
   isPaystackIp,
 } from "./helpers/verify-signature";
 import { processPaymentPageFromPaystack } from "./services/payment-page.service";
+import { processSubscriptionFromPaystack } from "./services/subscription.service";
+import { processStoreActivationFromPaystack } from "./services/store-activation.service";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export const dynamic = "force-dynamic";
@@ -18,8 +20,7 @@ export const runtime = "nodejs";
 
 function handleResult(result: any): NextResponse {
   if (result && "error" in result && result.error) {
-    const statusCode =
-      typeof result.status === "number" ? result.status : 500;
+    const statusCode = typeof result.status === "number" ? result.status : 500;
     return NextResponse.json({ error: result.error }, { status: statusCode });
   }
   return NextResponse.json(result);
@@ -36,10 +37,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-paystack-signature");
     if (!verifyPaystackSignature(rawBody, signature)) {
       console.warn(`[${requestId}] ❌ invalid signature`);
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // ─── 3. Optional IP allowlist ───
@@ -95,8 +93,19 @@ export async function POST(req: NextRequest) {
         const result = await processPaymentPageFromPaystack(payload);
         return handleResult(result);
       }
+
+      if (meta.type === "zidstore_subscription") {
+        const result = await processSubscriptionFromPaystack(payload);
+        return handleResult(result);
+      }
+
+      if (meta.type === "store_activation") {
+        const result = await processStoreActivationFromPaystack(payload);
+        return handleResult(result);
+      }
+
       console.log(
-        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`
+        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`,
       );
       return NextResponse.json({ message: "Event ignored" }, { status: 200 });
     }
@@ -107,7 +116,7 @@ export async function POST(req: NextRequest) {
     console.error(`[${requestId}] ❌ unhandled error:`, err);
     return NextResponse.json(
       { error: err.message || "Internal error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -115,7 +124,6 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({ ok: true });
 }
-
 
 // export async function POST(req: Request) {
 //   const timestamp = req.headers.get("nomba-timestamp");
