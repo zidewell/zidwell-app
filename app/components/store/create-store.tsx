@@ -1473,7 +1473,7 @@ export function CreateStoreForm() {
               >
                 <div className="flex items-center rounded-2xl border border-(--border-color) bg-(--bg-primary) pr-4 focus-within:border-foreground transition-colors overflow-hidden">
                   <span className="px-3 sm:px-4 py-3.5 text-sm font-bold text-(--text-secondary) bg-(--bg-secondary) whitespace-nowrap">
-                    zidwell.com/
+                    zidwell.com/store/
                   </span>
                   <input
                     id="slug"
@@ -1531,7 +1531,7 @@ export function CreateStoreForm() {
                   value={formData.description}
                   onChange={handleDescriptionChange}
                   placeholder="Describe what your business is all about to potential customers..."
-                  minHeight="180px"
+                  minHeight="250px"
                   maxHeight="350px"
                 />
                 <p className="mt-2 text-xs text-(--text-secondary) font-medium">

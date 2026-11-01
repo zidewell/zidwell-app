@@ -1,7 +1,8 @@
+// app/online-store/page.tsx
 "use client";
 
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import TubePlayer from "tubeplayer";
 import {
   ArrowRight,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Footer from "../components/home-component/Footer";
+import { ZidStorePricing } from "../components/home-component/ZidStorePricing";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -108,7 +110,8 @@ const FloatingCard = ({
 
 /**
  * Video block using TubePlayer's official inline JavaScript API.
- * Guarantees a single click plays the video.
+ * Single click on the overlay calls TubePlayer.getPlayer(id).play(),
+ * which starts playback immediately — no double click.
  */
 function VideoBlock({
   videoId,
@@ -119,7 +122,7 @@ function VideoBlock({
 }) {
   const [playing, setPlaying] = useState(false);
   const [playerId] = useState(
-    () => `zid-inline-${Math.random().toString(36).substr(2, 9)}`
+    () => `zid-inline-${Math.random().toString(36).substring(2, 11)}`,
   );
 
   useEffect(() => {
@@ -127,12 +130,14 @@ function VideoBlock({
   }, []);
 
   const handlePlay = () => {
-    // Use TubePlayer's documented API for inline players
-    const player = TubePlayer.getPlayer(playerId);
-    if (player && typeof player.play === "function") {
-      player.play();
+    try {
+      const player = TubePlayer.getPlayer(playerId);
+      if (player && typeof player.play === "function") {
+        player.play();
+      }
+    } catch (err) {
+      console.warn("[VideoBlock] TubePlayer.play failed:", err);
     }
-    // Hide the overlay regardless, so the user is never stuck
     setPlaying(true);
   };
 
@@ -141,7 +146,7 @@ function VideoBlock({
       className={`overflow-hidden rounded-[28px] bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)] ring-1 ring-white/10 ${className}`}
     >
       <div className="relative w-full aspect-video">
-        {/* TubePlayer Inline Mount Point */}
+        {/* TubePlayer Inline Mount */}
         <div
           id={playerId}
           data-tube-inline={videoId}
@@ -151,7 +156,7 @@ function VideoBlock({
           className="absolute inset-0 h-full w-full"
         />
 
-        {/* Custom Play Icon Overlay */}
+        {/* Custom Play Overlay */}
         {!playing && (
           <button
             type="button"
@@ -182,6 +187,19 @@ function VideoBlock({
 const Landing = () => {
   const router = useRouter();
 
+  // Opens YouTube in a new tab instead of pushing an external URL
+  // through the Next.js router (which would no-op / break).
+  const openTutorial = () => {
+    window.open(VIDEO_URL, "_blank", "noopener,noreferrer");
+  };
+
+  const scrollToPricing = () => {
+    document.getElementById("zidstore-pricing")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-(--bg-primary) font-['Be_Vietnam_Pro',sans-serif] text-(--text-primary) antialiased">
       {/* Nav */}
@@ -201,7 +219,7 @@ const Landing = () => {
           </Link>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => router.push(VIDEO_URL)}
+              onClick={openTutorial}
               className="hidden cursor-pointer rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-(--text-secondary) hover:text-(--text-primary) sm:inline-flex"
             >
               Watch Tutorial
@@ -210,7 +228,7 @@ const Landing = () => {
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
               className="cursor-pointer rounded-3xl bg-(--color-accent-yellow) px-6 py-2 font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
             >
-              Create Your Store
+              Create your store
             </button>
           </div>
         </div>
@@ -234,29 +252,29 @@ const Landing = () => {
               Create your store. Sell your products. Get paid. Manage your money.
             </p>
             <p className="mt-4 max-w-xl text-[16px] font-medium leading-relaxed text-(--text-secondary) md:text-[17px]">
-              No complicated setup. No monthly subscription. Just pay once to activate your store and a small
-              commission when you make a sale.
+              No complicated setup. Start free, then upgrade as you grow — with simple, transparent
+              plans built for African businesses. See the exact pricing below.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => router.push("/dashboard/services/payment/dashboard")}
                 className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
               >
-                Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
+                  Create your store <ArrowRight className="h-[18px] w-[18px]" />
               </button>
               <button
-                onClick={() => router.push(VIDEO_URL)}
+                onClick={scrollToPricing}
                 className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl border border-(--border-color) px-8 py-4 text-[17px] font-bold text-(--text-primary) transition-colors hover:border-(--text-primary)"
               >
-                Watch Tutorial
+                See Pricing
               </button>
             </div>
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-semibold text-(--text-secondary)">
               <span className="inline-flex items-center gap-2">
-                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> One-time activation
+                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Free Starter plan
               </span>
               <span className="inline-flex items-center gap-2">
-                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> No monthly fees
+                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Upgrade anytime
               </span>
               <span className="inline-flex items-center gap-2">
                 <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Naira & international payments
@@ -519,6 +537,17 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* ============== ZIDSTORE PRICING ============== */}
+      <Suspense
+        fallback={
+          <div className="py-24 text-center text-(--text-secondary)">
+            Loading pricing…
+          </div>
+        }
+      >
+        <ZidStorePricing />
+      </Suspense>
+
       {/* Comparison */}
       <section className="mx-auto mt-24 max-w-[1200px] px-5 md:mt-32 md:px-8">
         <h2 className={`${heading} text-[32px] font-bold leading-[1.08] tracking-tight text-(--text-primary) md:text-[46px]`}>
@@ -541,8 +570,8 @@ const Landing = () => {
                 "Online store builder",
                 "Global ecommerce ecosystem",
                 "App marketplace for extras",
-                "Monthly subscription plans",
                 "Payments and finance handled by third-party tools",
+                "Setup designed for Western markets first",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3 text-[15px] font-medium text-(--text-secondary)">
                   <Minus className="mt-0.5 h-4 w-4 shrink-0 text-(--text-secondary)/50" /> {t}
@@ -570,7 +599,7 @@ const Landing = () => {
                 "Bookkeeping",
                 "Tax management",
                 "Save-to-Pay",
-                "One-time activation, no subscription",
+                "Free Starter plan",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3 text-[15px] font-semibold">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-(--color-accent-yellow)" /> {t}
@@ -581,7 +610,7 @@ const Landing = () => {
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
               className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-7 py-3.5 text-[16px] font-bold text-[#191919] hover:bg-[#e6a800]"
             >
-              Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
+              Start Now <ArrowRight className="h-[18px] w-[18px]" />
             </button>
           </div>
         </div>
@@ -594,20 +623,21 @@ const Landing = () => {
             Start selling online today.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[16px] font-medium text-(--text-secondary) md:text-[17px]">
-            Pay once to activate your store. Keep the rest of your money moving.
+            Start free on the Starter plan, then upgrade as you grow. See the pricing section above
+            for every plan and fee.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
               className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-(--color-ink) hover:bg-[#e6a800]"
             >
-              Create Your Store <ArrowRight className="h-[18px] w-[18px]" />
+              Start Now <ArrowRight className="h-[18px] w-[18px]" />
             </button>
             <button
-              onClick={() => router.push("/dashboard/services/payment/dashboard")}
+              onClick={scrollToPricing}
               className="inline-flex cursor-pointer items-center justify-center rounded-3xl border border-(--border-color) bg-(--bg-primary) px-8 py-4 text-[17px] font-bold text-(--text-primary) hover:border-(--text-primary)"
             >
-              Get Early Access
+              See Pricing
             </button>
           </div>
         </div>
