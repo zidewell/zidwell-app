@@ -26,6 +26,7 @@ import {
   XCircle,
   Building2,
   BadgeCheck,
+  Timer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -34,8 +35,10 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
+import { useCountdown } from "@/app/hooks/useCountdown";
+import { STORE_ACTIVATION_CONFIG, type StoreActivationPromo } from "@/lib/store-activation";
 
-const ACTIVATION_FEE_NAIRA = 500;
+const ACTIVATION_FEE_NAIRA = 5000;
 
 type StoreFormData = {
   name: string;
@@ -410,6 +413,185 @@ export function CreateStoreForm() {
   const totalSteps = 4;
   const isVerified = userData?.bvnVerification === "verified";
 
+  // ─── PROMO STATE ───
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<StoreActivationPromo | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [promoUsed, setPromoUsed] = useState(false);
+  const [promoServerNow, setPromoServerNow] = useState<string | null>(null);
+
+  // ─── COUNTDOWN HOOK ───
+  const countdown = useCountdown(
+    appliedPromo?.expires_at || new Date(Date.now() + 1000).toISOString(),
+    promoServerNow || new Date().toISOString()
+  );
+
+  // ─── LOCAL STORAGE PERSISTENCE FOR FORM DATA ───
+  // Save form data to localStorage immediately to prevent data loss on refresh
+  useEffect(() => {
+    const saveToLocalStorage = () => {
+      try {
+        const dataToSave = {
+          formData,
+          step,
+          promoCode,
+          timestamp: Date.now(),
+        };
+        localStorage.setItem('create-store-draft', JSON.stringify(dataToSave));
+      } catch (e) {
+        // Silent fail - localStorage may be unavailable
+      }
+    };
+    
+    // Save immediately on change
+    saveToLocalStorage();
+  }, [formData, step, promoCode]);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    if (draftLoaded || hasPendingActivation || hasActiveStore) return;
+    
+    try {
+      const savedData = localStorage.getItem('create-store-draft');
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        const age = Date.now() - parsed.timestamp;
+        // Only use localStorage draft if it's less than 24 hours old
+        if (age < 24 * 60 * 60 * 1000) {
+          setFormData(parsed.formData || formData);
+          setStep(parsed.step || 1);
+          setPromoCode(parsed.promoCode || '');
+        }
+      }
+    } catch (e) {
+      // Silent fail
+    }
+  }, []);
+
+  // Clear localStorage when draft is successfully saved or store is activated
+  const clearLocalStorageDraft = useCallback(() => {
+    try {
+      localStorage.removeItem('create-store-draft');
+    } catch {
+      // Silent fail
+    }
+  }, []);
+
+  // ─── PROMO FUNCTIONS ───
+  const fetchPromoStatus = useCallback(async () => {
+    try {
+      const response = await fetch("/api/store/activation/promo-status", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.used) {
+          setPromoUsed(true);
+          setAppliedPromo(null);
+          setPromoServerNow(null);
+        } else if (data.active && data.promo) {
+          setAppliedPromo({
+            id: data.promo.promoId,
+            user_id: "",
+            promo_code: data.promo.promoCode,
+            original_fee: data.promo.originalFee,
+            discounted_fee: data.promo.discountedFee,
+            status: "active",
+            expires_at: data.promo.expiresAt,
+            created_at: data.serverNow,
+            updated_at: data.serverNow,
+            used_at: undefined,
+            payment_id: undefined,
+          });
+          setPromoServerNow(data.serverNow);
+          setPromoUsed(false);
+        } else {
+          setAppliedPromo(null);
+          setPromoServerNow(null);
+          setPromoUsed(false);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch promo status:", err);
+    }
+  }, []);
+
+  const handleApplyPromo = useCallback(async (codeOverride?: string) => {
+    const codeToUse = codeOverride || promoCode.trim();
+    if (!codeToUse) {
+      setPromoError("Please enter a promo code");
+      return;
+    }
+    setIsApplyingPromo(true);
+    setPromoError(null);
+    try {
+      const response = await fetch("/api/store/activation/apply-promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: codeToUse }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setPromoError(data.error || "Invalid promo code");
+        return;
+      }
+      setAppliedPromo({
+        id: data.promoId,
+        user_id: "",
+        promo_code: data.promoCode || codeToUse.toUpperCase(),
+        original_fee: data.originalFee,
+        discounted_fee: data.discountedFee,
+        status: "active",
+        expires_at: data.expiresAt,
+        created_at: data.serverNow,
+        updated_at: data.serverNow,
+        used_at: undefined,
+        payment_id: undefined,
+      });
+      setPromoServerNow(data.serverNow);
+      setPromoUsed(false);
+      if (!codeOverride) {
+        setPromoCode("");
+      }
+    } catch (err: any) {
+      setPromoError(err.message || "Failed to apply promo");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }, [promoCode]);
+
+  // ─── AUTO-APPLY PROMO WHEN STEP 4 IS REACHED ───
+  const hasAutoAppliedRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (step === 4 && !hasAutoAppliedRef.current) {
+      hasAutoAppliedRef.current = true;
+
+      // Fetch current promo status first
+      fetchPromoStatus().then(() => {
+        // Only auto-apply if no active/used promo and component still mounted
+        if (isMountedRef.current && !appliedPromo && !promoUsed) {
+          // Use a small delay to let the state update settle
+          setTimeout(() => {
+            if (isMountedRef.current && !appliedPromo && !promoUsed) {
+              handleApplyPromo(STORE_ACTIVATION_CONFIG.PROMO_CODE);
+            }
+          }, 300);
+        }
+      });
+    }
+  }, [step, fetchPromoStatus, handleApplyPromo, appliedPromo, promoUsed]);
+
   // ============================================================
   // PENDING-MARKER LIFECYCLE
   // ============================================================
@@ -448,6 +630,13 @@ export function CreateStoreForm() {
       router.push("/dashboard/services/payment/dashboard");
     }
   }, [hasActiveStore, router]);
+
+  // ─── FETCH PROMO STATUS WHEN STEP CHANGES ───
+  useEffect(() => {
+    if (step === 4) {
+      fetchPromoStatus();
+    }
+  }, [step, fetchPromoStatus]);
 
   useEffect(() => {
     if (store && store.isActive === false && !hasLoadedStoreData) {
@@ -1295,6 +1484,10 @@ export function CreateStoreForm() {
         body: JSON.stringify({
           storeData,
           paymentMethod: "checkout",
+          ...(appliedPromo && !countdown.expired && {
+            promo_id: appliedPromo.id,
+            promo_code: appliedPromo.promo_code,
+          }),
         }),
       });
 
@@ -1302,8 +1495,8 @@ export function CreateStoreForm() {
 
       if (!response.ok) throw new Error(data.error || "Activation failed");
 
-      if (data.requiresCheckout && data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
         return;
       }
       throw new Error("No checkout URL returned");
@@ -1859,11 +2052,34 @@ export function CreateStoreForm() {
                     <p className="text-gray-400 text-[10px] uppercase tracking-[0.14em] font-bold">
                       Activation Fee
                     </p>
-                    <p className="text-4xl sm:text-5xl font-bold mt-2 leading-none">
-                      ₦{ACTIVATION_FEE_NAIRA.toLocaleString()}
-                    </p>
+                    <div className="flex items-baseline gap-3 mt-2">
+                      {appliedPromo && !countdown.expired ? (
+                        <>
+                          <p className="text-4xl sm:text-5xl font-bold leading-none line-through text-gray-500">
+                            ₦{STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
+                          </p>
+                          <p className="text-4xl sm:text-5xl font-bold leading-none text-green-400">
+                            ₦{STORE_ACTIVATION_CONFIG.PROMO_FEE.toLocaleString()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-4xl sm:text-5xl font-bold leading-none">
+                          ₦{STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+
+                    {appliedPromo && !countdown.expired && (promoServerNow || appliedPromo.expires_at) && (
+                      <div className="mt-3 flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
+                        <Timer className="size-4" />
+                        <span className="font-medium">
+                          Offer expires in {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                    )}
+
                     <p className="mt-3 max-w-md text-sm font-medium text-gray-300">
-                      Covers store creation and activation — your storefront,
+                      Covers store creation and activation - your storefront,
                       payment links and store wallet go live immediately.
                     </p>
                   </div>
@@ -1875,6 +2091,43 @@ export function CreateStoreForm() {
                   <Benefit text="Free business wallet to receive funds" />
                   <Benefit text="Unlimited payment pages & products" />
                 </div>
+              </div>
+
+              {/* Promo Code Section */}
+              <div className="rounded-[1.5rem] border border-(--border-color) bg-(--bg-secondary) p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-bold text-(--text-primary)">Have a promo code?</p>
+                  {promoUsed && (
+                    <span className="text-xs font-medium text-red-500">Already used</span>
+                  )}
+                </div>
+                {promoUsed ? (
+                  <p className="text-sm text-(--text-secondary) font-medium">You have already used a promo code</p>
+                ) : appliedPromo && !countdown.expired ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="size-4 text-green-500" />
+                      <span className="font-medium text-green-600 dark:text-green-400">Promo {appliedPromo.promo_code} applied</span>
+                    </div>
+                  </div>
+                ) : appliedPromo && countdown.expired ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <AlertTriangle className="size-4 text-red-500" />
+                      <span className="font-medium text-red-600 dark:text-red-400">Promo expired</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input type="text" placeholder="Enter promo code" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} disabled={isApplyingPromo} className="flex-1" />
+                    <button onClick={() => handleApplyPromo()} disabled={isApplyingPromo || !promoCode.trim()} className="px-4 py-2 rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                      {isApplyingPromo ? "Applying..." : "Apply"}
+                    </button>
+                  </div>
+                )}
+                {promoError && (
+                  <p className="mt-2 text-xs text-red-500 font-medium">{promoError}</p>
+                )}
               </div>
 
               {isVerified ? (
@@ -1929,7 +2182,10 @@ export function CreateStoreForm() {
 
               <p className="text-center text-xs text-(--text-secondary) font-medium">
                 You will be redirected to pay ₦
-                {ACTIVATION_FEE_NAIRA.toLocaleString()} via card.
+                {(appliedPromo && !countdown.expired
+                  ? STORE_ACTIVATION_CONFIG.PROMO_FEE
+                  : STORE_ACTIVATION_CONFIG.ORIGINAL_FEE
+                ).toLocaleString()} via card.
               </p>
             </div>
           </SectionCard>

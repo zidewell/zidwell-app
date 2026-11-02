@@ -11,7 +11,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+// Log at startup so missing keys fail fast
+if (!PAYSTACK_SECRET_KEY) {
+  console.error("[zidstore-checkout] FATAL: PAYSTACK_SECRET_KEY is not set");
+}
 
 const BASE_URL =
   process.env.NODE_ENV === "development"
@@ -33,6 +38,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Validate Paystack configuration
+    if (!PAYSTACK_SECRET_KEY) {
+      const err = NextResponse.json(
+        { error: "Payment service not configured. Please contact support." },
+        { status: 500 },
+      );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
+    }
+
     const body = await req.json();
     const { planTier, billingPeriod } = body as {
       planTier: string;

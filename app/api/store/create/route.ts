@@ -3,13 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { STORE_ACTIVATION_CONFIG } from "@/lib/store-activation";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 500;
+const ACTIVATION_FEE_NAIRA = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);

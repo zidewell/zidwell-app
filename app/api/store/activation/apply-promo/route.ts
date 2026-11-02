@@ -41,57 +41,23 @@ export async function POST(req: NextRequest) {
 
     const serverNow = new Date().toISOString();
 
-    // Check if user has already used a promo (permanent block)
-    const { data: usedPromo } = await supabase
+    // Check if user has any promo history (used or expired) - one promo per user ever
+    const { data: anyPromo } = await supabase
       .from("store_activation_promos")
-      .select("id")
+      .select("id, status")
       .eq("user_id", user.id)
-      .eq("status", "used")
       .maybeSingle();
 
-    if (usedPromo) {
+    if (anyPromo) {
       const err = NextResponse.json(
-        { error: "You have already used an activation promo code" },
+        { error: "Promo code has already been used. No further discounts available." },
         { status: 400 }
       );
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
       return err;
     }
 
-    // Check for existing active promo
-    const { data: activePromo } = await supabase
-      .from("store_activation_promos")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (activePromo) {
-      const expiresAt = new Date(activePromo.expires_at);
-      const now = new Date(serverNow);
-
-      if (expiresAt > now) {
-        // Return existing active promo without resetting timer
-        return createAuthResponse(
-          {
-            promoId: activePromo.id,
-            originalFee: activePromo.original_fee,
-            discountedFee: activePromo.discounted_fee,
-            expiresAt: activePromo.expires_at,
-            serverNow,
-          },
-          newTokens
-        );
-      } else {
-        // Expired - mark it expired and fall through to create new one
-        await supabase
-          .from("store_activation_promos")
-          .update({ status: "expired", updated_at: serverNow })
-          .eq("id", activePromo.id);
-      }
-    }
-
-    // Create new active promo
+    // No existing promo - create a new one
     const expiresAt = new Date(Date.now() + STORE_ACTIVATION_CONFIG.DURATION_MINUTES * 60 * 1000).toISOString();
 
     const { data: newPromo, error } = await supabase
@@ -108,6 +74,39 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error || !newPromo) {
+      // Handle duplicate key error gracefully (race condition)
+      if (error?.code === "23505") {
+        // Another request already created a promo - fetch it
+        const { data: existingPromo } = await supabase
+          .from("store_activation_promos")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .maybeSingle();
+
+        if (existingPromo) {
+          // Ensure the existing promo has the correct discounted fee
+          if (existingPromo.discounted_fee !== STORE_ACTIVATION_CONFIG.PROMO_FEE) {
+            await supabase
+              .from("store_activation_promos")
+              .update({ discounted_fee: STORE_ACTIVATION_CONFIG.PROMO_FEE, updated_at: serverNow })
+              .eq("id", existingPromo.id);
+            existingPromo.discounted_fee = STORE_ACTIVATION_CONFIG.PROMO_FEE;
+          }
+
+          const responseData = {
+            promoId: existingPromo.id,
+            promoCode: existingPromo.promo_code,
+            originalFee: existingPromo.original_fee,
+            discountedFee: STORE_ACTIVATION_CONFIG.PROMO_FEE,
+            expiresAt: existingPromo.expires_at,
+            serverNow,
+          };
+          if (newTokens) return createAuthResponse(responseData, newTokens);
+          return NextResponse.json(responseData);
+        }
+      }
+
       console.error("Promo creation failed:", error);
       const err = NextResponse.json({ error: "Failed to create promo" }, { status: 500 });
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
@@ -116,8 +115,9 @@ export async function POST(req: NextRequest) {
 
     const responseData = {
       promoId: newPromo.id,
-      originalFee: newPromo.original_fee,
-      discountedFee: newPromo.discounted_fee,
+      promoCode: newPromo.promo_code,
+      originalFee: STORE_ACTIVATION_CONFIG.ORIGINAL_FEE,
+      discountedFee: STORE_ACTIVATION_CONFIG.PROMO_FEE,
       expiresAt: newPromo.expires_at,
       serverNow,
     };

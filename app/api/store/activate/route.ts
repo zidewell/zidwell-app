@@ -2,17 +2,22 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticated } from "@/lib/auth-check-api";
+import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
+import { STORE_ACTIVATION_CONFIG } from "@/lib/store-activation";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 500;
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+if (!PAYSTACK_SECRET_KEY) {
+  console.error("[store-activate] FATAL: PAYSTACK_SECRET_KEY is not set");
+}
 const baseUrl =
   process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
+    ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
     : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
 
 function generateOrderReference(paymentId: string): string {
@@ -102,12 +107,28 @@ function buildStorePayload(storeData: any) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await isAuthenticated(req);
+  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
+
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const unauthorized = NextResponse.json(
+      { error: "Please login to activate store", logout: true },
+      { status: 401 }
+    );
+    if (newTokens) return createAuthResponse(await unauthorized.json(), newTokens);
+    return unauthorized;
   }
 
   try {
+    // Validate Paystack configuration
+    if (!PAYSTACK_SECRET_KEY) {
+      const err = NextResponse.json(
+        { error: "Payment service not configured. Please contact support." },
+        { status: 500 },
+      );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
+    }
+
     const { storeData } = await req.json();
 
     // Get user
@@ -226,19 +247,54 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ─── CHECK FOR ACTIVE PROMO ───
+    let activePromo: any = null;
+    let activationFee = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
+
+    const { data: promoData, error: promoError } = await supabase
+      .from("store_activation_promos")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (promoData) {
+      const now = new Date();
+      const expiresAt = new Date(promoData.expires_at);
+      if (expiresAt > now) {
+        activePromo = promoData;
+        // Always use config value for discounted fee to ensure consistency
+        activationFee = STORE_ACTIVATION_CONFIG.PROMO_FEE;
+        // Update the database row to correct value if needed
+        if (promoData.discounted_fee !== STORE_ACTIVATION_CONFIG.PROMO_FEE) {
+          await supabase
+            .from("store_activation_promos")
+            .update({ discounted_fee: STORE_ACTIVATION_CONFIG.PROMO_FEE, updated_at: now.toISOString() })
+            .eq("id", promoData.id);
+        }
+      } else {
+        // Mark as expired
+        await supabase
+          .from("store_activation_promos")
+          .update({ status: "expired", updated_at: now.toISOString() })
+          .eq("id", promoData.id);
+      }
+    }
+
     // ─── CREATE PENDING PAYMENT ───
-    const reference = `STORE_ACT_${Date.now()}_${user.id.slice(0, 8)}`;
+    const reference = `ZA-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     const { data: payment, error: paymentError } = await supabase
       .from("store_activation_payments")
       .insert({
         user_id: user.id,
         store_id: store.id,
-        amount: ACTIVATION_FEE_NAIRA,
-        status: "pending",
+        amount: activationFee,
         reference,
-        payment_method: "card",
-        created_at: new Date().toISOString(),
+        status: "pending",
+        payment_method: "paystack",
+        // Store promo_id in order_reference with prefix for webhook to consume
+        order_reference: activePromo ? `PROMO_${activePromo.id}` : null,
       })
       .select()
       .single();
@@ -253,86 +309,65 @@ export async function POST(req: NextRequest) {
     // NOTE: Draft is intentionally NOT deleted here.
     // It's cleared only after payment is confirmed successful.
 
-    // ─── CREATE CHECKOUT ───
-    const { getNombaToken } = await import("@/lib/nomba");
-    const accessToken = await getNombaToken();
-
-    if (!accessToken) {
-      await supabase
-        .from("store_activation_payments")
-        .update({ status: "failed" })
-        .eq("id", payment.id);
-
-      return NextResponse.json(
-        { error: "Payment service unavailable. Please try again later." },
-        { status: 503 }
-      );
-    }
-
-    const orderReference = generateOrderReference(payment.id);
-
-    const checkoutPayload = {
-      order: {
-        callbackUrl: `${baseUrl}/api/store/activate/callback?payment_id=${payment.id}`,
-        customerEmail: dbUser.email || "customer@example.com",
-        amount: ACTIVATION_FEE_NAIRA.toString(),
-        currency: "NGN",
-        orderReference,
-        customerId: user.id,
-        accountId: process.env.NOMBA_ACCOUNT_ID,
-        allowedPaymentMethods: ["Card", "Transfer"],
-        metadata: {
-          type: "store_activation",
-          paymentId: payment.id,
-          storeId: store.id,
-          userId: user.id,
-        },
-      },
-      tokenizeCard: false,
-    };
-
-    const response = await fetch(
-      `${process.env.NOMBA_URL}/v1/checkout/order`,
+    // ─── INITIALIZE PAYSTACK TRANSACTION ───
+    const paystackRes = await fetch(
+      "https://api.paystack.co/transaction/initialize",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
-          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(checkoutPayload),
+        body: JSON.stringify({
+          email: dbUser.email,
+          amount: Math.round(activationFee * 100),
+          currency: "NGN",
+          reference,
+          callback_url: `${baseUrl}/dashboard/store/activation?status=success`,
+          metadata: {
+            type: "store_activation",
+            user_id: user.id,
+            store_id: store.id,
+            payment_id: payment.id,
+            ...(activePromo && {
+              promo_id: activePromo.id,
+              promo_code: activePromo.promo_code,
+            }),
+          },
+        }),
       }
     );
 
-    const data = await response.json();
+    const paystackJson = await paystackRes.json();
 
-    if (!response.ok || data.code !== "00") {
+    if (!paystackRes.ok || !paystackJson?.status) {
+      console.error("[activation checkout] paystack error:", paystackJson);
       await supabase
         .from("store_activation_payments")
-        .update({ status: "failed" })
-        .eq("id", payment.id);
+        .update({
+          status: "failed",
+        })
+        .eq("reference", reference);
 
-      return NextResponse.json(
-        {
-          error:
-            data.description || data.message || "Failed to create checkout",
-        },
-        { status: 500 }
+      const err = NextResponse.json(
+        { error: paystackJson?.message || "Paystack initialization failed" },
+        { status: 502 }
       );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
     }
 
-    await supabase
-      .from("store_activation_payments")
-      .update({ order_reference: orderReference })
-      .eq("id", payment.id);
+    // No need to update payment record with authorization_url - frontend handles redirect
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
-      requiresCheckout: true,
-      checkoutUrl: data.data.checkoutLink,
-      payment_id: payment.id,
-      message: "Please complete payment to activate your store",
-    });
+      reference,
+      authorization_url: paystackJson.data.authorization_url,
+      access_code: paystackJson.data.access_code,
+    };
+
+    if (newTokens) return createAuthResponse(responseData, newTokens);
+    return NextResponse.json(responseData);
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Activation failed" },

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
+import { STORE_ACTIVATION_CONFIG } from "@/lib/store-activation";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -54,8 +55,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const expiresAt = new Date(activePromo.expires_at);
     const now = new Date(serverNow);
+    const expiresAt = new Date(activePromo.expires_at);
 
     if (expiresAt <= now) {
       // Expired - mark it expired
@@ -70,13 +71,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Ensure the promo has the correct discounted fee
+    if (activePromo.discounted_fee !== STORE_ACTIVATION_CONFIG.PROMO_FEE) {
+      await supabase
+        .from("store_activation_promos")
+        .update({ discounted_fee: STORE_ACTIVATION_CONFIG.PROMO_FEE, updated_at: serverNow })
+        .eq("id", activePromo.id);
+    }
+
     return createAuthResponse(
       {
         active: true,
         promo: {
           promoId: activePromo.id,
-          originalFee: activePromo.original_fee,
-          discountedFee: activePromo.discounted_fee,
+          promoCode: activePromo.promo_code,
+          originalFee: STORE_ACTIVATION_CONFIG.ORIGINAL_FEE,
+          discountedFee: STORE_ACTIVATION_CONFIG.PROMO_FEE,
           expiresAt: activePromo.expires_at,
         },
         serverNow,

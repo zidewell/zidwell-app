@@ -18,9 +18,9 @@ export async function processStoreActivationFromPaystack(payload: any) {
 
   console.log("[store-activation webhook] processing reference:", reference);
 
-  // Find payment record
+  // Find payment record in store_activation_payments
   const { data: payment, error: paymentError } = await supabase
-    .from("zidstore_subscription_payments")
+    .from("store_activation_payments")
     .select("*")
     .eq("reference", reference)
     .maybeSingle();
@@ -30,27 +30,27 @@ export async function processStoreActivationFromPaystack(payload: any) {
     return { error: "Payment not found", status: 404 };
   }
 
-  // Idempotency check
-  if (payment.status === "success") {
+  // Idempotency check - check for "completed" status (Nomba/Paystack both use completed)
+  if (payment.status === "completed") {
     console.log("[store-activation webhook] already processed, skipping");
     return { success: true, message: "Already processed" };
   }
 
   const storeId = metadata.store_id;
-  const promoId = metadata.promo_id;
   const now = new Date().toISOString();
 
   if (!storeId) {
     return { error: "Missing store_id in metadata", status: 400 };
   }
 
-  // Update payment record
+  // Update payment record - use "completed" status to match Nomba flow
   const { error: updateError } = await supabase
-    .from("zidstore_subscription_payments")
+    .from("store_activation_payments")
     .update({
-      status: "success",
+      status: "completed",
       paid_at: now,
-      provider_transaction_id: data.id,
+      completed_at: now,
+      nomba_transaction_id: data.id, // Reuse this column for Paystack transaction ID
       updated_at: now,
     })
     .eq("reference", reference);
@@ -61,6 +61,12 @@ export async function processStoreActivationFromPaystack(payload: any) {
   }
 
   // Mark promo as used if applicable
+  // Extract promo_id from order_reference (stored as PROMO_<promoId>)
+  let promoId = metadata.promo_id;
+  if (!promoId && payment.order_reference?.startsWith("PROMO_")) {
+    promoId = payment.order_reference.replace("PROMO_", "");
+  }
+
   if (promoId) {
     const { error: promoError } = await supabase
       .from("store_activation_promos")
