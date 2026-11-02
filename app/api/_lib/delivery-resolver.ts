@@ -1,10 +1,13 @@
 // app/api/_lib/delivery-resolver.ts
 import {
-  calculateDeliveryFee,
+  calculateZoneFee,
   resolveFulfillmentMethod,
   validateCustomerAddress,
+  snapshotDeliveryZone,
   snapshotPickupLocation,
   CustomerDeliveryAddress,
+  DeliveryZone,
+  DeliveryZoneSnapshot,
   PickupLocation,
   PickupLocationSnapshot,
   FulfillmentMethod,
@@ -14,7 +17,10 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 export interface ResolvedFulfillment {
   method: FulfillmentMethod;
   fee: number;
-  delivery: CustomerDeliveryAddress | null;
+  delivery: {
+    zone: DeliveryZoneSnapshot | null;
+    customer: CustomerDeliveryAddress | null;
+  } | null;
   pickup: PickupLocationSnapshot | null;
 }
 
@@ -24,6 +30,7 @@ export async function resolveFulfillmentForCheckout(params: {
   productType?: string | null;
   chosenMethod?: FulfillmentMethod | null;
   deliveryAddress?: CustomerDeliveryAddress | null;
+  deliveryZoneId?: string | null;
   pickupLocationId?: string | null;
   cartSubtotal: number;
 }): Promise<ResolvedFulfillment> {
@@ -33,6 +40,7 @@ export async function resolveFulfillmentForCheckout(params: {
     productType,
     chosenMethod,
     deliveryAddress,
+    deliveryZoneId,
     pickupLocationId,
     cartSubtotal,
   } = params;
@@ -83,6 +91,7 @@ export async function resolveFulfillmentForCheckout(params: {
     return { method, fee: 0, delivery: null, pickup: null };
   }
 
+  // ─── PICKUP ───
   if (method === "pickup") {
     if (!store.local_pickup_enabled) {
       throw new Error("Pickup is not enabled for this store");
@@ -102,7 +111,6 @@ export async function resolveFulfillmentForCheckout(params: {
     }
 
     if (!location) {
-      // Fall back to default, then first active
       const { data: def } = await supabase
         .from("store_pickup_locations")
         .select("*")
@@ -139,7 +147,7 @@ export async function resolveFulfillmentForCheckout(params: {
     };
   }
 
-  // method === "delivery"
+  // ─── DELIVERY ───
   if (!store.delivery_enabled) {
     throw new Error("Delivery is not enabled for this store");
   }
@@ -151,18 +159,70 @@ export async function resolveFulfillmentForCheckout(params: {
     );
   }
 
-  const fee = calculateDeliveryFee({
-    deliveryEnabled: true,
-    method: "delivery",
-    baseFee: Number(store.delivery_fee) || 0,
-    freeThreshold: Number(store.delivery_free_threshold) || 0,
-    cartSubtotal: Number(cartSubtotal) || 0,
-  });
+  // Look for the selected zone, fallback to default, fallback to first active
+  let zone: DeliveryZone | null = null;
+
+  if (deliveryZoneId) {
+    const { data: z } = await supabase
+      .from("store_delivery_addresses")
+      .select("*")
+      .eq("id", deliveryZoneId)
+      .eq("store_id", storeId)
+      .eq("is_active", true)
+      .maybeSingle();
+    zone = z ?? null;
+
+    if (!zone) {
+      throw new Error(
+        "The selected delivery zone is no longer available. Please pick another.",
+      );
+    }
+  }
+
+  if (!zone) {
+    const { data: def } = await supabase
+      .from("store_delivery_addresses")
+      .select("*")
+      .eq("store_id", storeId)
+      .eq("is_active", true)
+      .eq("is_default", true)
+      .maybeSingle();
+
+    if (def) zone = def;
+  }
+
+  if (!zone) {
+    const { data: first } = await supabase
+      .from("store_delivery_addresses")
+      .select("*")
+      .eq("store_id", storeId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    zone = first ?? null;
+  }
+
+  // Fee resolution:
+  //   - If a zone exists → use its fee/free_threshold
+  //   - Else fall back to online_stores.delivery_fee (backward compat)
+  const fee = zone
+    ? calculateZoneFee(zone, cartSubtotal)
+    : calculateZoneFee(
+        {
+          fee: Number(store.delivery_fee) || 0,
+          free_threshold: Number(store.delivery_free_threshold) || 0,
+        },
+        cartSubtotal,
+      );
 
   return {
     method: "delivery",
     fee,
-    delivery: deliveryAddress!,
+    delivery: {
+      zone: zone ? snapshotDeliveryZone(zone) : null,
+      customer: deliveryAddress!,
+    },
     pickup: null,
   };
 }

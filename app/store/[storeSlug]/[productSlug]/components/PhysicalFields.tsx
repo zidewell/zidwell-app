@@ -1,4 +1,3 @@
-// app/store/[storeSlug]/[productSlug]/components/PhysicalFields.tsx
 "use client";
 
 import { Minus, Plus } from "lucide-react";
@@ -55,10 +54,10 @@ export function PhysicalFields({
   return (
     <div className="mt-6 space-y-4">
       <div className="flex items-baseline justify-between gap-3">
-        <Label className="text-sm font-medium">
+        <Label className="text-sm font-medium text-foreground">
           Choose your {variants.length > 1 ? "options" : "option"}
         </Label>
-        <span className="text-xs text-foreground/50">
+        <span className="text-xs text-muted-foreground">
           {selectedVariantSkus.size} selected
         </span>
       </div>
@@ -86,12 +85,11 @@ export function PhysicalFields({
                 "rounded-2xl border p-4 transition-colors",
                 isSelected
                   ? "border-[#FDC020] bg-[#FDC020]/5"
-                  : "border-border bg-background hover:border-foreground/30",
+                  : "border-border bg-background hover:border-border/80",
                 isSoldOut && "opacity-60",
               )}
             >
               <div className="flex items-start gap-3">
-                {/* Checkbox */}
                 <button
                   type="button"
                   onClick={() => !lockedFields && !isSoldOut && onToggleVariant(sku)}
@@ -113,33 +111,36 @@ export function PhysicalFields({
                       stroke="currentColor"
                       strokeWidth="2"
                     >
-                      <path d="M2 6.5L4.5 9L10 3" strokeLinecap="round" strokeLinejoin="round" />
+                      <path
+                        d="M2 6.5L4.5 9L10 3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   )}
                 </button>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-sm">{label}</span>
+                    <span className="font-medium text-sm text-foreground">{label}</span>
                     {isSoldOut ? (
-                      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+                      <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/10 dark:bg-red-500/20 dark:text-red-400">
                         Sold out
                       </Badge>
                     ) : remaining !== null ? (
-                      <Badge className="bg-muted text-foreground/70 hover:bg-muted">
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted">
                         {remaining} left
                       </Badge>
                     ) : (
-                      <Badge className="bg-muted text-foreground/70 hover:bg-muted">
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted">
                         In stock
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-1 text-sm text-foreground/70">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     ₦{perUnit.toLocaleString()}
                     {selectedPaymentOption === "installment" && (
-                      <span className="text-xs text-foreground/50">
+                      <span className="text-xs text-muted-foreground/70">
                         {" "}
                         per payment
                       </span>
@@ -148,16 +149,13 @@ export function PhysicalFields({
                 </div>
               </div>
 
-              {/* Quantity control (only when selected) */}
               {isSelected && !isSoldOut && (
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                  <span className="text-xs text-foreground/60">Quantity</span>
+                  <span className="text-xs text-muted-foreground">Quantity</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        onSetQuantity(sku, Math.max(1, qty - 1))
-                      }
+                      onClick={() => onSetQuantity(sku, Math.max(1, qty - 1))}
                       disabled={lockedFields || qty <= 1}
                       className={cn(
                         "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors",
@@ -167,7 +165,7 @@ export function PhysicalFields({
                     >
                       <Minus className="h-3.5 w-3.5" />
                     </button>
-                    <span className="w-8 text-center text-sm font-semibold">
+                    <span className="w-8 text-center text-sm font-semibold text-foreground">
                       {qty}
                     </span>
                     <button

@@ -38,7 +38,11 @@ import RichTextArea from "@/app/components/payment-page-components/RichTextArea"
 import { useCountdown } from "@/app/hooks/useCountdown";
 import { STORE_ACTIVATION_CONFIG, type StoreActivationPromo } from "@/lib/store-activation";
 
+<<<<<<< HEAD
 const ACTIVATION_FEE_NAIRA = 5000;
+=======
+const ACTIVATION_FEE_NAIRA = 1000;
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
 
 type StoreFormData = {
   name: string;

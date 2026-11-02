@@ -10,7 +10,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+<<<<<<< HEAD
 const ACTIVATION_FEE_NAIRA = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
+=======
+const ACTIVATION_FEE_NAIRA = 1000;
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);

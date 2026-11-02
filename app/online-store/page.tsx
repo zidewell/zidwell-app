@@ -219,7 +219,11 @@ const Landing = () => {
           </Link>
           <div className="flex items-center gap-2">
             <button
+<<<<<<< HEAD
               onClick={openTutorial}
+=======
+              onClick={() => router.push(VIDEO_URL)}
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
               className="hidden cursor-pointer rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-(--text-secondary) hover:text-(--text-primary) sm:inline-flex"
             >
               Watch Tutorial
@@ -252,8 +256,13 @@ const Landing = () => {
               Create your store. Sell your products. Get paid. Manage your money.
             </p>
             <p className="mt-4 max-w-xl text-[16px] font-medium leading-relaxed text-(--text-secondary) md:text-[17px]">
+<<<<<<< HEAD
               No complicated setup. Start free, then upgrade as you grow — with simple, transparent
               plans built for African businesses. See the exact pricing below.
+=======
+              No complicated setup. No monthly subscription. Just pay once to activate your store and a small
+              commission when you make a sale.
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
@@ -263,7 +272,11 @@ const Landing = () => {
                   Create your store <ArrowRight className="h-[18px] w-[18px]" />
               </button>
               <button
+<<<<<<< HEAD
                 onClick={scrollToPricing}
+=======
+                onClick={() => router.push(VIDEO_URL)}
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
                 className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl border border-(--border-color) px-8 py-4 text-[17px] font-bold text-(--text-primary) transition-colors hover:border-(--text-primary)"
               >
                 See Pricing
@@ -271,10 +284,17 @@ const Landing = () => {
             </div>
             <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-semibold text-(--text-secondary)">
               <span className="inline-flex items-center gap-2">
+<<<<<<< HEAD
                 <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Free Starter plan
               </span>
               <span className="inline-flex items-center gap-2">
                 <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Upgrade anytime
+=======
+                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> One-time activation
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Check className="h-4 w-4 text-(--color-accent-yellow)" /> No monthly fees
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
               </span>
               <span className="inline-flex items-center gap-2">
                 <Check className="h-4 w-4 text-(--color-accent-yellow)" /> Naira & international payments
@@ -318,6 +338,10 @@ const Landing = () => {
 
             <FloatingCard label="Payment received" value="₦125,000" className="absolute -left-3 top-8 md:-left-8" delay={0.3} />
             <FloatingCard label="New order" value="₦85,000" className="absolute -right-2 bottom-24 md:-right-6" delay={0.45} accent="plain" />
+<<<<<<< HEAD
+=======
+            {/* Store URL pill — deliberately dark in both themes (brand accent) */}
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
             <div className="absolute -bottom-5 left-6 rounded-[22px] bg-[#191919] px-5 py-3 text-white shadow-[0_16px_40px_rgba(0,0,0,0.2)] ring-1 ring-white/10">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-white/60">Store</p>
               <p className={`${heading} text-[16px] font-bold`}>amaka.zidwell.com</p>
@@ -326,7 +350,7 @@ const Landing = () => {
         </div>
       </header>
 
-      {/* ============== TUTORIAL VIDEO ============== */}
+      {/* ============== TUTORIAL VIDEO (always-dark design accent) ============== */}
       <section className="mx-auto mt-20 max-w-[1200px] px-5 md:mt-28 md:px-8">
         <div className="rounded-[40px] bg-[#191919] p-8 text-white md:p-14">
           <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.25fr]">
@@ -570,8 +594,13 @@ const Landing = () => {
                 "Online store builder",
                 "Global ecommerce ecosystem",
                 "App marketplace for extras",
+<<<<<<< HEAD
                 "Payments and finance handled by third-party tools",
                 "Setup designed for Western markets first",
+=======
+                "Monthly subscription plans",
+                "Payments and finance handled by third-party tools",
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3 text-[15px] font-medium text-(--text-secondary)">
                   <Minus className="mt-0.5 h-4 w-4 shrink-0 text-(--text-secondary)/50" /> {t}
@@ -580,6 +609,10 @@ const Landing = () => {
             </ul>
           </div>
 
+<<<<<<< HEAD
+=======
+          {/* Zidwell card — deliberately dark in both themes (brand comparison accent) */}
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
           <div className="rounded-[32px] bg-[#191919] p-7 text-white shadow-[0_24px_60px_rgba(0,0,0,0.18)] ring-1 ring-white/10 md:p-9">
             <div className="flex items-center gap-3">
               <p className={`${heading} text-[24px] font-bold tracking-tight`}>Zidwell</p>
@@ -599,7 +632,11 @@ const Landing = () => {
                 "Bookkeeping",
                 "Tax management",
                 "Save-to-Pay",
+<<<<<<< HEAD
                 "Free Starter plan",
+=======
+                "One-time activation, no subscription",
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3 text-[15px] font-semibold">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-(--color-accent-yellow)" /> {t}
@@ -623,8 +660,12 @@ const Landing = () => {
             Start selling online today.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-[16px] font-medium text-(--text-secondary) md:text-[17px]">
+<<<<<<< HEAD
             Start free on the Starter plan, then upgrade as you grow. See the pricing section above
             for every plan and fee.
+=======
+            Pay once to activate your store. Keep the rest of your money moving.
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
@@ -634,7 +675,11 @@ const Landing = () => {
               Start Now <ArrowRight className="h-[18px] w-[18px]" />
             </button>
             <button
+<<<<<<< HEAD
               onClick={scrollToPricing}
+=======
+              onClick={() => router.push("/dashboard/services/payment/dashboard")}
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
               className="inline-flex cursor-pointer items-center justify-center rounded-3xl border border-(--border-color) bg-(--bg-primary) px-8 py-4 text-[17px] font-bold text-(--text-primary) hover:border-(--text-primary)"
             >
               See Pricing

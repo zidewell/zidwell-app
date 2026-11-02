@@ -6,8 +6,15 @@ import { Label } from "@/app/components/ui/label";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Store, Truck, ChevronDown } from "lucide-react";
-import type { FulfillmentSelection, PickupLocation } from "@/lib/delivery-utils";
-import { sortPickupLocations } from "@/lib/delivery-utils";
+import type {
+  DeliveryZone,
+  FulfillmentSelection,
+  PickupLocation,
+} from "@/lib/delivery-utils";
+import {
+  sortDeliveryZones,
+  sortPickupLocations,
+} from "@/lib/delivery-utils";
 
 const NIGERIAN_STATES = [
   "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
@@ -21,8 +28,6 @@ interface Props {
   storeId: string;
   pickupEnabled: boolean;
   deliveryEnabled: boolean;
-  deliveryFee: number;
-  deliveryFreeThreshold: number;
   deliveryNotes?: string | null;
   cartSubtotal: number;
   value: FulfillmentSelection;
@@ -37,8 +42,6 @@ export function FulfillmentFields({
   storeId,
   pickupEnabled,
   deliveryEnabled,
-  deliveryFee,
-  deliveryFreeThreshold,
   deliveryNotes,
   cartSubtotal,
   value,
@@ -49,26 +52,28 @@ export function FulfillmentFields({
   defaultPhone = "",
 }: Props) {
   const [touched, setTouched] = useState(false);
-  const [locations, setLocations] = useState<PickupLocation[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const [pickupLocations, setPickupLocations] = useState<PickupLocation[]>([]);
+  const [pickupLoading, setPickupLoading] = useState(false);
+
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // Fetch pickup locations once
   useEffect(() => {
     if (!pickupEnabled) return;
     if (!storeId || storeId === "undefined" || storeId.trim() === "") {
-      setLocations([]);
-      setLocationsLoading(false);
+      setPickupLocations([]);
+      setPickupLoading(false);
       return;
     }
-
     let cancelled = false;
-    setLocationsLoading(true);
+    setPickupLoading(true);
     (async () => {
       try {
         const res = await fetch(
@@ -80,11 +85,11 @@ export function FulfillmentFields({
         if (!res.ok) throw new Error("Failed to load pickup locations");
         const data = await res.json();
         if (cancelled) return;
-        setLocations(sortPickupLocations(data.locations ?? []));
+        setPickupLocations(sortPickupLocations(data.locations ?? []));
       } catch (err) {
         console.error("Pickup locations load failed:", err);
       } finally {
-        if (!cancelled) setLocationsLoading(false);
+        if (!cancelled) setPickupLoading(false);
       }
     })();
     return () => {
@@ -92,30 +97,78 @@ export function FulfillmentFields({
     };
   }, [storeId, pickupEnabled]);
 
-  // ✅ Preview fee — always shown on the Delivery tab
-  const previewFee =
-    deliveryFreeThreshold > 0 && cartSubtotal >= deliveryFreeThreshold
-      ? 0
-      : Number(deliveryFee) || 0;
+  useEffect(() => {
+    if (!deliveryEnabled) return;
+    if (!storeId || storeId === "undefined" || storeId.trim() === "") {
+      setDeliveryZones([]);
+      setZonesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setZonesLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/payment-page/public/delivery-addresses?storeId=${encodeURIComponent(
+            storeId,
+          )}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) throw new Error("Failed to load delivery zones");
+        const data = await res.json();
+        if (cancelled) return;
+        setDeliveryZones(sortDeliveryZones(data.zones ?? []));
+      } catch (err) {
+        console.error("Delivery zones load failed:", err);
+      } finally {
+        if (!cancelled) setZonesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [storeId, deliveryEnabled]);
 
-  // ✅ Effective fee for the current selection
+  const selectedZoneId = value.delivery?.selected_zone?.id ?? null;
+  const selectedZone =
+    deliveryZones.find((z) => z.id === selectedZoneId) ?? null;
+
+  const previewFee = (() => {
+    if (selectedZone) {
+      return selectedZone.free_threshold > 0 &&
+        cartSubtotal >= selectedZone.free_threshold
+        ? 0
+        : Number(selectedZone.fee) || 0;
+    }
+    if (deliveryZones.length > 0) {
+      let lowest = Infinity;
+      for (const z of deliveryZones) {
+        const f = Number(z.fee) || 0;
+        if (f < lowest) lowest = f;
+      }
+      return Number.isFinite(lowest) ? lowest : 0;
+    }
+    return 0;
+  })();
+
   const effectiveFee = value.method === "delivery" ? previewFee : 0;
 
-  // Sync fee
   useEffect(() => {
     const currentFee = Number(value.fee ?? 0);
-    const targetFee = value.method === "delivery" ? previewFee : 0;
+    const targetFee = value.method === "delivery" ? effectiveFee : 0;
     if (currentFee !== targetFee) {
       onChangeRef.current({ ...value, fee: targetFee });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.method, cartSubtotal, deliveryFee, deliveryFreeThreshold]);
+  }, [value.method, cartSubtotal, selectedZoneId, deliveryZones.length]);
 
-  const setAddress = (
-    key: keyof NonNullable<FulfillmentSelection["address"]>,
+  const setCustomerAddress = (
+    key: keyof NonNullable<
+      NonNullable<FulfillmentSelection["delivery"]>["customer_address"]
+    >,
     v: string,
   ) => {
-    const current = value.address ?? {
+    const current = value.delivery?.customer_address ?? {
       full_name: "",
       phone: "",
       street_address: "",
@@ -123,7 +176,32 @@ export function FulfillmentFields({
       state: "",
       notes: "",
     };
-    onChange({ ...value, address: { ...current, [key]: v } });
+    const zone = value.delivery?.selected_zone ?? null;
+    onChange({
+      ...value,
+      delivery: {
+        selected_zone: zone,
+        customer_address: { ...current, [key]: v },
+      },
+    });
+  };
+
+  const pickZone = (zone: DeliveryZone) => {
+    onChange({
+      ...value,
+      delivery: {
+        selected_zone: {
+          id: zone.id,
+          label: zone.label,
+          address: zone.address,
+          city: zone.city,
+          state: zone.state,
+          fee: Number(zone.fee) || 0,
+          notes: zone.notes,
+        },
+        customer_address: value.delivery?.customer_address ?? null,
+      },
+    });
   };
 
   const selectPickup = (loc: PickupLocation) => {
@@ -141,10 +219,11 @@ export function FulfillmentFields({
 
   const choosePickup = () => {
     if (disabled) return;
-    const def = locations.find((l) => l.is_default) ?? locations[0] ?? null;
+    const def =
+      pickupLocations.find((l) => l.is_default) ?? pickupLocations[0] ?? null;
     onChange({
       method: "pickup",
-      address: null,
+      delivery: null,
       pickup: def
         ? {
             id: def.id,
@@ -161,34 +240,57 @@ export function FulfillmentFields({
 
   const chooseDelivery = () => {
     if (disabled) return;
+    const defZone =
+      deliveryZones.find((z) => z.is_default) ?? deliveryZones[0] ?? null;
+    const defFee = defZone
+      ? defZone.free_threshold > 0 && cartSubtotal >= defZone.free_threshold
+        ? 0
+        : Number(defZone.fee) || 0
+      : 0;
+
     onChange({
       method: "delivery",
-      address: value.address ?? {
-        full_name: defaultName,
-        phone: defaultPhone,
-        street_address: "",
-        city: "",
-        state: "",
-        notes: "",
+      delivery: {
+        selected_zone: defZone
+          ? {
+              id: defZone.id,
+              label: defZone.label,
+              address: defZone.address,
+              city: defZone.city,
+              state: defZone.state,
+              fee: Number(defZone.fee) || 0,
+              notes: defZone.notes,
+            }
+          : null,
+        customer_address: value.delivery?.customer_address ?? {
+          full_name: defaultName,
+          phone: defaultPhone,
+          street_address: "",
+          city: "",
+          state: "",
+          notes: "",
+        },
       },
       pickup: null,
-      fee: previewFee,
+      fee: defFee,
     });
     setExpanded(true);
   };
 
   if (!pickupEnabled && !deliveryEnabled) {
     return (
-      <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
         This store hasn't enabled pickup or delivery. Please contact the
         seller.
       </div>
     );
   }
 
+  const deliveryAvailable = deliveryEnabled && deliveryZones.length > 0;
+
   return (
     <div className="mt-5 space-y-3">
-      <Label className="text-sm font-medium text-gray-700">
+      <Label className="text-sm font-medium text-foreground">
         How would you like to receive your order?
       </Label>
 
@@ -205,37 +307,41 @@ export function FulfillmentFields({
 
         <FulfillmentTab
           active={value.method === "delivery"}
-          enabled={deliveryEnabled}
+          enabled={deliveryAvailable}
           icon={Truck}
           title="Delivery"
           subtitle={
             !deliveryEnabled
               ? "Not available"
-              : previewFee > 0
-                ? `₦${previewFee.toLocaleString()}`
-                : deliveryFee > 0
-                  ? "Free"
-                  : "—"
+              : deliveryZones.length === 0 && !zonesLoading
+                ? "No zones configured"
+                : previewFee > 0
+                  ? `₦${previewFee.toLocaleString()}`
+                  : selectedZone
+                    ? "Free"
+                    : "—"
           }
           subtitleTone={
             !deliveryEnabled
               ? "muted"
-              : previewFee > 0
-                ? "default"
-                : deliveryFee > 0
-                  ? "green"
-                  : "muted"
+              : deliveryZones.length === 0 && !zonesLoading
+                ? "muted"
+                : previewFee > 0
+                  ? "default"
+                  : selectedZone
+                    ? "green"
+                    : "muted"
           }
           onClick={chooseDelivery}
-          disabled={disabled || !deliveryEnabled}
+          disabled={disabled || !deliveryAvailable}
         />
       </div>
 
       {expanded && value.method === "pickup" && pickupEnabled && (
         <div className="space-y-2 pt-1">
           <PickupLocationPicker
-            locations={locations}
-            loading={locationsLoading}
+            locations={pickupLocations}
+            loading={pickupLoading}
             selectedId={value.pickup?.id ?? null}
             onChange={selectPickup}
             disabled={disabled}
@@ -243,27 +349,38 @@ export function FulfillmentFields({
         </div>
       )}
 
-      {expanded && value.method === "delivery" && deliveryEnabled && (
+      {expanded && value.method === "delivery" && deliveryAvailable && (
         <div className="space-y-3 pt-1">
-          <DeliveryAddressForm
-            address={value.address}
-            onChange={setAddress}
+          <DeliveryZonePicker
+            zones={deliveryZones}
+            loading={zonesLoading}
+            selectedId={selectedZoneId}
+            onChange={pickZone}
             disabled={disabled}
-            touched={touched}
-            onBlur={() => setTouched(true)}
           />
-          <FeeLine
-            fee={previewFee}
-            freeThreshold={deliveryFreeThreshold}
-            cartSubtotal={cartSubtotal}
-          />
+
+          <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Where should we deliver it?
+            </p>
+            <DeliveryAddressForm
+              address={value.delivery?.customer_address}
+              onChange={setCustomerAddress}
+              disabled={disabled}
+              touched={touched}
+              onBlur={() => setTouched(true)}
+            />
+          </div>
+
+          <FeeLine fee={previewFee} zoneLabel={selectedZone?.label ?? null} />
+
           {deliveryNotes && (
-            <p className="text-xs text-gray-500">{deliveryNotes}</p>
+            <p className="text-xs text-muted-foreground">{deliveryNotes}</p>
           )}
         </div>
       )}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -297,8 +414,8 @@ function FulfillmentTab({
         active && enabled
           ? "border-[#FDC020] bg-[#FDC020]/5 shadow-sm"
           : enabled
-            ? "border-gray-200 bg-white hover:border-gray-300"
-            : "border-gray-100 bg-gray-50 opacity-60",
+            ? "border-border bg-background hover:border-border/80"
+            : "border-border/60 bg-muted/40 opacity-60",
         disabled && "cursor-not-allowed",
       )}
     >
@@ -308,7 +425,7 @@ function FulfillmentTab({
             "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
             active && enabled
               ? "bg-[#FDC020] text-[#191919]"
-              : "bg-gray-100 text-gray-500",
+              : "bg-muted text-muted-foreground",
           )}
         >
           <Icon className="h-3.5 w-3.5" />
@@ -316,7 +433,7 @@ function FulfillmentTab({
         <span
           className={cn(
             "text-sm font-semibold",
-            enabled ? "text-gray-900" : "text-gray-400",
+            enabled ? "text-foreground" : "text-muted-foreground",
           )}
         >
           {title}
@@ -326,10 +443,10 @@ function FulfillmentTab({
         className={cn(
           "ml-8 text-xs font-medium",
           subtitleTone === "green"
-            ? "text-green-600"
+            ? "text-green-600 dark:text-green-400"
             : subtitleTone === "muted"
-              ? "text-gray-400"
-              : "text-gray-500",
+              ? "text-muted-foreground"
+              : "text-muted-foreground",
         )}
       >
         {subtitle}
@@ -357,14 +474,14 @@ function PickupLocationPicker({
 }) {
   if (loading) {
     return (
-      <p className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
+      <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         Loading pickup locations…
       </p>
     );
   }
   if (locations.length === 0) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
         No pickup locations are available. Please contact the seller.
       </div>
     );
@@ -373,23 +490,23 @@ function PickupLocationPicker({
   if (locations.length === 1) {
     const loc = locations[0];
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-foreground">
             {loc.label}
           </span>
           {loc.is_default && (
-            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919]">
+            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
               Default
             </span>
           )}
         </div>
-        <p className="mt-1 text-xs text-gray-600">{loc.address}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{loc.address}</p>
         {loc.notes && (
-          <p className="mt-1 text-xs text-gray-500">{loc.notes}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{loc.notes}</p>
         )}
         {loc.phone && (
-          <p className="mt-1 text-xs font-medium text-gray-700">
+          <p className="mt-1 text-xs font-medium text-foreground">
             📞 {loc.phone}
           </p>
         )}
@@ -415,7 +532,7 @@ function PickupLocationPicker({
             "flex cursor-pointer items-start space-x-3 rounded-lg border-2 p-3 transition-all",
             selectedId === loc.id
               ? "border-[#FDC020] bg-[#FDC020]/5"
-              : "border-gray-200 bg-white hover:border-gray-300",
+              : "border-border bg-background hover:border-border/80",
           )}
         >
           <RadioGroupItem
@@ -426,21 +543,21 @@ function PickupLocationPicker({
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-foreground">
                 {loc.label}
               </span>
               {loc.is_default && (
-                <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919]">
+                <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
                   Default
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-gray-600">{loc.address}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loc.address}</p>
             {loc.notes && (
-              <p className="mt-1 text-xs text-gray-500">{loc.notes}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{loc.notes}</p>
             )}
             {loc.phone && (
-              <p className="mt-1 text-xs font-medium text-gray-700">
+              <p className="mt-1 text-xs font-medium text-foreground">
                 📞 {loc.phone}
               </p>
             )}
@@ -451,6 +568,125 @@ function PickupLocationPicker({
   );
 }
 
+function DeliveryZonePicker({
+  zones,
+  loading,
+  selectedId,
+  onChange,
+  disabled,
+}: {
+  zones: DeliveryZone[];
+  loading: boolean;
+  selectedId: string | null;
+  onChange: (zone: DeliveryZone) => void;
+  disabled?: boolean;
+}) {
+  if (loading) {
+    return (
+      <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+        Loading delivery zones…
+      </p>
+    );
+  }
+  if (zones.length === 0) {
+    return (
+      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+        No delivery zones are available. Please contact the seller.
+      </div>
+    );
+  }
+
+  if (zones.length === 1) {
+    const z = zones[0];
+    return (
+      <div className="rounded-lg border border-border bg-muted/40 p-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">{z.label}</span>
+          {z.is_default && (
+            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+              Default
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{z.address}</p>
+        {z.notes && (
+          <p className="mt-1 text-xs text-muted-foreground">{z.notes}</p>
+        )}
+        <p className="mt-1 text-xs font-medium text-foreground">
+          ₦{Number(z.fee).toLocaleString()}
+          {z.free_threshold > 0 && (
+            <>
+              {" · "}Free above ₦{Number(z.free_threshold).toLocaleString()}
+            </>
+          )}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-muted-foreground">
+        Choose your delivery zone:
+      </p>
+      <RadioGroup
+        value={selectedId ?? ""}
+        onValueChange={(id) => {
+          const z = zones.find((x) => x.id === id);
+          if (z) onChange(z);
+        }}
+        disabled={disabled}
+        className="space-y-2"
+      >
+        {zones.map((z) => (
+          <label
+            key={z.id}
+            htmlFor={`zone-${z.id}`}
+            className={cn(
+              "flex cursor-pointer items-start space-x-3 rounded-lg border-2 p-3 transition-all",
+              selectedId === z.id
+                ? "border-[#FDC020] bg-[#FDC020]/5"
+                : "border-border bg-background hover:border-border/80",
+            )}
+          >
+            <RadioGroupItem
+              value={z.id}
+              id={`zone-${z.id}`}
+              className="mt-1"
+              disabled={disabled}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  {z.label}
+                </span>
+                {z.is_default && (
+                  <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                    Default
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{z.address}</p>
+              {z.notes && (
+                <p className="mt-1 text-xs text-muted-foreground">{z.notes}</p>
+              )}
+              <p className="mt-1 text-xs font-medium text-foreground">
+                ₦{Number(z.fee).toLocaleString()}
+                {z.free_threshold > 0 && (
+                  <>
+                    {" · "}Free above ₦
+                    {Number(z.free_threshold).toLocaleString()}
+                  </>
+                )}
+              </p>
+            </div>
+          </label>
+        ))}
+      </RadioGroup>
+    </div>
+  );
+}
+
 function DeliveryAddressForm({
   address,
   onChange,
@@ -458,9 +694,14 @@ function DeliveryAddressForm({
   touched,
   onBlur,
 }: {
-  address: FulfillmentSelection["address"];
+  address:
+    | NonNullable<FulfillmentSelection["delivery"]>["customer_address"]
+    | null
+    | undefined;
   onChange: (
-    key: keyof NonNullable<FulfillmentSelection["address"]>,
+    key: keyof NonNullable<
+      NonNullable<FulfillmentSelection["delivery"]>["customer_address"]
+    >,
     v: string,
   ) => void;
   disabled?: boolean;
@@ -479,9 +720,9 @@ function DeliveryAddressForm({
   const showErr = (value: string) => touched && !value.trim();
 
   return (
-    <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3">
+    <div className="space-y-3">
       <div>
-        <Label className="mb-1 block text-xs font-medium text-gray-600">
+        <Label className="mb-1 block text-xs font-medium text-muted-foreground">
           Street address *
         </Label>
         <Input
@@ -499,7 +740,7 @@ function DeliveryAddressForm({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <Label className="mb-1 block text-xs font-medium text-gray-600">
+          <Label className="mb-1 block text-xs font-medium text-muted-foreground">
             City *
           </Label>
           <Input
@@ -515,7 +756,7 @@ function DeliveryAddressForm({
           />
         </div>
         <div>
-          <Label className="mb-1 block text-xs font-medium text-gray-600">
+          <Label className="mb-1 block text-xs font-medium text-muted-foreground">
             State *
           </Label>
           <select
@@ -523,8 +764,8 @@ function DeliveryAddressForm({
             onChange={(e) => onChange("state", e.target.value)}
             disabled={disabled}
             className={cn(
-              "h-10 w-full rounded-lg border bg-white px-3 text-sm",
-              showErr(addr.state) ? "border-red-400" : "border-gray-200",
+              "h-10 w-full rounded-lg border bg-background px-3 text-sm text-foreground",
+              showErr(addr.state) ? "border-red-400" : "border-border",
             )}
           >
             <option value="">Select state</option>
@@ -538,7 +779,7 @@ function DeliveryAddressForm({
       </div>
 
       <div>
-        <Label className="mb-1 block text-xs font-medium text-gray-600">
+        <Label className="mb-1 block text-xs font-medium text-muted-foreground">
           Delivery notes (optional)
         </Label>
         <Input
@@ -556,30 +797,39 @@ function DeliveryAddressForm({
 
 function FeeLine({
   fee,
-  freeThreshold,
-  cartSubtotal,
+  zoneLabel,
 }: {
   fee: number;
-  freeThreshold: number;
-  cartSubtotal: number;
+  zoneLabel: string | null;
 }) {
   if (fee > 0) {
     return (
-      <div className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-        <span className="text-gray-600">Delivery fee</span>
-        <span className="font-medium text-gray-900">
+      <div className="flex justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
+        <span className="text-muted-foreground">
+          Delivery fee
+          {zoneLabel && (
+            <span className="ml-1 text-xs text-muted-foreground/70">
+              ({zoneLabel})
+            </span>
+          )}
+        </span>
+        <span className="font-medium text-foreground">
           ₦{fee.toLocaleString()}
         </span>
       </div>
     );
   }
-  if (freeThreshold > 0 && cartSubtotal >= freeThreshold) {
-    return (
-      <div className="flex justify-between rounded-lg bg-green-50 px-3 py-2 text-sm">
-        <span className="text-gray-600">Delivery fee</span>
-        <span className="font-medium text-green-600">Free</span>
-      </div>
-    );
-  }
-  return null;
+  return (
+    <div className="flex justify-between rounded-lg bg-green-500/10 px-3 py-2 text-sm">
+      <span className="text-muted-foreground">
+        Delivery fee
+        {zoneLabel && (
+          <span className="ml-1 text-xs text-muted-foreground/70">
+            ({zoneLabel})
+          </span>
+        )}
+      </span>
+      <span className="font-medium text-green-600 dark:text-green-400">Free</span>
+    </div>
+  );
 }

@@ -10,11 +10,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+<<<<<<< HEAD
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 if (!PAYSTACK_SECRET_KEY) {
   console.error("[store-activate] FATAL: PAYSTACK_SECRET_KEY is not set");
 }
+=======
+const ACTIVATION_FEE_NAIRA = 1000;
+>>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
