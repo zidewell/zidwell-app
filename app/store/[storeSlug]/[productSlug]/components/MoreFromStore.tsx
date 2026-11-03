@@ -65,7 +65,7 @@ export function MoreFromStore({
               href={`/store/${productStoreSlug}/${p.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background transition-all duration-300 hover:-translate-y-0.5 hover:border-[#FDC020]/50 hover:shadow-lg"
+              className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-background transition-all duration-300 hover:-translate-y-0.5 hover:border-[#F5B800]/50 hover:shadow-lg"
             >
               <div className="relative aspect-square overflow-hidden bg-muted/30">
                 {img ? (
@@ -91,11 +91,11 @@ export function MoreFromStore({
               </div>
 
               <div className="flex flex-1 flex-col p-3">
-                <h3 className="line-clamp-1 text-sm font-semibold text-foreground transition-colors group-hover:text-[#FDC020]">
+                <h3 className="line-clamp-1 text-sm font-semibold text-foreground transition-colors group-hover:text-[#F5B800]">
                   {p.title}
                 </h3>
                 <div className="mt-auto flex items-baseline justify-between pt-2">
-                  <p className="text-sm font-bold text-[#191919] dark:text-[#FDC020]">
+                  <p className="text-sm font-bold text-[#191919] dark:text-[#F5B800]">
                     ₦{Number(p.price || 0).toLocaleString()}
                   </p>
                   {p.price_type === "installment" && (

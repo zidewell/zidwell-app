@@ -1,9 +1,10 @@
 // app/pricing/page.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { Check, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
@@ -11,223 +12,342 @@ import Footer from "../components/home-component/Footer";
 import { Button } from "../components/ui/button";
 import { Nav } from "../components/home-component/Nav";
 
+// ============================================================
+// PLANS — MUST match PricingNew & checkout VALID_TIERS
+// ============================================================
 const plans = [
   {
+    name: "Free",
+    tagline: "Start Managing Your Money",
+    tier: "free",
+    amount: 0,
+    yearlyAmount: 0,
+    price: "₦0",
+    yearlyPrice: "₦0",
+    altPrice: "$0",
+    yearlyAltPrice: "$0",
+    note: "For individuals and early-stage freelancers.",
+    features: [
+      "Manual bookkeeping — Global",
+      "Auto-bookkeeping (Wallet users, Nigeria)",
+      "Payment Links & Sales pages (Nigeria)",
+      "Free business bank account (Nigeria)",
+      "Up to 5 invoices — Global",
+      "Up to 5 receipts — Global",
+      "Basic financial overview",
+    ],
+    cta: "Start Free",
+    featured: false,
+  },
+  {
     name: "Starter",
+    tagline: "If you're a one-person shop.",
     tier: "starter",
-    tagline: "Start Putting Structure Around Your Business",
+    amount: 99900,
+    yearlyAmount: 999000,
     price: "₦99,900",
-    altPrice: "$69",
-    suffix: "/year",
-    yearlyAmount: 99900,
+    yearlyPrice: "₦999,000",
+    altPrice: "≈ $69",
+    yearlyAltPrice: "≈ $690",
     note: "For solo founders and early-stage businesses.",
-    region: "global",
     features: [
       "Business bank account",
-      "Business Plan Template",
-      "Automatic Bookkeeping",
-      "Invoice Tool",
-      "Receipt Tool",
+      "Business plan template",
+      "Automatic bookkeeping",
+      "Invoice + receipt tools",
       "Online storefront",
-      "Document Vault",
+      "Document vault",
     ],
-    cta: "Start Your Free Trial",
+    cta: "Subscribe",
     featured: false,
-    amount: 99900,
   },
   {
     name: "SME",
+    tagline: "If you have a small team and a real bank account.",
     tier: "sme",
-    tagline: "Run Your Business Properly",
-    price: "₦199,900",
-    altPrice: "$139",
-    suffix: "/year",
-    yearlyAmount: 199900,
-    note: "For growing small businesses with a small team.",
-    region: "global",
-    features: [
-      "Business bank account",
-      "Business Plan Template",
-      "Automatic Bookkeeping",
-      "Invoice Tool",
-      "Receipt Tool",
-      "International payments",
-      "Online storefront",
-      "Document Vault",
-      "One Extra User",
-    ],
-    addons: [
-      "Payroll",
-      "HMO",
-      "Tax Filing Support",
-      "Virtual office/mailing address",
-    ],
-    cta: "Start Your Free Trial",
-    featured: true,
     amount: 199900,
+    yearlyAmount: 1999000,
+    price: "₦199,900",
+    yearlyPrice: "₦1,999,000",
+    altPrice: "≈ $139",
+    yearlyAltPrice: "≈ $1,390",
+    note: "For growing small businesses with a small team.",
+    features: [
+      "Everything in Starter",
+      "International payments",
+      "One extra user",
+      "Add-ons: Payroll, HMO, Tax Filing",
+    ],
+    cta: "Subscribe",
+    featured: true,
   },
   {
     name: "Enterprise",
+    tagline: "If you have outlets, approvals, and an accountant.",
     tier: "enterprise",
-    tagline: "Full Business Finance System",
-    price: "₦599,900",
-    altPrice: "$419",
-    suffix: "/year",
-    yearlyAmount: 599900,
-    note: "For organizations with teams and multiple operators.",
-    region: "global",
-    features: [
-      "Business bank account",
-      "Increased transaction limits",
-      "Business Plan Template",
-      "Automatic Bookkeeping",
-      "Connect Your Bank Accounts",
-      "Invoice Tool",
-      "Receipt Tool",
-      "International payments",
-      "Online storefront",
-      "Document Vault",
-      "Three Extra Users",
-      "Dedicated support team",
-    ],
-    addons: [
-      "Payroll",
-      "HMO",
-      "Tax Filing Support",
-      "Virtual office/mailing address",
-    ],
-    cta: "Start Your Free Trial",
-    featured: false,
     amount: 599900,
+    yearlyAmount: 5999000,
+    price: "₦599,900",
+    yearlyPrice: "₦5,999,000",
+    altPrice: "≈ $419",
+    yearlyAltPrice: "≈ $4,190",
+    note: "For organizations with teams and multiple operators.",
+    features: [
+      "Everything in SME",
+      "Increased transaction limits",
+      "Connect external bank accounts",
+      "Three extra users",
+      "Dedicated support",
+    ],
+    cta: "Talk to sales",
+    featured: false,
   },
 ];
+
+type Billing = "monthly" | "yearly";
 
 function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { subscription, loading } = useSubscription();
-  const { userData } = useUserContextData();
+  const { subscription, loading: subLoading, refetch: refetchSubscription } =
+    useSubscription();
+  const { userData, loading: userLoading } = useUserContextData();
 
-  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
-    "yearly",
-  );
+  const [selectedBilling, setSelectedBilling] = useState<Billing>("monthly");
   const [processingTier, setProcessingTier] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(false);
 
-  const upgradeParam = searchParams?.get("upgrade");
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const autoResumedRef = useRef(false);
 
-  useEffect(() => {
-    const paymentStatus = searchParams?.get("payment");
-    if (paymentStatus === "success") {
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
-    } else if (paymentStatus === "failed") {
-      setError("Payment failed. Please try again.");
-      setTimeout(() => setError(null), 5000);
+  // ────────────────────────────────────────────────────────────
+  // Sonner toast helper
+  // ────────────────────────────────────────────────────────────
+  const showToast = (
+    message: string,
+    variant: "success" | "error" = "error",
+  ) => {
+    if (variant === "success") {
+      toast.success(message);
+    } else {
+      toast.error(message);
     }
+  };
+
+  // ────────────────────────────────────────────────────────────
+  // 1. URL params + scroll animation
+  // ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const paymentStatus = searchParams?.get("payment");
+
+    if (paymentStatus === "success") {
+      showToast("Subscription activated successfully!", "success");
+      refetchSubscription?.();
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      window.history.replaceState({}, "", url.toString());
+    } else if (paymentStatus === "failed") {
+      showToast("Payment failed. Please try again.", "error");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    const billingParam = searchParams?.get("billing");
+    if (billingParam === "yearly" || billingParam === "monthly") {
+      setSelectedBilling(billingParam);
+    }
+
+    const upgradeParam = searchParams?.get("upgrade");
+    const shouldScroll =
+      searchParams?.get("scroll") === "pricing" || !!upgradeParam;
+
+    if (shouldScroll && sectionRef.current) {
+      requestAnimationFrame(() => {
+        sectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        setHighlight(true);
+        setTimeout(() => setHighlight(false), 1600);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // ────────────────────────────────────────────────────────────
+  // 2. Auto-resume checkout after login
+  // ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
-      const element = document.getElementById("pricing");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [upgradeParam]);
+    if (userLoading || subLoading || !userData?.id) return;
+    if (autoResumedRef.current) return;
 
-  useEffect(() => {
-    const upgradePlan = searchParams?.get("upgrade");
+    const upgradeParam = searchParams?.get("upgrade");
+    if (!upgradeParam) return;
+
+    const plan = plans.find((p) => p.tier === upgradeParam);
+    if (!plan || plan.tier === "free" || plan.tier === "enterprise") return;
+
+    if (subscription?.tier === plan.tier && subscription?.status === "active") {
+      return;
+    }
+
     const billingParam = searchParams?.get("billing");
+    const billing: Billing =
+      billingParam === "yearly" ? "yearly" : "monthly";
 
-    if (upgradePlan && userData?.id) {
-      if (billingParam === "yearly") {
-        setSelectedBilling("yearly");
-      }
+    autoResumedRef.current = true;
 
-      const plan = plans.find((p) => p.tier === upgradePlan);
-      if (plan && plan.tier !== "free" && plan.tier !== "console") {
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-        handleSubscribe(plan);
-      }
-    }
-  }, [searchParams, userData?.id]);
-
-  const handleSubscribe = async (plan: (typeof plans)[0]) => {
-    if (plan.tier === "free") {
-      router.push("/dashboard");
-      return;
+    if (typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
     }
 
-    if (plan.tier === "console") {
-      window.location.href =
-        "mailto:sales@zidwell.com?subject=Console%20Plan%20Inquiry";
-      return;
-    }
+    setSelectedBilling(billing);
+    void startCheckout(plan, billing);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData?.id, userLoading, subLoading, searchParams, subscription?.tier]);
 
-    if (!userData?.id) {
-      const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-      return;
-    }
-
+  // ────────────────────────────────────────────────────────────
+  // 3. Shared checkout trigger
+  // ────────────────────────────────────────────────────────────
+  const startCheckout = async (
+    plan: (typeof plans)[number],
+    billing: Billing,
+  ) => {
     setProcessingTier(plan.tier);
-    setError(null);
 
     try {
-      const amount = plan.amount;
+      const amount =
+        billing === "yearly" && plan.yearlyAmount
+          ? plan.yearlyAmount
+          : plan.amount;
 
-      const response = await fetch("/api/subscription/checkout", {
+      const res = await fetch("/api/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           planTier: plan.tier,
           amount,
-          billingPeriod: selectedBilling,
-          userEmail: userData.email,
-          userId: userData.id,
+          billingPeriod: billing,
         }),
       });
 
-      const data = await response.json();
-
+      const data = await res.json();
       if (!data.success) {
-        throw new Error(data.error || "Failed to create checkout");
+        if (data.logout) {
+          const callbackUrl =
+            `/pricing?upgrade=${plan.tier}` +
+            `&billing=${billing}` +
+            `&scroll=pricing`;
+          router.push(
+            `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+          );
+          return;
+        }
+        throw new Error(data.error || "Checkout failed");
       }
-
       window.location.href = data.checkoutLink;
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      setError(error.message || "An error occurred. Please try again.");
+    } catch (e: any) {
+      console.error("Subscription error:", e);
+      showToast(e.message || "An error occurred. Please try again.", "error");
       setProcessingTier(null);
     }
   };
 
-  const isCurrentPlan = (tier: string) => {
-    return subscription?.tier === tier && subscription?.status === "active";
+  // ────────────────────────────────────────────────────────────
+  // 4. Click handler
+  // ────────────────────────────────────────────────────────────
+  const handleSubscribe = async (plan: (typeof plans)[number]) => {
+    if (plan.tier === "free") {
+      router.push("/dashboard");
+      return;
+    }
+
+    if (plan.tier === "enterprise") {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Enterprise%20Plan%20Inquiry";
+      return;
+    }
+
+    if (userLoading) return;
+
+    if (!userData?.id) {
+      const callbackUrl =
+        `/pricing?upgrade=${plan.tier}` +
+        `&billing=${selectedBilling}` +
+        `&scroll=pricing`;
+      router.push(
+        `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+      );
+      return;
+    }
+
+    await startCheckout(plan, selectedBilling);
   };
 
+  // ────────────────────────────────────────────────────────────
+  // Subscription state helpers
+  // ────────────────────────────────────────────────────────────
+  const isCurrentPlan = (tier: string) =>
+    subscription?.tier === tier && subscription?.status === "active";
+
+  const isFreeUser = !subscription || subscription.tier === "free";
+
+  // ────────────────────────────────────────────────────────────
+  // RENDER
+  // ────────────────────────────────────────────────────────────
   return (
     <>
       <Nav />
-      <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
+      <section
+        id="pricing"
+        ref={sectionRef}
+        className={`relative py-20 md:py-32 bg-(--bg-primary) overflow-hidden ${
+          highlight ? "pricing-highlight" : ""
+        }`}
+      >
+        <style jsx>{`
+          @keyframes pricingPulse {
+            0% {
+              box-shadow: 0 0 0 0 rgba(229, 179, 51, 0.55);
+            }
+            70% {
+              box-shadow: 0 0 0 18px rgba(229, 179, 51, 0);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(229, 179, 51, 0);
+            }
+          }
+          @keyframes fadeSlideUp {
+            from {
+              opacity: 0;
+              transform: translateY(16px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          section :global(.plan-card) {
+            animation: fadeSlideUp 500ms ease-out both;
+          }
+          section :global(.plan-card:nth-child(2)) {
+            animation-delay: 80ms;
+          }
+          section :global(.plan-card:nth-child(3)) {
+            animation-delay: 160ms;
+          }
+          section :global(.plan-card:nth-child(4)) {
+            animation-delay: 240ms;
+          }
+          section:global(.pricing-highlight) {
+            animation: pricingPulse 1.6s ease-out;
+          }
+        `}</style>
+
         <div className="container mx-auto px-4">
-          {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
-              <p className="font-bold">✓ Payment successful!</p>
-              <p className="text-sm">Your subscription has been activated.</p>
-            </div>
-          )}
-
-          {error && (
-            <div className="fixed top-4 right-4 z-50 bg-[#EF4444] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
-              <p className="font-bold">✗ Error</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-
           <div className="max-w-3xl mx-auto text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
               Simple plans that{" "}
@@ -259,28 +379,81 @@ function PricingPage() {
             )}
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {/* Billing toggle */}
+          <div className="mb-12 flex items-center justify-center">
+            <div className="inline-flex items-center p-1 rounded-full bg-(--bg-primary) border-2 border-(--border-color)">
+              <button
+                type="button"
+                onClick={() => setSelectedBilling("monthly")}
+                disabled={processingTier !== null}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                  selectedBilling === "monthly"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedBilling("yearly")}
+                disabled={processingTier !== null}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                  selectedBilling === "yearly"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+              >
+                Yearly{" "}
+                <span className="text-[10px] ml-1 opacity-80">
+                  Save up to 20%
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Cards */}
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {plans.map((plan) => {
               const currentPlan = isCurrentPlan(plan.tier);
-              const isUpgrade = upgradeParam === plan.tier;
               const isProcessing = processingTier === plan.tier;
               const isFeatured = plan.featured;
+              const isYearly = selectedBilling === "yearly";
+              const isFree = plan.tier === "free";
+              const isFreeUserNow = isFreeUser;
+
+              const freeDisabled = isFree && !isFreeUserNow;
+              const disabled =
+                userLoading ||
+                subLoading ||
+                isProcessing ||
+                currentPlan ||
+                freeDisabled;
+
+              const displayPrice = isYearly
+                ? plan.yearlyPrice
+                : plan.price;
+              const displayAlt = isYearly
+                ? plan.yearlyAltPrice
+                : plan.altPrice;
+
+              const ctaLabel = currentPlan
+                ? "Current Plan"
+                : isFree && !isFreeUserNow
+                  ? "Included"
+                  : plan.cta;
 
               return (
                 <div
                   key={plan.tier}
                   id={`plan-${plan.tier}`}
-                  className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
+                  className={`plan-card relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
                     isFeatured
                       ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
                       : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
-                  } ${
-                    isUpgrade
-                      ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50"
-                      : ""
-                  }`}
+                  } ${currentPlan ? "ring-4 ring-[var(--color-ink)]/20" : ""}`}
                 >
-                  {isFeatured && (
+                  {isFeatured && !currentPlan && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-(--text-primary) text-xs font-bold flex items-center gap-1 rounded-full">
                       <Sparkles className="w-3 h-3" />
                       POPULAR
@@ -303,6 +476,15 @@ function PricingPage() {
                     >
                       {plan.name}
                     </h3>
+                    <p
+                      className={`text-xs mb-3 ${
+                        isFeatured
+                          ? "text-[var(--color-ink)]/70"
+                          : "text-(--text-secondary)"
+                      }`}
+                    >
+                      {plan.tagline}
+                    </p>
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-3xl font-black ${
@@ -311,7 +493,7 @@ function PricingPage() {
                             : "text-(--text-primary)"
                         }`}
                       >
-                        {plan.price}
+                        {displayPrice}
                       </span>
                       <span
                         className={`text-sm ${
@@ -320,7 +502,7 @@ function PricingPage() {
                             : "text-(--text-secondary)"
                         }`}
                       >
-                        {plan.suffix}
+                        /year
                       </span>
                     </div>
                     <p
@@ -330,8 +512,7 @@ function PricingPage() {
                           : "text-(--text-secondary)"
                       }`}
                     >
-                      or {plan.altPrice}
-                      {plan.suffix}
+                      {isFree ? "free forever" : `or ${displayAlt}/year`}
                     </p>
                     <p
                       className={`text-sm mt-3 ${
@@ -370,41 +551,6 @@ function PricingPage() {
                     ))}
                   </ul>
 
-                  {"addons" in plan && plan.addons && plan.addons.length > 0 && (
-                    <div
-                      className={`mb-6 pt-4 border-t ${
-                        isFeatured
-                          ? "border-[var(--color-ink)]/20"
-                          : "border-(--border-color)"
-                      }`}
-                    >
-                      <p
-                        className={`text-[11px] font-semibold uppercase tracking-wider mb-2 ${
-                          isFeatured
-                            ? "text-[var(--color-ink)]/70"
-                            : "text-(--text-secondary)"
-                        }`}
-                      >
-                        Add-ons (additional fee)
-                      </p>
-                      <ul className="space-y-1.5">
-                        {plan.addons.map((a: string) => (
-                          <li
-                            key={a}
-                            className={`flex items-start gap-2 text-xs ${
-                              isFeatured
-                                ? "text-[var(--color-ink)]/80"
-                                : "text-(--text-secondary)"
-                            }`}
-                          >
-                            <span className="mt-1.5 h-1 w-1 rounded-full bg-[var(--color-accent-yellow)] shrink-0" />
-                            <span>{a}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
                   <Button
                     variant={isFeatured ? "outline" : "default"}
                     className={`w-full rounded-xl ${
@@ -413,23 +559,26 @@ function PricingPage() {
                         : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                     }`}
                     onClick={() => handleSubscribe(plan)}
-                    disabled={loading || isProcessing || currentPlan}
+                    disabled={disabled}
                   >
                     {isProcessing ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Processing...
                       </>
-                    ) : currentPlan ? (
-                      "Current Plan"
                     ) : (
-                      plan.cta
+                      ctaLabel
                     )}
                   </Button>
                 </div>
               );
             })}
           </div>
+
+          <p className="mt-10 text-center text-xs text-(--text-secondary)">
+            Prices in Naira. Card or bank transfer. Subscribe anytime, cancel
+            anytime.
+          </p>
         </div>
       </section>
       <Footer />

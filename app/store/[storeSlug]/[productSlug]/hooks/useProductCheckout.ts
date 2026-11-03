@@ -1044,7 +1044,7 @@ export function useProductCheckout({
         icon: "warning",
         title: "Stock changed",
         text: "One or more selected variants just sold out or don't have enough stock. Please adjust your selection.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
       });
       await refreshVariantStock();
       return;
@@ -1057,7 +1057,7 @@ export function useProductCheckout({
         text:
           getDisabledReason() ||
           "Please complete your fulfillment details before continuing.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
       });
       return;
     }
@@ -1285,7 +1285,7 @@ export function useProductCheckout({
                 : "Not enough stock",
             text:
               data?.error || "This variant just sold out. Please pick another.",
-            confirmButtonColor: "#FDC020",
+            confirmButtonColor: "#F5B800",
           });
           return;
         }
@@ -1446,7 +1446,7 @@ export function useProductCheckout({
                     }
                   </div>
                 `,
-                confirmButtonColor: "#FDC020",
+                confirmButtonColor: "#F5B800",
                 confirmButtonText: "Continue paying",
               });
 
@@ -1475,7 +1475,7 @@ export function useProductCheckout({
                     <p style="font-size:14px;">Amount: <strong>₦${totalAmount.toLocaleString()}</strong></p>
                   </div>
                 `,
-              confirmButtonColor: "#FDC020",
+              confirmButtonColor: "#F5B800",
               confirmButtonText: "Continue",
             });
 
@@ -1498,7 +1498,7 @@ export function useProductCheckout({
               icon: "error",
               title: "Payment Failed",
               text: "Your payment could not be processed. Please try again.",
-              confirmButtonColor: "#FDC020",
+              confirmButtonColor: "#F5B800",
             });
             return;
           }
@@ -1518,7 +1518,7 @@ export function useProductCheckout({
               icon: "info",
               title: "Checkout Cancelled",
               text: "You closed the payment window. No charge was made.",
-              confirmButtonColor: "#FDC020",
+              confirmButtonColor: "#F5B800",
               confirmButtonText: "Try Again",
             });
             return;
@@ -1559,7 +1559,7 @@ export function useProductCheckout({
             icon: "info",
             title: "Checkout Timed Out",
             text: "We didn't receive a payment confirmation. If you were charged, a receipt will be emailed to you shortly.",
-            confirmButtonColor: "#FDC020",
+            confirmButtonColor: "#F5B800",
             confirmButtonText: "OK",
           });
         }

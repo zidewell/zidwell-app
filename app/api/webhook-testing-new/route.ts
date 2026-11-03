@@ -1171,7 +1171,7 @@
 //                   subject: `🎉 Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!`,
 //                   html: `
 //               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//                 <h2 style="color: #FDC020;">Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!</h2>
+//                 <h2 style="color: #F5B800;">Welcome to Zidwell ${planTier.charAt(0).toUpperCase() + planTier.slice(1)}!</h2>
 //                 <p>Your subscription has been successfully activated and you now have access to all ${planTier} features.</p>
 
 //                 <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">

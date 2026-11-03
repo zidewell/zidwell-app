@@ -353,7 +353,7 @@ const RichTextArea = ({
           size="sm"
           variant="ghost"
           onClick={handleClearFormatting}
-          className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hover:text-[#FDC020] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 hover:text-[#F5B800] hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           title="Clear formatting"
           type="button"
         >

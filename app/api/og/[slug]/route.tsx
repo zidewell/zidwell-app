@@ -119,7 +119,7 @@ export async function GET(
             style={{
               fontSize: 48,
               fontWeight: "bold",
-              color: "#FDC020",
+              color: "#F5B800",
               marginBottom: 40,
               display: "flex",
               alignItems: "center",
@@ -167,7 +167,7 @@ export async function GET(
           <div
             style={{
               fontSize: 22,
-              color: "#FDC020",
+              color: "#F5B800",
               borderTop: "2px solid #E6E6E6",
               paddingTop: 30,
               display: "flex",
@@ -201,7 +201,7 @@ export async function GET(
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #FDC020 0%, #1e5e43 100%)",
+          background: "linear-gradient(135deg, #F5B800 0%, #1e5e43 100%)",
         }}
       >
         <div

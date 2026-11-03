@@ -1295,7 +1295,7 @@ function CreateReceiptPage({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#FDC020", "#191919", "#00B64F", "#ffffff"],
+      colors: ["#F5B800", "#191919", "#00B64F", "#ffffff"],
     });
   };
 

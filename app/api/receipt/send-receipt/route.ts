@@ -129,7 +129,7 @@ async function sendReceiptEmail({
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="${signingLink}" class="action-button" style="background-color: #FDC020; color: #191919;">Review & Sign Receipt</a>
+                <a href="${signingLink}" class="action-button" style="background-color: #F5B800; color: #191919;">Review & Sign Receipt</a>
             </div>
         </div>
         <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block;">

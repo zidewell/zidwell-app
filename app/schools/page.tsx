@@ -58,7 +58,7 @@ const monthlyData = [
 ];
 
 const feeDistribution = [
-  { name: "Tuition", value: 65, color: "#FDC020" },
+  { name: "Tuition", value: 65, color: "#F5B800" },
   { name: "Sports", value: 15, color: "#00B64F" },
   { name: "Library", value: 10, color: "#E6A800" },
   { name: "Other", value: 10, color: "#666666" },
@@ -317,12 +317,12 @@ function DashboardMock() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="#FDC020"
+                          stopColor="#F5B800"
                           stopOpacity={0.3}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#FDC020"
+                          stopColor="#F5B800"
                           stopOpacity={0}
                         />
                       </linearGradient>
@@ -345,7 +345,7 @@ function DashboardMock() {
                     <Area
                       type="monotone"
                       dataKey="income"
-                      stroke="#FDC020"
+                      stroke="#F5B800"
                       strokeWidth={2}
                       fill="url(#colorIncome)"
                     />
@@ -678,7 +678,7 @@ function DashboardSection() {
                   />
                   <Bar
                     dataKey="income"
-                    fill="#FDC020"
+                    fill="#F5B800"
                     radius={[8, 8, 0, 0]}
                     maxBarSize={60}
                     animationDuration={1500}

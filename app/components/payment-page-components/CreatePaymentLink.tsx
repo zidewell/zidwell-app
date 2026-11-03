@@ -70,8 +70,8 @@ const defaultConfig: LinkConfig = {
   currency: "NGN",
   amountMode: "fixed",
   active: true,
-  brandColor: "#FDC020",
-  buttonColor: "#FDC020",
+  brandColor: "#F5B800",
+  buttonColor: "#F5B800",
   buttonText: "Pay Now",
   successMessage: "Payment successful! Thank you.",
   thankYouMessage:
@@ -566,7 +566,7 @@ const CreatePaymentLink = () => {
         particleCount: 150,
         spread: 80,
         origin: { y: 0.5 },
-        colors: ["#FDC020", "#191919", "#00B64F"],
+        colors: ["#F5B800", "#191919", "#00B64F"],
       });
       setShowSuccess(true);
     } catch (err: any) {

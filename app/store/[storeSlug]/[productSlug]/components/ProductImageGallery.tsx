@@ -26,7 +26,7 @@ export function ProductImageGallery({
               onClick={() => setCurrentImage(() => i)}
               className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border-2 transition ${
                 i === currentImage
-                  ? "border-[#FDC020]"
+                  ? "border-[#F5B800]"
                   : "border-border hover:border-border/80"
               }`}
             >

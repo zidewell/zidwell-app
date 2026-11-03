@@ -643,7 +643,7 @@ const RegisterForm = () => {
     const end = Date.now() + 2000;
     const colors = [
       "var(--color-accent-yellow)",
-      "#FDC020",
+      "#F5B800",
       "#eab308",
       "#ca8a04",
     ];

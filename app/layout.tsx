@@ -25,6 +25,7 @@ import {
 } from "@/lib/seo";
 import { BlogProvider } from "./context/BlogContext";
 import { headers } from "next/headers";
+import { ToasterProvider } from "./components/ToasterProvider";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -40,11 +41,6 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: "swap",
 });
 
-// ─── Narrow display font for h1 (Oswald = free stand-in for Agrandir Narrow) ───
-// The CSS variable is named `--font-agrandir-narrow` on purpose so that
-// globals.css can keep its `h1 { font-family: var(--font-agrandir-narrow), ... }`
-// rule unchanged. Swapping to the real licensed Agrandir Narrow later means
-// only replacing this block with `next/font/local` — nothing else changes.
 const oswald = Oswald({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
@@ -52,10 +48,9 @@ const oswald = Oswald({
   display: "swap",
 });
 
-// ✅ FIXED: Removed maximumScale and userScalable lock (accessibility + SEO penalty)
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FDC020" },
+    { media: "(prefers-color-scheme: light)", color: "#F5B800" },
     { media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
   ],
   width: "device-width",
@@ -217,9 +212,9 @@ export default async function RootLayout({
         />
 
         <link
-                 rel="stylesheet"
-                 href="https://cdn.jsdelivr.net/npm/tubeplayer@0.4.0/dist/style.css"
-               />
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/tubeplayer@0.4.0/dist/style.css"
+        />
       </head>
       <body
         className="bg-(--bg-primary) text-(--text-primary) antialiased"
@@ -256,11 +251,8 @@ export default async function RootLayout({
                     <StoreProvider>
                       {children}
                       <GlobalVerificationModal />
-                      {/* <div className="fixed bottom-4 right-4 z-50">
-                        <InstallPrompt />
-                      </div> */}
                       <FloatingWhatsApp />
-                      {/* <NotificationToast /> */}
+                      <ToasterProvider />
                     </StoreProvider>
                   </VerificationModalProvider>
                 </SessionWatcher>

@@ -39,7 +39,7 @@ export function CheckoutButton({
         className={`h-11 w-full rounded-lg px-5 text-sm font-semibold transition ${
           disabled
             ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-            : "bg-[#FDC020] text-gray-900 hover:bg-[#e6a800]"
+            : "bg-[#F5B800] text-gray-900 hover:bg-[#e6a800]"
         }`}
       >
         {processing ? (

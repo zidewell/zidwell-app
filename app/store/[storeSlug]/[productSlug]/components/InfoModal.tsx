@@ -265,8 +265,8 @@ export function InfoModal({
           {bookingEnabled && (
             <div className="border-t border-border pt-5">
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FDC020]/15">
-                  <CalendarIcon className="h-4 w-4 text-[#191919] dark:text-[#FDC020]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F5B800]/15">
+                  <CalendarIcon className="h-4 w-4 text-[#191919] dark:text-[#F5B800]" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">
@@ -283,7 +283,7 @@ export function InfoModal({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#FDC020]/60 ${
+                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#F5B800]/60 ${
                         errors.bookingDate ? "border-red-500" : ""
                       }`}
                     >
@@ -334,7 +334,7 @@ export function InfoModal({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#FDC020]/60 ${
+                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#F5B800]/60 ${
                         errors.bookingTime ? "border-red-500" : ""
                       }`}
                     >
@@ -370,8 +370,8 @@ export function InfoModal({
               </div>
 
               {bookingDate && bookingTime && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#FDC020]/40 bg-[#FDC020]/5 px-3 py-2">
-                  <CircleCheck className="h-3.5 w-3.5 shrink-0 text-[#191919] dark:text-[#FDC020]" />
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#F5B800]/40 bg-[#F5B800]/5 px-3 py-2">
+                  <CircleCheck className="h-3.5 w-3.5 shrink-0 text-[#191919] dark:text-[#F5B800]" />
                   <p className="text-xs text-foreground/80">
                     Booking for{" "}
                     <strong>

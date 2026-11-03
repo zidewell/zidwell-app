@@ -1,4 +1,4 @@
-// app/api/paystack/webhook/route.ts - UPDATED
+// app/api/paystack/webhook/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -12,7 +12,7 @@ import { processStoreActivationFromPaystack } from "./services/store-activation.
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export const dynamic = "force-dynamic";
@@ -30,17 +30,14 @@ export async function POST(req: NextRequest) {
   const requestId = `ps_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   try {
-    // ─── 1. RAW body (signature is over raw bytes) ───
     const rawBody = await req.text();
 
-    // ─── 2. Signature ───
     const signature = req.headers.get("x-paystack-signature");
     if (!verifyPaystackSignature(rawBody, signature)) {
       console.warn(`[${requestId}] ❌ invalid signature`);
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    // ─── 3. Optional IP allowlist ───
     const forwardedFor = req.headers.get("x-forwarded-for");
     const realIp = req.headers.get("x-real-ip");
     if (!isPaystackIp(forwardedFor, realIp)) {
@@ -48,7 +45,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // ─── 4. Parse ───
     let payload: any;
     try {
       payload = JSON.parse(rawBody);
@@ -61,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`[${requestId}] event=${event} reference=${data.reference}`);
 
-    // ─── 5. Idempotency log (best effort — non-fatal) ───
+    // ─── Idempotency log ───
     const eventKey = `${event}:${data.id}`;
     try {
       const { error: logErr } = await supabase
@@ -86,9 +82,10 @@ export async function POST(req: NextRequest) {
       console.warn(`[${requestId}] event log threw:`, logEx);
     }
 
-    // ─── 6. Dispatch ───
+    // ─── Dispatch ───
     if (event === "charge.success") {
       const meta = data.metadata || {};
+
       if (meta.type === "payment_page") {
         const result = await processPaymentPageFromPaystack(payload);
         return handleResult(result);
@@ -105,7 +102,7 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(
-        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`,
+        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`
       );
       return NextResponse.json({ message: "Event ignored" }, { status: 200 });
     }
@@ -116,7 +113,7 @@ export async function POST(req: NextRequest) {
     console.error(`[${requestId}] ❌ unhandled error:`, err);
     return NextResponse.json(
       { error: err.message || "Internal error" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
@@ -124,20 +121,3 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({ ok: true });
 }
-
-// export async function POST(req: Request) {
-//   const timestamp = req.headers.get("nomba-timestamp");
-//   const signature = req.headers.get("nomba-sig-value");
-
-//   // ✅ TEMP: Allow missing headers only for initial verification
-//   if (!timestamp || !signature) {
-//     console.log("Nomba initial webhook verification ping — allowing");
-//     return new Response(JSON.stringify({ verified: true }), { status: 200 });
-//   }
-
-//   // 🔐 Normal processing for real events
-//   const body = await req.json();
-//   console.log("Nomba Webhook Triggered", body);
-
-//   return new Response(JSON.stringify({ received: true }), { status: 200 });
-// }

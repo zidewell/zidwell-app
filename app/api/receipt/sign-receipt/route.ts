@@ -135,7 +135,7 @@ function generateReceiptHTML(
     }
     
     .header {
-      background: #FDC020;
+      background: #F5B800;
       padding: 32px;
       color: #191919;
       position: relative;
@@ -180,7 +180,7 @@ function generateReceiptHTML(
       display: inline-block;
       padding: 4px 12px;
       background: #191919;
-      color: #FDC020;
+      color: #F5B800;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
@@ -287,7 +287,7 @@ function generateReceiptHTML(
     
     .grand-total .totals-value {
       font-weight: 700;
-      color: #FDC020;
+      color: #F5B800;
       font-size: 20px;
     }
     
@@ -665,9 +665,9 @@ export async function POST(req: NextRequest) {
     <style>
         body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 28px; overflow: hidden; border: 1px solid #E5E5E5; }
-        .header { background: #FDC020; padding: 24px; text-align: center; }
+        .header { background: #F5B800; padding: 24px; text-align: center; }
         .content { padding: 32px; }
-        .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
+        .btn { background: #F5B800; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
         .receipt-details { background: #F5F5F5; padding: 20px; border-radius: 16px; margin: 20px 0; }
     </style>
 </head>
@@ -728,7 +728,7 @@ export async function POST(req: NextRequest) {
     <style>
         body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 28px; overflow: hidden; border: 1px solid #E5E5E5; }
-        .header { background: #FDC020; padding: 24px; text-align: center; }
+        .header { background: #F5B800; padding: 24px; text-align: center; }
         .content { padding: 32px; }
         .receipt-details { background: #F5F5F5; padding: 20px; border-radius: 16px; margin: 20px 0; }
     </style>

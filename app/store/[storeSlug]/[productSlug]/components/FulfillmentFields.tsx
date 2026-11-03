@@ -412,7 +412,7 @@ function FulfillmentTab({
       className={cn(
         "relative flex flex-col items-start gap-1 rounded-lg border-2 px-3 py-3 text-left transition-all",
         active && enabled
-          ? "border-[#FDC020] bg-[#FDC020]/5 shadow-sm"
+          ? "border-[#F5B800] bg-[#F5B800]/5 shadow-sm"
           : enabled
             ? "border-border bg-background hover:border-border/80"
             : "border-border/60 bg-muted/40 opacity-60",
@@ -424,7 +424,7 @@ function FulfillmentTab({
           className={cn(
             "flex h-6 w-6 items-center justify-center rounded-full transition-colors",
             active && enabled
-              ? "bg-[#FDC020] text-[#191919]"
+              ? "bg-[#F5B800] text-[#191919]"
               : "bg-muted text-muted-foreground",
           )}
         >
@@ -453,7 +453,7 @@ function FulfillmentTab({
       </span>
 
       {active && enabled && (
-        <ChevronDown className="absolute right-2 top-2 h-3.5 w-3.5 text-[#FDC020]" />
+        <ChevronDown className="absolute right-2 top-2 h-3.5 w-3.5 text-[#F5B800]" />
       )}
     </button>
   );
@@ -496,7 +496,7 @@ function PickupLocationPicker({
             {loc.label}
           </span>
           {loc.is_default && (
-            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+            <span className="rounded-full bg-[#F5B800]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
               Default
             </span>
           )}
@@ -531,7 +531,7 @@ function PickupLocationPicker({
           className={cn(
             "flex cursor-pointer items-start space-x-3 rounded-lg border-2 p-3 transition-all",
             selectedId === loc.id
-              ? "border-[#FDC020] bg-[#FDC020]/5"
+              ? "border-[#F5B800] bg-[#F5B800]/5"
               : "border-border bg-background hover:border-border/80",
           )}
         >
@@ -547,7 +547,7 @@ function PickupLocationPicker({
                 {loc.label}
               </span>
               {loc.is_default && (
-                <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                <span className="rounded-full bg-[#F5B800]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                   Default
                 </span>
               )}
@@ -603,7 +603,7 @@ function DeliveryZonePicker({
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-foreground">{z.label}</span>
           {z.is_default && (
-            <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+            <span className="rounded-full bg-[#F5B800]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
               Default
             </span>
           )}
@@ -645,7 +645,7 @@ function DeliveryZonePicker({
             className={cn(
               "flex cursor-pointer items-start space-x-3 rounded-lg border-2 p-3 transition-all",
               selectedId === z.id
-                ? "border-[#FDC020] bg-[#FDC020]/5"
+                ? "border-[#F5B800] bg-[#F5B800]/5"
                 : "border-border bg-background hover:border-border/80",
             )}
           >
@@ -661,7 +661,7 @@ function DeliveryZonePicker({
                   {z.label}
                 </span>
                 {z.is_default && (
-                  <span className="rounded-full bg-[#FDC020]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                  <span className="rounded-full bg-[#F5B800]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                     Default
                   </span>
                 )}

@@ -99,7 +99,7 @@ export function DeliveryZoneList({ storeId, disabled = false }: Props) {
           type="button"
           onClick={openAdd}
           disabled={disabled || !storeId}
-          className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#F5B800] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
         >
           <Plus className="size-4" />
           Add Zone
@@ -138,7 +138,7 @@ export function DeliveryZoneList({ storeId, disabled = false }: Props) {
                     {zone.label}
                   </span>
                   {zone.is_default && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#F5B800]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                       <Star className="size-3" /> Default
                     </span>
                   )}

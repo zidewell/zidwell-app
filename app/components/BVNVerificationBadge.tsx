@@ -145,7 +145,7 @@ const BVNVerificationBadge = ({
                 <Button
                   onClick={handleVerify}
                   size="sm"
-                  className="h-9 text-xs font-semibold bg-[#FDC020] hover:bg-[#e6a800] text-[#191919] rounded-lg"
+                  className="h-9 text-xs font-semibold bg-[#F5B800] hover:bg-[#e6a800] text-[#191919] rounded-lg"
                   type="button"
                 >
                   {messages.buttonText}

@@ -36,13 +36,12 @@ import { Label } from "@/app/components/ui/label";
 import BVNVerificationBadge from "@/app/components/BVNVerificationBadge";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 import { useCountdown } from "@/app/hooks/useCountdown";
-import { STORE_ACTIVATION_CONFIG, type StoreActivationPromo } from "@/lib/store-activation";
+import {
+  STORE_ACTIVATION_CONFIG,
+  type StoreActivationPromo,
+} from "@/lib/store-activation";
 
-<<<<<<< HEAD
-const ACTIVATION_FEE_NAIRA = 5000;
-=======
-const ACTIVATION_FEE_NAIRA = 1000;
->>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
+const ACTIVATION_FEE_NAIRA = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
 
 type StoreFormData = {
   name: string;
@@ -244,7 +243,7 @@ function CongratulationsModal({
 
   const triggerConfetti = () => {
     const end = Date.now() + 3000;
-    const colors = ["#FDC020", "#eab308", "#f59e0b", "#22c55e", "#3b82f6"];
+    const colors = ["#F5B800", "#eab308", "#f59e0b", "#22c55e", "#3b82f6"];
     const frame = () => {
       confetti({
         particleCount: 3,
@@ -419,7 +418,8 @@ export function CreateStoreForm() {
 
   // ─── PROMO STATE ───
   const [promoCode, setPromoCode] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<StoreActivationPromo | null>(null);
+  const [appliedPromo, setAppliedPromo] =
+    useState<StoreActivationPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [promoUsed, setPromoUsed] = useState(false);
@@ -432,7 +432,6 @@ export function CreateStoreForm() {
   );
 
   // ─── LOCAL STORAGE PERSISTENCE FOR FORM DATA ───
-  // Save form data to localStorage immediately to prevent data loss on refresh
   useEffect(() => {
     const saveToLocalStorage = () => {
       try {
@@ -442,41 +441,39 @@ export function CreateStoreForm() {
           promoCode,
           timestamp: Date.now(),
         };
-        localStorage.setItem('create-store-draft', JSON.stringify(dataToSave));
+        localStorage.setItem("create-store-draft", JSON.stringify(dataToSave));
       } catch (e) {
         // Silent fail - localStorage may be unavailable
       }
     };
-    
-    // Save immediately on change
+
     saveToLocalStorage();
   }, [formData, step, promoCode]);
 
   // Load from localStorage on mount
   useEffect(() => {
     if (draftLoaded || hasPendingActivation || hasActiveStore) return;
-    
+
     try {
-      const savedData = localStorage.getItem('create-store-draft');
+      const savedData = localStorage.getItem("create-store-draft");
       if (savedData) {
         const parsed = JSON.parse(savedData);
         const age = Date.now() - parsed.timestamp;
-        // Only use localStorage draft if it's less than 24 hours old
         if (age < 24 * 60 * 60 * 1000) {
           setFormData(parsed.formData || formData);
           setStep(parsed.step || 1);
-          setPromoCode(parsed.promoCode || '');
+          setPromoCode(parsed.promoCode || "");
         }
       }
     } catch (e) {
       // Silent fail
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Clear localStorage when draft is successfully saved or store is activated
   const clearLocalStorageDraft = useCallback(() => {
     try {
-      localStorage.removeItem('create-store-draft');
+      localStorage.removeItem("create-store-draft");
     } catch {
       // Silent fail
     }
@@ -522,49 +519,52 @@ export function CreateStoreForm() {
     }
   }, []);
 
-  const handleApplyPromo = useCallback(async (codeOverride?: string) => {
-    const codeToUse = codeOverride || promoCode.trim();
-    if (!codeToUse) {
-      setPromoError("Please enter a promo code");
-      return;
-    }
-    setIsApplyingPromo(true);
-    setPromoError(null);
-    try {
-      const response = await fetch("/api/store/activation/apply-promo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: codeToUse }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setPromoError(data.error || "Invalid promo code");
+  const handleApplyPromo = useCallback(
+    async (codeOverride?: string) => {
+      const codeToUse = codeOverride || promoCode.trim();
+      if (!codeToUse) {
+        setPromoError("Please enter a promo code");
         return;
       }
-      setAppliedPromo({
-        id: data.promoId,
-        user_id: "",
-        promo_code: data.promoCode || codeToUse.toUpperCase(),
-        original_fee: data.originalFee,
-        discounted_fee: data.discountedFee,
-        status: "active",
-        expires_at: data.expiresAt,
-        created_at: data.serverNow,
-        updated_at: data.serverNow,
-        used_at: undefined,
-        payment_id: undefined,
-      });
-      setPromoServerNow(data.serverNow);
-      setPromoUsed(false);
-      if (!codeOverride) {
-        setPromoCode("");
+      setIsApplyingPromo(true);
+      setPromoError(null);
+      try {
+        const response = await fetch("/api/store/activation/apply-promo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: codeToUse }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setPromoError(data.error || "Invalid promo code");
+          return;
+        }
+        setAppliedPromo({
+          id: data.promoId,
+          user_id: "",
+          promo_code: data.promoCode || codeToUse.toUpperCase(),
+          original_fee: data.originalFee,
+          discounted_fee: data.discountedFee,
+          status: "active",
+          expires_at: data.expiresAt,
+          created_at: data.serverNow,
+          updated_at: data.serverNow,
+          used_at: undefined,
+          payment_id: undefined,
+        });
+        setPromoServerNow(data.serverNow);
+        setPromoUsed(false);
+        if (!codeOverride) {
+          setPromoCode("");
+        }
+      } catch (err: any) {
+        setPromoError(err.message || "Failed to apply promo");
+      } finally {
+        setIsApplyingPromo(false);
       }
-    } catch (err: any) {
-      setPromoError(err.message || "Failed to apply promo");
-    } finally {
-      setIsApplyingPromo(false);
-    }
-  }, [promoCode]);
+    },
+    [promoCode]
+  );
 
   // ─── AUTO-APPLY PROMO WHEN STEP 4 IS REACHED ───
   const hasAutoAppliedRef = useRef(false);
@@ -581,11 +581,8 @@ export function CreateStoreForm() {
     if (step === 4 && !hasAutoAppliedRef.current) {
       hasAutoAppliedRef.current = true;
 
-      // Fetch current promo status first
       fetchPromoStatus().then(() => {
-        // Only auto-apply if no active/used promo and component still mounted
         if (isMountedRef.current && !appliedPromo && !promoUsed) {
-          // Use a small delay to let the state update settle
           setTimeout(() => {
             if (isMountedRef.current && !appliedPromo && !promoUsed) {
               handleApplyPromo(STORE_ACTIVATION_CONFIG.PROMO_CODE);
@@ -635,7 +632,6 @@ export function CreateStoreForm() {
     }
   }, [hasActiveStore, router]);
 
-  // ─── FETCH PROMO STATUS WHEN STEP CHANGES ───
   useEffect(() => {
     if (step === 4) {
       fetchPromoStatus();
@@ -962,7 +958,9 @@ export function CreateStoreForm() {
 
       if (showToast) {
         toast.success("Draft loaded", {
-          description: `Restored "${draft.name || "your saved store"}" — step ${draft.step || 1}.`,
+          description: `Restored "${
+            draft.name || "your saved store"
+          }" — step ${draft.step || 1}.`,
         });
       }
 
@@ -1265,7 +1263,6 @@ export function CreateStoreForm() {
           newErrors.description =
             "Description should be at least 10 characters";
 
-        // WhatsApp — optional but validate if provided
         if (formData.whatsappNumber.trim().length > 0) {
           const digits = formData.whatsappNumber.replace(/\D/g, "");
           if (digits.length < 7 || digits.length > 15) {
@@ -1488,10 +1485,11 @@ export function CreateStoreForm() {
         body: JSON.stringify({
           storeData,
           paymentMethod: "checkout",
-          ...(appliedPromo && !countdown.expired && {
-            promo_id: appliedPromo.id,
-            promo_code: appliedPromo.promo_code,
-          }),
+          ...(appliedPromo &&
+            !countdown.expired && {
+              promo_id: appliedPromo.id,
+              promo_code: appliedPromo.promo_code,
+            }),
         }),
       });
 
@@ -1516,7 +1514,7 @@ export function CreateStoreForm() {
       });
       setIsProcessingCheckout(false);
     }
-  }, [hasPendingActivation, validateStep, formData]);
+  }, [hasPendingActivation, validateStep, formData, appliedPromo, countdown.expired]);
 
   const handleActivate = useCallback(async () => {
     if (!hasPendingActivation) {
@@ -1756,7 +1754,6 @@ export function CreateStoreForm() {
                 />
               </Field>
 
-              {/* ─── WhatsApp Contact Number ─── */}
               <Field
                 label="WhatsApp Contact Number"
                 hint="Optional. Buyers can reach you on WhatsApp from your product pages. Include your country code, no spaces."
@@ -2060,27 +2057,34 @@ export function CreateStoreForm() {
                       {appliedPromo && !countdown.expired ? (
                         <>
                           <p className="text-4xl sm:text-5xl font-bold leading-none line-through text-gray-500">
-                            ₦{STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
+                            ₦
+                            {STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
                           </p>
                           <p className="text-4xl sm:text-5xl font-bold leading-none text-green-400">
-                            ₦{STORE_ACTIVATION_CONFIG.PROMO_FEE.toLocaleString()}
+                            ₦
+                            {STORE_ACTIVATION_CONFIG.PROMO_FEE.toLocaleString()}
                           </p>
                         </>
                       ) : (
                         <p className="text-4xl sm:text-5xl font-bold leading-none">
-                          ₦{STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
+                          ₦
+                          {STORE_ACTIVATION_CONFIG.ORIGINAL_FEE.toLocaleString()}
                         </p>
                       )}
                     </div>
 
-                    {appliedPromo && !countdown.expired && (promoServerNow || appliedPromo.expires_at) && (
-                      <div className="mt-3 flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
-                        <Timer className="size-4" />
-                        <span className="font-medium">
-                          Offer expires in {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
-                        </span>
-                      </div>
-                    )}
+                    {appliedPromo &&
+                      !countdown.expired &&
+                      (promoServerNow || appliedPromo.expires_at) && (
+                        <div className="mt-3 flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
+                          <Timer className="size-4" />
+                          <span className="font-medium">
+                            Offer expires in {countdown.hours}:
+                            {countdown.minutes.toString().padStart(2, "0")}:
+                            {countdown.seconds.toString().padStart(2, "0")}
+                          </span>
+                        </div>
+                      )}
 
                     <p className="mt-3 max-w-md text-sm font-medium text-gray-300">
                       Covers store creation and activation - your storefront,
@@ -2097,40 +2101,62 @@ export function CreateStoreForm() {
                 </div>
               </div>
 
-              {/* Promo Code Section */}
               <div className="rounded-[1.5rem] border border-(--border-color) bg-(--bg-secondary) p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-bold text-(--text-primary)">Have a promo code?</p>
+                  <p className="text-sm font-bold text-(--text-primary)">
+                    Have a promo code?
+                  </p>
                   {promoUsed && (
-                    <span className="text-xs font-medium text-red-500">Already used</span>
+                    <span className="text-xs font-medium text-red-500">
+                      Already used
+                    </span>
                   )}
                 </div>
                 {promoUsed ? (
-                  <p className="text-sm text-(--text-secondary) font-medium">You have already used a promo code</p>
+                  <p className="text-sm text-(--text-secondary) font-medium">
+                    You have already used a promo code
+                  </p>
                 ) : appliedPromo && !countdown.expired ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle2 className="size-4 text-green-500" />
-                      <span className="font-medium text-green-600 dark:text-green-400">Promo {appliedPromo.promo_code} applied</span>
+                      <span className="font-medium text-green-600 dark:text-green-400">
+                        Promo {appliedPromo.promo_code} applied
+                      </span>
                     </div>
                   </div>
                 ) : appliedPromo && countdown.expired ? (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-sm">
                       <AlertTriangle className="size-4 text-red-500" />
-                      <span className="font-medium text-red-600 dark:text-red-400">Promo expired</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">
+                        Promo expired
+                      </span>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
-                    <Input type="text" placeholder="Enter promo code" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} disabled={isApplyingPromo} className="flex-1" />
-                    <button onClick={() => handleApplyPromo()} disabled={isApplyingPromo || !promoCode.trim()} className="px-4 py-2 rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Input
+                      type="text"
+                      placeholder="Enter promo code"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      disabled={isApplyingPromo}
+                      className="flex-1"
+                    />
+                    <button
+                      onClick={() => handleApplyPromo()}
+                      disabled={isApplyingPromo || !promoCode.trim()}
+                      className="px-4 py-2 rounded-xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       {isApplyingPromo ? "Applying..." : "Apply"}
                     </button>
                   </div>
                 )}
                 {promoError && (
-                  <p className="mt-2 text-xs text-red-500 font-medium">{promoError}</p>
+                  <p className="mt-2 text-xs text-red-500 font-medium">
+                    {promoError}
+                  </p>
                 )}
               </div>
 
@@ -2189,7 +2215,8 @@ export function CreateStoreForm() {
                 {(appliedPromo && !countdown.expired
                   ? STORE_ACTIVATION_CONFIG.PROMO_FEE
                   : STORE_ACTIVATION_CONFIG.ORIGINAL_FEE
-                ).toLocaleString()} via card.
+                ).toLocaleString()}{" "}
+                via card.
               </p>
             </div>
           </SectionCard>

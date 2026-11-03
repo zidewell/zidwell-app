@@ -89,7 +89,7 @@ const SHARED_PDF_CSS = `
     align-items: flex-start;
     justify-content: space-between;
     padding-bottom: 10px;
-    border-bottom: 3px solid #FDC020;
+    border-bottom: 3px solid #F5B800;
     margin-bottom: 14px;
     gap: 12px;
   }
@@ -180,7 +180,7 @@ const SHARED_PDF_CSS = `
     top: 0;
     bottom: 0;
     width: 4px;
-    background: #FDC020;
+    background: #F5B800;
   }
 
   .pdf-amount-hero-label {
@@ -230,7 +230,7 @@ const SHARED_PDF_CSS = `
     background: #f8fafc;
     border-radius: 8px;
     padding: 10px 12px;
-    border-left: 3px solid #FDC020;
+    border-left: 3px solid #F5B800;
   }
 
   .pdf-section-title {
@@ -341,7 +341,7 @@ const SHARED_PDF_CSS = `
   }
 
   .pdf-totals-row-grand {
-    border-top: 2px solid #FDC020;
+    border-top: 2px solid #F5B800;
     margin-top: 5px;
     padding-top: 7px;
     font-size: 13px;
@@ -1104,7 +1104,7 @@ export async function sendTransactionReceiptWithPDF(
           <p>Thank you for your payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-            <h4 style="margin: 0 0 15px 0; color: #FDC020;">Transaction Summary</h4>
+            <h4 style="margin: 0 0 15px 0; color: #F5B800;">Transaction Summary</h4>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0;"><strong>Invoice Number:</strong></td>
@@ -1301,7 +1301,7 @@ export async function sendPaymentPageReceiptWithPDF(
           <p>Thank you for your payment. Your transaction has been completed successfully.</p>
           
           <div style="background: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0;">
-            <h4 style="margin: 0 0 15px 0; color: #FDC020;">Payment Details</h4>
+            <h4 style="margin: 0 0 15px 0; color: #F5B800;">Payment Details</h4>
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 8px 0;"><strong>Page:</strong></td>
@@ -1329,7 +1329,7 @@ export async function sendPaymentPageReceiptWithPDF(
               ? `
             <div style="background: #dcfce7; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <strong>📥 Download Your Product:</strong><br>
-              <a href="${metadata.downloadUrl}" style="color: #FDC020; font-weight: bold;">Click here to download</a>
+              <a href="${metadata.downloadUrl}" style="color: #F5B800; font-weight: bold;">Click here to download</a>
               <p style="font-size: 12px; margin-top: 10px;">This download link will expire in 7 days.</p>
             </div>
           `

@@ -86,13 +86,13 @@ export default function StoreProductClient(props: StoreProductClientProps) {
 
       <div className="mx-auto max-w-[1180px] px-4 lg:px-6">
         <nav className="flex items-center gap-1.5 py-3 text-xs text-muted-foreground">
-          <Link href="/" className="hover:text-[#FDC020]">
+          <Link href="/" className="hover:text-[#F5B800]">
             Home
           </Link>
           <ChevronRight className="h-3 w-3" />
           <Link
             href={`/store/${store.slug}`}
-            className="hover:text-[#FDC020]"
+            className="hover:text-[#F5B800]"
           >
             {store.name}
           </Link>
@@ -126,7 +126,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-0.5">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <span key={i} className="text-[#FDC020]">
+                  <span key={i} className="text-[#F5B800]">
                     ★
                   </span>
                 ))}
@@ -193,7 +193,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               <button
                 type="button"
                 onClick={() => c.setShowContinueModal(true)}
-                className="mt-3 w-fit text-xs font-medium text-[#FDC020] underline hover:no-underline"
+                className="mt-3 w-fit text-xs font-medium text-[#F5B800] underline hover:no-underline"
               >
                 Paid before? Find my payments
               </button>
@@ -207,7 +207,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 <button
                   type="button"
                   onClick={() => c.setShowContinueModal(true)}
-                  className="mt-3 w-fit text-xs font-medium text-[#FDC020] underline hover:no-underline"
+                  className="mt-3 w-fit text-xs font-medium text-[#F5B800] underline hover:no-underline"
                 >
                   Already paid before? Continue your plan
                 </button>
@@ -216,7 +216,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             {c.isSchoolPage &&
               c.myPaidStudents &&
               Object.keys(c.myPaidStudents).length > 0 && (
-                <div className="mt-3 rounded-lg border border-[#FDC020] bg-[#FDC020]/5 p-3">
+                <div className="mt-3 rounded-lg border border-[#F5B800] bg-[#F5B800]/5 p-3">
                   <p className="text-sm font-semibold text-foreground">
                     {c.myBuyerName
                       ? `Welcome back, ${c.myBuyerName}`
@@ -400,7 +400,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 <button
                   type="button"
                   onClick={c.handleUnlockForEdit}
-                  className="text-xs font-medium text-[#FDC020] underline"
+                  className="text-xs font-medium text-[#F5B800] underline"
                 >
                   Unlock to edit
                 </button>

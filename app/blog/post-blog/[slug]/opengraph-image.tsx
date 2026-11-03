@@ -71,7 +71,7 @@ export default async function Image({
         >
           {post?.title || "Zidwell Blog"}
         </div>
-        <div style={{ marginTop: 48, fontSize: 24, color: "#FDC020" }}>
+        <div style={{ marginTop: 48, fontSize: 24, color: "#F5B800" }}>
           zidwell.com/blog
         </div>
       </div>

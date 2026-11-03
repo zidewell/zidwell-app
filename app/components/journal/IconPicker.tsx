@@ -226,7 +226,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
                 className={cn("px-2 py-1 text-xs rounded-md transition-colors")}
                 style={{
                   backgroundColor:
-                    activeCategory === category ? "#FDC020" : "#f5f1ea",
+                    activeCategory === category ? "#F5B800" : "#f5f1ea",
                   color: activeCategory === category ? "#ffffff" : "#80746e",
                 }}
               >
@@ -250,7 +250,7 @@ export function IconPicker({ value, onChange, className }: IconPickerProps) {
                 style={{
                   backgroundColor:
                     value === icon ? "rgba(43, 130, 91, 0.2)" : "transparent",
-                  border: value === icon ? "2px solid #FDC020" : "none",
+                  border: value === icon ? "2px solid #F5B800" : "none",
                 }}
               >
                 {icon}

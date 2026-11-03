@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Loader2, Sparkles } from "lucide-react";
+import { Check, Loader2, Sparkles, PartyPopper, X, Lock } from "lucide-react";
+import { toast } from "sonner";
 
 type Billing = "monthly" | "yearly";
 
@@ -95,102 +96,352 @@ export function ZidStorePricing() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [noticeMsg, setNoticeMsg] = useState<string | null>(null);
 
+  const [successModal, setSuccessModal] = useState<{
+    planTier: string;
+    amount: number | null;
+    reference: string;
+  } | null>(null);
+
+  // ─── Subscription state ───
+  const [activeSubscription, setActiveSubscription] = useState<{
+    plan_tier: string;
+    expires_at: string;
+  } | null>(null);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
+
   const sectionRef = useRef<HTMLElement>(null);
-
-  // Guard so the auto-checkout only fires once per mount.
   const autoTriggeredRef = useRef(false);
-  // Guard so the login redirect only fires once per mount.
-  const redirectingToLoginRef = useRef(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const popupRef = useRef<Window | null>(null);
 
-  const handleSubscribe = async (tier: Plan["tier"], period: Billing) => {
-    // Booster → mailto
-    if (tier === "booster") {
-      window.location.href =
-        "mailto:sales@zidwell.com?subject=ZidStore%20Booster%20Inquiry";
-      return;
+  const clearPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  };
 
-    // Starter (free) → dashboard
-    if (tier === "starter") {
+  // ─── Fetch active ZidStore subscription ───
+  const fetchActiveSubscription = async () => {
+    try {
+      const res = await fetch(
+        "/api/store/zidstore-subscription/status",
+        { cache: "no-store" }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data?.active && data?.subscription) {
+        setActiveSubscription({
+          plan_tier: data.subscription.plan_tier,
+          expires_at: data.subscription.current_period_end,
+        });
+      } else {
+        setActiveSubscription(null);
+      }
+    } catch (err) {
+      console.error("[ZidStorePricing] subscription fetch failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCheckingSubscription(true);
+      try {
+        const res = await fetch(
+          "/api/store/zidstore-subscription/status",
+          { cache: "no-store" }
+        );
+        if (!res.ok) {
+          if (!cancelled) setCheckingSubscription(false);
+          return;
+        }
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data?.active && data?.subscription) {
+          setActiveSubscription({
+            plan_tier: data.subscription.plan_tier,
+            expires_at: data.subscription.current_period_end,
+          });
+        }
+      } catch (err) {
+        console.error("[ZidStorePricing] subscription fetch failed:", err);
+      } finally {
+        if (!cancelled) setCheckingSubscription(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ─── Show success ───
+  const showSuccess = (
+    planTier: string,
+    amount: number | null,
+    reference: string
+  ) => {
+    setLoadingTier(null);
+    setSuccessModal({ planTier, amount, reference });
+    try {
+      toast.success(`${planTier.toUpperCase()} plan activated successfully!`, {
+        description:
+          amount != null
+            ? `Charged ₦${Number(amount).toLocaleString()}`
+            : undefined,
+        duration: 8000,
+      });
+    } catch (err) {
+      console.error("[ZidStorePricing] toast failed:", err);
+    }
+    // Refresh subscription state + server data
+    fetchActiveSubscription();
+    router.refresh();
+  };
+
+  const showCancel = () => {
+    setLoadingTier(null);
+    setNoticeMsg(
+      "Checkout cancelled. No charge was made — try again whenever you're ready."
+    );
+    try {
+      toast.info("Checkout cancelled — no charge was made.", {
+        duration: 6000,
+      });
+    } catch {}
+  };
+
+  // ─── Subscribe ───
+  const handleSubscribe = async (
+    planTier: string,
+    billingPeriod: "monthly" | "yearly"
+  ) => {
+    if (planTier === "starter") {
       router.push("/dashboard/services/payment/dashboard");
       return;
     }
+    if (planTier === "booster") {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Booster%20plan%20inquiry";
+      return;
+    }
 
-    // SME / Enterprise → checkout
-    setLoadingTier(tier);
+    // ─── Client-side guard ───
+    if (activeSubscription) {
+      const endsAt = new Date(activeSubscription.expires_at);
+      if (endsAt.getTime() > Date.now()) {
+        toast.error(
+          `You already have an active ${activeSubscription.plan_tier.toUpperCase()} plan. It expires on ${endsAt.toLocaleDateString()}.`
+        );
+        return;
+      }
+    }
+
+    clearPolling();
+    popupRef.current = null;
     setErrorMsg(null);
+    setNoticeMsg(null);
+    setLoadingTier(planTier);
 
     try {
       const res = await fetch("/api/store/zidstore-subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ planTier: tier, billingPeriod: period }),
+        body: JSON.stringify({ planTier, billingPeriod }),
       });
 
-      // ── 401 → genuinely not logged in → redirect once ──
-      if (res.status === 401) {
-        if (redirectingToLoginRef.current) return;
-        redirectingToLoginRef.current = true;
+      const data = await res.json();
 
-        const callbackUrl = `/online-store?subscribe=${tier}&period=${period}`;
-        router.push(
-          `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-        );
+      if (data?.code === "ALREADY_SUBSCRIBED") {
+        setLoadingTier(null);
+        toast.error(data.error || "You already have an active subscription");
+        await fetchActiveSubscription();
         return;
       }
-
-      const data = await res.json();
 
       if (!res.ok || !data.success || !data.authorization_url) {
         throw new Error(data?.error || "Could not start checkout");
       }
 
-      window.location.href = data.authorization_url;
+      const width = 500;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      const popup = window.open(
+        data.authorization_url,
+        "paystack_checkout",
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      if (!popup || popup.closed) {
+        window.location.href = data.authorization_url;
+        return;
+      }
+
+      popupRef.current = popup;
+      const reference = data.reference;
+
+      const checkInterval = setInterval(async () => {
+        if (popup.closed) {
+          clearPolling();
+          setTimeout(async () => {
+            try {
+              const lateRes = await fetch(
+                `/api/payment-page/verify?reference=${encodeURIComponent(
+                  reference
+                )}`,
+                { cache: "no-store" }
+              );
+              const lateData = await lateRes.json();
+
+              if (lateData.success) {
+                showSuccess(planTier, lateData.amount ?? null, reference);
+                return;
+              }
+            } catch {}
+            showCancel();
+          }, 2000);
+          return;
+        }
+
+        try {
+          const statusRes = await fetch(
+            `/api/payment-page/verify?reference=${encodeURIComponent(
+              reference
+            )}`,
+            { cache: "no-store" }
+          );
+          const statusData = await statusRes.json();
+
+          if (statusData.success) {
+            clearPolling();
+            try {
+              popup.close();
+            } catch {}
+            popupRef.current = null;
+            showSuccess(planTier, statusData.amount ?? null, reference);
+            return;
+          }
+        } catch {}
+      }, 1500);
+
+      pollIntervalRef.current = checkInterval;
+
+      pollTimeoutRef.current = setTimeout(() => {
+        clearPolling();
+        setLoadingTier(null);
+        setNoticeMsg(
+          "Checkout timed out. If you completed payment, your subscription will activate shortly."
+        );
+        try {
+          toast.error("Checkout timed out");
+        } catch {}
+        try {
+          if (popup && !popup.closed) popup.close();
+        } catch {}
+        popupRef.current = null;
+      }, 10 * 60 * 1000);
     } catch (err: any) {
       console.error("[ZidStorePricing] checkout error:", err);
-      setErrorMsg(err?.message || "Something went wrong. Please try again.");
-    } finally {
       setLoadingTier(null);
+      setErrorMsg(err.message || "Could not start checkout");
+      try {
+        toast.error(err.message || "Could not start checkout");
+      } catch {}
     }
   };
 
-  // ── Auto-trigger checkout after returning from login ──
+  useEffect(() => {
+    return () => {
+      clearPolling();
+      try {
+        if (popupRef.current && !popupRef.current.closed) {
+          popupRef.current.close();
+        }
+      } catch {}
+      popupRef.current = null;
+    };
+  }, []);
+
+  // ─── Handle returns from login OR Paystack redirect ───
   useEffect(() => {
     const subscribeTier = searchParams.get("subscribe");
     const subscribePeriod = searchParams.get("period") as Billing | null;
-
-    // Show a friendly notice if the user came back from a cancelled/abandoned checkout.
-    const paymentStatus = searchParams.get("status");
+    const reference =
+      searchParams.get("reference") || searchParams.get("trxref");
     const subscribed = searchParams.get("subscribed");
+
+    if ((reference || subscribed === "1") && !subscribeTier) {
+      if (autoTriggeredRef.current) return;
+      autoTriggeredRef.current = true;
+
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("reference");
+        url.searchParams.delete("trxref");
+        url.searchParams.delete("from_checkout");
+        url.searchParams.delete("subscribed");
+        url.searchParams.delete("plan");
+        url.searchParams.delete("period");
+        url.searchParams.delete("status");
+        window.history.replaceState({}, "", url.toString());
+      }
+
+      if (!reference) return;
+
+      (async () => {
+        try {
+          const res = await fetch(
+            `/api/payment-page/verify?reference=${encodeURIComponent(
+              reference
+            )}`,
+            { cache: "no-store" }
+          );
+          const data = await res.json();
+
+          if (data.success) {
+            showSuccess(
+              String(
+                (data.metadata as any)?.plan_tier || "plan"
+              ).toUpperCase(),
+              data.amount ?? null,
+              reference
+            );
+          } else {
+            showCancel();
+          }
+        } catch (err) {
+          console.error("[ZidStorePricing] return verify failed:", err);
+        }
+      })();
+      return;
+    }
+
+    const paymentStatus = searchParams.get("status");
     if (paymentStatus === "cancelled" || paymentStatus === "failed") {
       setNoticeMsg(
         paymentStatus === "cancelled"
           ? "Checkout cancelled. You can try again whenever you're ready."
-          : "Payment failed. Please try again or contact support.",
-      );
-    } else if (subscribed === "1") {
-      setNoticeMsg(
-        "Thanks! Your payment is being confirmed. You'll receive an email shortly.",
+          : "Payment failed. Please try again or contact support."
       );
     }
 
-    // Nothing else to do if there's no subscribe param.
     if (!subscribeTier) return;
-
-    // Guard against remounts.
     if (autoTriggeredRef.current) return;
     autoTriggeredRef.current = true;
 
-    // ⚠️ IMMEDIATELY strip the trigger params from the URL so that
-    // cancelling Paystack / refreshing / navigating back won't re-fire.
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       url.searchParams.delete("subscribe");
       url.searchParams.delete("period");
-      url.searchParams.delete("subscribed");
-      url.searchParams.delete("plan");
-      url.searchParams.delete("status");
       window.history.replaceState({}, "", url.toString());
     }
 
@@ -204,11 +455,10 @@ export function ZidStorePricing() {
         block: "center",
       });
       setPulsingTier(subscribeTier);
-
       setTimeout(() => {
         void handleSubscribe(
           subscribeTier as Plan["tier"],
-          (subscribePeriod as Billing) || "monthly",
+          (subscribePeriod as Billing) || "monthly"
         );
         setPulsingTier(null);
       }, 900);
@@ -235,7 +485,7 @@ export function ZidStorePricing() {
           </p>
         </div>
 
-        {/* Billing toggle */}
+    
         <div className="mt-8 flex items-center justify-center">
           <div className="inline-flex items-center p-1 rounded-full bg-(--bg-secondary) border border-(--border-color)">
             <button
@@ -276,12 +526,21 @@ export function ZidStorePricing() {
           </div>
         )}
 
-        {/* Plans grid */}
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {PLANS.map((plan) => {
             const isLoading = loadingTier === plan.tier;
             const isPulsing = pulsingTier === plan.tier;
             const price = billing === "yearly" ? plan.yearly : plan.monthly;
+
+            const isCurrentPlan =
+              activeSubscription?.plan_tier === plan.tier;
+            const isLockedByOtherPlan =
+              activeSubscription !== null &&
+              plan.tier !== "starter" &&
+              plan.tier !== "booster" &&
+              !isCurrentPlan;
+            const isStarterWhileSubscribed =
+              activeSubscription !== null && plan.tier === "starter";
 
             return (
               <div
@@ -294,12 +553,19 @@ export function ZidStorePricing() {
                   isPulsing
                     ? "ring-4 ring-[var(--color-accent-yellow)] scale-[1.03] shadow-2xl"
                     : ""
-                }`}
+                } ${isCurrentPlan ? "ring-2 ring-green-500" : ""}`}
               >
                 {plan.featured && (
                   <div className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-[var(--color-accent-yellow)] text-[#191919] text-[10px] font-bold px-3 py-1">
                     <Sparkles className="h-3 w-3" />
                     Most Popular
+                  </div>
+                )}
+
+                {isCurrentPlan && (
+                  <div className="absolute -top-3 right-6 inline-flex items-center gap-1 rounded-full bg-green-500 text-white text-[10px] font-bold px-3 py-1">
+                    <Check className="h-3 w-3" />
+                    Your Plan
                   </div>
                 )}
 
@@ -328,7 +594,9 @@ export function ZidStorePricing() {
                   </p>
                   <p
                     className={`mt-1 text-[11px] ${
-                      plan.featured ? "text-white/50" : "text-(--text-secondary)"
+                      plan.featured
+                        ? "text-white/50"
+                        : "text-(--text-secondary)"
                     }`}
                   >
                     {billing === "monthly" ? "/month" : "/year"}
@@ -340,7 +608,9 @@ export function ZidStorePricing() {
                     <li
                       key={f}
                       className={`flex items-start gap-2 text-xs leading-snug ${
-                        plan.featured ? "text-white/90" : "text-(--text-primary)"
+                        plan.featured
+                          ? "text-white/90"
+                          : "text-(--text-primary)"
                       }`}
                     >
                       <Check
@@ -355,25 +625,48 @@ export function ZidStorePricing() {
                   ))}
                 </ul>
 
-                <button
-                  type="button"
-                  onClick={() => handleSubscribe(plan.tier, billing)}
-                  disabled={isLoading}
-                  className={`mt-6 inline-flex items-center justify-center gap-2 w-full py-3 rounded-full text-sm font-semibold transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
-                    plan.featured
-                      ? "bg-[var(--color-accent-yellow)] text-[#191919] hover:opacity-90"
-                      : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color) hover:bg-(--bg-primary)"
-                  }`}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing…
-                    </>
-                  ) : (
-                    plan.cta
-                  )}
-                </button>
+                {/* ─── Action button (context-aware) ─── */}
+                {checkingSubscription ? (
+                  <div className="mt-6 w-full py-3 rounded-full text-sm font-semibold text-center bg-(--bg-secondary) text-(--text-secondary)">
+                    <Loader2 className="w-4 h-4 animate-spin inline" />
+                  </div>
+                ) : isCurrentPlan ? (
+                  <div className="mt-6 w-full py-3 rounded-full text-sm font-semibold text-center bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/30">
+                    ✓ Active until{" "}
+                    {new Date(
+                      activeSubscription!.expires_at
+                    ).toLocaleDateString()}
+                  </div>
+                ) : isLockedByOtherPlan ? (
+                  <div className="mt-6 w-full py-3 rounded-full text-sm font-semibold text-center bg-(--bg-secondary) text-(--text-secondary) border border-(--border-color) cursor-not-allowed inline-flex items-center justify-center gap-2">
+                    <Lock className="size-3.5" />
+                    Locked — subscription active
+                  </div>
+                ) : isStarterWhileSubscribed ? (
+                  <div className="mt-6 w-full py-3 rounded-full text-sm font-semibold text-center bg-(--bg-secondary) text-(--text-secondary) border border-(--border-color) cursor-not-allowed">
+                    Already subscribed
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribe(plan.tier, billing)}
+                    disabled={isLoading}
+                    className={`mt-6 inline-flex items-center justify-center gap-2 w-full py-3 rounded-full text-sm font-semibold transition cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+                      plan.featured
+                        ? "bg-[var(--color-accent-yellow)] text-[#191919] hover:opacity-90"
+                        : "bg-(--bg-secondary) text-(--text-primary) border border-(--border-color) hover:bg-(--bg-primary)"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing…
+                      </>
+                    ) : (
+                      plan.cta
+                    )}
+                  </button>
+                )}
               </div>
             );
           })}
@@ -390,6 +683,68 @@ export function ZidStorePricing() {
           for a tailored quote.
         </p>
       </div>
+
+      {/* Success Modal */}
+      {successModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="relative max-w-md w-full bg-(--bg-primary) rounded-[2rem] border border-(--border-color) p-6 sm:p-8 text-center shadow-2xl">
+            <button
+              onClick={() => setSuccessModal(null)}
+              className="absolute top-4 right-4 text-(--text-secondary) hover:text-(--text-primary) transition-colors"
+              aria-label="Close"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex justify-center mb-5">
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-green-500/10">
+                <PartyPopper className="size-10 text-green-600" />
+              </div>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-bold text-(--text-primary)">
+              Subscription Active 🎉
+            </h2>
+
+            <p className="mt-3 text-sm text-(--text-secondary)">
+              Your{" "}
+              <span className="font-semibold text-(--color-accent-yellow)">
+                {successModal.planTier.toUpperCase()}
+              </span>{" "}
+              plan is now live.
+              {successModal.amount != null && (
+                <> We received ₦{successModal.amount.toLocaleString()}.</>
+              )}
+            </p>
+
+            <div className="mt-5 p-4 rounded-2xl bg-(--bg-secondary) text-xs text-(--text-secondary) font-mono break-all">
+              {successModal.reference}
+            </div>
+
+            <p className="mt-3 text-xs text-(--text-secondary)">
+              A receipt has been emailed to you.
+            </p>
+
+            <div className="mt-6 space-y-2">
+              <button
+                onClick={() => {
+                  setSuccessModal(null);
+                  router.push("/dashboard/services/payment/dashboard");
+                }}
+                className="w-full rounded-2xl bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-6 py-3.5 text-sm font-bold transition-colors"
+              >
+                Go to Dashboard →
+              </button>
+              <button
+                onClick={() => setSuccessModal(null)}
+                className="w-full rounded-2xl px-6 py-3 text-sm font-medium text-(--text-secondary) hover:bg-(--bg-secondary) transition-colors"
+              >
+                Stay on this page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

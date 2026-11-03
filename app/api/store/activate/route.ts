@@ -2,33 +2,28 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
+import {
+  isAuthenticatedWithRefresh,
+  createAuthResponse,
+} from "@/lib/auth-check-api";
 import { STORE_ACTIVATION_CONFIG } from "@/lib/store-activation";
+import { paystackInitialize } from "@/lib/paystack";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-<<<<<<< HEAD
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 if (!PAYSTACK_SECRET_KEY) {
   console.error("[store-activate] FATAL: PAYSTACK_SECRET_KEY is not set");
 }
-=======
-const ACTIVATION_FEE_NAIRA = 1000;
->>>>>>> f73df86bb93ec6bb9ad53d386bb458aea94d7f40
+
 const baseUrl =
   process.env.NODE_ENV === "development"
     ? process.env.NEXT_PUBLIC_DEV_URL || "http://localhost:3000"
     : process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com";
-
-function generateOrderReference(paymentId: string): string {
-  const shortId = paymentId.slice(0, 8);
-  const timestamp = Date.now().toString(36);
-  return `ACT-${shortId}-${timestamp}`;
-}
 
 function cleanSlug(input: string): string {
   return input
@@ -46,15 +41,8 @@ function normalizeWhatsapp(input: unknown): string | null {
 }
 
 function validateStoreData(storeData: any): string | null {
-  const {
-    name,
-    slug,
-    description,
-    country,
-    state,
-    city,
-    streetAddress,
-  } = storeData || {};
+  const { name, slug, description, country, state, city, streetAddress } =
+    storeData || {};
 
   if (!name?.trim() || !slug?.trim() || !description?.trim()) {
     return "Name, slug and description are required";
@@ -118,16 +106,16 @@ export async function POST(req: NextRequest) {
       { error: "Please login to activate store", logout: true },
       { status: 401 }
     );
-    if (newTokens) return createAuthResponse(await unauthorized.json(), newTokens);
+    if (newTokens)
+      return createAuthResponse(await unauthorized.json(), newTokens);
     return unauthorized;
   }
 
   try {
-    // Validate Paystack configuration
     if (!PAYSTACK_SECRET_KEY) {
       const err = NextResponse.json(
         { error: "Payment service not configured. Please contact support." },
-        { status: 500 },
+        { status: 500 }
       );
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
       return err;
@@ -146,6 +134,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (!dbUser.email) {
+      return NextResponse.json(
+        { error: "Email is required for activation" },
+        { status: 400 }
+      );
+    }
+
     // Get existing store (if any)
     let { data: store } = await supabase
       .from("online_stores")
@@ -154,7 +149,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!store) {
-      // ─── CREATE NEW STORE ───
       const validationError = validateStoreData(storeData);
       if (validationError) {
         return NextResponse.json({ error: validationError }, { status: 400 });
@@ -162,7 +156,6 @@ export async function POST(req: NextRequest) {
 
       const payload = buildStorePayload(storeData);
 
-      // Slug uniqueness
       const { data: slugTaken } = await supabase
         .from("online_stores")
         .select("id")
@@ -200,7 +193,6 @@ export async function POST(req: NextRequest) {
 
       store = newStore;
     } else {
-      // ─── UPDATE EXISTING (pending activation) STORE ───
       if (store.is_active && store.activation_paid) {
         return NextResponse.json(
           { error: "Store is already activated" },
@@ -219,7 +211,6 @@ export async function POST(req: NextRequest) {
 
         const payload = buildStorePayload(storeData);
 
-        // Slug uniqueness — ignore this store's own row
         const { data: slugTaken } = await supabase
           .from("online_stores")
           .select("id")
@@ -229,10 +220,7 @@ export async function POST(req: NextRequest) {
 
         if (slugTaken) {
           return NextResponse.json(
-            {
-              error:
-                "That store URL is taken. Please choose a different one.",
-            },
+            { error: "That store URL is taken. Please choose a different one." },
             { status: 409 }
           );
         }
@@ -255,7 +243,7 @@ export async function POST(req: NextRequest) {
     let activePromo: any = null;
     let activationFee = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
 
-    const { data: promoData, error: promoError } = await supabase
+    const { data: promoData } = await supabase
       .from("store_activation_promos")
       .select("*")
       .eq("user_id", user.id)
@@ -267,17 +255,17 @@ export async function POST(req: NextRequest) {
       const expiresAt = new Date(promoData.expires_at);
       if (expiresAt > now) {
         activePromo = promoData;
-        // Always use config value for discounted fee to ensure consistency
         activationFee = STORE_ACTIVATION_CONFIG.PROMO_FEE;
-        // Update the database row to correct value if needed
         if (promoData.discounted_fee !== STORE_ACTIVATION_CONFIG.PROMO_FEE) {
           await supabase
             .from("store_activation_promos")
-            .update({ discounted_fee: STORE_ACTIVATION_CONFIG.PROMO_FEE, updated_at: now.toISOString() })
+            .update({
+              discounted_fee: STORE_ACTIVATION_CONFIG.PROMO_FEE,
+              updated_at: now.toISOString(),
+            })
             .eq("id", promoData.id);
         }
       } else {
-        // Mark as expired
         await supabase
           .from("store_activation_promos")
           .update({ status: "expired", updated_at: now.toISOString() })
@@ -286,7 +274,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── CREATE PENDING PAYMENT ───
-    const reference = `ZA-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const reference = `ZA-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
 
     const { data: payment, error: paymentError } = await supabase
       .from("store_activation_payments")
@@ -297,82 +287,65 @@ export async function POST(req: NextRequest) {
         reference,
         status: "pending",
         payment_method: "paystack",
-        // Store promo_id in order_reference with prefix for webhook to consume
-        order_reference: activePromo ? `PROMO_${activePromo.id}` : null,
+        order_reference: reference,
+        promo_id: activePromo?.id ?? null,
       })
       .select()
       .single();
 
     if (paymentError || !payment) {
+      console.error("[activate] insert failed:", paymentError);
       return NextResponse.json(
         { error: "Failed to initiate payment. Please try again." },
         { status: 500 }
       );
     }
 
-    // NOTE: Draft is intentionally NOT deleted here.
-    // It's cleared only after payment is confirmed successful.
-
-    // ─── INITIALIZE PAYSTACK TRANSACTION ───
-    const paystackRes = await fetch(
-      "https://api.paystack.co/transaction/initialize",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
+    // ─── INITIALIZE PAYSTACK ───
+    try {
+      const paystack = await paystackInitialize({
+        email: dbUser.email,
+        amountNaira: activationFee,
+        reference,
+        callbackUrl: `${baseUrl}/dashboard/store/activation?status=success`,
+        metadata: {
+          type: "store_activation",
+          user_id: user.id,
+          store_id: store.id,
+          payment_id: payment.id,
+          ...(activePromo && {
+            promo_id: activePromo.id,
+            promo_code: activePromo.promo_code,
+          }),
         },
-        body: JSON.stringify({
-          email: dbUser.email,
-          amount: Math.round(activationFee * 100),
-          currency: "NGN",
-          reference,
-          callback_url: `${baseUrl}/dashboard/store/activation?status=success`,
-          metadata: {
-            type: "store_activation",
-            user_id: user.id,
-            store_id: store.id,
-            payment_id: payment.id,
-            ...(activePromo && {
-              promo_id: activePromo.id,
-              promo_code: activePromo.promo_code,
-            }),
-          },
-        }),
-      }
-    );
+      });
 
-    const paystackJson = await paystackRes.json();
+      const responseData = {
+        success: true,
+        reference,
+        authorization_url: paystack.authorization_url,
+        access_code: paystack.access_code,
+      };
 
-    if (!paystackRes.ok || !paystackJson?.status) {
-      console.error("[activation checkout] paystack error:", paystackJson);
+      if (newTokens) return createAuthResponse(responseData, newTokens);
+      return NextResponse.json(responseData);
+    } catch (paystackErr: any) {
+      console.error("[activation checkout] paystack error:", paystackErr);
+
       await supabase
         .from("store_activation_payments")
-        .update({
-          status: "failed",
-        })
+        .update({ status: "failed" })
         .eq("reference", reference);
 
       const err = NextResponse.json(
-        { error: paystackJson?.message || "Paystack initialization failed" },
+        { error: paystackErr.message || "Paystack initialization failed" },
         { status: 502 }
       );
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
       return err;
     }
-
-    // No need to update payment record with authorization_url - frontend handles redirect
-
-    const responseData = {
-      success: true,
-      reference,
-      authorization_url: paystackJson.data.authorization_url,
-      access_code: paystackJson.data.access_code,
-    };
-
-    if (newTokens) return createAuthResponse(responseData, newTokens);
-    return NextResponse.json(responseData);
   } catch (error: any) {
+    console.error("[activate] unhandled:", error);
     return NextResponse.json(
       { error: error.message || "Activation failed" },
       { status: 500 }

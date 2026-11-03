@@ -33,7 +33,7 @@ const TIER_DISPLAY_NAME: Record<SubscriptionTier, string> = {
 
 // Fetcher for SWR
 const fetcher = async (url: string) => {
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error("Failed to fetch subscription data");
   }
@@ -44,7 +44,7 @@ export const useSubscription = () => {
   const {
     subscription,
     subscriptionLoading,
-    refreshSubscription,
+    refreshSubscription: contextRefresh,
     checkFeatureAccess,
     subscribe,
     cancelSubscription,
@@ -61,19 +61,24 @@ export const useSubscription = () => {
     ? `/api/subscription?userId=${userData.id}`
     : null;
 
-  const { data: cachedSubscription, mutate: mutateSubscription } = useSWR(
-    subscriptionCacheKey,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 60000,
-      fallbackData: subscription,
-      onError: (error) => {
-        console.error("SWR subscription fetch error:", error);
-      },
+  const {
+    data: cachedSubscription,
+    mutate: mutateSubscription,
+    isLoading: swrLoading,
+    isValidating,
+  } = useSWR(subscriptionCacheKey, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    // Critical: allow refetch to bypass dedupe.
+    // Previous 60s dedupe meant a refetch immediately after checkout
+    // was silently skipped because SWR thought it had fetched
+    // less than a minute ago.
+    dedupingInterval: 1000,
+    // Seed only on first load, not as a permanent override of SWR data
+    fallbackData: subscription ?? undefined,    onError: (error) => {
+      console.error("SWR subscription fetch error:", error);
     },
-  );
+  });
 
   // Realtime subscription sync
   useEffect(() => {
@@ -100,8 +105,9 @@ export const useSubscription = () => {
           filter: `user_id=eq.${userData.id}`,
         },
         () => {
+          // Revalidate SWR cache immediately on DB change
           mutateSubscription();
-          refreshSubscription();
+          contextRefresh();
         },
       )
       .subscribe();
@@ -109,7 +115,7 @@ export const useSubscription = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userData?.id, mutateSubscription, refreshSubscription, supabase]);
+  }, [userData?.id, mutateSubscription, contextRefresh, supabase]);
 
   // ─── Current tier / status ───
   const currentTier: SubscriptionTier =
@@ -309,9 +315,23 @@ export const useSubscription = () => {
   );
 
   // ─── Refresh helper ───
+  // This is what the pricing pages call as `refetch`.
+  // It forces SWR to bypass the dedupe window and re-fetch,
+  // then syncs the context. Each step is isolated so a failure
+  // in one doesn't kill the other.
   const refreshAll = useCallback(async () => {
-    await Promise.all([mutateSubscription(), refreshSubscription()]);
-  }, [mutateSubscription, refreshSubscription]);
+    try {
+      // revalidate: true forces SWR to bypass dedupe and re-fetch
+      await mutateSubscription(undefined, { revalidate: true });
+    } catch (err) {
+      console.error("[useSubscription] SWR revalidate failed:", err);
+    }
+    try {
+      await contextRefresh();
+    } catch (err) {
+      console.error("[useSubscription] context refresh failed:", err);
+    }
+  }, [mutateSubscription, contextRefresh]);
 
   // ─── Tier boolean flags ───
   const isFree = currentTier === "free";
@@ -407,10 +427,24 @@ export const useSubscription = () => {
       )
     : null;
 
+  // The single "loading" flag pricing pages should care about:
+  // true only until the first SWR fetch resolves, then false.
+  // This prevents button flicker during revalidation polls.
+  const loading = !cachedSubscription && (swrLoading || subscriptionLoading);
+
   return {
     // Core subscription data
     subscription: cachedSubscription || subscription,
-    loading: subscriptionLoading,
+    loading,
+    isValidating,
+    /**
+     * Force a fresh fetch of the subscription, bypassing the SWR
+     * dedupe window. Callers can await this. Used by the pricing
+     * pages after `?payment=success` to close the gap between
+     * the Nomba redirect and the webhook committing the row.
+     */
+    refetch: refreshAll,
+    // Legacy alias — some components still use `refreshSubscription`
     refreshSubscription: refreshAll,
 
     // Tier info

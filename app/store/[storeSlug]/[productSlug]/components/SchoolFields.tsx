@@ -73,7 +73,7 @@ export function SchoolFields({
                 onClick={(e) => e.stopPropagation()}
                 className={`rounded-lg border-2 bg-green-500/10 p-3 cursor-not-allowed select-none opacity-90 ${
                   isMine
-                    ? "border-green-600 ring-2 ring-[#FDC020]/60"
+                    ? "border-green-600 ring-2 ring-[#F5B800]/60"
                     : "border-green-500"
                 }`}
               >
@@ -84,7 +84,7 @@ export function SchoolFields({
                       <p className="text-sm font-medium text-green-800 dark:text-green-300">
                         {entity.name}
                         {isMine && (
-                          <span className="ml-2 inline-flex items-center rounded-full bg-[#FDC020] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
+                          <span className="ml-2 inline-flex items-center rounded-full bg-[#F5B800] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
                             You
                           </span>
                         )}
@@ -113,10 +113,10 @@ export function SchoolFields({
             return (
               <div
                 key={entity.id}
-                className={`rounded-lg border-2 bg-[#FDC020]/5 p-3 ${
+                className={`rounded-lg border-2 bg-[#F5B800]/5 p-3 ${
                   isMine
-                    ? "border-[#FDC020] ring-2 ring-[#FDC020]/60"
-                    : "border-[#FDC020]"
+                    ? "border-[#F5B800] ring-2 ring-[#F5B800]/60"
+                    : "border-[#F5B800]"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -124,7 +124,7 @@ export function SchoolFields({
                     <p className="text-sm font-medium">
                       {entity.name}
                       {isMine && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-[#FDC020] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-[#F5B800] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
                           You
                         </span>
                       )}
@@ -136,7 +136,7 @@ export function SchoolFields({
                     )}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-[#191919] dark:text-[#FDC020]">
+                    <p className="text-sm font-semibold text-[#191919] dark:text-[#F5B800]">
                       ₦{entity.paidAmount.toLocaleString()}
                       <span className="text-xs font-normal text-foreground/50">
                         {" "}
@@ -161,10 +161,10 @@ export function SchoolFields({
                 canSelect ? "cursor-pointer" : "cursor-default"
               } ${
                 isSelected
-                  ? "border-[#FDC020] bg-[#FDC020]/5"
+                  ? "border-[#F5B800] bg-[#F5B800]/5"
                   : isMine
-                  ? "border-[#FDC020] bg-[#FDC020]/5 ring-2 ring-[#FDC020]/40"
-                  : "border-border hover:border-[#FDC020]/60"
+                  ? "border-[#F5B800] bg-[#F5B800]/5 ring-2 ring-[#F5B800]/40"
+                  : "border-border hover:border-[#F5B800]/60"
               }`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -172,7 +172,7 @@ export function SchoolFields({
                   <p className="text-sm font-medium">
                     {entity.name}
                     {isMine && (
-                      <span className="ml-2 inline-flex items-center rounded-full bg-[#FDC020] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
+                      <span className="ml-2 inline-flex items-center rounded-full bg-[#F5B800] px-2 py-0.5 text-[10px] font-semibold text-[#191919]">
                         You
                       </span>
                     )}

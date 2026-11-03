@@ -1,15 +1,19 @@
-import { NextResponse } from "next/server";
+// app/api/subscription/checkout/route.ts
+
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
+import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const baseUrl = process.env.NODE_ENV === "development"
-  ? "http://localhost:3000"
-  : "https://zidwell.com";
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3000"
+    : "https://zidwell.com";
 
 const generateOrderReference = (userId: string): string => {
   const timestamp = Date.now().toString(36);
@@ -17,46 +21,98 @@ const generateOrderReference = (userId: string): string => {
   return `SUB_${userId.slice(-8)}_${timestamp}_${random}`;
 };
 
-// Valid tiers for checkout (paid plans only)
-const VALID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+// ============================================================
+// Paid tiers — MUST match PricingNew / app/pricing/page.tsx
+// ============================================================
+const VALID_TIERS = ["starter", "sme", "enterprise"] as const;
+type PaidTier = (typeof VALID_TIERS)[number];
 
-export async function POST(request: Request) {
+const TIER_PRICES: Record<PaidTier, { monthly: number; yearly: number }> = {
+  starter:    { monthly: 99900,  yearly: 999000  },
+  sme:        { monthly: 199900, yearly: 1999000 },
+  enterprise: { monthly: 599900, yearly: 5999000 },
+};
+
+export async function POST(request: NextRequest) {
   try {
-    const { planTier, amount, billingPeriod, userEmail, userId } = await request.json();
+    // ── 1. Authenticate the caller ──
+    const { user, newTokens } = await isAuthenticatedWithRefresh(request);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Please log in to subscribe", logout: true },
+        { status: 401 }
+      );
+    }
 
-    if (!VALID_TIERS.includes(planTier)) {
+    const userId = user.id;
+    const userEmail = user.email;
+
+    // ── 2. Parse body ──
+    const body = await request.json();
+    const { planTier, amount, billingPeriod } = body;
+
+    if (!(VALID_TIERS as readonly string[]).includes(planTier)) {
+      console.warn(
+        `❌ Invalid plan tier "${planTier}". Expected: ${VALID_TIERS.join(", ")}`
+      );
       return NextResponse.json(
         { success: false, error: "Invalid plan tier" },
         { status: 400 }
       );
     }
 
-    // Verify user
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id, email, subscription_tier')
-      .eq('id', userId)
+    const paidTier = planTier as PaidTier;
+
+    if (billingPeriod !== "monthly" && billingPeriod !== "yearly") {
+      return NextResponse.json(
+        { success: false, error: "Invalid billing period" },
+        { status: 400 }
+      );
+    }
+
+    // ── 3. Server-side amount validation ──
+    const expectedAmount =
+      billingPeriod === "yearly"
+        ? TIER_PRICES[paidTier].yearly
+        : TIER_PRICES[paidTier].monthly;
+
+    if (Number(amount) !== expectedAmount) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Amount mismatch. Expected ₦${expectedAmount.toLocaleString()} for ${paidTier} (${billingPeriod}).`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // ── 4. Verify user still exists in DB ──
+    const { data: dbUser, error: userError } = await supabase
+      .from("users")
+      .select("id, email, subscription_tier")
+      .eq("id", userId)
       .single();
 
-    if (userError || !user) {
+    if (userError || !dbUser) {
+      console.error("❌ User not found in DB:", userId, userError);
       return NextResponse.json(
-        { success: false, error: "User not found" },
+        { success: false, error: "User not found", logout: true },
         { status: 404 }
       );
     }
 
+    // ── 5. Create pending payment record ──
     const orderReference = generateOrderReference(userId);
 
-    // Create payment record
     const { data: payment, error: paymentError } = await supabase
-      .from('subscription_payments')
+      .from("subscription_payments")
       .insert({
         user_id: userId,
-        amount: amount,
-        payment_method: 'pending',
-        status: 'pending',
+        amount: expectedAmount,
+        payment_method: "pending",
+        status: "pending",
         reference: orderReference,
-        metadata: { planTier, billingPeriod, userId }
+        metadata: { planTier: paidTier, billingPeriod, userId },
       })
       .select()
       .single();
@@ -69,84 +125,77 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("✅ Payment record created:", { 
-      id: payment.id, 
-      reference: orderReference,
-      planTier, 
-      billingPeriod, 
-      userId 
-    });
-
+    // ── 6. Get Nomba token ──
     const accessToken = await getNombaToken();
 
     if (!accessToken) {
       await supabase
-        .from('subscription_payments')
-        .update({ status: 'failed' })
-        .eq('id', payment.id);
-      
+        .from("subscription_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
+
       return NextResponse.json(
         { success: false, error: "Payment service unavailable" },
         { status: 503 }
       );
     }
 
+    // ── 7. Build Nomba checkout payload ──
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/subscription/callback`,
-        customerEmail: userEmail,
-        amount: amount.toString(),
+        customerEmail: dbUser.email || userEmail,
+        amount: expectedAmount.toString(),
         currency: "NGN",
-        orderReference: orderReference,
+        orderReference,
         customerId: userId,
         accountId: process.env.NOMBA_ACCOUNT_ID,
         allowedPaymentMethods: ["Card", "Transfer"],
-        planTier: planTier,
-        billingPeriod: billingPeriod,
-        userId: userId,
+        planTier: paidTier,
+        billingPeriod,
+        userId,
         type: "subscription",
         metadata: {
-          planTier: planTier,
-          billingPeriod: billingPeriod,
-          userId: userId,
+          planTier: paidTier,
+          billingPeriod,
+          userId,
           type: "subscription",
-          paymentId: payment.id
-        }
+          paymentId: payment.id,
+        },
       },
       tokenizeCard: false,
     };
 
-    console.log("📤 Sending to Nomba:", JSON.stringify(checkoutPayload, null, 2));
-
-    const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        accountId: process.env.NOMBA_ACCOUNT_ID!,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(checkoutPayload),
-    });
+    // ── 8. Create checkout with Nomba ──
+    const response = await fetch(
+      `${process.env.NOMBA_URL}/v1/checkout/order`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(checkoutPayload),
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok || data.code !== "00") {
       console.error("Nomba error:", data);
       await supabase
-        .from('subscription_payments')
-        .update({ status: 'failed' })
-        .eq('id', payment.id);
+        .from("subscription_payments")
+        .update({ status: "failed" })
+        .eq("id", payment.id);
       throw new Error(data.description || "Failed to create checkout");
     }
-
-    console.log("✅ Checkout created:", { checkoutLink: data.data.checkoutLink });
 
     return NextResponse.json({
       success: true,
       checkoutLink: data.data.checkoutLink,
-      orderReference: orderReference,
+      orderReference,
     });
-
   } catch (error: any) {
     console.error("Checkout error:", error);
     return NextResponse.json(

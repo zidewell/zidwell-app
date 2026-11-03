@@ -84,7 +84,7 @@ export function PhysicalFields({
               className={cn(
                 "rounded-2xl border p-4 transition-colors",
                 isSelected
-                  ? "border-[#FDC020] bg-[#FDC020]/5"
+                  ? "border-[#F5B800] bg-[#F5B800]/5"
                   : "border-border bg-background hover:border-border/80",
                 isSoldOut && "opacity-60",
               )}
@@ -98,7 +98,7 @@ export function PhysicalFields({
                   className={cn(
                     "mt-1 h-5 w-5 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors",
                     isSelected
-                      ? "border-[#FDC020] bg-[#FDC020]"
+                      ? "border-[#F5B800] bg-[#F5B800]"
                       : "border-border bg-background",
                     (lockedFields || isSoldOut) && "cursor-not-allowed",
                   )}

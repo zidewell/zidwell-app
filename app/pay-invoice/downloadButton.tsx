@@ -122,7 +122,7 @@ export default function DownloadInvoiceButton({
       const getStatusColor = (status: string): string => {
         switch (status?.toLowerCase()) {
           case "paid": return "#00B64F";
-          case "unpaid": return "#FDC020";
+          case "unpaid": return "#F5B800";
           case "partially_paid": return "#3b82f6";
           case "overdue": return "#ef4444";
           case "cancelled": return "#6b7280";
@@ -239,7 +239,7 @@ export default function DownloadInvoiceButton({
             .title-underline {
               width: 64px;
               height: 4px;
-              background: #FDC020;
+              background: #F5B800;
               border-radius: 4px;
               margin-top: 8px;
               margin-left: auto;
@@ -269,14 +269,14 @@ export default function DownloadInvoiceButton({
               height: 40px;
               border-radius: 50%;
               background: #FEF3C7;
-              color: #FDC020;
+              color: #F5B800;
               flex-shrink: 0;
             }
             
             .label-small {
               font-size: 13px;
               font-weight: 600;
-              color: #FDC020;
+              color: #F5B800;
               text-transform: uppercase;
               letter-spacing: 0.5px;
             }
@@ -348,8 +348,8 @@ export default function DownloadInvoiceButton({
               width: 32px;
               height: 32px;
               border-radius: 50%;
-              border: 2px solid #FDC020;
-              color: #FDC020;
+              border: 2px solid #F5B800;
+              color: #F5B800;
               flex-shrink: 0;
             }
             
@@ -360,7 +360,7 @@ export default function DownloadInvoiceButton({
             }
             
             .info-text strong {
-              color: #FDC020;
+              color: #F5B800;
               font-weight: 700;
             }
             
@@ -385,7 +385,7 @@ export default function DownloadInvoiceButton({
               background: #FEF3C7;
               font-size: 13px;
               font-weight: 600;
-              color: #FDC020;
+              color: #F5B800;
             }
             
             .party-name {
@@ -461,7 +461,7 @@ export default function DownloadInvoiceButton({
             
             .table-divider {
               height: 2px;
-              background: #FDC020;
+              background: #F5B800;
               border: none;
               margin: 0 0 4px 0;
             }
@@ -514,13 +514,13 @@ export default function DownloadInvoiceButton({
             .total-value {
               font-size: 28px;
               font-weight: 800;
-              color: #FDC020;
+              color: #F5B800;
             }
             
             /* Footer Divider */
             .footer-divider {
               height: 2px;
-              background: #FDC020;
+              background: #F5B800;
               margin-top: 40px;
               border: none;
             }
@@ -544,7 +544,7 @@ export default function DownloadInvoiceButton({
             
             .footer-text .contact-email {
               font-weight: 500;
-              color: #FDC020;
+              color: #F5B800;
             }
             
             .footer-muted {
@@ -589,7 +589,7 @@ export default function DownloadInvoiceButton({
             }
             
             .progress-fill {
-              background-color: #FDC020;
+              background-color: #F5B800;
               height: 100%;
               transition: width 0.3s ease;
             }
@@ -619,7 +619,7 @@ export default function DownloadInvoiceButton({
               background: #f8fafc;
               padding: 16px 20px;
               border-radius: 8px;
-              border-left: 4px solid #FDC020;
+              border-left: 4px solid #F5B800;
               margin: 20px 0;
             }
             
@@ -905,7 +905,7 @@ export default function DownloadInvoiceButton({
 
             <!-- Thank you -->
             <footer class="footer">
-              <div class="icon-circle" style="background: #FEF3C7; color: #FDC020;">
+              <div class="icon-circle" style="background: #FEF3C7; color: #F5B800;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>

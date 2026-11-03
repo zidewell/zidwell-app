@@ -1,4 +1,5 @@
 // app/api/store/zidstore-subscription/checkout/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -13,7 +14,6 @@ const supabase = createClient(
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-// Log at startup so missing keys fail fast
 if (!PAYSTACK_SECRET_KEY) {
   console.error("[zidstore-checkout] FATAL: PAYSTACK_SECRET_KEY is not set");
 }
@@ -38,7 +38,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Validate Paystack configuration
     if (!PAYSTACK_SECRET_KEY) {
       const err = NextResponse.json(
         { error: "Payment service not configured. Please contact support." },
@@ -46,6 +45,34 @@ export async function POST(req: NextRequest) {
       );
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
       return err;
+    }
+
+    // ─── Block if user already has an active subscription ───
+    const { data: existingSub } = await supabase
+      .from("zidstore_subscriptions")
+      .select("id, plan_tier, current_period_end, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (existingSub) {
+      const periodEnd = new Date(existingSub.current_period_end);
+      if (periodEnd.getTime() > Date.now()) {
+        const err = NextResponse.json(
+          {
+            error: `You already have an active ${existingSub.plan_tier.toUpperCase()} subscription that renews on ${periodEnd.toLocaleDateString()}. You can subscribe again after it expires.`,
+            code: "ALREADY_SUBSCRIBED",
+            current_subscription: {
+              plan_tier: existingSub.plan_tier,
+              expires_at: existingSub.current_period_end,
+            },
+          },
+          { status: 400 },
+        );
+        if (newTokens) return createAuthResponse(await err.json(), newTokens);
+        return err;
+      }
     }
 
     const body = await req.json();
@@ -115,6 +142,28 @@ export async function POST(req: NextRequest) {
       .toString(36)
       .slice(2, 7)}`;
 
+    const callbackUrl = `${BASE_URL}/online-store?reference=${encodeURIComponent(
+      reference,
+    )}&from_checkout=1`;
+
+    console.log("[zidstore-checkout] BASE_URL:", BASE_URL);
+    console.log("[zidstore-checkout] callback_url:", callbackUrl);
+
+    try {
+      const parsed = new URL(callbackUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new Error("Invalid callback URL protocol");
+      }
+    } catch (e) {
+      console.error("[zidstore-checkout] Invalid callback URL:", callbackUrl);
+      const err = NextResponse.json(
+        { error: "Server misconfiguration: invalid callback URL" },
+        { status: 500 },
+      );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
+    }
+
     const { error: insertErr } = await supabase
       .from("zidstore_subscription_payments")
       .insert({
@@ -151,7 +200,7 @@ export async function POST(req: NextRequest) {
           amount: Math.round(amount * 100),
           currency: "NGN",
           reference,
-          callback_url: `${BASE_URL}/online-store?subscribed=1&plan=${planTier}&period=${billingPeriod}`,
+          callback_url: callbackUrl,
           metadata: {
             type: "zidstore_subscription",
             user_id: dbUser.id,

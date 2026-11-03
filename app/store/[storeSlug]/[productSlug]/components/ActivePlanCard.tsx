@@ -71,7 +71,7 @@ export function ActivePlanCard({
         <div className="mt-4">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
             <div
-              className="h-full bg-[#FDC020] transition-all"
+              className="h-full bg-[#F5B800] transition-all"
               style={{
                 width: `${Math.min(
                   100,
@@ -88,7 +88,7 @@ export function ActivePlanCard({
       <Button
         onClick={onContinue}
         disabled={submissionLock}
-        className="mt-4 w-full rounded-lg bg-[#FDC020] text-[#191919] hover:bg-[#e6a800] py-5 text-sm font-semibold disabled:opacity-60"
+        className="mt-4 w-full rounded-lg bg-[#F5B800] text-[#191919] hover:bg-[#e6a800] py-5 text-sm font-semibold disabled:opacity-60"
       >
         <CreditCard className="mr-2 h-4 w-4" />
         Continue paying installment

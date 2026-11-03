@@ -18,14 +18,14 @@ export function ProductHeader({ store, storeNameUpper, cartBadgeCount }: Props) 
           aria-label={`Back to ${store.name}`}
           className="flex shrink-0 items-center gap-2 transition-opacity hover:opacity-80"
         >
-          <span className="text-base font-bold tracking-tight text-[#FDC020]">
+          <span className="text-base font-bold tracking-tight text-[#F5B800]">
             {storeNameUpper}
           </span>
         </a>
 
         <a
           href={`/store/${store.slug}`}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition hover:border-[#FDC020] hover:text-[#FDC020]"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground/80 transition hover:border-[#F5B800] hover:text-[#F5B800]"
           aria-label={`Go to ${store.name}`}
         >
           <StoreIcon className="h-3.5 w-3.5" />

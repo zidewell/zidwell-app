@@ -180,7 +180,7 @@ function Toggle({
         disabled={disabled}
         className="sr-only peer"
       />
-      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#FDC020] transition-colors duration-200 relative">
+      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#F5B800] transition-colors duration-200 relative">
         <div
           className={cn(
             "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200",
@@ -1080,7 +1080,7 @@ export function StoreSettings() {
                         type="button"
                         onClick={openAddLocation}
                         disabled={saving || !storeId}
-                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#F5B800] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
                       >
                         <Plus className="size-4" />
                         Add Location
@@ -1119,7 +1119,7 @@ export function StoreSettings() {
                                   {loc.label}
                                 </span>
                                 {loc.is_default && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F5B800]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                                     <Star className="size-3" /> Default
                                   </span>
                                 )}
@@ -1259,7 +1259,7 @@ export function StoreSettings() {
             "inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-colors",
             saving || !isDirty
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#FDC020] text-black hover:bg-[#eab308]",
+              : "bg-[#F5B800] text-black hover:bg-[#eab308]",
           )}
         >
           {saving ? (
