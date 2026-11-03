@@ -201,6 +201,7 @@ export async function POST(req: NextRequest) {
           currency: "NGN",
           reference,
           callback_url: callbackUrl,
+          channels: ["card", "bank_transfer"],
           metadata: {
             type: "zidstore_subscription",
             user_id: dbUser.id,

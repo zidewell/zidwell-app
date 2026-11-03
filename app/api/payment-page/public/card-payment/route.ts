@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
         amountNaira: Number(amount),
         reference,
         callbackUrl: `${APP_URL}/api/payment-page/public/callback`,
+        channels: ["card", "bank_transfer"],
         metadata: {
           type: "payment_page",
           paymentMethod: "card",

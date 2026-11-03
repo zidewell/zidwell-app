@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
           currency: "NGN",
           reference,
           callback_url: `${BASE_URL}/dashboard/store/activation?status=success`,
+          channels: ["card", "bank_transfer"],
           metadata: {
             type: "store_activation",
             user_id: user.id,

@@ -308,6 +308,7 @@ export async function POST(req: NextRequest) {
         amountNaira: activationFee,
         reference,
         callbackUrl: `${baseUrl}/dashboard/store/activation?status=success`,
+       channels: ["card", "bank_transfer"], 
         metadata: {
           type: "store_activation",
           user_id: user.id,
