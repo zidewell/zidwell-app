@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import SessionTimeoutBanner from "./SessionTimeoutBanner";
 import {
@@ -26,6 +26,7 @@ const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/payment-page\/status/,
   /^\/payment\/callback/,
   /^\/payment-page-success/,
+  /^\/admin(\/.*)?$/, // ← Skip SessionWatcher on admin routes entirely
 ];
 
 const ACTIVITY_EVENTS = [
@@ -35,13 +36,15 @@ const ACTIVITY_EVENTS = [
   "pointerdown",
 ] as const;
 
+// Minimum ms between extend-session calls (prevents spam)
+const EXTEND_THROTTLE_MS = 30 * 1000;
+
 export default function SessionWatcher({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { userData, loading, handleSessionExpired } = useUserContextData();
 
   const sessionExpiredRef = useRef(false);
@@ -49,6 +52,7 @@ export default function SessionWatcher({
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const extendTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastExtendAtRef = useRef<number>(0); // ← throttle guard
   const logoutInProgress = useRef(false);
   const [isOnline, setIsOnline] = useState(true);
 
@@ -72,6 +76,23 @@ export default function SessionWatcher({
       !!userData && !isPublicRoute() && !loading && !logoutInProgress.current
     );
   }, [userData, isPublicRoute, loading]);
+
+  // ─── Throttled extend-session call ───
+  const throttledExtend = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastExtendAtRef.current < EXTEND_THROTTLE_MS) {
+      return; // too soon, skip
+    }
+    lastExtendAtRef.current = now;
+    try {
+      await fetch("/api/auth/extend-session", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Non-fatal.
+    }
+  }, []);
 
   // ─── Redirect to /auth/session-timeout ───
   const redirectToTimeout = useCallback(
@@ -175,19 +196,10 @@ export default function SessionWatcher({
     } catch {
       // ignore
     }
-
-    try {
-      await fetch("/api/auth/extend-session", {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      // Non-fatal.
-    }
-
+    await throttledExtend();
     stopWarningCountdown();
     scheduleExpiry(SESSION_TIMEOUT_MS);
-  }, [scheduleExpiry, stopWarningCountdown]);
+  }, [scheduleExpiry, stopWarningCountdown, throttledExtend]);
 
   const handleDismissWarning = useCallback(() => {
     setWarningDismissed(true);
@@ -211,23 +223,18 @@ export default function SessionWatcher({
 
     scheduleExpiry(SESSION_TIMEOUT_MS);
 
+    // Throttled extend (5s after activity, but throttled to 30s minimum)
     if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
     extendTimerRef.current = setTimeout(async () => {
       if (sessionExpiredRef.current) return;
-      try {
-        await fetch("/api/auth/extend-session", {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch {
-        // ignore
-      }
+      await throttledExtend();
     }, 5000);
   }, [
     canCheckSession,
     redirectToTimeout,
     scheduleExpiry,
     stopWarningCountdown,
+    throttledExtend,
   ]);
 
   // ─── Register activity listeners ───
@@ -241,26 +248,19 @@ export default function SessionWatcher({
     const elapsed = now - last;
     const remaining = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
 
-    // Fresh window from "now" — either continuing or starting over.
     sessionStorage.setItem("lastActivity", now.toString());
 
     if (remaining === 0) {
-      // Stale lastActivity — reset silently instead of expiring.
       scheduleExpiry(SESSION_TIMEOUT_MS);
     } else {
       scheduleExpiry(remaining);
     }
 
-    // ✅ Fire ONE immediate extend POST so the server's DB expiry
-    //    matches the client's fresh countdown. Without this, the
-    //    very first extend wouldn't happen until the user interacts,
-    //    and the DB expiry could lag behind the client timer.
-    void fetch("/api/auth/extend-session", {
-      method: "POST",
-      credentials: "include",
-    }).catch(() => {
-      // Non-fatal.
-    });
+    // ═══════════════════════════════════════════════════
+    // 🚨 REMOVED: immediate extend-session fetch on mount
+    // This was the primary Fast Refresh loop trigger.
+    // ═══════════════════════════════════════════════════
+    // void fetch("/api/auth/extend-session", { ... });
 
     ACTIVITY_EVENTS.forEach((evt) =>
       window.addEventListener(evt, onActivity, {
@@ -280,7 +280,7 @@ export default function SessionWatcher({
       }
       if (extendTimerRef.current) clearTimeout(extendTimerRef.current);
     };
-  }, [canCheckSession, onActivity, redirectToTimeout, scheduleExpiry]);
+  }, [canCheckSession, onActivity, scheduleExpiry]);
 
   // ─── Capture-phase interceptor ───
   useEffect(() => {
@@ -354,6 +354,13 @@ export default function SessionWatcher({
     if (SESSION_TIMEOUT_DISABLED) return;
     if (!canCheckSession()) return;
 
+    // ═══════════════════════════════════════════════════
+    // 🚨 DISABLED in dev to prevent Fast Refresh loop
+    // ═══════════════════════════════════════════════════
+    if (process.env.NODE_ENV === "development") {
+      return;
+    }
+
     const interval = setInterval(
       async () => {
         if (document.hidden) return;
@@ -382,7 +389,7 @@ export default function SessionWatcher({
           // Network error — do not log out.
         }
       },
-      2 * 60 * 1000,
+      5 * 60 * 1000, // ← increased from 2 min to 5 min
     );
 
     return () => clearInterval(interval);

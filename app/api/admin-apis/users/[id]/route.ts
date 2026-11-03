@@ -1,375 +1,631 @@
-import { createClient } from "@supabase/supabase-js";
+// app/api/admin-apis/users/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createAuditLog, getClientInfo } from "@/lib/audit-log";
+import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin-auth";
+import { createAuditLog, getClientInfo } from "@/lib/audit-log";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-// Improved helper function to extract admin user info from cookies
-async function getAdminUserInfo(cookieHeader: string) {
-  try {
-    if (!cookieHeader) {
-      console.error("No cookie header provided");
-      return null;
-    }
+// ─────────────────────────────────────────────────────────────
+// CACHE (2-min TTL)
+// ─────────────────────────────────────────────────────────────
+const adminUsersCache = new Map<string, { data: any; timestamp: number }>();
+const ADMIN_USERS_CACHE_TTL = 2 * 60 * 1000;
 
-    const cookies = cookieHeader
-      .split(";")
-      .reduce((acc: { [key: string]: string }, cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        if (name && value) {
-          acc[name] = decodeURIComponent(value);
-        }
-        return acc;
-      }, {});
-
-    const accessToken = cookies["sb-access-token"];
-
-    if (!accessToken) {
-      console.error("No access token found in cookies");
-      return null;
-    }
-
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(accessToken);
-
-    if (error || !user) {
-      console.error("Error getting admin user:", error);
-      return null;
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-    };
-  } catch (error) {
-    console.error("Error extracting admin user info:", error);
-    return null;
-  }
+function clearAdminUsersCache() {
+  const count = adminUsersCache.size;
+  adminUsersCache.clear();
+  if (count > 0) console.log(`🧹 Cleared users cache (${count} entries)`);
 }
 
-export async function GET(
-  req: NextRequest,
-  {
-    params,
-  }: {
-    params: Promise<{ id: string }>;
-  }
-) {
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+function buildCacheKey(params: Record<string, string>): string {
+  return Object.entries(params)
+    .sort()
+    .map(([k, v]) => `${k}=${v}`)
+    .join("&");
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET — list users with filters
+// ─────────────────────────────────────────────────────────────
+export async function GET(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
-    
+
     const allowedRoles = ["super_admin", "operations_admin", "support_admin"];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
-    const id = (await params).id;
 
-    console.log("🔍 Fetching user details for ID:", id);
+    const url = new URL(req.url);
 
-    const { data, error } = await supabaseAdmin
-      .from("users")
-      .select(
-        "id, email, first_name, last_name, wallet_balance, phone, admin_role, created_at, is_blocked, blocked_at, block_reason, last_login, last_logout"
-      )
-      .eq("id", id)
-      .single();
+    // ── Read ALL filter params ──
+    const page = Math.max(Number(url.searchParams.get("page") ?? 1), 1);
+    const limit = Math.min(
+      Math.max(Number(url.searchParams.get("limit") ?? 20), 1),
+      100,
+    );
+    const search = url.searchParams.get("search") ?? "";
+    const category = url.searchParams.get("category") ?? "all";
+    const roleFilter = url.searchParams.get("role") ?? "";
+    const statusFilter = url.searchParams.get("filter_status") ?? "";
+    const kycFilter = url.searchParams.get("kyc") ?? "";
+    const emailVerifiedFilter = url.searchParams.get("email_verified") ?? "";
+    const includeStats = url.searchParams.get("includeStats") === "true";
+    const nocache = url.searchParams.get("nocache") === "true";
 
-    if (error) {
-      console.error("❌ Error fetching user:", error);
-      return NextResponse.json({ error: error.message }, { status: 404 });
+    // ── Cache check ──
+    const cacheKey = buildCacheKey({
+      page: String(page),
+      limit: String(limit),
+      search,
+      category,
+      role: roleFilter,
+      filter_status: statusFilter,
+      kyc: kycFilter,
+      email_verified: emailVerifiedFilter,
+      includeStats: String(includeStats),
+    });
+
+    if (!nocache) {
+      const cached = adminUsersCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < ADMIN_USERS_CACHE_TTL) {
+        return NextResponse.json({ ...cached.data, _fromCache: true });
+      }
     }
 
-    console.log("✅ User fetched successfully:", data.email);
-    return NextResponse.json({ user: data });
-  } catch (error: any) {
-    console.error("User detail fetch error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // ── Build main query ──
+    // IMPORTANT: Whitelist columns — never select("*") on users (PII-heavy)
+    let query = supabaseAdmin
+      .from("users")
+      .select(
+        [
+          "id",
+          "email",
+          "full_name",
+          "first_name",
+          "last_name",
+          "phone",
+          "wallet_balance",
+          "zidcoin_balance",
+          "admin_role",
+          "bvn_verification",
+          "nin_verification",
+          "email_verified",
+          "is_blocked",
+          "blocked_at",
+          "block_reason",
+          "suspension_duration",
+          "is_flagged",
+          "flag_reason",
+          "flag_notes",
+          "flagged_at",
+          "wallet_frozen",
+          "wallet_freeze_reason",
+          "wallet_frozen_at",
+          "created_at",
+          "updated_at",
+          "last_login",
+          "last_logout",
+          "kyc_approved_at",
+          "kyc_rejected_at",
+          "referral_code",
+          "referred_by",
+          "referral_source",
+          "city",
+          "state",
+          "country",
+          "purpose",
+          "heard_from",
+        ].join(", "),
+        { count: "exact" },
+      );
+
+    // ── Apply CATEGORY filter (from KPI cards) ──
+    if (category === "verified") {
+      query = query.in("bvn_verification", ["verified", "approved"]);
+    } else if (category === "unverified") {
+      query = query.eq("email_verified", false);
+    } else if (category === "pending_kyc") {
+      query = query.in("bvn_verification", ["pending", "not_submitted"]);
+    }
+    // "all" → no filter
+
+    // ── Apply SEARCH ──
+    if (search) {
+      const cleaned = search.replace(/[%_]/g, "");
+      if (cleaned) {
+        query = query.or(
+          [
+            `email.ilike.%${cleaned}%`,
+            `full_name.ilike.%${cleaned}%`,
+            `first_name.ilike.%${cleaned}%`,
+            `last_name.ilike.%${cleaned}%`,
+            `phone.ilike.%${cleaned}%`,
+          ].join(","),
+        );
+      }
+    }
+
+    // ── Apply ROLE filter ──
+    if (roleFilter && roleFilter !== "all") {
+      if (roleFilter === "user") {
+        query = query.is("admin_role", null);
+      } else {
+        query = query.eq("admin_role", roleFilter);
+      }
+    }
+
+    // ── Apply STATUS filter (Active / Blocked) ──
+    if (statusFilter === "active") {
+      query = query.eq("is_blocked", false);
+    } else if (statusFilter === "blocked") {
+      query = query.eq("is_blocked", true);
+    }
+
+    // ── Apply KYC filter ──
+    if (kycFilter && kycFilter !== "all") {
+      if (kycFilter === "verified") {
+        query = query.in("bvn_verification", ["verified", "approved"]);
+      } else if (kycFilter === "pending") {
+        query = query.in("bvn_verification", ["pending", "not_submitted"]);
+      } else if (kycFilter === "rejected") {
+        query = query.eq("bvn_verification", "rejected");
+      } else {
+        query = query.eq("bvn_verification", kycFilter);
+      }
+    }
+
+    // ── Apply EMAIL VERIFIED filter ──
+    if (emailVerifiedFilter === "true") {
+      query = query.eq("email_verified", true);
+    } else if (emailVerifiedFilter === "false") {
+      query = query.eq("email_verified", false);
+    }
+
+    // ── Order + paginate ──
+    query = query.order("created_at", { ascending: false }).range(from, to);
+
+    const { data: users, error, count } = await query;
+
+    if (error) {
+      console.error("[users GET] query failed:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to fetch users" },
+        { status: 500 },
+      );
+    }
+
+    const total = count ?? 0;
+
+    // ── STATS — always from UNFILTERED totals so KPI cards stay stable ──
+    let stats: {
+      total: number;
+      verified: number;
+      unverified: number;
+      pendingKyc: number;
+      blocked: number;
+      flagged: number;
+      frozen: number;
+    } | undefined;
+
+    if (includeStats) {
+      const [
+        { count: totalCount },
+        { count: verifiedCount },
+        { count: unverifiedCount },
+        { count: pendingKycCount },
+        { count: blockedCount },
+        { count: flaggedCount },
+        { count: frozenCount },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true }),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .in("bvn_verification", ["verified", "approved"]),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .eq("email_verified", false),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .in("bvn_verification", ["pending", "not_submitted"]),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .eq("is_blocked", true),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .eq("is_flagged", true),
+        supabaseAdmin
+          .from("users")
+          .select("*", { count: "exact", head: true })
+          .eq("wallet_frozen", true),
+      ]);
+
+      stats = {
+        total: totalCount ?? 0,
+        verified: verifiedCount ?? 0,
+        unverified: unverifiedCount ?? 0,
+        pendingKyc: pendingKycCount ?? 0,
+        blocked: blockedCount ?? 0,
+        flagged: flaggedCount ?? 0,
+        frozen: frozenCount ?? 0,
+      };
+    }
+
+    // ── Build response ──
+    const responseData = {
+      users: users ?? [],
+      total,
+      page,
+      perPage: limit,
+      totalPages: Math.ceil(total / limit),
+      stats,
+      filters: {
+        search,
+        category,
+        role: roleFilter,
+        filter_status: statusFilter,
+        kyc: kycFilter,
+        email_verified: emailVerifiedFilter,
+      },
+    };
+
+    // ── Cache ──
+    adminUsersCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now(),
+    });
+
+    // ── Audit log (only for admin reads — logged once per filtered view) ──
+    try {
+      const clientInfo = getClientInfo(req.headers);
+      await createAuditLog({
+        userId: adminUser.id,
+        userEmail: adminUser.email,
+        action: "view_users_list",
+        resourceType: "User",
+        description: `Viewed users list (${total} results)`,
+        metadata: {
+          page,
+          limit,
+          filters: {
+            search,
+            category,
+            role: roleFilter,
+            status: statusFilter,
+            kyc: kycFilter,
+            email_verified: emailVerifiedFilter,
+          },
+          resultCount: users?.length ?? 0,
+          totalCount: total,
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent,
+      });
+    } catch (auditErr) {
+      // Never fail the request due to audit log
+      console.error("[users GET] audit log failed:", auditErr);
+    }
+
+    const response = NextResponse.json(responseData);
+
+    if (nocache) {
+      response.headers.set("Cache-Control", "no-store, max-age=0");
+    }
+
+    return response;
+  } catch (err: any) {
+    console.error("[users GET] error:", err);
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 },
+    );
   }
 }
 
-export async function PATCH(
-  req: NextRequest,
-  {
-    params,
-  }: {
-    params: Promise<{ id: string }>;
-  }
-) {
+// ─────────────────────────────────────────────────────────────
+// POST — create user (admin only)
+// ─────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
-    
+
     const allowedRoles = ["super_admin", "operations_admin"];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
-    
-    const clientInfo = getClientInfo(req.headers);
-    
-    // Check if admin is authenticated
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    const id = (await params).id;
 
+    const clientInfo = getClientInfo(req.headers);
     const body = await req.json();
 
-    console.log("🛠️ PATCH Request User ID:", id);
-    console.log("🛠️ PATCH Request Body:", body);
-    console.log("🛠️ Admin performing update:", adminUser.email);
-
-    // Get current user state for audit log - FIXED: removed role field
-    const { data: currentUser, error: fetchError } = await supabaseAdmin
-      .from("users")
-      .select(
-        "id, email, first_name, last_name, phone, admin_role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
-      )
-      .eq("id", id)
-      .single();
-
-    if (fetchError) {
-      // 🕵️ AUDIT LOG: Track update attempt on non-existent user
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_detail_update_failed",
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to update user ${id}: User not found`,
-        metadata: {
-          userId: id,
-          attemptedUpdates: body,
-          error: fetchError.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // ✅ Allow only safe fields to update
-    const allowedFields = ["first_name", "last_name", "phone"];
-    const updateData = Object.fromEntries(
-      Object.entries(body).filter(([key]) => allowedFields.includes(key))
-    );
-
-    if (Object.keys(updateData).length === 0) {
-      // 🕵️ AUDIT LOG: Track invalid update attempt
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_detail_update_invalid",
-        resourceType: "User",
-        resourceId: id,
-        description: `Attempted to update user ${id} with invalid fields`,
-        metadata: {
-          userId: id,
-          userEmail: currentUser.email,
-          attemptedFields: Object.keys(body),
-          allowedFields,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
+    // Validate
+    if (!body.email || !body.full_name) {
       return NextResponse.json(
-        { error: "No valid fields to update." },
-        { status: 400 }
+        { error: "Email and full name are required" },
+        { status: 400 },
       );
     }
 
-    console.log("📝 Update data after filtering:", updateData);
-
-    const { data, error } = await supabaseAdmin
+    // Check for existing user
+    const { data: existingUser } = await supabaseAdmin
       .from("users")
-      .update(updateData)
-      .eq("id", id)
+      .select("id, email")
+      .eq("email", body.email)
+      .maybeSingle();
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error: "A user with this email already exists",
+          existingUserId: existingUser.id,
+        },
+        { status: 409 },
+      );
+    }
+
+    // Create in auth
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email: body.email,
+        email_confirm: true,
+        password: body.password || undefined,
+        user_metadata: {
+          full_name: body.full_name,
+          first_name: body.first_name || body.full_name.split(" ")[0],
+          last_name:
+            body.last_name || body.full_name.split(" ").slice(1).join(" "),
+        },
+      });
+
+    if (authError || !authData.user) {
+      return NextResponse.json(
+        { error: authError?.message || "Failed to create auth user" },
+        { status: 500 },
+      );
+    }
+
+    // Create users row
+    const { data: newUser, error: insertError } = await supabaseAdmin
+      .from("users")
+      .insert({
+        id: authData.user.id,
+        email: body.email,
+        full_name: body.full_name,
+        first_name: body.first_name || body.full_name.split(" ")[0],
+        last_name:
+          body.last_name || body.full_name.split(" ").slice(1).join(" "),
+        phone: body.phone || "",
+        wallet_balance: 0,
+        zidcoin_balance: 0,
+        admin_role: body.admin_role || null,
+        bvn_verification: body.bvn_verification || "not_submitted",
+        email_verified: body.email_verified ?? true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       .select()
       .single();
 
-    if (error) {
-      console.error("❌ Error updating user:", error);
-
-      // 🕵️ AUDIT LOG: Track update failure
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_detail_update_failed",
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to update user ${id}: ${error.message}`,
-        metadata: {
-          userId: id,
-          userEmail: currentUser.email,
-          attemptedUpdates: updateData,
-          previousValues: currentUser,
-          error: error.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (insertError) {
+      // Rollback auth user
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json(
+        { error: insertError.message },
+        { status: 500 },
+      );
     }
 
-    const updatedUser = data;
-
-    // 🕵️ AUDIT LOG: Track successful user update
-    const changedFields = Object.keys(updateData);
-
+    // Audit
     await createAuditLog({
       userId: adminUser.id,
       userEmail: adminUser.email,
-      action: "update_user_detail",
+      action: "create_user",
       resourceType: "User",
-      resourceId: id,
-      description: `Updated user ${currentUser.email}: ${changedFields.join(
-        ", "
-      )}`,
+      resourceId: newUser.id,
+      description: `Created user: ${newUser.email}`,
       metadata: {
-        userId: id,
-        userEmail: currentUser.email,
-        changedFields,
-        previousValues: currentUser,
-        newValues: updatedUser,
-        updatedBy: adminUser.email,
+        newUserId: newUser.id,
+        email: newUser.email,
+        admin_role: newUser.admin_role,
+        performedBy: adminUser.email,
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
     });
 
-    // Special audit for admin_role changes - FIXED: using admin_role instead of role
-    if (updateData.admin_role && updateData.admin_role !== currentUser.admin_role) {
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "change_user_admin_role",
-        resourceType: "User",
-        resourceId: id,
-        description: `Changed user ${currentUser.email} admin role from ${currentUser.admin_role} to ${updateData.admin_role}`,
-        metadata: {
-          userId: id,
-          userEmail: currentUser.email,
-          previousAdminRole: currentUser.admin_role,
-          newAdminRole: updateData.admin_role,
-          changedBy: adminUser.email,
-          timestamp: new Date().toISOString(),
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
+    clearAdminUsersCache();
+
+    return NextResponse.json({
+      user: newUser,
+      message: "User created successfully",
+    });
+  } catch (err: any) {
+    console.error("[users POST] error:", err);
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// PATCH — update user
+// ─────────────────────────────────────────────────────────────
+export async function PATCH(req: NextRequest) {
+  try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 },
+      );
     }
 
-    // Special audit for profile information changes
-    if (updateData.first_name || updateData.last_name || updateData.phone) {
-      const profileChanges = [];
-      if (
-        updateData.first_name &&
-        updateData.first_name !== currentUser.first_name
-      ) {
-        profileChanges.push(
-          `first name: ${currentUser.first_name} → ${updateData.first_name}`
-        );
-      }
-      if (
-        updateData.last_name &&
-        updateData.last_name !== currentUser.last_name
-      ) {
-        profileChanges.push(
-          `last name: ${currentUser.last_name} → ${updateData.last_name}`
-        );
-      }
-      if (updateData.phone && updateData.phone !== currentUser.phone) {
-        profileChanges.push(
-          `phone: ${currentUser.phone} → ${updateData.phone}`
-        );
-      }
+    const clientInfo = getClientInfo(req.headers);
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("id");
+    const updates = await req.json();
 
-      if (profileChanges.length > 0) {
-        await createAuditLog({
-          userId: adminUser.id,
-          userEmail: adminUser.email,
-          action: "update_user_profile",
-          resourceType: "User",
-          resourceId: id,
-          description: `Updated profile information for user ${currentUser.email}`,
-          metadata: {
-            userId: id,
-            userEmail: currentUser.email,
-            profileChanges,
-            updatedBy: adminUser.email,
-          },
-          ipAddress: clientInfo.ipAddress,
-          userAgent: clientInfo.userAgent,
-        });
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: "Update data is required" },
+        { status: 400 },
+      );
+    }
+
+    // Whitelist editable fields
+    const allowedFields = [
+      "full_name",
+      "first_name",
+      "last_name",
+      "phone",
+      "email",
+      "admin_role",
+      "bvn_verification",
+      "email_verified",
+      "is_blocked",
+      "is_flagged",
+      "wallet_frozen",
+    ];
+
+    const filteredUpdates: Record<string, any> = {};
+    for (const key of allowedFields) {
+      if (key in updates) filteredUpdates[key] = updates[key];
+    }
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 },
+      );
+    }
+
+    // Check existing
+    const { data: existingUser, error: fetchError } = await supabaseAdmin
+      .from("users")
+      .select("id, email, admin_role")
+      .eq("id", userId)
+      .single();
+
+    if (fetchError || !existingUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prevent changing own admin_role
+    if (
+      userId === adminUser.id &&
+      filteredUpdates.admin_role !== undefined &&
+      filteredUpdates.admin_role !== existingUser.admin_role
+    ) {
+      return NextResponse.json(
+        { error: "Cannot modify your own admin role" },
+        { status: 400 },
+      );
+    }
+
+    // Check email uniqueness if changing
+    if (filteredUpdates.email && filteredUpdates.email !== existingUser.email) {
+      const { data: dup } = await supabaseAdmin
+        .from("users")
+        .select("id")
+        .eq("email", filteredUpdates.email)
+        .neq("id", userId)
+        .maybeSingle();
+
+      if (dup) {
+        return NextResponse.json(
+          { error: "Email already in use" },
+          { status: 409 },
+        );
       }
     }
 
-    console.log("✅ User updated successfully:", updatedUser.email);
+    // Apply update
+    const { data: updatedUser, error: updateError } = await supabaseAdmin
+      .from("users")
+      .update({
+        ...filteredUpdates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      return NextResponse.json(
+        { error: updateError.message },
+        { status: 500 },
+      );
+    }
+
+    // Audit
+    await createAuditLog({
+      userId: adminUser.id,
+      userEmail: adminUser.email,
+      action: "update_user",
+      resourceType: "User",
+      resourceId: userId,
+      description: `Updated user: ${existingUser.email}`,
+      metadata: {
+        updatedFields: Object.keys(filteredUpdates),
+        previous: existingUser,
+        new: updatedUser,
+        performedBy: adminUser.email,
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
+    clearAdminUsersCache();
 
     return NextResponse.json({
       user: updatedUser,
-      message: "✅ User updated successfully",
-      _admin: {
-        performedBy: adminUser.email,
-        performedAt: new Date().toISOString(),
-        auditLogged: true,
-      },
+      message: "User updated successfully",
     });
-  } catch (error: any) {
-    console.error("User detail update error:", error);
-
-    // 🕵️ AUDIT LOG: Track unexpected errors
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "user_detail_update_error",
-      resourceType: "User",
-      description: `Unexpected error during user detail update: ${error.message}`,
-      metadata: {
-        error: error.message,
-        stack: error.stack,
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent,
-    });
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    console.error("[users PATCH] error:", err);
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  {
-    params,
-  }: {
-    params: Promise<{ id: string }>;
-  }
-) {
+// ─────────────────────────────────────────────────────────────
+// DELETE — remove user
+// ─────────────────────────────────────────────────────────────
+export async function DELETE(req: NextRequest) {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
@@ -378,401 +634,78 @@ export async function DELETE(
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
+
     const clientInfo = getClientInfo(req.headers);
+    const url = new URL(req.url);
+    const userId = url.searchParams.get("id");
 
-    // Check if admin is authenticated
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    const id = (await params).id;
-
-    console.log("🗑️ DELETE Request User ID:", id);
-    console.log("🗑️ Admin performing deletion:", adminUser.email);
-
-    // Get user before deletion for audit log - FIXED: removed role field
-    const { data: user, error: fetchError } = await supabaseAdmin
-      .from("users")
-      .select(
-        "id, email, first_name, last_name, phone, admin_role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
-      )
-      .eq("id", id)
-      .single();
-
-    if (fetchError) {
-      // 🕵️ AUDIT LOG: Track deletion attempt on non-existent user
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_detail_delete_failed",
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to delete user ${id}: User not found`,
-        metadata: {
-          userId: id,
-          error: fetchError.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    // Prevent self-deletion
-    if (user.id === adminUser.id) {
-      // 🕵️ AUDIT LOG: Track self-deletion attempt
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_self_deletion_attempt",
-        resourceType: "User",
-        resourceId: id,
-        description: `Attempted to delete own admin account: ${user.email}`,
-        metadata: {
-          userId: id,
-          userEmail: user.email,
-          adminEmail: adminUser.email,
-          reason: "Self-deletion not allowed",
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
+    if (userId === adminUser.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.log("🗑️ Deleting user:", user.email);
-
-    const { error } = await supabaseAdmin.from("users").delete().eq("id", id);
-
-    if (error) {
-      console.error("❌ Error deleting user:", error);
-
-      // 🕵️ AUDIT LOG: Track deletion failure
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_detail_delete_failed",
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to delete user ${id}: ${error.message}`,
-        metadata: {
-          userId: id,
-          userEmail: user.email,
-          userAdminRole: user.admin_role, // FIXED: changed from userRole
-          walletBalance: user.wallet_balance,
-          error: error.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    // 🕵️ AUDIT LOG: Track successful user deletion
-    await createAuditLog({
-      userId: adminUser.id,
-      userEmail: adminUser.email,
-      action: "delete_user_detail",
-      resourceType: "User",
-      resourceId: id,
-      description: `Deleted user account: ${user.email}`,
-      metadata: {
-        userId: id,
-        userEmail: user.email,
-        userName: `${user.first_name} ${user.last_name}`,
-        userAdminRole: user.admin_role, // FIXED: changed from userRole
-        phone: user.phone,
-        walletBalance: user.wallet_balance,
-        accountCreated: user.created_at,
-        deletedBy: adminUser.email,
-        deletionTime: new Date().toISOString(),
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent,
-    });
-
-    console.log("✅ User deleted successfully:", user.email);
-
-    return NextResponse.json({
-      ok: true,
-      message: "✅ User deleted successfully",
-      _admin: {
-        performedBy: adminUser.email,
-        performedAt: new Date().toISOString(),
-        auditLogged: true,
-      },
-    });
-  } catch (error: any) {
-    console.error("User detail deletion error:", error);
-
-    // 🕵️ AUDIT LOG: Track unexpected errors
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "user_detail_delete_error",
-      resourceType: "User",
-      description: `Unexpected error during user detail deletion: ${error.message}`,
-      metadata: {
-        error: error.message,
-        stack: error.stack,
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent,
-    });
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function POST(
-  req: NextRequest,
-  {
-    params,
-  }: {
-    params: Promise<{ id: string }>;
-  }
-) {
-  try {
-    const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
-
-    const allowedRoles = ["super_admin", "operations_admin"];
-    if (!allowedRoles.includes(adminUser?.admin_role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
-    const clientInfo = getClientInfo(req.headers);
-
-    // Check if admin is authenticated
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-
-    const id = (await params).id;
-    const body = await req.json();
-    const { action, reason } = body;
-
-    console.log(`🛑 ${action?.toUpperCase()} Request for User ID:`, id);
-    console.log("📝 Reason:", reason);
-    console.log("🛠️ Admin performing action:", adminUser.email);
-
-    if (!action || !["block", "unblock"].includes(action)) {
-      return NextResponse.json(
-        { error: "Action must be 'block' or 'unblock'" },
-        { status: 400 }
-      );
-    }
-
-    // Get user details for audit log - FIXED: removed role field
     const { data: user, error: fetchError } = await supabaseAdmin
       .from("users")
-      .select(
-        "id, email, first_name, last_name, phone, admin_role, created_at, is_blocked, blocked_at, block_reason"
-      )
-      .eq("id", id)
+      .select("email")
+      .eq("id", userId)
       .single();
 
-    if (fetchError) {
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: `user_${action}_failed`,
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to ${action} user ${id}: User not found`,
-        metadata: {
-          userId: id,
-          action,
-          reason,
-          error: fetchError.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
+    if (fetchError || !user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prevent self-blocking
-    if (user.id === adminUser.id) {
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: "user_self_block_attempt",
-        resourceType: "User",
-        resourceId: id,
-        description: `Attempted to ${action} own admin account: ${user.email}`,
-        metadata: {
-          userId: id,
-          userEmail: user.email,
-          adminEmail: adminUser.email,
-          action,
-          reason: "Self-blocking not allowed",
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
+    // Delete from auth (cascades to users via FK)
+    const { error: authDeleteError } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
 
-      return NextResponse.json(
-        { error: `Cannot ${action} your own account` },
-        { status: 400 }
-      );
+    if (authDeleteError) {
+      // Fallback: delete from users directly
+      const { error: dbDeleteError } = await supabaseAdmin
+        .from("users")
+        .delete()
+        .eq("id", userId);
+
+      if (dbDeleteError) {
+        return NextResponse.json(
+          { error: dbDeleteError.message },
+          { status: 500 },
+        );
+      }
     }
 
-    // BLOCK/UNBLOCK USER IN SUPABASE AUTH
-    let authResult;
-    if (action === "block") {
-      // Block user in Supabase Auth
-      authResult = await supabaseAdmin.auth.admin.updateUserById(id, {
-        ban_duration: "87600h", // ~10 years (effectively permanent)
-      });
-    } else {
-      // Unblock user in Supabase Auth
-      authResult = await supabaseAdmin.auth.admin.updateUserById(id, {
-        ban_duration: undefined, // Remove ban
-      });
-    }
-
-    if (authResult.error) {
-      console.error(`❌ Error ${action}ing user in auth:`, authResult.error);
-
-      await createAuditLog({
-        userId: adminUser.id,
-        userEmail: adminUser.email,
-        action: `user_${action}_failed`,
-        resourceType: "User",
-        resourceId: id,
-        description: `Failed to ${action} user ${user.email} in auth: ${authResult.error.message}`,
-        metadata: {
-          userId: id,
-          userEmail: user.email,
-          action,
-          reason,
-          error: authResult.error.message,
-          attemptedBy: adminUser.email,
-        },
-        ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent,
-      });
-
-      return NextResponse.json(
-        { error: authResult.error.message },
-        { status: 500 }
-      );
-    }
-
-    // Update our database to track the block status - USING THE CORRECT COLUMNS
-    const updateData = {
-      is_blocked: action === "block",
-      blocked_at: action === "block" ? new Date().toISOString() : null,
-      block_reason: action === "block" ? reason : null,
-      updated_at: new Date().toISOString(),
-    };
-
-    console.log("📝 Update data for database:", updateData);
-
-    const { error: dbError } = await supabaseAdmin
-      .from("users")
-      .update(updateData)
-      .eq("id", id);
-
-    if (dbError) {
-      console.error(
-        "❌ Error updating user block status in database:",
-        dbError
-      );
-      // Don't return error here since auth block was successful
-    }
-
-    // 🕵️ AUDIT LOG: Track successful block/unblock
+    // Audit
     await createAuditLog({
       userId: adminUser.id,
       userEmail: adminUser.email,
-      action: action === "block" ? "block_user" : "unblock_user",
+      action: "delete_user",
       resourceType: "User",
-      resourceId: id,
-      description: `${action === "block" ? "Blocked" : "Unblocked"} user: ${
-        user.email
-      }${reason ? ` - Reason: ${reason}` : ""}`,
+      resourceId: userId,
+      description: `Deleted user: ${user.email}`,
       metadata: {
-        userId: id,
-        userEmail: user.email,
-        userName: `${user.first_name} ${user.last_name}`,
-        action,
-        reason,
-        blockedAt: action === "block" ? new Date().toISOString() : null,
+        deletedEmail: user.email,
         performedBy: adminUser.email,
-        authUserId: authResult.data?.user?.id || id,
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
     });
 
-    console.log(`✅ User ${action}ed successfully:`, user.email);
+    clearAdminUsersCache();
 
-    return NextResponse.json({
-      ok: true,
-      message: `✅ User ${action}ed successfully`,
-      user: {
-        id: user.id,
-        email: user.email,
-        is_blocked: action === "block",
-        blocked_at: updateData.blocked_at,
-        block_reason: updateData.block_reason,
-      },
-      _admin: {
-        performedBy: adminUser.email,
-        performedAt: new Date().toISOString(),
-        auditLogged: true,
-      },
-    });
-  } catch (error: any) {
-    console.error("User block/unblock error:", error);
-
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
-    const clientInfo = getClientInfo(req.headers);
-
-    await createAuditLog({
-      userId: adminUser?.id,
-      userEmail: adminUser?.email,
-      action: "user_block_error",
-      resourceType: "User",
-      description: `Unexpected error during user block/unblock: ${error.message}`,
-      metadata: {
-        error: error.message,
-        stack: error.stack,
-      },
-      ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent,
-    });
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ message: "User deleted successfully" });
+  } catch (err: any) {
+    console.error("[users DELETE] error:", err);
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 },
+    );
   }
 }
