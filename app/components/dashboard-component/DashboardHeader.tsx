@@ -2,8 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { useUserContextData } from "@/app/context/userData";
 import NotificationBell from "../NotificationBell";
@@ -17,10 +16,8 @@ interface DashboardHeaderProps {
 const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const { userData, setUserData, handleSessionExpired } = useUserContextData();
-  const logoutInProgress = useRef(false);
+  const { userData, handleSessionExpired } = useUserContextData();
 
   // Handle scroll effect for sticky header
   useEffect(() => {
@@ -31,8 +28,9 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // ⭐ Single logout function across the app
   const handleLogout = async () => {
-    if (logoutInProgress.current || isLoggingOut) return;
+    if (isLoggingOut) return;
 
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -48,7 +46,6 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
 
     if (!result.isConfirmed) return;
 
-    logoutInProgress.current = true;
     setIsLoggingOut(true);
 
     Swal.fire({
@@ -61,12 +58,13 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
     });
 
     try {
-      await handleSessionExpired();
+      // Single source of truth — clears localStorage/sessionStorage/cookies,
+      // resets context, busts caches, and redirects.
+      await handleSessionExpired("/auth/login");
 
       Swal.close();
-      logoutInProgress.current = false;
-      setIsLoggingOut(false);
 
+      // Toast is a nicety; the redirect may already be in flight.
       setTimeout(() => {
         Swal.fire({
           icon: "success",
@@ -89,8 +87,7 @@ const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
         text: "Please try again",
         confirmButtonColor: "var(--color-accent-yellow)",
       });
-
-      logoutInProgress.current = false;
+    } finally {
       setIsLoggingOut(false);
     }
   };

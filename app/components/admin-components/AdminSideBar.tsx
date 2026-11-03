@@ -1,4 +1,3 @@
-// app/components/admin-components/AdminSideBar.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -20,6 +19,7 @@ import {
   TrendingUp,
   Shield,
 } from 'lucide-react'
+import { useUserContextData } from '@/app/context/userData'
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,7 +35,9 @@ const navItems = [
 export default function AdminSidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const { handleSessionExpired } = useUserContextData()
   const [isOpen, setIsOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -44,6 +46,19 @@ export default function AdminSidebar() {
 
   const toggleSidebar = () => setIsOpen(!isOpen)
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
+
+  // ⭐ Single logout function across the app
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    try {
+      // Admins go to their own login page.
+      await handleSessionExpired('/auth/admin-login')
+    } finally {
+      // Component will unmount on redirect; this is just a safety net.
+      setIsLoggingOut(false)
+    }
+  }
 
   if (!mounted) return null
 
@@ -130,12 +145,16 @@ export default function AdminSidebar() {
             </span>
           </button>
 
-          {/* Logout */}
+          {/* ⭐ Logout — now wired up */}
           <button
-            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-(--text-secondary) hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 transition-all duration-300 group"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-(--text-secondary) hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <LogOut className="w-5 h-5 transition-transform group-hover:rotate-12" />
-            <span className="text-sm font-medium group-hover:translate-x-0.5 transition-transform">Sign Out</span>
+            <span className="text-sm font-medium group-hover:translate-x-0.5 transition-transform">
+              {isLoggingOut ? 'Signing out…' : 'Sign Out'}
+            </span>
           </button>
         </div>
       </aside>

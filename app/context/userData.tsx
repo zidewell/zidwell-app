@@ -269,7 +269,7 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   custom_financial_structure: "console",
   dedicated_account_manager: "console",
 };
-// Tier hierarchy (lowest to highest)
+
 const TIER_HIERARCHY: SubscriptionTier[] = [
   "free",
   "starter",
@@ -363,7 +363,6 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
   },
 };
 
-// Upgrade benefits mapping
 const UPGRADE_BENEFITS: Record<string, string[]> = {
   free_to_starter: [
     "Unlimited invoices & receipts",
@@ -436,7 +435,11 @@ const UPGRADE_BENEFITS: Record<string, string[]> = {
     "Custom pricing",
   ],
 };
-// ─── Cookie / storage helpers ───
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Cookie / storage helpers — LOGOUT SINGLE SOURCE OF TRUTH
+// ═══════════════════════════════════════════════════════════════════════════
+
 const CLIENT_CLEARABLE_COOKIES = [
   "sb-client-session",
   "sb-login-time",
@@ -444,6 +447,15 @@ const CLIENT_CLEARABLE_COOKIES = [
   "sb-user-data",
   "payment_processed",
 ];
+
+/**
+ * Keys we want to PRESERVE across logout.
+ * A deny-list is safer than an allow-list because it guarantees every
+ * current *and future* app key is wiped on logout automatically.
+ */
+const PRESERVED_LOCAL_KEYS = new Set<string>([
+  "theme", // user's light/dark preference — not auth data
+]);
 
 function clearClientCookies() {
   if (typeof document === "undefined") return;
@@ -457,15 +469,44 @@ function clearClientCookies() {
 function clearClientStorage() {
   if (typeof window === "undefined") return;
 
+  // ── localStorage: clear EVERYTHING except preserved UX prefs ──
   try {
-    localStorage.removeItem("userData");
-    localStorage.removeItem("zidwell_store_data");
-    localStorage.removeItem("zidwell_store_timestamp");
-    sessionStorage.removeItem("userData");
-    sessionStorage.removeItem("pendingStoreCheckout");
-    localStorage.removeItem("pendingStoreCheckout");
+    const preserved: Record<string, string> = {};
+    PRESERVED_LOCAL_KEYS.forEach((k) => {
+      const v = localStorage.getItem(k);
+      if (v !== null) preserved[k] = v;
+    });
+
+    localStorage.clear();
+
+    Object.entries(preserved).forEach(([k, v]) => {
+      localStorage.setItem(k, v);
+    });
   } catch (e) {
-    console.error("Failed to clear storage:", e);
+    console.error("Failed to clear localStorage:", e);
+  }
+
+  // ── sessionStorage: clear entirely ──
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    console.error("Failed to clear sessionStorage:", e);
+  }
+
+  // ── IndexedDB: drop any app-owned DBs (best-effort) ──
+  if (typeof indexedDB !== "undefined") {
+    try {
+      indexedDB
+        .databases?.()
+        .then((dbs) => {
+          dbs.forEach((db) => {
+            if (db.name) indexedDB.deleteDatabase(db.name);
+          });
+        })
+        .catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
   }
 }
 
@@ -520,23 +561,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
-  // ─── Centralized, idempotent session-expiration handler ───
+  // ─── ⭐ THE ONE AND ONLY LOGOUT FUNCTION ⭐ ───
   const handleSessionExpired = useCallback(
     async (redirectTo: string = "/auth/login") => {
       if (sessionExpiredRef.current) return;
       sessionExpiredRef.current = true;
-  
+
+      // 1. Ask the server to invalidate the session cookie.
+      //    Fire-and-forget — even if the network fails, we still clear client state.
       try {
         await fetch("/api/logout", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-        }).catch(() => {});
-      } catch {}
-  
+        });
+      } catch {
+        /* non-fatal */
+      }
+
+      // 2. Wipe client-side auth artifacts.
       clearClientCookies();
       clearClientStorage();
-   sessionStorage.removeItem("lastActivity");
+
+      // 3. Reset all in-memory state.
       setUser(null);
       setUserData(null);
       setShouldFetchData(false);
@@ -547,18 +594,24 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setTotalOutflow(0);
       setTotalTransactions(0);
       setSubscription(null);
+      setSearchTerm("");
+
+      // 4. Bust caches.
       subscriptionCache.clear();
       notificationCache.clear();
-  
+
+      // 5. Navigate away (replace so back-button can't return to a protected page).
       router.replace(redirectTo);
-  
+
+      // 6. Release the guard after the redirect settles.
       setTimeout(() => {
         sessionExpiredRef.current = false;
       }, 2000);
     },
     [router],
   );
-  // ─── Restore session from cookies (via /api/me) ───
+
+  // ─── Restore session from cookies (via /api/user/me) ───
   const restoreSessionFromCookies = useCallback(async () => {
     try {
       const response = await fetch("/api/user/me", {
@@ -573,9 +626,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // 401 here does NOT mean the user is logged out — it means the
-      // server couldn't validate the token *this time*. The proxy refreshes
-      // tokens on the next navigation. Do NOT clear localStorage here.
       if (response.status === 401) {
         console.warn(
           "⚠️ /api/me returned 401 — keeping cached data, will retry",
@@ -583,7 +633,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
 
-      // Other statuses (500, 503) — also do not log out.
       console.warn(
         "⚠️ /api/me returned",
         response.status,
@@ -599,7 +648,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ─── Refresh user profile (re-uses /api/me + localStorage cache) ───
+  // ─── Refresh user profile ───
   const refreshUserProfile = useCallback(async () => {
     if (!userData?.id) return;
 
@@ -622,13 +671,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             /* quota — non-fatal */
           }
 
-          // Bust subscription cache so tier flips are picked up
           subscriptionCache.delete(`subscription_${fresh.id}`);
         }
         return;
       }
 
-      // 401 / transient failure → keep cached data, do NOT log out
       if (response.status === 401) {
         console.warn("⚠️ refreshUserProfile got 401 — keeping cached data");
         return;
@@ -641,14 +688,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       );
     } catch (error) {
       console.error("refreshUserProfile network error:", error);
-      // swallow — UI stays on cached data
     }
   }, [userData?.id]);
 
   // ─── Initialize user — runs exactly ONCE on mount ───
   const initializeUser = useCallback(async () => {
     try {
-      // 1. Read cached user (display only — not auth proof)
       const storedUser =
         typeof window !== "undefined"
           ? localStorage.getItem("userData")
@@ -659,20 +704,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         try {
           cached = JSON.parse(storedUser);
         } catch (e) {
-          // Only remove if the stored JSON is actually corrupt
           console.error("Corrupt userData in localStorage — removing");
           localStorage.removeItem("userData");
         }
       }
 
-      // 2. Optimistically hydrate from cache so the UI doesn't flash
       if (cached && cached.id) {
         setUser(cached);
         setUserData(cached);
         setShouldFetchData(!isPublicPage());
       }
 
-      // 3. Verify with the server
       const verified = await restoreSessionFromCookies();
 
       if (verified) {
@@ -685,25 +727,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
         setShouldFetchData(!isPublicPage());
       } else if (!cached || !cached.id) {
-        // No cached user AND no verified user → user is genuinely not logged in.
         setUser(null);
         setUserData(null);
         setShouldFetchData(false);
       }
-      // If we HAD a cached user and /api/me failed transiently,
-      // keep the cached user in state. The proxy will sort out auth.
     } catch (error) {
       console.error("initializeUser threw:", error);
-      // Never wipe localStorage from here.
     } finally {
       setLoading(false);
       setInitialCheckDone(true);
       setSessionRestored(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // ← intentionally empty: runs once on mount
+  }, []);
 
-  // Run initialization on mount — once only
   useEffect(() => {
     initializeUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -739,8 +776,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // ─── React to pathname / auth state changes ───
-  // NOTE: isPublicPage is intentionally omitted from deps — it's recreated
-  // on every pathname change and would cause this effect to over-fire.
   useEffect(() => {
     if (!initialCheckDone) return;
 
@@ -766,7 +801,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     notificationCache.clear();
   }, []);
 
-  // ⚠️ NOTIFICATIONS API CALLS COMMENTED OUT ⚠️
+  // ⚠️ NOTIFICATIONS API CALLS DISABLED ⚠️
   const fetchNotifications = useCallback(
     async (filter: string = "all", limit: number = 50) => {
       console.log(
@@ -822,8 +857,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         },
       });
 
-      // 401 → proxy will handle it on the next navigation.
-      // Do NOT trigger logout from here — it races the proxy's refresh.
       if (response.status === 401) {
         return;
       }
@@ -1101,7 +1134,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (res.status === 401) {
-          // proxy will handle on next navigation
           return;
         }
 
@@ -1149,7 +1181,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (res.status === 401) {
-          // proxy will handle on next navigation
           return;
         }
 
