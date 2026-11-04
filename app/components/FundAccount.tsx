@@ -7,6 +7,7 @@ import { useUserContextData } from "../context/userData";
 import { CopyIcon, Eye, EyeOff, Landmark, Wallet, X } from "lucide-react";
 import TransactionHistory from "./transaction-history";
 import { Input } from "./ui/input";
+import posthog from "posthog-js";
 
 export default function FundAccountMethods() {
   const [copyText, setCopyText] = useState(false);
@@ -113,6 +114,10 @@ export default function FundAccountMethods() {
     const data = await res.json();
     setLoading(false);
     if (data.paymentUrl) {
+      posthog.capture("wallet_deposit_checkout_started", {
+        amount: Number(amount),
+        payment_method: "debit_card",
+      });
       window.location.href = data.paymentUrl;
     } else {
       alert(data.error);
