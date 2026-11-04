@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import posthog from "posthog-js";
 import { Badge } from "../ui/badge";
 import { GenerateReceiptModal } from "./GenerateReceiptModal";
 import { ReceiptPreview } from "../previews/RecieptPreview";
@@ -1104,6 +1105,13 @@ function CreateReceiptPage({
       const result = await handleSaveReceipt(false);
 
       if (result.success) {
+        posthog.capture("receipt_created", {
+          receipt_type: receiptType,
+          payment_method: paymentMethod,
+          item_count: items.length,
+          total_amount: calculateTotal(),
+          sends_email_automatically: sendEmailAutomatically,
+        });
         setGeneratedSigningLink(result.signingLink || "");
         setSavedReceiptId(result.receiptId || "");
 

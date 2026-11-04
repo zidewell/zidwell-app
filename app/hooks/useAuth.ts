@@ -3,6 +3,7 @@
 import { useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserContextData } from '@/app/context/userData';
+import posthog from 'posthog-js';
 
 export function useAuth() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export function useAuth() {
     logoutInProgress.current = true;
 
     try {
+      posthog.reset();
+
       // Call logout API to clear cookies
       await fetch('/api/logout', { method: 'POST' });
 
