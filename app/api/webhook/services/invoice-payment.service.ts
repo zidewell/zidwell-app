@@ -2,7 +2,10 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { sendPaymentSuccessEmail } from "@/lib/invoice-email-confirmation";
-import { sendInvoiceCreatorNotificationEmail, sendVirtualAccountDepositEmail } from "../helpers/email-helpers";
+import {
+  sendInvoiceCreatorNotificationEmail,
+  sendVirtualAccountDepositEmail,
+} from "../helpers/email-helpers";
 import { updateInvoiceTotals } from "../helpers/invoice-helpers";
 import { sendTransactionReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 
@@ -43,7 +46,9 @@ function extractInvoiceReference(narration: string): string | null {
   for (const pattern of patterns) {
     const match = narration.match(pattern);
     if (match) {
-      console.log(`✅ Extracted invoice reference: ${match[0]} from pattern ${pattern}`);
+      console.log(
+        `✅ Extracted invoice reference: ${match[0]} from pattern ${pattern}`,
+      );
       return match[0];
     }
   }
@@ -53,8 +58,6 @@ function extractInvoiceReference(narration: string): string | null {
 
 // ============================================================
 // HELPER: Credit a user's wallet with full audit trail
-// Uses mutate_wallet_balance which writes balance_before/after
-// and merges metadata onto the transaction row.
 // ============================================================
 async function creditWalletWithAudit(
   userId: string,
@@ -80,13 +83,12 @@ async function creditWalletWithAudit(
       p_amount: amount,
       p_transaction_id: txRow.id,
       p_reason: reason,
-    }
+    },
   );
 
   if (creditError) {
     console.error("❌ mutate_wallet_balance failed:", creditError);
 
-    // Fallback — direct update + manual audit
     const { data: user } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -121,13 +123,33 @@ async function creditWalletWithAudit(
     return { newBalance: null, error: creditError };
   }
 
+  // ✅ Insurance: fill if RPC version drift left them NULL
+  const { data: fresh } = await supabase
+    .from("users")
+    .select("wallet_balance")
+    .eq("id", userId)
+    .single();
+
+  if (fresh) {
+    const after = Number(fresh.wallet_balance);
+    const before = after - amount;
+    await supabase
+      .from("transactions")
+      .update({ balance_before: before, balance_after: after })
+      .eq("id", txRow.id)
+      .is("balance_after", null);
+  }
+
   return { newBalance, error: null };
 }
 
 // ============================================================
 // CARD / PAYMENT PAGE INVOICE PAYMENT
 // ============================================================
-export async function processInvoicePayment(payload: any, params: InvoicePaymentParams) {
+export async function processInvoicePayment(
+  payload: any,
+  params: InvoicePaymentParams,
+) {
   const {
     nombaTransactionId,
     transactionAmount,
@@ -172,11 +194,12 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
   }
 
   const orderData = payload.data?.order || {};
-  const customerEmail = orderData.customerEmail || customer.email || invoice.client_email;
-  const customerName = orderData.customerName || customer.name || invoice.client_name || "Customer";
+  const customerEmail =
+    orderData.customerEmail || customer.email || invoice.client_email;
+  const customerName =
+    orderData.customerName || customer.name || invoice.client_name || "Customer";
   const netAmount = transactionAmount - nombaFee;
 
-  // ── 1. Payment record ──
   const { error: paymentError } = await supabase
     .from("invoice_payments")
     .insert({
@@ -200,7 +223,6 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     return { error: "Payment record failed" };
   }
 
-  // ── 2. Transaction record with metadata ──
   const txReference = `INV-${invoice.invoice_id}-${nombaTransactionId}`;
 
   const txMetadata = {
@@ -239,7 +261,6 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     },
   });
 
-  // ── 3. Credit wallet with audit trail ──
   const { newBalance, error: creditError } = await creditWalletWithAudit(
     invoice.user_id,
     netAmount,
@@ -250,13 +271,13 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
   if (creditError) {
     console.error("Failed to credit wallet:", creditError);
   } else {
-    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to user ${invoice.user_id}. New balance: ₦${newBalance}`);
+    console.log(
+      `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to user ${invoice.user_id}. New balance: ₦${newBalance}`,
+    );
   }
 
-  // ── 4. Update invoice totals ──
   await updateInvoiceTotals(invoice, transactionAmount);
 
-  // ── 5. Emails ──
   if (customerEmail) {
     sendPaymentSuccessEmail(
       customerEmail,
@@ -267,20 +288,15 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
     ).catch(console.error);
   }
 
-  await sendTransactionReceiptWithPDF(
-    customerEmail,
-    customerName,
-    invoice,
-    {
-      amount: transactionAmount,
-      nombaFee,
-      netAmount,
-      transactionId: nombaTransactionId,
-      paymentMethod: "card_payment",
-      paidAt: new Date().toISOString(),
-      narration: tx.narration,
-    }
-  );
+  await sendTransactionReceiptWithPDF(customerEmail, customerName, invoice, {
+    amount: transactionAmount,
+    nombaFee,
+    netAmount,
+    transactionId: nombaTransactionId,
+    paymentMethod: "card_payment",
+    paidAt: new Date().toISOString(),
+    narration: tx.narration,
+  });
 
   const { data: creator } = await supabase
     .from("users")
@@ -305,7 +321,10 @@ export async function processInvoicePayment(payload: any, params: InvoicePayment
 // ============================================================
 // VIRTUAL ACCOUNT INVOICE PAYMENT
 // ============================================================
-export async function processVirtualAccountInvoicePayment(payload: any, params: VirtualAccountInvoiceParams) {
+export async function processVirtualAccountInvoicePayment(
+  payload: any,
+  params: VirtualAccountInvoiceParams,
+) {
   const {
     aliasAccountReference,
     nombaTransactionId,
@@ -340,7 +359,7 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     return { error: "No invoice reference found" };
   }
 
-  const normalizedRef = extractedInvoiceRef.replace(/[_-]/g, '').toUpperCase();
+  const normalizedRef = extractedInvoiceRef.replace(/[_-]/g, "").toUpperCase();
   console.log("🔍 Normalized reference:", normalizedRef);
 
   let invoice = null;
@@ -365,8 +384,10 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
       .ilike("invoice_id", "INV%");
 
     if (allInvoices && allInvoices.length > 0) {
-      invoice = allInvoices.find(inv => {
-        const normalizedInvoiceId = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
+      invoice = allInvoices.find((inv) => {
+        const normalizedInvoiceId = inv.invoice_id
+          .replace(/[_-]/g, "")
+          .toUpperCase();
         return normalizedInvoiceId === normalizedRef;
       });
 
@@ -380,13 +401,13 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   if (!invoice) {
     const variations = [
       extractedInvoiceRef,
-      extractedInvoiceRef.replace(/^INV/, 'INV_'),
-      extractedInvoiceRef.replace(/^INV/, 'INV-'),
-      extractedInvoiceRef.replace(/_/g, ''),
-      extractedInvoiceRef.replace(/-/g, ''),
-      `INV${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
-      `INV_${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
-      `INV-${extractedInvoiceRef.replace(/^INV[_-]?/, '')}`,
+      extractedInvoiceRef.replace(/^INV/, "INV_"),
+      extractedInvoiceRef.replace(/^INV/, "INV-"),
+      extractedInvoiceRef.replace(/_/g, ""),
+      extractedInvoiceRef.replace(/-/g, ""),
+      `INV${extractedInvoiceRef.replace(/^INV[_-]?/, "")}`,
+      `INV_${extractedInvoiceRef.replace(/^INV[_-]?/, "")}`,
+      `INV-${extractedInvoiceRef.replace(/^INV[_-]?/, "")}`,
     ];
 
     const uniqueVariations = [...new Set(variations)];
@@ -415,8 +436,13 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
 
     if (allInvoices && allInvoices.length > 0) {
       for (const inv of allInvoices) {
-        const invoiceIdPattern = inv.invoice_id.replace(/[_-]/g, '').toUpperCase();
-        if (normalizedRef.includes(invoiceIdPattern) || invoiceIdPattern.includes(normalizedRef)) {
+        const invoiceIdPattern = inv.invoice_id
+          .replace(/[_-]/g, "")
+          .toUpperCase();
+        if (
+          normalizedRef.includes(invoiceIdPattern) ||
+          invoiceIdPattern.includes(normalizedRef)
+        ) {
           invoice = inv;
           console.log("✅ Found invoice by pattern search:", invoice.invoice_id);
           break;
@@ -451,7 +477,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   const customerEmail = customer.email || invoice.client_email;
   const customerName = senderName;
 
-  // ── 1. Payment record ──
   const { error: paymentError } = await supabase
     .from("invoice_payments")
     .insert({
@@ -492,7 +517,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   const creditUserId = invoice.user_id;
   const isCrossUser = invoice.user_id !== userId;
 
-  // ── 2. Transaction with metadata ──
   const txReference = `VA-INV-${invoice.invoice_id}-${nombaTransactionId}`;
 
   const txMetadata = {
@@ -547,7 +571,6 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
     },
   });
 
-  // ── 3. Credit wallet with audit ──
   const { newBalance, error: creditError } = await creditWalletWithAudit(
     creditUserId,
     netAmount,
@@ -558,28 +581,23 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
   if (creditError) {
     console.error("❌ Failed to credit invoice owner:", creditError);
   } else {
-    console.log(`✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}. New balance: ₦${newBalance}`);
+    console.log(
+      `✅ Credited ₦${netAmount} (after ₦${nombaFee} fee) to invoice owner ${creditUserId}. New balance: ₦${newBalance}`,
+    );
   }
 
-  // ── 4. Update invoice totals ──
   await updateInvoiceTotals(invoice, transactionAmount);
 
-  // ── 5. Emails ──
   if (customerEmail) {
-    await sendTransactionReceiptWithPDF(
-      customerEmail,
-      senderName,
-      invoice,
-      {
-        amount: transactionAmount,
-        nombaFee,
-        netAmount,
-        transactionId: nombaTransactionId,
-        paymentMethod: "virtual_account",
-        paidAt: new Date().toISOString(),
-        narration,
-      }
-    );
+    await sendTransactionReceiptWithPDF(customerEmail, senderName, invoice, {
+      amount: transactionAmount,
+      nombaFee,
+      netAmount,
+      transactionId: nombaTransactionId,
+      paymentMethod: "virtual_account",
+      paidAt: new Date().toISOString(),
+      narration,
+    });
   }
 
   const { data: creator } = await supabase
@@ -607,9 +625,16 @@ export async function processVirtualAccountInvoicePayment(payload: any, params: 
       .single();
 
     if (depositorError || !depositorUser) {
-      console.error("❌ Cannot find depositor user for ID:", userId, depositorError);
+      console.error(
+        "❌ Cannot find depositor user for ID:",
+        userId,
+        depositorError,
+      );
     } else {
-      console.log("✅ Found depositor user, sending email to:", depositorUser.email);
+      console.log(
+        "✅ Found depositor user, sending email to:",
+        depositorUser.email,
+      );
       await sendVirtualAccountDepositEmail(
         depositorUser.id,
         transactionAmount,

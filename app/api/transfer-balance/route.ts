@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json(
       { error: "Please login to access transactions", logout: true },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
   const supabase = createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   try {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       console.error(`User ID mismatch: ${userId} vs ${user.id}`);
       return NextResponse.json(
         { error: "Unauthorized: User ID mismatch" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -70,15 +70,14 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "Missing or invalid required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ─── Fetch user ───
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select(
-        "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name, account_tier, custom_outflow_percent, custom_outflow_min"
+        "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name, account_tier, custom_outflow_percent, custom_outflow_min",
       )
       .eq("id", userId)
       .single();
@@ -87,14 +86,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // ─── PIN lock check ───
     if (
       userData.pin_locked_until &&
       new Date(userData.pin_locked_until) > new Date()
     ) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil(
-        (lockedUntil.getTime() - Date.now()) / 60000
+        (lockedUntil.getTime() - Date.now()) / 60000,
       );
 
       const response = NextResponse.json(
@@ -103,14 +101,13 @@ export async function POST(req: NextRequest) {
           locked: true,
           lockedUntil: userData.pin_locked_until,
         },
-        { status: 401 }
+        { status: 401 },
       );
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ─── PIN validation ───
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
 
@@ -141,7 +138,7 @@ export async function POST(req: NextRequest) {
           userData.email,
           updateData.pin_reset_token,
           userId,
-          userName
+          userName,
         );
 
         const response = NextResponse.json(
@@ -151,7 +148,7 @@ export async function POST(req: NextRequest) {
             remainingAttempts: 0,
             resetEmailSent: true,
           },
-          { status: 401 }
+          { status: 401 },
         );
 
         if (newTokens)
@@ -168,14 +165,13 @@ export async function POST(req: NextRequest) {
           remainingAttempts,
           attempts: newAttempts,
         },
-        { status: 401 }
+        { status: 401 },
       );
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ✅ PIN valid — reset attempts
     await supabase
       .from("users")
       .update({
@@ -186,11 +182,8 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", userId);
 
-    // ───────────────────────────────────────────────────────────
-    // TIER + LIMIT CHECK
-    // ───────────────────────────────────────────────────────────
     const tier: AccountTier =
-      ((userData.account_tier as AccountTier) || "tier_3");
+      (userData.account_tier as AccountTier) || "tier_3";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -207,7 +200,7 @@ export async function POST(req: NextRequest) {
       console.error("❌ Failed to fetch today's transactions:", todayError);
       const response = NextResponse.json(
         { message: "Could not verify daily transfer limit. Please try again." },
-        { status: 500 }
+        { status: 500 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
@@ -215,18 +208,18 @@ export async function POST(req: NextRequest) {
 
     const dailyTotalSoFar = (todayTx || []).reduce(
       (sum, t) => sum + Number(t.amount || 0),
-      0
+      0,
     );
 
     const limitCheck = checkTransferLimits(
       Number(amount),
       tier,
-      dailyTotalSoFar
+      dailyTotalSoFar,
     );
 
     if (!limitCheck.allowed) {
       console.log(
-        `🚫 Limit exceeded for user ${userId} (${tier}): ${limitCheck.reason}`
+        `🚫 Limit exceeded for user ${userId} (${tier}): ${limitCheck.reason}`,
       );
       const response = NextResponse.json(
         {
@@ -238,15 +231,12 @@ export async function POST(req: NextRequest) {
           dailyUsed: limitCheck.dailyUsed,
           dailyRemaining: limitCheck.dailyRemaining,
         },
-        { status: 400 }
+        { status: 400 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ───────────────────────────────────────────────────────────
-    // SERVER-SIDE FEE CALCULATION (with custom overrides)
-    // ───────────────────────────────────────────────────────────
     const feeResult = calculateFees(
       Number(amount),
       "transfer",
@@ -256,7 +246,7 @@ export async function POST(req: NextRequest) {
       {
         custom_outflow_percent: userData.custom_outflow_percent,
         custom_outflow_min: userData.custom_outflow_min,
-      }
+      },
     );
 
     const serverFee = feeResult.totalFee;
@@ -267,10 +257,9 @@ export async function POST(req: NextRequest) {
         feeResult.usedCustomRate ? " + custom rate" : ""
       }): amount=₦${amount}, fee=₦${serverFee}, total=₦${totalDeduction} [${
         feeResult.feeLabel
-      }]`
+      }]`,
     );
 
-    // ─── Balance check ───
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         {
@@ -279,18 +268,17 @@ export async function POST(req: NextRequest) {
           required: totalDeduction,
           fee: serverFee,
         },
-        { status: 400 }
+        { status: 400 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ─── Nomba token ───
     const token = await getNombaToken();
     if (!token) {
       const response = NextResponse.json(
         { message: "Unable to process transfer at this time" },
-        { status: 503 }
+        { status: 503 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
@@ -298,7 +286,6 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ─── Build metadata ───
     const pendingMetadata = {
       initiated_at: new Date().toISOString(),
       initiated_by: userId,
@@ -330,7 +317,6 @@ export async function POST(req: NextRequest) {
       per_transfer_limit: limitCheck.perTransferLimit,
     };
 
-    // ─── Create PENDING transaction ───
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -365,17 +351,16 @@ export async function POST(req: NextRequest) {
       console.error("Transaction creation error:", txError);
       const response = NextResponse.json(
         { error: "Could not create transaction record" },
-        { status: 500 }
+        { status: 500 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
     console.log(
-      `📝 Created pending transaction ${pendingTx.id} for user ${userId} (${tier})`
+      `📝 Created pending transaction ${pendingTx.id} for user ${userId} (${tier})`,
     );
 
-    // ─── Call Nomba API ───
     const nombaResponse = await fetch(
       `${process.env.NOMBA_URL}/v1/transfers/bank`,
       {
@@ -394,7 +379,7 @@ export async function POST(req: NextRequest) {
           merchantTxRef,
           narration,
         }),
-      }
+      },
     );
 
     const nombaData = await nombaResponse.json();
@@ -409,7 +394,6 @@ export async function POST(req: NextRequest) {
     const finalStatus = isSuccess ? "success" : "processing";
     const nombaTransactionId = nombaData?.data?.id || null;
 
-    // ─── Update transaction with Nomba response ───
     await supabase
       .from("transactions")
       .update({
@@ -434,7 +418,7 @@ export async function POST(req: NextRequest) {
     // ─── If immediately successful — mutate wallet ───
     if (isSuccess) {
       console.log(
-        `✅ Transfer immediately successful for transaction ${pendingTx.id}`
+        `✅ Transfer immediately successful for transaction ${pendingTx.id}`,
       );
 
       const { data: newBalance, error: deductError } = await supabase.rpc(
@@ -444,7 +428,7 @@ export async function POST(req: NextRequest) {
           p_amount: -totalDeduction,
           p_transaction_id: pendingTx.id,
           p_reason: "withdrawal_immediate_success",
-        }
+        },
       );
 
       if (deductError) {
@@ -458,8 +442,20 @@ export async function POST(req: NextRequest) {
           .eq("id", pendingTx.id);
       } else {
         console.log(
-          `✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`
+          `✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`,
         );
+
+        // ✅ Insurance: fill balance columns if RPC version drift left them NULL
+        if (newBalance != null) {
+          await supabase
+            .from("transactions")
+            .update({
+              balance_before: Number(newBalance) + totalDeduction,
+              balance_after: Number(newBalance),
+            })
+            .eq("id", pendingTx.id)
+            .is("balance_after", null);
+        }
 
         await supabase
           .from("transactions")
@@ -485,7 +481,7 @@ export async function POST(req: NextRequest) {
 
         if (receiptHtml && receiptHtml.length > 0) {
           console.log(
-            `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`
+            `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`,
           );
           await sendWithdrawalEmail(
             userId,
@@ -497,13 +493,13 @@ export async function POST(req: NextRequest) {
             pendingTx.id,
             undefined,
             serverFee,
-            receiptHtml
+            receiptHtml,
           ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err)
+            console.error("Failed to send withdrawal email:", err),
           );
         } else {
           console.warn(
-            `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`
+            `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`,
           );
           await sendWithdrawalEmail(
             userId,
@@ -514,13 +510,12 @@ export async function POST(req: NextRequest) {
             bankName,
             pendingTx.id,
             undefined,
-            serverFee
+            serverFee,
           ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err)
+            console.error("Failed to send withdrawal email:", err),
           );
         }
 
-        // ✅ AUTO-SAVE BENEFICIARY (server-side, non-fatal)
         try {
           await upsertSavedBankAccount(
             supabase,
@@ -531,15 +526,15 @@ export async function POST(req: NextRequest) {
               bank_code: bankCode,
               bank_name: bankName,
             },
-            { autoSaved: true }
+            { autoSaved: true },
           );
           console.log(
-            `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`
+            `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`,
           );
         } catch (saveErr) {
           console.error(
             "Auto-save bank beneficiary failed (non-fatal):",
-            saveErr
+            saveErr,
           );
         }
       }
@@ -569,11 +564,14 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
-      { status: 500 }
+      { status: 500 },
     );
 
     if ((error as any).newTokens) {
-      return createAuthResponse(await response.json(), (error as any).newTokens);
+      return createAuthResponse(
+        await response.json(),
+        (error as any).newTokens,
+      );
     }
 
     return response;
