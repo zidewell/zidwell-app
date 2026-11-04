@@ -26,6 +26,18 @@ export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 const ZIDSTORE_HOST =
   process.env.NEXT_PUBLIC_ZIDSTORE_HOST?.toLowerCase() || "store.zidwell.com";
 
+// Hosts that should get the /online-store → subdomain redirect.
+// Preview deployments (*.vercel.app) and localhost are NOT in this list,
+// so they will serve /online-store in place instead of redirecting.
+// Override via PRODUCTION_HOSTS env var (comma-separated), e.g.
+//   PRODUCTION_HOSTS=zidwell.com,www.zidwell.com
+const PRODUCTION_HOSTS = new Set<string>(
+  (process.env.PRODUCTION_HOSTS ?? "zidwell.com,www.zidwell.com")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
+);
+
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
   // Starter and above
   { path: "/dashboard/bookkeeping", requiredTier: "starter" },
@@ -358,7 +370,6 @@ async function validateOrRefresh(
 export async function proxy(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
   const hostname = req.headers.get("host")?.split(":")[0]?.toLowerCase();
-  const isProd = process.env.NODE_ENV === "production";
 
   // ─────────────────────────────────────────────────────────────────────
   // Subdomain: store.zidwell.com
@@ -390,17 +401,19 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const vercelEnv = process.env.VERCEL_ENV;
-  const isRealProduction =
-    vercelEnv !== undefined ? vercelEnv === "production" : isProd;
-
   // ─────────────────────────────────────────────────────────────────────
   // Main domain: zidwell.com
-  //   - "/online-store" in prod      → 308 to https://store.zidwell.com/
-  //   - "/online-store" in dev       → serve normally (publicPaths)
+  //   - "/online-store" on PRODUCTION hosts → 308 to https://store.zidwell.com/
+  //   - "/online-store" on preview/dev      → serve normally (publicPaths)
+  //
+  // The redirect is gated on the request hostname (not NODE_ENV/VERCEL_ENV),
+  // so Vercel preview deployments (*.vercel.app) and localhost serve the page
+  // in place instead of being bounced to the production subdomain.
   // ─────────────────────────────────────────────────────────────────────
+  const isProductionHost = hostname ? PRODUCTION_HOSTS.has(hostname) : false;
+
   if (
-    isRealProduction &&
+    isProductionHost &&
     (currentPath === "/online-store" || currentPath.startsWith("/online-store/"))
   ) {
     const suffix = currentPath.replace(/^\/online-store/, "");
