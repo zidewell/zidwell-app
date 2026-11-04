@@ -16,11 +16,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 
-const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
-const zidStore =
-  process.env.NODE_ENV === "development" || !ZIDSTORE_HOST
-    ? { href: "/online-store", external: false }
-    : { href: `https://${ZIDSTORE_HOST}`, external: true };
+const ZIDSTORE_HOST =
+  process.env.NEXT_PUBLIC_ZIDSTORE_HOST || "store.zidwell.com";
+
+const isProductionDomain =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "zidwell.com" ||
+    window.location.hostname === "www.zidwell.com");
+
+const zidStore = isProductionDomain
+  ? { href: `https://${ZIDSTORE_HOST}`, external: true }
+  : { href: "/online-store", external: false };
 
 const navLinks = [
   { name: "Invoice", href: "/features/invoice", external: false },
