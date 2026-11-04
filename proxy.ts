@@ -390,13 +390,17 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const vercelEnv = process.env.VERCEL_ENV;
+  const isRealProduction =
+    vercelEnv !== undefined ? vercelEnv === "production" : isProd;
+
   // ─────────────────────────────────────────────────────────────────────
   // Main domain: zidwell.com
   //   - "/online-store" in prod      → 308 to https://store.zidwell.com/
   //   - "/online-store" in dev       → serve normally (publicPaths)
   // ─────────────────────────────────────────────────────────────────────
   if (
-    isProd &&
+    isRealProduction &&
     (currentPath === "/online-store" || currentPath.startsWith("/online-store/"))
   ) {
     const suffix = currentPath.replace(/^\/online-store/, "");
