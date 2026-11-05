@@ -33,7 +33,7 @@ function resolveFullName(row: any): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// OTP EDIT MODAL (unchanged from previous)
+// OTP EDIT MODAL
 // ═══════════════════════════════════════════════════════════════════
 function EditUserModal({
   user,
@@ -339,18 +339,17 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [category, setCategory] = useState<UserCategory>("all");
   const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [kycFilter, setKycFilter] = useState("");
-  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState("");
   const [editUser, setEditUser] = useState<any>(null);
 
-  const filterKey = `${appliedSearch}|${category}|${roleFilter}|${statusFilter}|${kycFilter}|${emailVerifiedFilter}`;
+  // Reset page to 1 when search or category changes
+  const filterKey = `${appliedSearch}|${category}|${roleFilter}`;
 
   useEffect(() => {
     setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
 
+  // Build API URL — sends BOTH "search" and "q" to match backend
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -358,40 +357,56 @@ export default function UsersPage() {
       includeStats: "true",
       category,
     });
-    if (appliedSearch) params.append("search", appliedSearch);
+    if (appliedSearch) {
+      params.append("search", appliedSearch);
+      params.append("q", appliedSearch);
+    }
     if (roleFilter) params.append("role", roleFilter);
-    if (statusFilter) params.append("filter_status", statusFilter);
-    if (kycFilter) params.append("kyc", kycFilter);
-    if (emailVerifiedFilter) params.append("email_verified", emailVerifiedFilter);
-    return `/api/admin-apis/users?${params}`;
-  }, [
-    page,
-    appliedSearch,
-    category,
-    roleFilter,
-    statusFilter,
-    kycFilter,
-    emailVerifiedFilter,
-  ]);
+    return `/api/admin-apis/users?${params.toString()}`;
+  }, [page, appliedSearch, category, roleFilter]);
 
-  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 5000,
-    keepPreviousData: true,
-    shouldRetryOnError: false,
-  });
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    apiUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 2000,
+      keepPreviousData: false,
+      shouldRetryOnError: false,
+    },
+  );
 
   const users = data?.users ?? data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20) || 1;
   const stats = data?.stats ?? {};
 
-  const runSearch = () => setAppliedSearch(searchInput.trim());
+  const runSearch = () => {
+    const trimmed = searchInput.trim();
+    if (trimmed === appliedSearch) {
+      // Same search — force refetch
+      mutate();
+      return;
+    }
+    setAppliedSearch(trimmed);
+  };
 
-  // ═══════════════════════════════════════════════════════
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      runSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchInput("");
+    setAppliedSearch("");
+  };
+
+  // ═══════════════════════════════════════════════════════════════
   // ACTION HANDLERS
-  // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
 
   const handleBlockToggle = async (row: any) => {
     const isBlocked = row.is_blocked;
@@ -416,7 +431,11 @@ export default function UsersPage() {
         }),
       });
       if (!res.ok) throw new Error("Failed");
-      Swal.fire("Done", `User ${isBlocked ? "unblocked" : "blocked"}.`, "success");
+      Swal.fire(
+        "Done",
+        `User ${isBlocked ? "unblocked" : "blocked"}.`,
+        "success",
+      );
       mutate();
     } catch {
       Swal.fire("Error", "Failed to update user", "error");
@@ -450,8 +469,12 @@ export default function UsersPage() {
       confirmButtonText: "Suspend",
       confirmButtonColor: "#dc2626",
       preConfirm: () => {
-        const duration = (document.getElementById("suspend-duration") as HTMLSelectElement)?.value;
-        const reason = (document.getElementById("suspend-reason") as HTMLTextAreaElement)?.value?.trim();
+        const duration = (
+          document.getElementById("suspend-duration") as HTMLSelectElement
+        )?.value;
+        const reason = (
+          document.getElementById("suspend-reason") as HTMLTextAreaElement
+        )?.value?.trim();
         if (!reason) {
           Swal.showValidationMessage("Please provide a reason");
           return null;
@@ -532,8 +555,12 @@ export default function UsersPage() {
       confirmButtonText: "Flag User",
       confirmButtonColor: "#FDC020",
       preConfirm: () => {
-        const reason = (document.getElementById("flag-reason") as HTMLSelectElement)?.value;
-        const notes = (document.getElementById("flag-notes") as HTMLTextAreaElement)?.value?.trim();
+        const reason = (
+          document.getElementById("flag-reason") as HTMLSelectElement
+        )?.value;
+        const notes = (
+          document.getElementById("flag-notes") as HTMLTextAreaElement
+        )?.value?.trim();
         return { reason, notes };
       },
     });
@@ -614,7 +641,6 @@ export default function UsersPage() {
   };
 
   const handleAdjustBalance = async (row: any) => {
-    // Step 1: type
     const { value: type } = await Swal.fire({
       title: "Adjust Wallet",
       text: `Adjust balance for ${row.email}?`,
@@ -634,7 +660,6 @@ export default function UsersPage() {
 
     if (!type) return;
 
-    // Step 2: amount + reason
     const { value: formValues } = await Swal.fire({
       title: type === "credit" ? "Credit Wallet" : "Debit Wallet",
       html: `
@@ -654,8 +679,12 @@ export default function UsersPage() {
       showCancelButton: true,
       confirmButtonText: "Continue to OTP",
       preConfirm: () => {
-        const amount = (document.getElementById("adj-amount") as HTMLInputElement)?.value;
-        const reason = (document.getElementById("adj-reason") as HTMLTextAreaElement)?.value?.trim();
+        const amount = (
+          document.getElementById("adj-amount") as HTMLInputElement
+        )?.value;
+        const reason = (
+          document.getElementById("adj-reason") as HTMLTextAreaElement
+        )?.value?.trim();
         if (!amount || Number(amount) <= 0) {
           Swal.showValidationMessage("Enter a valid amount");
           return null;
@@ -670,7 +699,6 @@ export default function UsersPage() {
 
     if (!formValues) return;
 
-    // Step 3: send OTP first
     try {
       await fetch("/api/admin-apis/users/verify-otp", {
         method: "POST",
@@ -682,7 +710,6 @@ export default function UsersPage() {
       return;
     }
 
-    // Step 4: verify OTP
     const { value: otpCode } = await Swal.fire({
       title: "Enter OTP",
       text: "A 6-digit code was sent to your admin email.",
@@ -709,9 +736,9 @@ export default function UsersPage() {
         }),
       });
       const verifyData = await verifyRes.json();
-      if (!verifyRes.ok) throw new Error(verifyData.error || "Verification failed");
+      if (!verifyRes.ok)
+        throw new Error(verifyData.error || "Verification failed");
 
-      // Execute balance adjustment with token
       const res = await fetch(`/api/admin-apis/users/${row.id}/wallet`, {
         method: "POST",
         headers: {
@@ -811,7 +838,11 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
-      Swal.fire("Sent", `Password reset email sent to ${row.email}.`, "success");
+      Swal.fire(
+        "Sent",
+        `Password reset email sent to ${row.email}.`,
+        "success",
+      );
     } catch (err: any) {
       Swal.fire("Error", err.message, "error");
     }
@@ -823,16 +854,23 @@ export default function UsersPage() {
       if (!res.ok) throw new Error("Failed");
       const history = await res.json();
 
-      let html = '<div style="text-align:left;max-height:400px;overflow-y:auto;">';
+      let html =
+        '<div style="text-align:left;max-height:400px;overflow-y:auto;">';
       if (!history || history.length === 0) {
-        html += '<p style="color:#666;text-align:center;padding:20px;">No login history found.</p>';
+        html +=
+          '<p style="color:#666;text-align:center;padding:20px;">No login history found.</p>';
       } else {
-        html += '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
-        html += '<thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">';
-        html += '<th style="padding:8px;text-align:left;font-weight:600;">Time</th>';
-        html += '<th style="padding:8px;text-align:left;font-weight:600;">IP</th>';
-        html += '<th style="padding:8px;text-align:left;font-weight:600;">Status</th>';
-        html += '</tr></thead><tbody>';
+        html +=
+          '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+        html +=
+          '<thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">';
+        html +=
+          '<th style="padding:8px;text-align:left;font-weight:600;">Time</th>';
+        html +=
+          '<th style="padding:8px;text-align:left;font-weight:600;">IP</th>';
+        html +=
+          '<th style="padding:8px;text-align:left;font-weight:600;">Status</th>';
+        html += "</tr></thead><tbody>";
         history.forEach((entry: any) => {
           const time = new Date(entry.login_time).toLocaleString("en-GB", {
             day: "2-digit",
@@ -852,7 +890,7 @@ export default function UsersPage() {
             <td style="padding:8px;">${status}</td>
           </tr>`;
         });
-        html += '</tbody></table>';
+        html += "</tbody></table>";
       }
       html += "</div>";
 
@@ -959,9 +997,9 @@ export default function UsersPage() {
     }
   };
 
-  // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
   // COLUMNS
-  // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
   const columns = [
     {
       key: "full_name",
@@ -1192,40 +1230,56 @@ export default function UsersPage() {
           </span>
         </div>
 
-        {/* Search row */}
+        {/* Search */}
         <div className="squircle-lg border border-(--border-color) bg-(--bg-primary) shadow-soft p-4">
-          <label className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5">
+          <label
+            htmlFor="user-search"
+            className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5"
+          >
             Search
+            {isValidating && appliedSearch && (
+              <span className="ml-2 inline-block w-2 h-2 bg-[--color-accent-yellow] rounded-full animate-pulse" />
+            )}
           </label>
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
-              placeholder="Search by name or email..."
+              id="user-search"
+              placeholder="Search by email, name, or phone..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") runSearch();
-              }}
+              onKeyDown={handleKeyDown}
               className="flex-1"
+              autoComplete="off"
             />
-            <Button onClick={runSearch} className="sm:w-auto">
+            <Button
+              type="button"
+              onClick={runSearch}
+              className="sm:w-auto relative z-10"
+            >
               🔍 Search
             </Button>
             {appliedSearch && (
               <Button
+                type="button"
                 variant="outline"
-                onClick={() => {
-                  setSearchInput("");
-                  setAppliedSearch("");
-                }}
+                onClick={clearSearch}
                 className="text-destructive hover:bg-destructive/10 sm:w-auto"
               >
                 ✕ Clear
               </Button>
             )}
           </div>
+          {appliedSearch && (
+            <p className="text-xs text-(--text-secondary) mt-1.5">
+              Searching for{" "}
+              <span className="font-medium text-(--text-primary)">
+                "{appliedSearch}"
+              </span>
+            </p>
+          )}
         </div>
 
-        {/* Filter row */}
+        {/* Filters */}
         <FilterBar
           filters={[
             {
@@ -1243,54 +1297,13 @@ export default function UsersPage() {
                 { value: "blog_admin", label: "Blog" },
               ],
             },
-            {
-              id: "status",
-              label: "Status",
-              value: statusFilter,
-              onChange: setStatusFilter,
-              placeholder: "All Status",
-              options: [
-                { value: "active", label: "Active" },
-                { value: "blocked", label: "Blocked" },
-              ],
-            },
-            {
-              id: "kyc",
-              label: "KYC",
-              value: kycFilter,
-              onChange: setKycFilter,
-              placeholder: "All KYC",
-              options: [
-                { value: "verified", label: "Verified" },
-                { value: "pending", label: "Pending" },
-                { value: "not_submitted", label: "Not Submitted" },
-                { value: "rejected", label: "Rejected" },
-              ],
-            },
-            {
-              id: "email_verified",
-              label: "Email",
-              value: emailVerifiedFilter,
-              onChange: setEmailVerifiedFilter,
-              placeholder: "All Emails",
-              options: [
-                { value: "true", label: "✓ Verified" },
-                { value: "false", label: "✗ Unverified" },
-              ],
-            },
           ]}
           onClear={() => {
+            setSearchInput("");
+            setAppliedSearch("");
             setRoleFilter("");
-            setStatusFilter("");
-            setKycFilter("");
-            setEmailVerifiedFilter("");
           }}
-          hasActiveFilters={
-            !!roleFilter ||
-            !!statusFilter ||
-            !!kycFilter ||
-            !!emailVerifiedFilter
-          }
+          hasActiveFilters={!!appliedSearch || !!roleFilter}
         />
 
         <div className="text-sm text-(--text-secondary)">
@@ -1369,7 +1382,11 @@ export default function UsersPage() {
               icon: "🕒",
             },
           ]}
-          emptyMessage="No users found"
+          emptyMessage={
+            appliedSearch
+              ? `No users match "${appliedSearch}"`
+              : "No users found"
+          }
         />
 
         {totalPages > 1 && (
