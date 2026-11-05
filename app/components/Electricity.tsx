@@ -309,27 +309,38 @@ export default function ElectricityBills() {
         </div>
       </div>
 
-      <PinPopOver
-        setIsOpen={setIsOpen}
-        isOpen={isOpen}
-        pin={pin}
-        setPin={setPin}
-        inputCount={inputCount}
-        onConfirm={async (pinCode) => {
-          try {
-            setPinError(null);
-            await handlePayment(pinCode);
-          } catch (error: any) {
-            setPinError(
-              error.message || "Transaction failed. Please try again.",
-            );
-            throw error;
-          }
-        }}
-        error={pinError}
-        onClearError={() => setPinError(null)}
-      />
-
+     <PinPopOver
+  setIsOpen={setIsOpen}
+  isOpen={isOpen}
+  pin={pin}
+  setPin={setPin}
+  inputCount={inputCount}
+  userId={userData?.id ?? ""}
+  onPinReset={() => {
+    setPin(Array(inputCount).fill(""));
+    setPinError(null);
+    setIsOpen(false);
+    Swal.fire({
+      icon: "success",
+      title: "PIN reset",
+      text: "Your new transaction PIN is ready. Please try the purchase again.",
+      confirmButtonColor: "var(--color-accent-yellow)",
+    });
+  }}
+  onConfirm={async (pinCode) => {
+    try {
+      setPinError(null);
+      await handlePayment(pinCode);
+    } catch (error: any) {
+      setPinError(
+        error.message || "Transaction failed. Please try again.",
+      );
+      throw error;
+    }
+  }}
+  error={pinError}
+  onClearError={() => setPinError(null)}
+/>
       <div className="flex items-start space-x-4">
         <Button
           variant="ghost"

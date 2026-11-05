@@ -103,7 +103,6 @@ const SecurityTab: React.FC = () => {
   };
 
   const handlePinChange = async () => {
-    // Don't proceed if BVN not submitted
     if (isBvnNotSubmitted) {
       Swal.fire({
         icon: "warning",
@@ -113,40 +112,42 @@ const SecurityTab: React.FC = () => {
       });
       return;
     }
-
+  
     const newErrors: Record<string, string> = {};
-
-    if (!pins.current) {
-      newErrors.currentPin = "Current PIN is required";
-    }
-    if (!pins.new) {
-      newErrors.newPin = "New PIN is required";
-    }
-    if (!pins.confirm) {
-      newErrors.confirmPin = "Please confirm your PIN";
-    }
-
+  
+    if (!pins.current) newErrors.currentPin = "Current PIN is required";
+    if (!pins.new) newErrors.newPin = "New PIN is required";
+    if (!pins.confirm) newErrors.confirmPin = "Please confirm your PIN";
+  
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
+  
     if (pins.new !== pins.confirm) {
       setErrors({ ...newErrors, confirmPin: "PINs do not match" });
       return;
     }
-
+  
     if (pins.new.length !== 4 || !/^\d+$/.test(pins.new)) {
       setErrors({ ...newErrors, newPin: "PIN must be 4 digits" });
       return;
     }
-
+  
+    if (pins.current === pins.new) {
+      setErrors({
+        ...newErrors,
+        newPin: "New PIN must be different from current PIN",
+      });
+      return;
+    }
+  
     setLoading((prev) => ({ ...prev, pin: true }));
     setErrors({});
-
+  
     try {
       if (!userData?.id) throw new Error("User not authenticated");
-
+  
       const response = await fetch("/api/profile/update-transaction-pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -156,17 +157,45 @@ const SecurityTab: React.FC = () => {
           newPin: pins.new,
         }),
       });
-
+  
       const result = await response.json();
-
-      if (!response.ok) throw new Error(result.error);
-
+  
+      if (!response.ok) {
+        // Cooldown / rate limit → show friendly message
+        if (response.status === 429) {
+          Swal.fire({
+            icon: "info",
+            title: "PIN Change Cooldown",
+            text:
+              result.error ||
+              "You can only change your PIN once per day. Please try again later.",
+            confirmButtonColor: "var(--color-accent-yellow)",
+          });
+          setLoading((prev) => ({ ...prev, pin: false }));
+          return;
+        }
+  
+        if (response.status === 409) {
+          Swal.fire({
+            icon: "info",
+            title: "PIN Just Changed",
+            text: "Your PIN was just updated. Please refresh the page.",
+            confirmButtonColor: "var(--color-accent-yellow)",
+          });
+          setLoading((prev) => ({ ...prev, pin: false }));
+          return;
+        }
+  
+        throw new Error(result.error || "Failed to update PIN");
+      }
+  
       setPins({ current: "", new: "", confirm: "" });
-
+  
       Swal.fire({
         icon: "success",
         title: "PIN updated successfully",
-        timer: 1500,
+        text: "You can change your PIN again after the cooldown period.",
+        timer: 2000,
         showConfirmButton: false,
       });
     } catch (err: any) {
@@ -180,6 +209,7 @@ const SecurityTab: React.FC = () => {
     }
   };
 
+  
   return (
     <div className="space-y-6">
       {/* Change Password */}

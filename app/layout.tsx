@@ -25,6 +25,7 @@ import {
   ZIDSTORE_OG_IMAGE,
 } from "@/lib/seo";
 import { BlogProvider } from "./context/BlogContext";
+import { Toaster } from "./components/ui/sonner";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -123,6 +124,19 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const THEME_INIT_SCRIPT = `
+  try {
+    var theme = localStorage.getItem('zidwell-theme');
+    var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var resolved = theme === 'system' ? systemTheme : (theme || systemTheme);
+    if (resolved === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } catch (e) {}
+`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -153,23 +167,11 @@ export default async function RootLayout({
       className={`${spaceGrotesk.variable} ${beVietnamPro.variable}`}
     >
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                let theme = localStorage.getItem('zidwell-theme');
-                let systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                let resolved = theme === 'system' ? systemTheme : (theme || systemTheme);
-                if (resolved === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
-                }
-              } catch (e) {}
-            `,
-          }}
-        />
-
+        {/*
+          JSON-LD structured data — safe to render inline.
+          We keep `dangerouslySetInnerHTML` because it's valid LD+JSON,
+          not executable code. Next.js serializes it correctly.
+        */}
         {allSchemas.map((schema, i) => (
           <script
             key={i}
@@ -207,6 +209,18 @@ export default async function RootLayout({
         className="bg-(--bg-primary) text-(--text-primary) antialiased"
         suppressHydrationWarning={true}
       >
+        {/*
+          Theme-init script — MUST run before hydration to avoid a
+          flash of the wrong theme. Use next/script with
+          strategy="beforeInteractive" so Next handles the insertion
+          correctly and React doesn't complain about inline <script>.
+        */}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"
@@ -229,7 +243,10 @@ export default async function RootLayout({
           />
         )}
 
+      
+
         <ThemeProvider>
+            <Toaster richColors position="top-center" />
           <ThemeWrapper>
             <UserProvider>
               <BlogProvider>
