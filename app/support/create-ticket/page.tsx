@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/app/components/ui/card";
 import { useUserContextData } from "@/app/context/userData";
+import posthog from "posthog-js";
 
 export default function CreateTicketPage() {
   const { user } = useUserContextData();
@@ -65,6 +66,11 @@ export default function CreateTicketPage() {
       const result = await response.json();
 
       if (response.ok) {
+        posthog.capture("support_ticket_created", {
+          category: formData.category,
+          priority: formData.priority,
+          attachment_count: attachments.length,
+        });
         Swal.fire({
           icon: "success",
           title: "Ticket Created!",

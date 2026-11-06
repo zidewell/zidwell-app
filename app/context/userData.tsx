@@ -12,6 +12,7 @@ import {
   useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 export type SubscriptionTier =
   | "free"
@@ -541,6 +542,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   // ─── Idempotency guard for session-expiry handling ───
   const sessionExpiredRef = useRef(false);
+  const identifiedUserIdRef = useRef<string | null>(null);
 
   // ─── Check if current page is public ───
   const isPublicPage = useCallback(() => {
@@ -574,12 +576,11 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-        });
-      } catch {
-        /* non-fatal */
-      }
-
-      // 2. Wipe client-side auth artifacts.
+        }).catch(() => {});
+      } catch {}
+  
+      posthog.reset();
+      identifiedUserIdRef.current = null;
       clearClientCookies();
       clearClientStorage();
 
@@ -745,6 +746,26 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     initializeUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!sessionRestored || !userData?.id) return;
+    if (identifiedUserIdRef.current === userData.id) return;
+
+    if (identifiedUserIdRef.current) {
+      posthog.reset();
+    }
+
+    const personProperties: Record<string, string> = {};
+    if (typeof userData.email === "string") personProperties.email = userData.email;
+    if (typeof userData.fullName === "string") personProperties.name = userData.fullName;
+    if (typeof userData.role === "string") personProperties.role = userData.role;
+    if (typeof userData.subscription_tier === "string") {
+      personProperties.subscription_tier = userData.subscription_tier;
+    }
+
+    posthog.identify(userData.id, personProperties);
+    identifiedUserIdRef.current = userData.id;
+  }, [sessionRestored, userData]);
 
   // ─── Theme initialization - LIGHT MODE DEFAULT ───
   useEffect(() => {

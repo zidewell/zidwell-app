@@ -31,7 +31,9 @@ function extractInvoiceReference(narration: string): string | null {
   for (const pattern of patterns) {
     const match = narration.match(pattern);
     if (match) {
-      console.log(`✅ Extracted invoice reference: ${match[0]} from pattern ${pattern}`);
+      console.log(
+        `✅ Extracted invoice reference: ${match[0]} from pattern ${pattern}`,
+      );
       return match[0];
     }
   }
@@ -39,11 +41,6 @@ function extractInvoiceReference(narration: string): string | null {
   return null;
 }
 
-// ─────────────────────────────────────────────────────────────
-// Inflow fee resolver — tier-aware
-// Only this amount is charged to the user.
-// Nomba's fee is absorbed by Zidwell (recorded for accounting only).
-// ─────────────────────────────────────────────────────────────
 function getInflowFee(tier: AccountTier): number {
   const config = TIER_CONFIG[tier] ?? TIER_CONFIG.tier_3;
   return config.inflowFee;
@@ -51,7 +48,7 @@ function getInflowFee(tier: AccountTier): number {
 
 export async function processVirtualAccountDeposit(
   payload: any,
-  params: VirtualAccountParams
+  params: VirtualAccountParams,
 ) {
   const {
     aliasAccountReference,
@@ -74,9 +71,6 @@ export async function processVirtualAccountDeposit(
   const narration = tx.narration || "";
   const senderName = customer.senderName || customer.name || "Bank Transfer";
 
-  // ─────────────────────────────────────────────────────────────
-  // Invoice delegation (unchanged)
-  // ─────────────────────────────────────────────────────────────
   const invoiceMatch = extractInvoiceReference(narration);
   if (invoiceMatch) {
     console.log("🧾 Invoice payment detected, delegating to invoice service...");
@@ -96,9 +90,6 @@ export async function processVirtualAccountDeposit(
 
   console.log("💰 Regular wallet deposit via virtual account");
 
-  // ─────────────────────────────────────────────────────────────
-  // Duplicate guard
-  // ─────────────────────────────────────────────────────────────
   const { data: existingTx } = await supabase
     .from("transactions")
     .select("*")
@@ -116,9 +107,6 @@ export async function processVirtualAccountDeposit(
     };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Fetch user's tier (source of truth)
-  // ─────────────────────────────────────────────────────────────
   const { data: userRow, error: userLookupError } = await supabase
     .from("users")
     .select("id, account_tier, email")
@@ -132,12 +120,6 @@ export async function processVirtualAccountDeposit(
   const tier: AccountTier =
     (userRow?.account_tier as AccountTier) || "tier_3";
 
-  // ─────────────────────────────────────────────────────────────
-  // Inflow fee — ONLY the Zidwell tier fee is charged.
-  //   inflowFee  = tier fee (₦50 / ₦100)
-  //   netAmount  = transactionAmount − inflowFee
-  //   nombaFee   = absorbed by Zidwell (recorded for accounting)
-  // ─────────────────────────────────────────────────────────────
   const inflowFee = getInflowFee(tier);
   const netAmount = transactionAmount - inflowFee;
 
@@ -153,36 +135,29 @@ export async function processVirtualAccountDeposit(
   }
 
   console.log(
-    `💵 Tier ${tier} inflow: gross=₦${transactionAmount}, inflow_fee=₦${inflowFee}, net=₦${netAmount}, nomba_absorbed=₦${nombaFee}`
+    `💵 Tier ${tier} inflow: gross=₦${transactionAmount}, inflow_fee=₦${inflowFee}, net=₦${netAmount}, nomba_absorbed=₦${nombaFee}`,
   );
 
-  // ─────────────────────────────────────────────────────────────
-  // Build metadata (full audit trail)
-  // ─────────────────────────────────────────────────────────────
   const txMetadata = {
     deposit_source: "virtual_account",
     nomba_transaction_id: nombaTransactionId,
 
-    // Amounts
     gross_amount: transactionAmount,
-    inflow_fee: inflowFee,       // what we charged the user
-    zidwell_fee: inflowFee,      // alias for clarity
-    nomba_fee: nombaFee,         // absorbed by Zidwell (for accounting)
+    inflow_fee: inflowFee,
+    zidwell_fee: inflowFee,
+    nomba_fee: nombaFee,
     net_amount: netAmount,
 
-    // Sender info
     sender_name: senderName,
     sender_bank: customer.bankName || null,
     sender_bank_code: customer.bankCode || null,
     sender_account_number: customer.accountNumber || null,
     narration: narration || null,
 
-    // Recipient (VA) info
     alias_account_reference: aliasAccountReference,
     alias_account_number: tx.aliasAccountNumber || null,
     alias_account_name: tx.aliasAccountName || null,
 
-    // Tier snapshot
     account_tier: tier,
     transfer_direction: "inflow",
     fee_label: `Inflow — ${TIER_CONFIG[tier].label} (₦${inflowFee} flat)`,
@@ -190,11 +165,6 @@ export async function processVirtualAccountDeposit(
     received_at: new Date().toISOString(),
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // Create transaction row
-  //   fee        = inflowFee (only what we charged)
-  //   net_amount = transactionAmount − inflowFee
-  // ─────────────────────────────────────────────────────────────
   const { data: newTx, error: txError } = await supabase
     .from("transactions")
     .insert({
@@ -238,23 +208,21 @@ export async function processVirtualAccountDeposit(
     return { error: "Failed to create transaction" };
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Credit wallet atomically
-  // ─────────────────────────────────────────────────────────────
+  // RPC stamps balance_before / balance_after atomically
   const { data: newBalance, error: creditError } = await supabase.rpc(
     "mutate_wallet_balance",
     {
       p_user_id: userId,
-      p_amount: netAmount, // positive = credit
+      p_amount: netAmount,
       p_transaction_id: newTx.id,
       p_reason: "virtual_account_deposit",
-    }
+    },
   );
 
   if (creditError) {
     console.error("❌ Failed to credit wallet:", creditError);
 
-    // Fallback (rare — mutate_wallet_balance is preferred)
+    // Fallback — also stamps balances
     const { data: user } = await supabase
       .from("users")
       .select("wallet_balance")
@@ -262,31 +230,50 @@ export async function processVirtualAccountDeposit(
       .single();
 
     if (user) {
-      const fallbackBalance = Number(user.wallet_balance) + netAmount;
+      const before = Number(user.wallet_balance);
+      const after = before + netAmount;
+
       await supabase
         .from("users")
-        .update({ wallet_balance: fallbackBalance })
+        .update({
+          wallet_balance: after,
+          wallet_updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId);
 
       await supabase
         .from("transactions")
         .update({
-          balance_before: Number(user.wallet_balance),
-          balance_after: fallbackBalance,
-          metadata: txMetadata,
+          balance_before: before,
+          balance_after: after,
           updated_at: new Date().toISOString(),
         })
         .eq("id", newTx.id);
     }
   } else {
+    // ✅ Insurance: fill if RPC version drift left them NULL
+    const { data: fresh } = await supabase
+      .from("users")
+      .select("wallet_balance")
+      .eq("id", userId)
+      .single();
+
+    if (fresh) {
+      const after = Number(fresh.wallet_balance);
+      const before = after - netAmount;
+      await supabase
+        .from("transactions")
+        .update({ balance_before: before, balance_after: after })
+        .eq("id", newTx.id)
+        .is("balance_after", null);
+    }
+
     console.log(
-      `✅ Credited ₦${netAmount} (gross ₦${transactionAmount} − inflow_fee ₦${inflowFee}) to wallet ${userId}. New balance: ₦${newBalance}`
+      `✅ Credited ₦${netAmount} (gross ₦${transactionAmount} − inflow_fee ₦${inflowFee}) to wallet ${userId}. New balance: ₦${newBalance}`,
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Send deposit email
-  // ─────────────────────────────────────────────────────────────
   const { data: userExists, error: userError } = await supabase
     .from("users")
     .select("id, email")
@@ -306,7 +293,7 @@ export async function processVirtualAccountDeposit(
       tx.aliasAccountName || "N/A",
       senderName,
       narration,
-      inflowFee, // ← what the user was charged
+      inflowFee,
     ).catch(console.error);
   }
 

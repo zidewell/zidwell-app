@@ -995,6 +995,7 @@ function EditReceiptPage({ params }: { params: Promise<{ id: string }> }) {
           }}
           isOpen={isOpen}
           pin={pin}
+          userId={userData?.id}
           setPin={setPin}
           inputCount={inputCount}
           onConfirm={processPaymentAndUpdate}

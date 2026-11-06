@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import { sendWithdrawalEmail, generateTransferReceipt } from "../helpers/email-helpers";
+import {
+  sendWithdrawalEmail,
+  generateTransferReceipt,
+} from "../helpers/email-helpers";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -18,7 +21,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log("💸 Processing payout webhook...");
 
-  // Find the pending/processing transaction
   const merchantTxRef = tx.merchantTxRef;
   const searchRefs = [nombaTransactionId, merchantTxRef].filter(Boolean);
 
@@ -45,7 +47,6 @@ export async function processPayout(payload: any, params: PayoutParams) {
 
   console.log(`📦 Found transaction ${pendingTx.id} in status: ${pendingTx.status}`);
 
-  // Check for duplicate webhook processing
   const webhookProcessed = pendingTx.external_response?.webhook_processed;
   if (webhookProcessed) {
     console.log("⚠️ Webhook already processed this transaction, skipping");
@@ -53,18 +54,29 @@ export async function processPayout(payload: any, params: PayoutParams) {
   }
 
   if (eventType === "payout_success" || txStatus === "success") {
-    console.log("✅ Payout successful - NOW deducting balance (Zero Fund Loss Pattern)");
+    console.log(
+      "✅ Payout successful - NOW deducting balance (Zero Fund Loss Pattern)",
+    );
 
-    const totalDeduction = pendingTx.total_deduction || pendingTx.amount + (pendingTx.fee || 0);
+    const totalDeduction =
+      pendingTx.total_deduction || pendingTx.amount + (pendingTx.fee || 0);
 
-    // Deduct balance only on webhook confirmation
+    // Read balance before so we can backfill if RPC version drifts
+    const { data: preUser } = await supabase
+      .from("users")
+      .select("wallet_balance")
+      .eq("id", pendingTx.user_id)
+      .single();
+
+    const balanceBefore = preUser ? Number(preUser.wallet_balance) : null;
+
     const { data: deductResult, error: deductError } = await supabase.rpc(
       "deduct_wallet_balance_with_lock",
       {
         p_user_id: pendingTx.user_id,
         p_amount: totalDeduction,
-        p_transaction_id: pendingTx.id
-      }
+        p_transaction_id: pendingTx.id,
+      },
     );
 
     if (deductError || deductResult === null || deductResult === -1) {
@@ -74,14 +86,14 @@ export async function processPayout(payload: any, params: PayoutParams) {
         .from("transactions")
         .update({
           status: "failed",
-          reference: nombaTransactionId,        // ✅ record Nomba tx ID
+          reference: nombaTransactionId,
           external_response: {
             ...pendingTx.external_response,
             webhook_data: payload,
             deduction_error: deductError?.message || "Insufficient funds",
             failed_at: new Date().toISOString(),
             webhook_processed: true,
-            note: "Balance was never deducted - no refund required"
+            note: "Balance was never deducted - no refund required",
           },
           updated_at: new Date().toISOString(),
         })
@@ -103,14 +115,17 @@ export async function processPayout(payload: any, params: PayoutParams) {
       return {
         success: false,
         error: "Deduction failed",
-        message: "Transaction failed - balance was never deducted"
+        message: "Transaction failed - balance was never deducted",
       };
     }
 
-    console.log(`✅ Deducted ₦${totalDeduction} from user ${pendingTx.user_id}. New balance: ₦${deductResult}`);
+    const balanceAfter = Number(deductResult);
 
-    // Update transaction to SUCCESS
-  await supabase
+    console.log(
+      `✅ Deducted ₦${totalDeduction} from user ${pendingTx.user_id}. New balance: ₦${balanceAfter}`,
+    );
+
+    await supabase
       .from("transactions")
       .update({
         status: "success",
@@ -120,24 +135,35 @@ export async function processPayout(payload: any, params: PayoutParams) {
           webhook_confirmed_at: new Date().toISOString(),
           nomba_transaction_id: nombaTransactionId,
           deducted_amount: totalDeduction,
-          new_balance: deductResult,
+          new_balance: balanceAfter,
         },
         external_response: {
           ...pendingTx.external_response,
           webhook_data: payload,
           deducted_at: new Date().toISOString(),
           deducted_amount: totalDeduction,
-          new_balance: deductResult,
+          new_balance: balanceAfter,
           completed_at: new Date().toISOString(),
-          webhook_processed: true
+          webhook_processed: true,
         },
         updated_at: new Date().toISOString(),
       })
       .eq("id", pendingTx.id);
 
+    // ✅ Belt-and-braces: fill balance columns if RPC didn't (version drift)
+    if (balanceBefore != null) {
+      await supabase
+        .from("transactions")
+        .update({
+          balance_before: balanceBefore,
+          balance_after: balanceAfter,
+        })
+        .eq("id", pendingTx.id)
+        .is("balance_after", null);
+    }
+
     const receiver = pendingTx.receiver || {};
 
-    // ✅ Generate receipt HTML from transaction data
     const receiptHtml = generateTransferReceipt({
       transactionId: pendingTx.id,
       amount: Number(pendingTx.amount),
@@ -149,10 +175,9 @@ export async function processPayout(payload: any, params: PayoutParams) {
       senderAccount: pendingTx.sender?.accountNumber || "N/A",
       narration: pendingTx.narration || "N/A",
       fee: Number(pendingTx.fee || 0),
-      type: "bank_transfer"
+      type: "bank_transfer",
     });
 
-    // ✅ AWAIT the email so PDF generation completes before function returns
     await sendWithdrawalEmail(
       pendingTx.user_id,
       "success",
@@ -164,18 +189,20 @@ export async function processPayout(payload: any, params: PayoutParams) {
       undefined,
       pendingTx.fee,
       receiptHtml,
-    ).catch(err => console.error("Failed to send withdrawal email:", err));
+    ).catch((err) =>
+      console.error("Failed to send withdrawal email:", err),
+    );
 
     return {
       success: true,
       message: "Payout processed and balance deducted",
-      new_balance: deductResult
+      new_balance: balanceAfter,
     };
-
   } else if (eventType === "payout_failed" || txStatus === "failed") {
     console.log("❌ Payout failed - NO refund needed (balance never deducted)");
 
-    const errorDetail = tx.responseMessage ||
+    const errorDetail =
+      tx.responseMessage ||
       payload.data?.transaction?.responseMessage ||
       "Transaction failed";
 
@@ -183,20 +210,22 @@ export async function processPayout(payload: any, params: PayoutParams) {
       .from("transactions")
       .update({
         status: "failed",
-        reference: nombaTransactionId,          // ✅ record Nomba tx ID
+        reference: nombaTransactionId,
         external_response: {
           ...pendingTx.external_response,
           webhook_data: payload,
           failed_at: new Date().toISOString(),
           error: errorDetail,
           webhook_processed: true,
-          note: "Balance was never deducted - no refund required"
+          note: "Balance was never deducted - no refund required",
         },
         updated_at: new Date().toISOString(),
       })
       .eq("id", pendingTx.id);
 
-    console.log(`✅ Transaction marked as failed. User ${pendingTx.user_id} was never charged.`);
+    console.log(
+      `✅ Transaction marked as failed. User ${pendingTx.user_id} was never charged.`,
+    );
 
     const receiver = pendingTx.receiver || {};
     await sendWithdrawalEmail(
@@ -214,7 +243,7 @@ export async function processPayout(payload: any, params: PayoutParams) {
     return {
       success: true,
       message: "Payout failed - balance never deducted",
-      note: "User was not charged for this failed transaction"
+      note: "User was not charged for this failed transaction",
     };
   }
 

@@ -117,7 +117,7 @@ export default function Transfer() {
   const [showAlltime, setShowAlltime] = useState(false);
   const [showCurrent, setShowCurrent] = useState(false);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>(
-    []
+    [],
   );
   const [expenseCategory, setExpenseCategory] = useState<string>("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -206,12 +206,12 @@ export default function Transfer() {
     ];
 
     const unique = Array.from(
-      new Map(allBeneficiaries.map((b) => [b.account_number, b])).values()
+      new Map(allBeneficiaries.map((b) => [b.account_number, b])).values(),
     );
 
     unique.sort(
       (a, b) =>
-        new Date(b.last_used).getTime() - new Date(a.last_used).getTime()
+        new Date(b.last_used).getTime() - new Date(a.last_used).getTime(),
     );
 
     return unique;
@@ -247,7 +247,7 @@ export default function Transfer() {
     accountNumber: string,
     accountName: string,
     bankName: string | undefined,
-    type: "bank" | "p2p"
+    type: "bank" | "p2p",
   ) => {
     const newRecent: RecentBeneficiary = {
       id: `${type}_${accountNumber}`,
@@ -263,7 +263,7 @@ export default function Transfer() {
       const updated = [newRecent, ...filtered].slice(0, 10);
       localStorage.setItem(
         `recent_beneficiaries_${userData?.id}`,
-        JSON.stringify(updated)
+        JSON.stringify(updated),
       );
       return updated;
     });
@@ -295,7 +295,7 @@ export default function Transfer() {
       })}`;
 
       const formattedDate = new Date(
-        receiptData?.date || Date.now()
+        receiptData?.date || Date.now(),
       ).toLocaleString("en-GB", {
         day: "numeric",
         month: "long",
@@ -410,34 +410,34 @@ export default function Transfer() {
       <div class="left">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
         <div class="narration-wrapper"><div><div class="detail-title">From</div><div class="detail-value">${escapeHtml(
-          receiptData?.senderName || "Zidwell User"
+          receiptData?.senderName || "Zidwell User",
         )}</div>${
-        receiptData?.senderAccount
-          ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>`
-          : ""
-      }</div></div>
+          receiptData?.senderAccount
+            ? `<div class="sub">${escapeHtml(receiptData.senderAccount)}</div>`
+            : ""
+        }</div></div>
       </div>
     </div>
     <div class="detail-row">
       <div class="left">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
         <div class="narration-wrapper"><div><div class="detail-title">To</div><div class="detail-value">${escapeHtml(
-          receiptData?.recipientName || "N/A"
+          receiptData?.recipientName || "N/A",
         )}</div>${
-        receiptData?.recipientAccount
-          ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>`
-          : ""
-      }${
-        receiptData?.recipientBank
-          ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>`
-          : ""
-      }</div></div>
+          receiptData?.recipientAccount
+            ? `<div class="sub">${escapeHtml(receiptData.recipientAccount)}</div>`
+            : ""
+        }${
+          receiptData?.recipientBank
+            ? `<div class="sub">${escapeHtml(receiptData.recipientBank)}</div>`
+            : ""
+        }</div></div>
       </div>
     </div>
     ${
       receiptData?.narration
         ? `<div class="detail-row"><div class="left"><div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="narration-wrapper"><div><div class="detail-title">Narration</div></div><div class="narration-text">${escapeHtml(
-            receiptData.narration
+            receiptData.narration,
           )}</div></div></div></div>`
         : ""
     }
@@ -450,7 +450,7 @@ export default function Transfer() {
       <div class="left">
         <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
         <div class="narration-wrapper"><div><div class="detail-title">Transaction ID</div><div class="detail-value">${escapeHtml(
-          receiptData?.transactionId || "N/A"
+          receiptData?.transactionId || "N/A",
         )}</div></div></div>
       </div>
     </div>
@@ -524,7 +524,7 @@ export default function Transfer() {
 
       try {
         const res = await fetch(
-          `/api/transaction/status?transactionId=${transactionId}`
+          `/api/transaction/status?transactionId=${transactionId}`,
         );
         if (!res.ok) return;
 
@@ -544,20 +544,20 @@ export default function Transfer() {
               transferType === "p2p"
                 ? p2pDetails?.name
                 : transferType === "other-bank"
-                ? accountName
-                : userDetails?.payment_details?.p_account_name,
+                  ? accountName
+                  : userDetails?.payment_details?.p_account_name,
             recipientAccount:
               transferType === "p2p"
                 ? recepientAcc
                 : transferType === "other-bank"
-                ? accountNumber
-                : userDetails?.payment_details?.p_account_number,
+                  ? accountNumber
+                  : userDetails?.payment_details?.p_account_number,
             recipientBank:
               transferType === "p2p"
                 ? "Zidwell"
                 : transferType === "other-bank"
-                ? bankName
-                : userDetails?.payment_details?.p_bank_name,
+                  ? bankName
+                  : userDetails?.payment_details?.p_bank_name,
             senderName:
               userData?.fullName ||
               userDetails?.bank_details?.bank_account_name ||
@@ -624,7 +624,7 @@ export default function Transfer() {
 
   const toggleFavoriteCategory = async (
     category: ExpenseCategory,
-    e: React.MouseEvent
+    e: React.MouseEvent,
   ) => {
     e.stopPropagation();
     if (pendingFavoritesRef.current.has(category.id)) return;
@@ -639,8 +639,8 @@ export default function Transfer() {
               is_favorite: newFavoriteStatus,
               favorite_order: newFavoriteStatus ? Date.now() : 0,
             }
-          : cat
-      )
+          : cat,
+      ),
     );
 
     pendingFavoritesRef.current.add(category.id);
@@ -670,8 +670,8 @@ export default function Transfer() {
                     ? 0
                     : category.favorite_order,
                 }
-              : cat
-          )
+              : cat,
+          ),
         );
       }
     } catch (error) {
@@ -681,10 +681,12 @@ export default function Transfer() {
             ? {
                 ...cat,
                 is_favorite: !newFavoriteStatus,
-                favorite_order: !newFavoriteStatus ? 0 : category.favorite_order,
+                favorite_order: !newFavoriteStatus
+                  ? 0
+                  : category.favorite_order,
               }
-            : cat
-        )
+            : cat,
+        ),
       );
     } finally {
       pendingFavoritesRef.current.delete(category.id);
@@ -704,7 +706,7 @@ export default function Transfer() {
   };
 
   const handleSelectSavedP2PBeneficiary = (
-    beneficiary: SavedP2PBeneficiary
+    beneficiary: SavedP2PBeneficiary,
   ) => {
     setSelectedSavedP2PBeneficiary(beneficiary);
     setRecepientAcc(beneficiary.account_number);
@@ -730,7 +732,7 @@ export default function Transfer() {
 
     try {
       const selectedCategory = expenseCategories.find(
-        (c) => c.id === expenseCategory
+        (c) => c.id === expenseCategory,
       );
 
       const payload: any = {
@@ -768,7 +770,12 @@ export default function Transfer() {
         payload.receiverAccountId = p2pDetails?.id;
 
         if (recepientAcc && p2pDetails?.name) {
-          saveRecentBeneficiary(recepientAcc, p2pDetails.name, "Zidwell", "p2p");
+          saveRecentBeneficiary(
+            recepientAcc,
+            p2pDetails.name,
+            "Zidwell",
+            "p2p",
+          );
         }
       }
 
@@ -817,25 +824,26 @@ export default function Transfer() {
             transferType === "p2p"
               ? p2pDetails?.name
               : transferType === "other-bank"
-              ? accountName
-              : userDetails?.payment_details?.p_account_name,
+                ? accountName
+                : userDetails?.payment_details?.p_account_name,
           recipientAccount:
             transferType === "p2p"
               ? recepientAcc
               : transferType === "other-bank"
-              ? accountNumber
-              : userDetails?.payment_details?.p_account_number,
+                ? accountNumber
+                : userDetails?.payment_details?.p_account_number,
           recipientBank:
             transferType === "p2p"
               ? "Zidwell"
               : transferType === "other-bank"
-              ? bankName
-              : userDetails?.payment_details?.p_bank_name,
+                ? bankName
+                : userDetails?.payment_details?.p_bank_name,
           senderName:
             userData?.fullName ||
             userDetails?.bank_details?.bank_account_name ||
             "Zidwell User",
-          senderAccount: userDetails?.bank_details?.bank_account_number || "N/A",
+          senderAccount:
+            userDetails?.bank_details?.bank_account_number || "N/A",
           narration: narration,
           status: "success",
           fee: Number(data.fee ?? calculatedFee),
@@ -976,7 +984,7 @@ export default function Transfer() {
   };
 
   const filteredBanks = banks.filter((bank) =>
-    bank.name.toLowerCase().includes(search.toLowerCase())
+    bank.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   const isDisabled =
@@ -1004,7 +1012,7 @@ export default function Transfer() {
   useEffect(() => {
     const loadRecentBeneficiaries = () => {
       const cached = localStorage.getItem(
-        `recent_beneficiaries_${userData?.id}`
+        `recent_beneficiaries_${userData?.id}`,
       );
       if (cached) {
         try {
@@ -1023,11 +1031,11 @@ export default function Transfer() {
     setLoadingCategories(true);
     try {
       const response = await fetch(
-        `/api/journal/categories?userId=${userData.id}`
+        `/api/journal/categories?userId=${userData.id}`,
       );
       const data = await response.json();
       const expenseCats = data.filter(
-        (cat: ExpenseCategory) => cat.type === "expense"
+        (cat: ExpenseCategory) => cat.type === "expense",
       );
       const uniqueCategories = expenseCats.reduce(
         (acc: ExpenseCategory[], current: ExpenseCategory) => {
@@ -1035,7 +1043,7 @@ export default function Transfer() {
           if (!exists) acc.push(current);
           return acc;
         },
-        []
+        [],
       );
       setExpenseCategories(uniqueCategories);
     } catch (error) {
@@ -1230,6 +1238,7 @@ export default function Transfer() {
         inputCount={inputCount}
         error={pinError}
         onClearError={() => setPinError(null)}
+        userId={userData?.id}
         onConfirm={async (code) => {
           try {
             setPinError(null);
@@ -1354,22 +1363,22 @@ export default function Transfer() {
           transferType === "p2p"
             ? p2pDetails?.name
             : transferType === "other-bank"
-            ? accountName
-            : userDetails?.payment_details?.p_account_name
+              ? accountName
+              : userDetails?.payment_details?.p_account_name
         }
         recipientAccount={
           transferType === "p2p"
             ? recepientAcc
             : transferType === "other-bank"
-            ? accountNumber
-            : userDetails?.payment_details?.p_account_number
+              ? accountNumber
+              : userDetails?.payment_details?.p_account_number
         }
         recipientBank={
           transferType === "p2p"
             ? "Zidwell"
             : transferType === "other-bank"
-            ? bankName
-            : userDetails?.payment_details?.p_bank_name
+              ? bankName
+              : userDetails?.payment_details?.p_bank_name
         }
         purpose={narration}
         amount={amount}

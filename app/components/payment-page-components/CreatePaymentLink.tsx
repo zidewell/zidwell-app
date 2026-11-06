@@ -30,6 +30,7 @@ import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview";
+import posthog from "posthog-js";
 
 // ============================================================
 // CONSTANTS
@@ -561,6 +562,14 @@ const CreatePaymentLink = () => {
       }
 
       setCreatedSlug(result.slug);
+      posthog.capture("payment_link_created", {
+        currency: config.currency,
+        amount_mode: config.amountMode,
+        price_type: pageData.priceType,
+        price_amount: pageData.price,
+        has_installments: isInstallment,
+        fee_payer: feePayer,
+      });
 
       confetti({
         particleCount: 150,

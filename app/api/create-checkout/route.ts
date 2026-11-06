@@ -1,6 +1,8 @@
 // app/api/create-checkout/route.ts
-import { NextResponse } from 'next/server';
+import { SeverityNumber } from '@opentelemetry/api-logs';
+import { NextResponse, after } from 'next/server';
 import { getNombaToken } from '@/lib/nomba';
+import { loggerProvider } from '@/instrumentation';
 import { createClient } from '@supabase/supabase-js';
 
 const baseUrl =
@@ -13,10 +15,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Logger instance built from the exported provider
+const logger = loggerProvider.getLogger('zidwell.posthog');
+
+function flushPostHogLogs() {
+  after(async () => {
+    await loggerProvider.forceFlush();
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const { planTier, amount, billingPeriod, userEmail, userId, orderReference } = await request.json();
-    
+
     // Verify user exists
     const { data: user, error: userError } = await supabase
       .from('users')
@@ -26,10 +37,16 @@ export async function POST(request: Request) {
 
     if (userError || !user) {
       console.error('User not found in database:', userId);
+      logger.emit({
+        body: 'subscription_checkout_rejected',
+        severityNumber: SeverityNumber.WARN,
+        attributes: { reason: 'account_not_found' },
+      });
+      flushPostHogLogs();
       return NextResponse.json(
-        { 
-          success: false, 
-          error: 'User account not found.' 
+        {
+          success: false,
+          error: 'User account not found.'
         },
         { status: 400 }
       );
@@ -38,6 +55,12 @@ export async function POST(request: Request) {
     // ✅ Updated valid tiers
     const validTiers = ['free', 'solopreneur', 'sme', 'enterprise', 'corporation'];
     if (!validTiers.includes(planTier)) {
+      logger.emit({
+        body: 'subscription_checkout_rejected',
+        severityNumber: SeverityNumber.WARN,
+        attributes: { reason: 'invalid_plan_tier' },
+      });
+      flushPostHogLogs();
       return NextResponse.json(
         { success: false, error: 'Invalid plan tier' },
         { status: 400 }
@@ -59,11 +82,11 @@ export async function POST(request: Request) {
         accountId: process.env.NOMBA_ACCOUNT_ID,
         allowedPaymentMethods: ['Card'],
         metadata: {
-          planTier, 
+          planTier,
           billingPeriod,
           userId,
         }
-      }, 
+      },
       tokenizeCard: false
     };
 
@@ -100,6 +123,13 @@ export async function POST(request: Request) {
         }
       });
 
+    logger.emit({
+      body: 'subscription_checkout_created',
+      severityNumber: SeverityNumber.INFO,
+      attributes: { operation: 'subscription_checkout' },
+    });
+    flushPostHogLogs();
+
     return NextResponse.json({
       success: true,
       checkoutLink: data.data.checkoutLink,
@@ -108,6 +138,12 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error('Checkout error:', error);
+    logger.emit({
+      body: 'subscription_checkout_failed',
+      severityNumber: SeverityNumber.ERROR,
+      attributes: { operation: 'subscription_checkout' },
+    });
+    flushPostHogLogs();
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }

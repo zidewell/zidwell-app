@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
+import posthog from "posthog-js";
 
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
@@ -964,6 +965,13 @@ const CreateInvoice = ({ onInvoiceCreated }: CreateInvoiceProps) => {
       const result = await handleSaveInvoice(false);
 
       if (result.success) {
+        posthog.capture("invoice_created", {
+          item_count: form.invoice_items.length,
+          total_amount: totals.totalAmount,
+          payment_type: form.payment_type,
+          fee_option: form.fee_option,
+          allows_multiple_payments: form.allowMultiplePayments,
+        });
         triggerConfetti();
 
         resetAllLoadingStates();

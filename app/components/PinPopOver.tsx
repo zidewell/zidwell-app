@@ -1,10 +1,11 @@
-// PinPopOver.tsx
+// app/components/PinPopOver.tsx
 "use client";
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
 import { Loader2, X, Mail, AlertCircle } from "lucide-react";
+import ForgotPinModal from "./transfer-components/ForgotPinModal"; 
 
 interface PinPopOverProps {
   setIsOpen: (isOpen: boolean) => void;
@@ -15,7 +16,11 @@ interface PinPopOverProps {
   onConfirm?: (code: string) => Promise<void> | void;
   error?: string | null;
   onClearError?: () => void;
-  isLoading?: boolean; // ✅ Added this prop
+  isLoading?: boolean;
+  /** Required — used by the forgot-PIN OTP flow. */
+  userId: string;
+  /** Optional — fired after a successful PIN reset so the caller can reset its form. */
+  onPinReset?: () => void;
 }
 
 export default function PinPopOver({
@@ -27,21 +32,22 @@ export default function PinPopOver({
   onConfirm,
   error,
   onClearError,
-  isLoading = false, // ✅ Default to false
+  isLoading = false,
+  userId,
+  onPinReset,
 }: PinPopOverProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState(0);
   const [isPinLocked, setIsPinLocked] = useState(false);
-  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [showForgotPin, setShowForgotPin] = useState(false);
 
-  // ✅ Combine external isLoading with internal isProcessing
   const isBusy = isLoading || isProcessing;
 
-  // Sync with parent error
+  // Sync with parent error prop
   useEffect(() => {
     if (error) {
       setLocalError(error);
@@ -53,20 +59,20 @@ export default function PinPopOver({
     }
   }, [error, inputCount, setPin]);
 
-  // Clear local error when popup closes
+  // Reset all local state when popover closes
   useEffect(() => {
     if (!isOpen) {
       setLocalError(null);
       setAttempts(0);
       setIsProcessing(false);
       setIsPinLocked(false);
-      setResetEmailSent(false);
       setLockedUntil(null);
+      setShowForgotPin(false);
       if (onClearError) onClearError();
     }
   }, [isOpen, onClearError]);
 
-  // Timer for locked state
+  // Countdown for locked state
   useEffect(() => {
     if (isPinLocked && lockedUntil) {
       const updateTimer = () => {
@@ -83,19 +89,18 @@ export default function PinPopOver({
 
       updateTimer();
       const interval = setInterval(updateTimer, 60000);
-
       return () => clearInterval(interval);
     }
   }, [isPinLocked, lockedUntil]);
 
-  // Auto-focus first input when opened
+  // Auto-focus first input on open
   useEffect(() => {
-    if (isOpen && !isBusy && !isPinLocked) {
+    if (isOpen && !isBusy && !isPinLocked && !showForgotPin) {
       setTimeout(() => {
         inputsRef.current[0]?.focus();
       }, 100);
     }
-  }, [isOpen, isBusy, isPinLocked]);
+  }, [isOpen, isBusy, isPinLocked, showForgotPin]);
 
   const handleInput = (index: number, value: string) => {
     if (isBusy || isPinLocked) return;
@@ -177,10 +182,8 @@ export default function PinPopOver({
 
       if (err?.locked || err?.message?.includes("locked")) {
         setIsPinLocked(true);
-        setResetEmailSent(err?.resetEmailSent || false);
         setLockedUntil(err?.lockedUntil ? new Date(err.lockedUntil) : null);
         setLocalError(err.message);
-
         if (err?.attempts !== undefined) {
           setAttempts(err.attempts);
         }
@@ -217,8 +220,8 @@ export default function PinPopOver({
       setLocalError(null);
       setAttempts(0);
       setIsPinLocked(false);
-      setResetEmailSent(false);
       setLockedUntil(null);
+      setShowForgotPin(false);
       if (onClearError) onClearError();
     }
   };
@@ -230,15 +233,117 @@ export default function PinPopOver({
     inputsRef.current[0]?.focus();
   };
 
-  const handleRequestReset = () => {
-    window.location.href = "/dashboard/profile?reset-pin=true";
+  const handlePinResetSuccess = () => {
+    setShowForgotPin(false);
+    setPin(Array(inputCount).fill(""));
+    setLocalError(null);
+    setAttempts(0);
+    setIsPinLocked(false);
+    setLockedUntil(null);
+    if (onPinReset) onPinReset();
+    if (onClearError) onClearError();
+    setIsOpen(false);
   };
 
   const isPinComplete = pin.join("").length === inputCount;
 
-  // Render locked state
+  // ─── Locked state ───────────────────────────────────────────
   if (isPinLocked) {
     return (
+      <>
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              <motion.div
+                className="fixed inset-0 bg-(--color-ink)/50 backdrop-blur-sm z-40"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={handleClose}
+              />
+
+              <motion.div
+                className="fixed inset-0 flex items-center justify-center z-50 px-4"
+                initial={{ opacity: 0, y: 60, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 40, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              >
+                <div className="max-w-md w-full text-center bg-(--bg-primary) px-4 sm:px-8 py-10 rounded-xl shadow-xl border border-(--border-color) relative">
+                  <button
+                    onClick={handleClose}
+                    disabled={isBusy}
+                    className="absolute top-4 right-4 p-2 rounded-full transition-colors text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+
+                  <header className="mb-6">
+                    <div className="flex justify-center mb-4">
+                      <div className="bg-red-100 p-3 rounded-full">
+                        <AlertCircle className="w-12 h-12 text-red-600" />
+                      </div>
+                    </div>
+                    <h1 className="text-2xl font-bold mb-2 text-(--text-primary)">
+                      PIN Locked
+                    </h1>
+                    <p className="text-[15px] text-(--text-secondary)">
+                      {localError || "Too many failed attempts"}
+                    </p>
+                  </header>
+
+                  <div className="space-y-4">
+                    {timeRemaining > 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <p className="text-amber-800 font-medium">
+                          Locked for {timeRemaining} minute
+                          {timeRemaining !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-sm text-amber-700 mt-1">
+                          Please try again after the lock period, or reset your
+                          PIN with an email verification code.
+                        </p>
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={() => setShowForgotPin(true)}
+                      className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3"
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Reset PIN with verification code
+                    </Button>
+
+                    {timeRemaining > 0 && (
+                      <Button
+                        onClick={handleClose}
+                        variant="outline"
+                        className="w-full border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                      >
+                        Close
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <ForgotPinModal
+          isOpen={showForgotPin}
+          onClose={() => setShowForgotPin(false)}
+          userId={userId}
+          onSuccess={handlePinResetSuccess}
+        />
+      </>
+    );
+  }
+
+  // ─── Normal PIN entry ───────────────────────────────────────
+  return (
+    <>
       <AnimatePresence>
         {isOpen && (
           <>
@@ -261,259 +366,155 @@ export default function PinPopOver({
                 <button
                   onClick={handleClose}
                   disabled={isBusy}
-                  className="absolute top-4 right-4 p-2 rounded-full transition-colors text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
+                  className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
+                    isBusy
+                      ? "text-(--text-secondary)/50 cursor-not-allowed"
+                      : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
+                  }`}
                   aria-label="Close"
                 >
                   <X className="h-5 w-5" />
                 </button>
 
                 <header className="mb-6">
-                  <div className="flex justify-center mb-4">
-                    <div className="bg-red-100 p-3 rounded-full">
-                      <AlertCircle className="w-12 h-12 text-red-600" />
-                    </div>
-                  </div>
-                  <h1 className="text-2xl font-bold mb-2 text-(--text-primary)">
-                    PIN Locked
+                  <h1 className="text-2xl font-bold mb-1 text-(--text-primary)">
+                    Transaction PIN
                   </h1>
                   <p className="text-[15px] text-(--text-secondary)">
-                    {localError || "Too many failed attempts"}
+                    {isBusy ? (
+                      <span className="text-(--color-accent-yellow) font-medium flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing transaction...
+                      </span>
+                    ) : localError ? (
+                      <span className="text-red-500 font-medium">
+                        {localError}
+                      </span>
+                    ) : (
+                      <>
+                        Enter your {inputCount}-digit PIN to complete this
+                        transaction
+                        {attempts > 0 && (
+                          <span className="block text-xs text-amber-600 mt-1">
+                            {3 - attempts} attempt
+                            {3 - attempts !== 1 ? "s" : ""} remaining
+                          </span>
+                        )}
+                      </>
+                    )}
                   </p>
                 </header>
 
-                <div className="space-y-4">
-                  {timeRemaining > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                      <p className="text-amber-800 font-medium">
-                        Locked for {timeRemaining} minute
-                        {timeRemaining !== 1 ? "s" : ""}
-                      </p>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Please try again after the lock period or reset your PIN
-                        via email.
-                      </p>
-                    </div>
-                  )}
+                <form onSubmit={handleSubmit}>
+                  <div className="flex items-center justify-center gap-3">
+                    {pin.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={(el) => {
+                          inputsRef.current[i] = el;
+                        }}
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]*"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleInput(i, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, i)}
+                        onFocus={(e) => !isBusy && e.target.select()}
+                        onPaste={handlePaste}
+                        className={`w-14 h-14 text-center text-2xl font-extrabold rounded-lg outline-none transition-all ${
+                          isBusy
+                            ? "bg-(--bg-secondary) text-(--text-secondary) border-(--border-color) cursor-not-allowed"
+                            : localError
+                              ? "bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                              : "bg-(--bg-secondary) text-(--text-primary) border-2 border-transparent hover:border-(--color-accent-yellow)/50 focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20"
+                        }`}
+                        disabled={isBusy}
+                        aria-label={`PIN digit ${i + 1}`}
+                      />
+                    ))}
+                  </div>
 
-                  {resetEmailSent && (
-                    <div className="bg-(--color-lemon-green)/10 border border-(--color-lemon-green)/20 rounded-lg p-4">
-                      <div className="flex items-center gap-2 justify-center mb-2">
-                        <Mail className="w-5 h-5 text-(--color-lemon-green)" />
-                        <p className="text-(--color-lemon-green) font-medium">
-                          Reset Email Sent!
-                        </p>
-                      </div>
-                      <p className="text-sm text-(--text-secondary)">
-                        A PIN reset link has been sent to your registered email.
-                        The link will expire in 1 hour.
-                      </p>
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={handleRequestReset}
-                    className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) py-3"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Request PIN Reset via Email
-                  </Button>
-
-                  {timeRemaining > 0 && (
-                    <Button
-                      onClick={handleClose}
-                      variant="outline"
-                      className="w-full border-(--border-color) text-(--text-primary) hover:bg-(--bg-secondary)"
+                  {localError && !isBusy && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4"
                     >
-                      Close
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRetry}
+                        className="text-(--color-accent-yellow) border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 mx-auto"
+                      >
+                        Try Again
+                      </Button>
+                    </motion.div>
                   )}
-                </div>
+
+                  <div className="max-w-[260px] mx-auto mt-6">
+                    <Button
+                      type="submit"
+                      className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 ${
+                        isBusy || !isPinComplete
+                          ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400 text-white"
+                          : localError
+                            ? "bg-red-500 hover:bg-red-600 focus:ring-red-500 text-white"
+                            : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) focus:ring-(--color-accent-yellow)"
+                      }`}
+                      disabled={isBusy || !isPinComplete}
+                    >
+                      {isBusy ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : localError ? (
+                        "Try Again"
+                      ) : (
+                        "Confirm Payment"
+                      )}
+                    </Button>
+
+                    {!isBusy && (
+                      <p className="mt-4 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotPin(true)}
+                          className="text-(--color-accent-yellow) hover:underline focus:outline-none"
+                        >
+                          Forgot PIN?
+                        </button>
+                      </p>
+                    )}
+                  </div>
+                </form>
+
+                {attempts > 0 && !isBusy && !localError && (
+                  <div className="mt-4 pt-4 border-t border-(--border-color)">
+                    <p className="text-xs text-(--text-secondary) flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>
+                        PIN will lock after {3 - attempts} more failed attempt
+                        {3 - attempts !== 1 ? "s" : ""}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-    );
-  }
 
-  // Normal PIN entry UI
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-(--color-ink)/50 backdrop-blur-sm z-40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-          />
-
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center z-50 px-4"
-            initial={{ opacity: 0, y: 60, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 260, damping: 22 }}
-          >
-            <div className="max-w-md w-full text-center bg-(--bg-primary) px-4 sm:px-8 py-10 rounded-xl shadow-xl border border-(--border-color) relative">
-              <button
-                onClick={handleClose}
-                disabled={isBusy}
-                className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${
-                  isBusy
-                    ? "text-(--text-secondary)/50 cursor-not-allowed"
-                    : "text-(--text-secondary) hover:text-(--text-primary) hover:bg-(--bg-secondary)"
-                }`}
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
-              </button>
-
-              <header className="mb-6">
-                <h1 className="text-2xl font-bold mb-1 text-(--text-primary)">
-                  Transaction PIN
-                </h1>
-                <p className="text-[15px] text-(--text-secondary)">
-                  {isBusy ? (
-                    <span className="text-(--color-accent-yellow) font-medium flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing transaction...
-                    </span>
-                  ) : localError ? (
-                    <span className="text-red-500 font-medium">
-                      {localError}
-                    </span>
-                  ) : (
-                    <>
-                      Enter your {inputCount}-digit PIN to complete this
-                      transaction
-                      {attempts > 0 && (
-                        <span className="block text-xs text-amber-600 mt-1">
-                          {3 - attempts} attempt{3 - attempts !== 1 ? "s" : ""}{" "}
-                          remaining
-                        </span>
-                      )}
-                    </>
-                  )}
-                </p>
-              </header>
-
-              <form onSubmit={handleSubmit}>
-                <div className="flex items-center justify-center gap-3">
-                  {pin.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => {
-                        inputsRef.current[i] = el;
-                      }}
-                      type="password"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handleInput(i, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, i)}
-                      onFocus={(e) => !isBusy && e.target.select()}
-                      onPaste={handlePaste}
-                      className={`w-14 h-14 text-center text-2xl font-extrabold rounded-lg outline-none transition-all ${
-                        isBusy
-                          ? "bg-(--bg-secondary) text-(--text-secondary) border-(--border-color) cursor-not-allowed"
-                          : localError
-                            ? "bg-red-50 text-red-900 border-2 border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-200"
-                            : "bg-(--bg-secondary) text-(--text-primary) border-2 border-transparent hover:border-(--color-accent-yellow)/50 focus:border-(--color-accent-yellow) focus:ring-2 focus:ring-(--color-accent-yellow)/20"
-                      }`}
-                      disabled={isBusy}
-                      aria-label={`PIN digit ${i + 1}`}
-                    />
-                  ))}
-                </div>
-
-                {localError && !isBusy && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-4"
-                  >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRetry}
-                      className="text-(--color-accent-yellow) border-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/10 mx-auto"
-                    >
-                      Try Again
-                    </Button>
-                  </motion.div>
-                )}
-
-                <div className="max-w-[260px] mx-auto mt-6">
-                  <Button
-                    type="submit"
-                    className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 ${
-                      isBusy || !isPinComplete
-                        ? "bg-gray-400 cursor-not-allowed hover:bg-gray-400 focus:ring-gray-400 text-white"
-                        : localError
-                          ? "bg-red-500 hover:bg-red-600 focus:ring-red-500 text-white"
-                          : "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) focus:ring-(--color-accent-yellow)"
-                    }`}
-                    disabled={isBusy || !isPinComplete}
-                  >
-                    {isBusy ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : localError ? (
-                      "Try Again"
-                    ) : (
-                      "Confirm Payment"
-                    )}
-                  </Button>
-
-                  {!isBusy && !localError && attempts < 2 && (
-                    <p className="mt-4 text-sm">
-                      <button
-                        type="button"
-                        onClick={handleRequestReset}
-                        className="text-(--color-accent-yellow) hover:underline focus:outline-none"
-                      >
-                        Forgot PIN?
-                      </button>
-                    </p>
-                  )}
-
-                  {!isBusy && localError && attempts >= 2 && (
-                    <p className="mt-4 text-sm">
-                      <button
-                        type="button"
-                        onClick={handleRequestReset}
-                        className="text-red-600 hover:underline focus:outline-none font-medium"
-                      >
-                        Forgot PIN? Reset via Email
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </form>
-
-              {/* Security notice */}
-              {attempts > 0 && !isBusy && !localError && (
-                <div className="mt-4 pt-4 border-t border-(--border-color)">
-                  <p className="text-xs text-(--text-secondary) flex items-center justify-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>
-                      PIN will lock after {3 - attempts} more failed attempt
-                      {3 - attempts !== 1 ? "s" : ""}
-                    </span>
-                  </p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+      <ForgotPinModal
+        isOpen={showForgotPin}
+        onClose={() => setShowForgotPin(false)}
+        userId={userId}
+        onSuccess={handlePinResetSuccess}
+      />
+    </>
   );
 }
