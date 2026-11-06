@@ -10,7 +10,6 @@ import TransferForm from "./TransferForm";
 import { useUserContextData } from "@/app/context/userData";
 import { TIER_CONFIG, type AccountTier } from "@/lib/fee";
 
-// Types
 interface Bank {
   name: string;
   code: string;
@@ -30,6 +29,7 @@ interface SavedAccount {
   is_default: boolean;
   last_used_at?: string;
   use_count?: number;
+  user_id?: string;
 }
 
 interface SavedP2PBeneficiary {
@@ -41,6 +41,7 @@ interface SavedP2PBeneficiary {
   created_at: string;
   last_used_at?: string;
   use_count?: number;
+  user_id?: string;
 }
 
 interface RecentBeneficiary {
@@ -120,15 +121,12 @@ export default function Transfer() {
     [],
   );
   const [expenseCategory, setExpenseCategory] = useState<string>("");
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [recentBeneficiaries, setRecentBeneficiaries] = useState<
     RecentBeneficiary[]
   >([]);
   const [showBeneficiarySuggestions, setShowBeneficiarySuggestions] =
     useState(false);
-  const [beneficiarySearch, setBeneficiarySearch] = useState("");
   const [matchingBeneficiaries, setMatchingBeneficiaries] = useState<
     RecentBeneficiary[]
   >([]);
@@ -169,7 +167,6 @@ export default function Transfer() {
     setSelectedSavedAccount(null);
     setSelectedSavedP2PBeneficiary(null);
     setExpenseCategory("");
-    setBeneficiarySearch("");
     setShowBeneficiarySuggestions(false);
     setP2pDetails(null);
     setMatchingBeneficiaries([]);
@@ -225,7 +222,6 @@ export default function Transfer() {
       const foundBank = banks.find((b) => b.name === beneficiary.bank_name);
       if (foundBank) setBankCode(foundBank.code);
       setShowBeneficiarySuggestions(false);
-      setBeneficiarySearch("");
       setMatchingBeneficiaries([]);
       setIsInputFocused(false);
       accountInputRef.current?.blur();
@@ -236,7 +232,6 @@ export default function Transfer() {
         id: beneficiary.id,
       });
       setShowBeneficiarySuggestions(false);
-      setBeneficiarySearch("");
       setMatchingBeneficiaries([]);
       setIsInputFocused(false);
       p2pInputRef.current?.blur();
@@ -244,22 +239,22 @@ export default function Transfer() {
   };
 
   const saveRecentBeneficiary = (
-    accountNumber: string,
-    accountName: string,
-    bankName: string | undefined,
+    accountNum: string,
+    accountNm: string,
+    bankNm: string | undefined,
     type: "bank" | "p2p",
   ) => {
     const newRecent: RecentBeneficiary = {
-      id: `${type}_${accountNumber}`,
-      account_number: accountNumber,
-      account_name: accountName,
-      bank_name: bankName,
+      id: `${type}_${accountNum}`,
+      account_number: accountNum,
+      account_name: accountNm,
+      bank_name: bankNm,
       type,
       last_used: new Date().toISOString(),
     };
 
     setRecentBeneficiaries((prev) => {
-      const filtered = prev.filter((b) => b.account_number !== accountNumber);
+      const filtered = prev.filter((b) => b.account_number !== accountNum);
       const updated = [newRecent, ...filtered].slice(0, 10);
       localStorage.setItem(
         `recent_beneficiaries_${userData?.id}`,
@@ -572,7 +567,6 @@ export default function Transfer() {
           setSuccessData(receiptData);
           setShowSuccessModal(true);
 
-          // ✅ Refresh saved lists after success (server already saved)
           refreshSavedLists();
 
           resetForm();
@@ -604,7 +598,10 @@ export default function Transfer() {
     pollingIntervalRef.current = setInterval(pollStatus, pollIntervalMs);
   };
 
-  // ✅ Background refresh of saved lists (server already saved the beneficiary)
+  /**
+   * ✅ Tolerant response parser.
+   * Handles { accounts, success }, { data }, or raw arrays.
+   */
   const refreshSavedLists = async () => {
     if (!userData?.id) return;
     try {
@@ -612,14 +609,55 @@ export default function Transfer() {
         fetch(`/api/saved-accounts?userId=${userData.id}`),
         fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
       ]);
+
       const bankData = bankRes.ok ? await bankRes.json() : null;
       const p2pData = p2pRes.ok ? await p2pRes.json() : null;
-      if (bankData?.success) setSavedAccounts(bankData.accounts || []);
-      if (p2pData?.success)
-        setSavedP2PBeneficiaries(p2pData.beneficiaries || []);
+
+      const bankList =
+        bankData?.accounts ??
+        bankData?.data ??
+        (Array.isArray(bankData) ? bankData : []);
+
+      const p2pList =
+        p2pData?.beneficiaries ??
+        p2pData?.data ??
+        (Array.isArray(p2pData) ? p2pData : []);
+
+      setSavedAccounts(Array.isArray(bankList) ? bankList : []);
+      setSavedP2PBeneficiaries(Array.isArray(p2pList) ? p2pList : []);
     } catch (err) {
       console.error("Failed to refresh saved lists:", err);
     }
+  };
+
+  // ✅ Wire up delete / default-change so the UI updates immediately
+  const handleSavedAccountDeleted = (id: string) => {
+    setSavedAccounts((prev) => prev.filter((a) => a.id !== id));
+    if (selectedSavedAccount?.id === id) setSelectedSavedAccount(null);
+  };
+
+  const handleSavedAccountDefaultChanged = (id: string) => {
+    setSavedAccounts((prev) =>
+      prev.map((a) => ({
+        ...a,
+        is_default: a.id === id ? !a.is_default : false,
+      })),
+    );
+  };
+
+  const handleSavedP2PDeleted = (id: string) => {
+    setSavedP2PBeneficiaries((prev) => prev.filter((b) => b.id !== id));
+    if (selectedSavedP2PBeneficiary?.id === id)
+      setSelectedSavedP2PBeneficiary(null);
+  };
+
+  const handleSavedP2PDefaultChanged = (id: string) => {
+    setSavedP2PBeneficiaries((prev) =>
+      prev.map((b) => ({
+        ...b,
+        is_default: b.id === id ? !b.is_default : false,
+      })),
+    );
   };
 
   const toggleFavoriteCategory = async (
@@ -674,7 +712,7 @@ export default function Transfer() {
           ),
         );
       }
-    } catch (error) {
+    } catch {
       setExpenseCategories((prev) =>
         prev.map((cat) =>
           cat.id === category.id
@@ -799,9 +837,7 @@ export default function Transfer() {
           text: "Your transfer is being processed. Please wait...",
           allowOutsideClick: false,
           showConfirmButton: false,
-          willOpen: () => {
-            Swal.showLoading();
-          },
+          willOpen: () => Swal.showLoading(),
         });
 
         if (data.transactionId) startPolling(data.transactionId);
@@ -809,7 +845,6 @@ export default function Transfer() {
         setLoading(false);
         return { success: true };
       } else if (res.ok) {
-        // ✅ Server already saved the beneficiary — just refresh local list
         refreshSavedLists();
 
         const receiptData = {
@@ -957,11 +992,10 @@ export default function Transfer() {
     }
 
     if (Object.keys(newErrors).length > 0) {
-      const errorMessages = Object.values(newErrors).join("<br>");
       Swal.fire({
         icon: "error",
         title: "Validation Failed",
-        html: errorMessages,
+        html: Object.values(newErrors).join("<br>"),
       });
       setErrors(newErrors);
       return;
@@ -978,9 +1012,7 @@ export default function Transfer() {
 
   const handleModalClose = () => {
     setShowSuccessModal(false);
-    setTimeout(() => {
-      setSuccessData(null);
-    }, 300);
+    setTimeout(() => setSuccessData(null), 300);
   };
 
   const filteredBanks = banks.filter((bank) =>
@@ -1004,11 +1036,6 @@ export default function Transfer() {
     return "bank_transfer";
   };
 
-  const showSuggestions =
-    showBeneficiarySuggestions &&
-    matchingBeneficiaries.length > 0 &&
-    isInputFocused;
-
   useEffect(() => {
     const loadRecentBeneficiaries = () => {
       const cached = localStorage.getItem(
@@ -1016,8 +1043,7 @@ export default function Transfer() {
       );
       if (cached) {
         try {
-          const parsed = JSON.parse(cached);
-          setRecentBeneficiaries(parsed);
+          setRecentBeneficiaries(JSON.parse(cached));
         } catch (e) {
           console.error("Failed to parse recent beneficiaries:", e);
         }
@@ -1080,8 +1106,18 @@ export default function Transfer() {
 
         setUserDetails(accountData || {});
         setBanks(banksData?.data || []);
-        setSavedAccounts(savedAccountsData.accounts || []);
-        setSavedP2PBeneficiaries(savedP2PData.beneficiaries || []);
+
+        const bankList =
+          savedAccountsData?.accounts ??
+          savedAccountsData?.data ??
+          (Array.isArray(savedAccountsData) ? savedAccountsData : []);
+        const p2pList =
+          savedP2PData?.beneficiaries ??
+          savedP2PData?.data ??
+          (Array.isArray(savedP2PData) ? savedP2PData : []);
+
+        setSavedAccounts(Array.isArray(bankList) ? bankList : []);
+        setSavedP2PBeneficiaries(Array.isArray(p2pList) ? p2pList : []);
       } catch (err) {
         console.error("Error fetching details:", err);
         setUserDetails(null);
@@ -1097,9 +1133,18 @@ export default function Transfer() {
     fetchExpenseCategories();
   }, [userData?.id]);
 
+  // Bank lookup effect — skips when a matching saved account is selected
   useEffect(() => {
     if (transferType !== "other-bank") return;
     if (accountNumber.length !== 10 || !bankCode) return;
+
+    if (
+      selectedSavedAccount &&
+      selectedSavedAccount.account_number === accountNumber &&
+      selectedSavedAccount.bank_code === bankCode
+    ) {
+      return; // don't overwrite the saved name
+    }
 
     if (accountNumber === userDetails?.bank_details?.bank_account_number) {
       setP2pDetails(null);
@@ -1142,11 +1187,25 @@ export default function Transfer() {
     }, 700);
 
     return () => clearTimeout(timeout);
-  }, [accountNumber, bankCode, transferType, userDetails]);
+  }, [
+    accountNumber,
+    bankCode,
+    transferType,
+    userDetails,
+    selectedSavedAccount,
+  ]);
 
+  // P2P lookup effect — skips when a matching saved beneficiary is selected
   useEffect(() => {
     if (transferType !== "p2p") return;
     if (!recepientAcc || recepientAcc.length < 6) return;
+
+    if (
+      selectedSavedP2PBeneficiary &&
+      selectedSavedP2PBeneficiary.account_number === recepientAcc
+    ) {
+      return; // don't overwrite the saved name
+    }
 
     if (recepientAcc === userDetails?.bank_details?.bank_account_number) {
       setP2pDetails(null);
@@ -1168,10 +1227,8 @@ export default function Transfer() {
         const data = res.ok ? await res.json() : null;
 
         if (data?.receiverName || data?.full_name) {
-          const displayName =
-            data.receiverName || data.full_name || "Zidwell User";
           setP2pDetails({
-            name: displayName,
+            name: data.receiverName || data.full_name || "Zidwell User",
             id: data.walletId,
           });
           setErrors((prev) => ({ ...prev, recepientAcc: "" }));
@@ -1194,13 +1251,11 @@ export default function Transfer() {
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [recepientAcc, transferType, userDetails]);
+  }, [recepientAcc, transferType, userDetails, selectedSavedP2PBeneficiary]);
 
   useEffect(() => {
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     };
   }, []);
 
@@ -1238,7 +1293,18 @@ export default function Transfer() {
         inputCount={inputCount}
         error={pinError}
         onClearError={() => setPinError(null)}
-        userId={userData?.id}
+        userId={userData?.id ?? ""}
+        onPinReset={() => {
+          setPin(Array(inputCount).fill(""));
+          setPinError(null);
+          resetForm();
+          Swal.fire({
+            icon: "success",
+            title: "PIN reset",
+            text: "Your new transaction PIN is ready. Please start the transfer again.",
+            confirmButtonColor: "var(--color-accent-yellow)",
+          });
+        }}
         onConfirm={async (code) => {
           try {
             setPinError(null);
@@ -1354,6 +1420,11 @@ export default function Transfer() {
         filteredBanks={filteredBanks}
         handleSelectBank={handleSelectBank}
         getAllBeneficiaries={getAllBeneficiaries}
+        userId={userData?.id}
+        onSavedAccountDeleted={handleSavedAccountDeleted}
+        onSavedAccountDefaultChanged={handleSavedAccountDefaultChanged}
+        onSavedP2PDeleted={handleSavedP2PDeleted}
+        onSavedP2PDefaultChanged={handleSavedP2PDefaultChanged}
       />
 
       <TransactionSummary

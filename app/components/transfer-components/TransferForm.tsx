@@ -78,6 +78,11 @@ interface TransferFormProps {
   filteredBanks: any[];
   handleSelectBank: (bank: any) => void;
   getAllBeneficiaries: () => any[];
+  userId?: string;                                     // 👈 new
+  onSavedAccountDeleted?: (id: string) => void;         // 👈 new
+  onSavedAccountDefaultChanged?: (id: string) => void;  // 👈 new
+  onSavedP2PDeleted?: (id: string) => void;             // 👈 new
+  onSavedP2PDefaultChanged?: (id: string) => void;      // 👈 new
 }
 
 export default function TransferForm({
@@ -145,6 +150,11 @@ export default function TransferForm({
   filteredBanks,
   handleSelectBank,
   getAllBeneficiaries,
+  userId,
+  onSavedAccountDeleted,
+  onSavedAccountDefaultChanged,
+  onSavedP2PDeleted,
+  onSavedP2PDefaultChanged,
 }: TransferFormProps) {
   const computedFee = amount
     ? calculateFees(
@@ -259,6 +269,9 @@ export default function TransferForm({
               filteredBanks={filteredBanks}
               handleSelectBank={handleSelectBank}
               getAllBeneficiaries={getAllBeneficiaries}
+              userId={userId}
+              onSavedAccountDeleted={onSavedAccountDeleted}
+              onSavedAccountDefaultChanged={onSavedAccountDefaultChanged}
             />
           )}
 
@@ -284,6 +297,9 @@ export default function TransferForm({
               setIsInputFocused={setIsInputFocused}
               isInputFocused={isInputFocused}
               getAllBeneficiaries={getAllBeneficiaries}
+              userId={userId}
+              onSavedP2PDeleted={onSavedP2PDeleted}
+              onSavedP2PDefaultChanged={onSavedP2PDefaultChanged}
             />
           )}
 

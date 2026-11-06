@@ -27,6 +27,9 @@ interface P2PFieldsProps {
   setIsInputFocused: (focused: boolean) => void;
   isInputFocused: boolean;
   getAllBeneficiaries: () => any[];
+  userId?: string;                                       // 👈 new
+  onSavedP2PDeleted?: (id: string) => void;              // 👈 new
+  onSavedP2PDefaultChanged?: (id: string) => void;       // 👈 new
 }
 
 export default function P2PFields({
@@ -50,6 +53,9 @@ export default function P2PFields({
   setIsInputFocused,
   isInputFocused,
   getAllBeneficiaries,
+  userId,
+  onSavedP2PDeleted,
+  onSavedP2PDefaultChanged,
 }: P2PFieldsProps) {
   return (
     <>
@@ -71,6 +77,9 @@ export default function P2PFields({
         }
         onSelect={setSelectedSavedP2PBeneficiary}
         selectedId={selectedSavedP2PBeneficiary?.id}
+        userId={userId}
+        onDeleted={onSavedP2PDeleted}
+        onDefaultChanged={onSavedP2PDefaultChanged}
       />
 
       <div className="space-y-1 relative beneficiary-input-trigger">
