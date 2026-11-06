@@ -1,3 +1,4 @@
+// app/api/save-p2p-beneficiary/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -7,7 +8,7 @@ import {
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 // ─── GET: list ─────────────────────────────────────────────
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
   if (!user) {
     const r = NextResponse.json(
       { success: false, message: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
     return newTokens ? createAuthResponse(await r.json(), newTokens) : r;
   }
@@ -28,12 +29,12 @@ export async function GET(req: Request) {
     if (!userId || userId !== user.id) {
       return NextResponse.json(
         { success: false, message: "Invalid user" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     const { data: beneficiaries, error } = await supabase
-      .from("p2p_beneficiaries")
+      .from("saved_p2p_beneficiaries")
       .select("*")
       .eq("user_id", userId)
       .order("is_default", { ascending: false })
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
     console.error("Get P2P beneficiaries error:", error);
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -77,19 +78,19 @@ export async function POST(req: Request) {
     if (userId !== user.id) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
-        { status: 403 }
+        { status: 403 },
       );
     }
     if (!walletId || !accountNumber || !accountName) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isDefault) {
       await supabase
-        .from("p2p_beneficiaries")
+        .from("saved_p2p_beneficiaries")
         .update({ is_default: false })
         .eq("user_id", userId)
         .eq("is_default", true);
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
 
     const { data: existing } = await supabase
-      .from("p2p_beneficiaries")
+      .from("saved_p2p_beneficiaries")
       .select("id, use_count")
       .eq("user_id", userId)
       .eq("wallet_id", walletId)
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
     let beneficiary;
     if (existing) {
       const { data, error } = await supabase
-        .from("p2p_beneficiaries")
+        .from("saved_p2p_beneficiaries")
         .update({
           account_number: accountNumber,
           account_name: accountName,
@@ -123,7 +124,7 @@ export async function POST(req: Request) {
       beneficiary = data;
     } else {
       const { data, error } = await supabase
-        .from("p2p_beneficiaries")
+        .from("saved_p2p_beneficiaries")
         .insert({
           user_id: userId,
           wallet_id: walletId,
@@ -141,7 +142,7 @@ export async function POST(req: Request) {
         if (error.code === "23505") {
           return NextResponse.json(
             { success: false, message: "This beneficiary already exists" },
-            { status: 400 }
+            { status: 400 },
           );
         }
         throw error;
@@ -159,7 +160,7 @@ export async function POST(req: Request) {
     console.error("Save P2P beneficiary error:", error);
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -170,7 +171,7 @@ export async function PATCH(req: Request) {
   if (!user) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -179,19 +180,19 @@ export async function PATCH(req: Request) {
     if (userId !== user.id || !id) {
       return NextResponse.json(
         { success: false, message: "Invalid request" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (isDefault === true) {
       await supabase
-        .from("p2p_beneficiaries")
+        .from("saved_p2p_beneficiaries")
         .update({ is_default: false })
         .eq("user_id", userId);
     }
 
     const { data, error } = await supabase
-      .from("p2p_beneficiaries")
+      .from("saved_p2p_beneficiaries")
       .update({ is_default: isDefault })
       .eq("id", id)
       .eq("user_id", userId)
@@ -205,7 +206,7 @@ export async function PATCH(req: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -216,7 +217,7 @@ export async function DELETE(req: Request) {
   if (!user) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
@@ -228,12 +229,12 @@ export async function DELETE(req: Request) {
     if (userId !== user.id || !id) {
       return NextResponse.json(
         { success: false, message: "Invalid request" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { error } = await supabase
-      .from("p2p_beneficiaries")
+      .from("saved_p2p_beneficiaries")
       .delete()
       .eq("id", id)
       .eq("user_id", userId);
@@ -245,7 +246,7 @@ export async function DELETE(req: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, message: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
