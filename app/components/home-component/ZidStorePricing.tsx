@@ -1,7 +1,7 @@
 // app/components/home-component/ZidStorePricing.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -15,163 +15,22 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSubscriptionState } from "@/app/components/store/SubscriptionBadge";
 import {
-  useSubscriptionState,
-  type SubscriptionTier,
-} from "@/app/components/store/SubscriptionBadge";
+  ZIDSTORE_PLANS,
+  FEATURE_ROWS,
+  formatNaira,
+  type BillingPeriod,
+  type Plan,
+} from "@/app/components/home-component/plans";
 
 const heading = "font-['Space_Grotesk',sans-serif]";
-
-type BillingPeriod = "monthly" | "yearly";
-
-interface Plan {
-  id: SubscriptionTier;
-  name: string;
-  monthly: number;
-  yearly: number;
-  yearlyLabel?: string;
-  monthlyLabel?: string;
-  tagline: string;
-  highlighted?: boolean;
-  cta: string;
-  mailto?: boolean;
-}
-
-const PLANS: Plan[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    monthly: 0,
-    yearly: 0,
-    tagline: "Perfect for testing the waters.",
-    cta: "Start free",
-  },
-  {
-    id: "sme",
-    name: "SME",
-    monthly: 9900,
-    yearly: 49900,
-    tagline: "For growing businesses doing real volume.",
-    highlighted: true,
-    cta: "Subscribe to SME",
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    monthly: 19900,
-    yearly: 99900,
-    tagline: "For established brands and multi-store sellers.",
-    cta: "Subscribe to Enterprise",
-  },
-  {
-    id: "booster",
-    name: "Booster",
-    monthly: 200000,
-    yearly: 2400000,
-    monthlyLabel: "From",
-    yearlyLabel: "From",
-    tagline: "Custom volume pricing for high-volume merchants.",
-    cta: "Talk to sales",
-    mailto: true,
-  },
-];
-
-// Feature matrix — order matters; keys map to plan boolean/string values
-const FEATURE_ROWS: {
-  label: string;
-  values: Record<SubscriptionTier, string | boolean>;
-}[] = [
-  {
-    label: "Online store",
-    values: { starter: true, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Product images",
-    values: { starter: true, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Payment links",
-    values: { starter: true, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Business Bank Account",
-    values: { starter: true, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Product videos",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "WhatsApp notifications",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "CRM",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Customized Email to customers",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Bookkeeping Tool",
-    values: {
-      starter: "Basic",
-      sme: "Advanced",
-      enterprise: "Turbo",
-      booster: "Turbo",
-    },
-  },
-  {
-    label: "Tax Manager",
-    values: {
-      starter: "Basic",
-      sme: "Advanced",
-      enterprise: "Turbo",
-      booster: "Turbo",
-    },
-  },
-  {
-    label: "Invoicing Tool",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Receipt Tool",
-    values: { starter: false, sme: true, enterprise: true, booster: true },
-  },
-  {
-    label: "Managed advertising",
-    values: { starter: false, sme: false, enterprise: false, booster: true },
-  },
-  {
-    label: "Facebook Ads",
-    values: { starter: false, sme: false, enterprise: false, booster: true },
-  },
-  {
-    label: "Instagram Ads",
-    values: { starter: false, sme: false, enterprise: false, booster: true },
-  },
-  {
-    label: "Google Ads",
-    values: { starter: false, sme: false, enterprise: false, booster: true },
-  },
-  {
-    label: "Youtube Ads",
-    values: { starter: false, sme: false, enterprise: false, booster: true },
-  },
-  {
-    label: "Priority support",
-    values: { starter: false, sme: true, enterprise: true, booster: "Custom" },
-  },
-];
-
-const formatNaira = (n: number) => `₦${n.toLocaleString()}`;
 
 export function ZidStorePricing() {
   const router = useRouter();
   const subState = useSubscriptionState();
-  const [busyPlan, setBusyPlan] = useState<SubscriptionTier | null>(null);
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+  const [busyPlan, setBusyPlan] = useState<Plan["id"] | null>(null);
+  const [billing, setBilling] = useState<BillingPeriod>("yearly");
 
   const isActivePaid = subState.status === "paid" && !!subState.tier;
   const activeTier = subState.tier;
@@ -246,7 +105,6 @@ export function ZidStorePricing() {
           billingPeriod: billing,
         }),
       });
-
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 401) {
@@ -254,18 +112,15 @@ export function ZidStorePricing() {
         setTimeout(redirectToLogin, 900);
         return;
       }
-
-      if (res.status === 400 && data?.error === "ALREADY_SUBSCRIBED") {
+      if (res.status === 400 && data?.code === "ALREADY_SUBSCRIBED") {
         toast.info("You already have an active subscription");
         return;
       }
-
       if (!res.ok || !data?.authorization_url) {
         throw new Error(
           data?.error || `Checkout failed (${res.status}). Please try again.`,
         );
       }
-
       window.location.href = data.authorization_url;
     } catch (err: any) {
       console.error("[ZidStorePricing] subscribe failed:", err);
@@ -281,7 +136,6 @@ export function ZidStorePricing() {
 
   return (
     <section className="mx-auto mt-24 max-w-[1200px] px-5 md:mt-32 md:px-8">
-      {/* Header */}
       <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full bg-(--bg-secondary) px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-(--text-secondary)">
@@ -323,7 +177,6 @@ export function ZidStorePricing() {
         )}
       </div>
 
-      {/* Billing toggle */}
       <div className="mt-8 flex items-center gap-2">
         <div className="inline-flex rounded-2xl border border-(--border-color) bg-(--bg-primary) p-1">
           <button
@@ -352,9 +205,8 @@ export function ZidStorePricing() {
         </div>
       </div>
 
-      {/* Plan grid */}
       <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {PLANS.map((plan, i) => {
+        {ZIDSTORE_PLANS.map((plan, i) => {
           const isCurrentPaid =
             isActivePaid && activeTier === plan.id && plan.id !== "starter";
           const isLocked =
@@ -378,13 +230,9 @@ export function ZidStorePricing() {
             billing === "yearly" ? plan.yearlyLabel : plan.monthlyLabel;
           const periodLabel = isFree
             ? "forever"
-            : isBooster
-              ? billing === "yearly"
-                ? "per year"
-                : "per month"
-              : billing === "yearly"
-                ? "per year"
-                : "per month";
+            : billing === "yearly"
+              ? "per year"
+              : "per month";
 
           return (
             <motion.div
@@ -491,7 +339,6 @@ export function ZidStorePricing() {
         })}
       </div>
 
-      {/* Feature comparison table */}
       <div className="mt-14">
         <h3
           className={`${heading} text-[24px] font-bold tracking-tight text-(--text-primary) md:text-[30px]`}
@@ -509,7 +356,7 @@ export function ZidStorePricing() {
                 <th className="sticky left-0 z-10 bg-(--bg-secondary) px-5 py-4 text-[13px] font-bold uppercase tracking-wide text-(--text-secondary)">
                   Feature
                 </th>
-                {PLANS.map((p) => (
+                {ZIDSTORE_PLANS.map((p) => (
                   <th
                     key={p.id}
                     className={`px-5 py-4 text-center text-[13px] font-bold uppercase tracking-wide ${
@@ -526,7 +373,7 @@ export function ZidStorePricing() {
                 <td className="sticky left-0 z-10 bg-(--bg-primary) px-5 py-3 text-[12px] font-semibold text-(--text-secondary)">
                   {billing === "yearly" ? "Yearly" : "Monthly"}
                 </td>
-                {PLANS.map((p) => {
+                {ZIDSTORE_PLANS.map((p) => {
                   const isFree = p.id === "starter";
                   const isBooster = p.id === "booster";
                   const price = billing === "yearly" ? p.yearly : p.monthly;
@@ -556,7 +403,7 @@ export function ZidStorePricing() {
                   <td className="sticky left-0 z-10 bg-inherit px-5 py-3 text-[13px] font-semibold text-(--text-primary)">
                     {row.label}
                   </td>
-                  {PLANS.map((p) => {
+                  {ZIDSTORE_PLANS.map((p) => {
                     const val = row.values[p.id];
                     return (
                       <td
@@ -586,7 +433,6 @@ export function ZidStorePricing() {
         </p>
       </div>
 
-      {/* Fee transparency note */}
       <div className="mt-10 rounded-[24px] border border-(--border-color) bg-(--bg-secondary) p-6">
         <p className="text-[14px] font-medium leading-relaxed text-(--text-secondary)">
           <span className="font-bold text-(--text-primary)">

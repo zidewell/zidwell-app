@@ -7,7 +7,7 @@ import { isAuthenticatedWithRefresh } from "@/lib/auth-check-api";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const baseUrl =
@@ -21,43 +21,60 @@ const generateOrderReference = (userId: string): string => {
   return `SUB_${userId.slice(-8)}_${timestamp}_${random}`;
 };
 
-// ============================================================
-// Paid tiers — MUST match PricingNew / app/pricing/page.tsx
-// ============================================================
-const VALID_TIERS = ["starter", "sme", "enterprise"] as const;
+// Paid tiers only. Starter is free, Booster is custom-quote.
+const VALID_TIERS = ["sme", "enterprise"] as const;
 type PaidTier = (typeof VALID_TIERS)[number];
 
 const TIER_PRICES: Record<PaidTier, { monthly: number; yearly: number }> = {
-  starter:    { monthly: 99900,  yearly: 999000  },
-  sme:        { monthly: 199900, yearly: 1999000 },
-  enterprise: { monthly: 599900, yearly: 5999000 },
+  sme: { monthly: 9900, yearly: 49900 },
+  enterprise: { monthly: 19900, yearly: 99900 },
 };
 
 export async function POST(request: NextRequest) {
   try {
-    // ── 1. Authenticate the caller ──
     const { user, newTokens } = await isAuthenticatedWithRefresh(request);
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Please log in to subscribe", logout: true },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const userId = user.id;
     const userEmail = user.email;
 
-    // ── 2. Parse body ──
     const body = await request.json();
     const { planTier, amount, billingPeriod } = body;
 
+    if (planTier === "starter") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Starter is free — no payment required.",
+          code: "FREE_PLAN",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (planTier === "booster") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Booster is a custom plan. Please contact sales@zidwell.com.",
+          code: "CUSTOM_QUOTE_ONLY",
+        },
+        { status: 400 },
+      );
+    }
+
     if (!(VALID_TIERS as readonly string[]).includes(planTier)) {
       console.warn(
-        `❌ Invalid plan tier "${planTier}". Expected: ${VALID_TIERS.join(", ")}`
+        `❌ Invalid plan tier "${planTier}". Expected: ${VALID_TIERS.join(", ")}`,
       );
       return NextResponse.json(
         { success: false, error: "Invalid plan tier" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -66,11 +83,10 @@ export async function POST(request: NextRequest) {
     if (billingPeriod !== "monthly" && billingPeriod !== "yearly") {
       return NextResponse.json(
         { success: false, error: "Invalid billing period" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ── 3. Server-side amount validation ──
     const expectedAmount =
       billingPeriod === "yearly"
         ? TIER_PRICES[paidTier].yearly
@@ -82,11 +98,10 @@ export async function POST(request: NextRequest) {
           success: false,
           error: `Amount mismatch. Expected ₦${expectedAmount.toLocaleString()} for ${paidTier} (${billingPeriod}).`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ── 4. Verify user still exists in DB ──
     const { data: dbUser, error: userError } = await supabase
       .from("users")
       .select("id, email, subscription_tier")
@@ -97,11 +112,10 @@ export async function POST(request: NextRequest) {
       console.error("❌ User not found in DB:", userId, userError);
       return NextResponse.json(
         { success: false, error: "User not found", logout: true },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // ── 5. Create pending payment record ──
     const orderReference = generateOrderReference(userId);
 
     const { data: payment, error: paymentError } = await supabase
@@ -112,6 +126,8 @@ export async function POST(request: NextRequest) {
         payment_method: "pending",
         status: "pending",
         reference: orderReference,
+        plan_tier: paidTier,
+        billing_period: billingPeriod,
         metadata: { planTier: paidTier, billingPeriod, userId },
       })
       .select()
@@ -121,11 +137,10 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create payment record:", paymentError);
       return NextResponse.json(
         { success: false, error: "Failed to initialize payment" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // ── 6. Get Nomba token ──
     const accessToken = await getNombaToken();
 
     if (!accessToken) {
@@ -136,11 +151,10 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json(
         { success: false, error: "Payment service unavailable" },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
-    // ── 7. Build Nomba checkout payload ──
     const checkoutPayload = {
       order: {
         callbackUrl: `${baseUrl}/api/subscription/callback`,
@@ -166,7 +180,6 @@ export async function POST(request: NextRequest) {
       tokenizeCard: false,
     };
 
-    // ── 8. Create checkout with Nomba ──
     const response = await fetch(
       `${process.env.NOMBA_URL}/v1/checkout/order`,
       {
@@ -177,7 +190,7 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(checkoutPayload),
-      }
+      },
     );
 
     const data = await response.json();
@@ -200,7 +213,7 @@ export async function POST(request: NextRequest) {
     console.error("Checkout error:", error);
     return NextResponse.json(
       { success: false, error: error.message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

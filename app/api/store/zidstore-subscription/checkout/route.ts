@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       return err;
     }
 
-    // ─── Block if user already has an active subscription ───
     const { data: existingSub } = await supabase
       .from("zidstore_subscriptions")
       .select("id, plan_tier, current_period_end, status")
@@ -84,6 +83,31 @@ export async function POST(req: NextRequest) {
     if (!planTier || !billingPeriod) {
       const err = NextResponse.json(
         { error: "planTier and billingPeriod are required" },
+        { status: 400 },
+      );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
+    }
+
+    // ─── Free / custom-quote tiers are not payable via this endpoint ───
+    if (planTier === "starter") {
+      const err = NextResponse.json(
+        {
+          error: "Starter is free — no payment required.",
+          code: "FREE_PLAN",
+        },
+        { status: 400 },
+      );
+      if (newTokens) return createAuthResponse(await err.json(), newTokens);
+      return err;
+    }
+
+    if (planTier === "booster") {
+      const err = NextResponse.json(
+        {
+          error: "Booster is a custom plan. Please contact sales@zidwell.com.",
+          code: "CUSTOM_QUOTE_ONLY",
+        },
         { status: 400 },
       );
       if (newTokens) return createAuthResponse(await err.json(), newTokens);
@@ -145,9 +169,6 @@ export async function POST(req: NextRequest) {
     const callbackUrl = `${BASE_URL}/online-store?reference=${encodeURIComponent(
       reference,
     )}&from_checkout=1`;
-
-    console.log("[zidstore-checkout] BASE_URL:", BASE_URL);
-    console.log("[zidstore-checkout] callback_url:", callbackUrl);
 
     try {
       const parsed = new URL(callbackUrl);

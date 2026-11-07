@@ -211,7 +211,7 @@ function InlineFooter() {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// ✅ NEW: Auth-aware ZidStore navbar (modeled on Nav.tsx)
+// Auth-aware ZidStore navbar
 // ─────────────────────────────────────────────────────────────────────
 function ZidStoreNav() {
   const router = useRouter();
@@ -221,7 +221,6 @@ function ZidStoreNav() {
 
   const isAuthenticated = !!userData?.id;
 
-  // Close profile menu on outside click
   useEffect(() => {
     if (!profileMenuOpen) return;
     const handleClick = (e: MouseEvent) => {
@@ -276,21 +275,18 @@ function ZidStoreNav() {
         <div className="flex items-center gap-2">
           <SubscriptionBadge className="hidden sm:inline-flex" />
 
-          {/* ── Auth-aware right side ── */}
           {loading ? (
             <div className="h-9 w-32 rounded-3xl bg-(--bg-secondary) animate-pulse" />
           ) : isAuthenticated ? (
             <>
-              {/* Dashboard button — visible when logged in */}
               <button
                 onClick={goToDashboard}
-                className="hidden sm:inline-flex items-center gap-2 cursor-pointer rounded-3xl bg-(--color-accent-yellow) px-5 py-2 font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
+                className="hidden sm:inline-flex items-center gap-2 cursor-pointer rounded-3xl bg-(--color-accent-yellow) px-5 py-2 font-bold text-[color:var(--primary-foreground)] transition-colors hover:bg-[#e6a800]"
               >
                 <LayoutDashboard className="h-[16px] w-[16px]" />
                 Dashboard
               </button>
 
-              {/* Avatar dropdown */}
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setProfileMenuOpen((v) => !v)}
@@ -305,7 +301,7 @@ function ZidStoreNav() {
                       className="h-7 w-7 rounded-full object-cover"
                     />
                   ) : (
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-accent-yellow) text-[11px] font-bold text-(--color-ink)">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-accent-yellow) text-[11px] font-bold text-[color:var(--primary-foreground)]">
                       {initials}
                     </span>
                   )}
@@ -345,7 +341,6 @@ function ZidStoreNav() {
             </>
           ) : (
             <>
-              {/* Guest — Log In + Create your store */}
               <button
                 onClick={() => router.push("/auth/login")}
                 className="hidden sm:inline-flex cursor-pointer rounded-3xl px-4 py-2.5 text-[15px] font-semibold text-(--text-secondary) hover:text-(--text-primary)"
@@ -354,7 +349,7 @@ function ZidStoreNav() {
               </button>
               <button
                 onClick={() => router.push("/dashboard/services/payment/dashboard")}
-                className="cursor-pointer rounded-3xl bg-(--color-accent-yellow) px-6 py-2 font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
+                className="cursor-pointer rounded-3xl bg-(--color-accent-yellow) px-6 py-2 font-bold text-[color:var(--primary-foreground)] transition-colors hover:bg-[#e6a800]"
               >
                 Create your store
               </button>
@@ -384,7 +379,6 @@ function LandingInner() {
 
   return (
     <div className="min-h-screen bg-(--bg-primary) font-['Be_Vietnam_Pro',sans-serif] text-(--text-primary) antialiased">
-      {/* ✅ Auth-aware nav */}
       <ZidStoreNav />
 
       <header className="mx-auto max-w-[1200px] px-5 pb-6 pt-12 md:px-8 md:pt-20">
@@ -409,7 +403,7 @@ function LandingInner() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={() => router.push("/dashboard/services/payment/dashboard")}
-                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
+                className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-[color:var(--primary-foreground)] transition-colors hover:bg-[#e6a800]"
               >
                 Create your store <ArrowRight className="h-[18px] w-[18px]" />
               </button>
@@ -496,7 +490,7 @@ function LandingInner() {
                   href={VIDEO_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-7 py-3.5 text-[16px] font-bold text-(--color-ink) transition-colors hover:bg-[#e6a800]"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-7 py-3.5 text-[16px] font-bold text-[color:var(--primary-foreground)] transition-colors hover:bg-[#e6a800]"
                 >
                   <Play className="h-[18px] w-[18px]" />
                   Watch on YouTube
@@ -707,7 +701,7 @@ function LandingInner() {
           <div className="rounded-[32px] bg-[#191919] p-7 text-white shadow-[0_24px_60px_rgba(0,0,0,0.18)] ring-1 ring-white/10 md:p-9">
             <div className="flex items-center gap-3">
               <p className={`${heading} text-[24px] font-bold tracking-tight`}>Zidwell</p>
-              <span className="rounded-full bg-(--color-accent-yellow) px-3 py-1 text-[12px] font-bold uppercase tracking-wide text-[#191919]">
+              <span className="rounded-full bg-(--color-accent-yellow) px-3 py-1 text-[12px] font-bold uppercase tracking-wide text-[color:var(--primary-foreground)]">
                 Built for Africa
               </span>
             </div>
@@ -723,7 +717,7 @@ function LandingInner() {
             </ul>
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-7 py-3.5 text-[16px] font-bold text-[#191919] hover:bg-[#e6a800]"
+              className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-7 py-3.5 text-[16px] font-bold text-[color:var(--primary-foreground)] hover:bg-[#e6a800]"
             >
               Start Now <ArrowRight className="h-[18px] w-[18px]" />
             </button>
@@ -742,7 +736,7 @@ function LandingInner() {
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/dashboard/services/payment/dashboard")}
-              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-(--color-ink) hover:bg-[#e6a800]"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl bg-(--color-accent-yellow) px-8 py-4 text-[17px] font-bold text-[color:var(--primary-foreground)] hover:bg-[#e6a800]"
             >
               Start Now <ArrowRight className="h-[18px] w-[18px]" />
             </button>

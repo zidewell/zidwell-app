@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Be_Vietnam_Pro, Oswald } from "next/font/google";
+import { Space_Grotesk, Be_Vietnam_Pro, Oswald, Archivo_Narrow } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
@@ -42,7 +42,7 @@ const beVietnamPro = Be_Vietnam_Pro({
   display: "swap",
 });
 
-const oswald = Oswald({
+const archivoNarrow = Archivo_Narrow({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   variable: "--font-agrandir-narrow",
@@ -172,7 +172,7 @@ export default async function RootLayout({
     <html
       lang="en-NG"
       suppressHydrationWarning
-      className={`${spaceGrotesk.variable} ${beVietnamPro.variable} ${oswald.variable}`}
+      className={`${spaceGrotesk.variable} ${beVietnamPro.variable} ${archivoNarrow.variable}`}
     >
       <head>
         {/*

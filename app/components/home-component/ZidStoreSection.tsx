@@ -70,15 +70,15 @@ function VideoPlayOverlay() {
       type="button"
       aria-label="Play video"
       onClick={handlePlay}
-      className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/20 hover:bg-black/30 transition-colors"
+      className="absolute inset-0 z-10 flex items-center justify-center cursor-pointer bg-black/25 hover:bg-black/40 transition-colors"
     >
       <span className="relative flex h-16 w-16 items-center justify-center">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/30" />
-        <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-float">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold/40" />
+        <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gold text-[#171717] shadow-float ring-4 ring-black/10">
           <svg
             viewBox="0 0 24 24"
             fill="currentColor"
-            className="h-7 w-7 ml-0.5 text-ink"
+            className="h-7 w-7 ml-0.5"
             aria-hidden="true"
           >
             <path d="M8 5v14l11-7z" />
@@ -105,7 +105,6 @@ export function ZidStoreSection() {
               <Store className="h-3.5 w-3.5 text-[var(--color-accent-yellow)]" />
               New · ZidStore
             </span>
-            {/* ✅ now uses .font-narrow-display */}
             <h2 className="mt-5 font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight text-(--text-primary)">
               The Shopify alternative for African businesses.
             </h2>

@@ -1,169 +1,140 @@
+// app/components/home-component/PricingNew.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-
-// ============================================================
-// PLANS — tiers must match /api/subscription/checkout VALID_TIERS
-//   free / starter / sme / enterprise
-// ============================================================
-const plans = [
-  {
-    name: "Free",
-    tagline: "Start Managing Your Money",
-    tier: "free",
-    amount: 0,
-    yearlyAmount: 0,
-    price: "₦0",
-    yearlyPrice: "₦0",
-    altPrice: "$0",
-    yearlyAltPrice: "$0",
-    suffix: "",
-    note: "For individuals and early-stage freelancers.",
-    features: [
-      "Manual bookkeeping — Global",
-      "Auto-bookkeeping (Wallet users, Nigeria)",
-      "Payment Links & Sales pages (Nigeria)",
-      "Free business bank account (Nigeria)",
-      "Up to 5 invoices — Global",
-      "Up to 5 receipts — Global",
-      "Basic financial overview",
-    ],
-    cta: "Start Free",
-    featured: false,
-  },
-  {
-    name: "Starter",
-    tagline: "If you're a one-person shop.",
-    tier: "starter",
-    amount: 99900,
-    yearlyAmount: 999000,
-    price: "₦99,900",
-    yearlyPrice: "₦999,000",
-    altPrice: "≈ $69",
-    yearlyAltPrice: "≈ $690",
-    features: [
-      "Business bank account",
-      "Business plan template",
-      "Automatic bookkeeping",
-      "Invoice + receipt tools",
-      "Online storefront",
-      "Document vault",
-    ],
-    cta: "Subscribe",
-    featured: false,
-  },
-  {
-    name: "SME",
-    tagline: "If you have a small team and a real bank account.",
-    tier: "sme",
-    amount: 199900,
-    yearlyAmount: 1999000,
-    price: "₦199,900",
-    yearlyPrice: "₦1,999,000",
-    altPrice: "≈ $139",
-    yearlyAltPrice: "≈ $1,390",
-    features: [
-      "Everything in Starter",
-      "International payments",
-      "One extra user",
-      "Add-ons: Payroll, HMO, Tax Filing",
-    ],
-    cta: "Subscribe",
-    featured: true,
-  },
-  {
-    name: "Enterprise",
-    tagline: "If you have outlets, approvals, and an accountant.",
-    tier: "enterprise",
-    amount: 599900,
-    yearlyAmount: 5999000,
-    price: "₦599,900",
-    yearlyPrice: "₦5,999,000",
-    altPrice: "≈ $419",
-    yearlyAltPrice: "≈ $4,190",
-    features: [
-      "Everything in SME",
-      "Increased transaction limits",
-      "Connect external bank accounts",
-      "Three extra users",
-      "Dedicated support",
-    ],
-    cta: "Talk to sales",
-    featured: false,
-  },
-];
-
-type Billing = "monthly" | "yearly";
+import { Check, Loader2, Crown } from "lucide-react";
+import { toast } from "sonner";
+import {
+  ZIDWELL_PLANS,
+  type BillingPeriod,
+  type Plan,
+  formatNaira,
+} from "@/app/components/home-component/plans";
 
 export function PricingNew() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData, loading: userLoading } = useUserContextData();
-  const { subscription, loading: subLoading, refetch: refetchSubscription } =
-    useSubscription();
+  const {
+    subscription,
+    loading: subLoading,
+    refetch: refetchSubscription,
+  } = useSubscription();
 
   const [processing, setProcessing] = useState<string | null>(null);
-  const [selectedBilling, setSelectedBilling] = useState<Billing>("monthly");
+  const [selectedBilling, setSelectedBilling] =
+    useState<BillingPeriod>("monthly");
   const [highlight, setHighlight] = useState(false);
-
   const sectionRef = useRef<HTMLElement | null>(null);
-  const autoResumedRef = useRef(false);
 
-  // ────────────────────────────────────────────────────────────
-  // Sonner toast helper
-  // ────────────────────────────────────────────────────────────
-  const showToast = (
-    message: string,
-    variant: "success" | "error" = "error",
-  ) => {
-    if (variant === "success") {
-      toast.success(message);
-    } else {
-      toast.error(message);
+  const activeTier = subscription?.tier;
+  const isActivePaid =
+    subscription?.status === "active" &&
+    !!activeTier &&
+    activeTier !== "starter";
+
+  const activeUntilLabel = useMemo(() => {
+    if (!subscription?.expires_at) return null;
+    try {
+      return new Date(subscription.expires_at).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  }, [subscription?.expires_at]);
+
+  const redirectToLogin = () => {
+    const cb = encodeURIComponent(
+      `/pricing?scroll=pricing&billing=${selectedBilling}`,
+    );
+    window.location.href = `/auth/login?callbackUrl=${cb}`;
+  };
+
+  const handleSubscribe = async (plan: Plan) => {
+    if (plan.mailto) {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Zidwell%20Subscription";
+      return;
+    }
+    if (plan.id === "starter") {
+      if (userLoading) return;
+      if (!userData?.id) {
+        const cb = encodeURIComponent("/dashboard/services/payment/dashboard");
+        window.location.href = `/auth/login?callbackUrl=${cb}`;
+        return;
+      }
+      router.push("/dashboard/services/payment/dashboard");
+      return;
+    }
+    if (userLoading) return;
+    if (!userData?.id) {
+      redirectToLogin();
+      return;
+    }
+    if (isActivePaid) {
+      toast.info("You already have an active subscription", {
+        description: activeUntilLabel
+          ? `Active until ${activeUntilLabel}`
+          : undefined,
+      });
+      return;
+    }
+
+    setProcessing(plan.id);
+    try {
+      const res = await fetch("/api/subscription/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          planTier: plan.id,
+          amount: selectedBilling === "yearly" ? plan.yearly : plan.monthly,
+          billingPeriod: selectedBilling,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        toast.info("Session expired — please log in again");
+        setTimeout(redirectToLogin, 900);
+        return;
+      }
+      if (res.status === 400 && data?.code === "ALREADY_SUBSCRIBED") {
+        toast.info("You already have an active subscription");
+        return;
+      }
+      if (!res.ok || !data?.checkoutLink) {
+        throw new Error(data?.error || `Checkout failed (${res.status}).`);
+      }
+      window.location.href = data.checkoutLink;
+    } catch (err: any) {
+      toast.error("Subscription failed", { description: err?.message });
+    } finally {
+      setProcessing(null);
     }
   };
 
-  // ────────────────────────────────────────────────────────────
-  // 1. URL params + scroll animation
-  // ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const paymentStatus = searchParams?.get("payment");
-
-    if (paymentStatus === "success") {
-      showToast("Subscription activated successfully!", "success");
+    const payment = searchParams?.get("payment");
+    if (payment === "success") {
+      toast.success("Subscription activated!");
       refetchSubscription?.();
-      const url = new URL(window.location.href);
-      url.searchParams.delete("payment");
-      window.history.replaceState({}, "", url.toString());
-    } else if (paymentStatus === "failed") {
-      showToast("Payment failed. Please try again.", "error");
-      const url = new URL(window.location.href);
-      url.searchParams.delete("payment");
-      window.history.replaceState({}, "", url.toString());
+    } else if (payment === "failed") {
+      toast.error("Payment failed. Please try again.");
     }
-
     const billingParam = searchParams?.get("billing");
     if (billingParam === "yearly" || billingParam === "monthly") {
       setSelectedBilling(billingParam);
     }
-
-    const upgradeParam = searchParams?.get("upgrade");
-    const shouldScroll =
-      searchParams?.get("scroll") === "pricing" || !!upgradeParam;
-
-    if (shouldScroll && sectionRef.current) {
+    if (searchParams?.get("scroll") === "pricing" && sectionRef.current) {
       requestAnimationFrame(() => {
-        sectionRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+        sectionRef.current?.scrollIntoView({ behavior: "smooth" });
         setHighlight(true);
         setTimeout(() => setHighlight(false), 1600);
       });
@@ -171,125 +142,8 @@ export function PricingNew() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // ────────────────────────────────────────────────────────────
-  // 2. Auto-resume checkout after login
-  // ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (userLoading || subLoading || !userData?.id) return;
-    if (autoResumedRef.current) return;
+  const isLoading = userLoading || subLoading;
 
-    const upgradeParam = searchParams?.get("upgrade");
-    if (!upgradeParam) return;
-
-    const plan = plans.find((p) => p.tier === upgradeParam);
-    if (!plan || plan.tier === "free" || plan.tier === "enterprise") return;
-
-    if (subscription?.tier === plan.tier && subscription?.status === "active") {
-      return;
-    }
-
-    const billingParam = searchParams?.get("billing");
-    const billing: Billing =
-      billingParam === "yearly" ? "yearly" : "monthly";
-
-    autoResumedRef.current = true;
-
-    if (typeof window !== "undefined") {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-
-    setSelectedBilling(billing);
-    void startCheckout(plan, billing);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userData?.id, userLoading, subLoading, searchParams, subscription?.tier]);
-
-  // ────────────────────────────────────────────────────────────
-  // 3. Shared checkout trigger
-  // ────────────────────────────────────────────────────────────
-  const startCheckout = async (
-    plan: (typeof plans)[number],
-    billing: Billing,
-  ) => {
-    setProcessing(plan.tier);
-
-    try {
-      const amount =
-        billing === "yearly" && plan.yearlyAmount
-          ? plan.yearlyAmount
-          : plan.amount;
-
-      const res = await fetch("/api/subscription/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planTier: plan.tier,
-          amount,
-          billingPeriod: billing,
-        }),
-      });
-
-      const data = await res.json();
-      if (!data.success) {
-        if (data.logout) {
-          const callbackUrl =
-            `/pricing?upgrade=${plan.tier}` +
-            `&billing=${billing}` +
-            `&scroll=pricing`;
-          router.push(
-            `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-          );
-          return;
-        }
-        throw new Error(data.error || "Checkout failed");
-      }
-      window.location.href = data.checkoutLink;
-    } catch (e: any) {
-      showToast(e.message || "Something went wrong.", "error");
-      setProcessing(null);
-    }
-  };
-
-  // ────────────────────────────────────────────────────────────
-  // 4. Click handler
-  // ────────────────────────────────────────────────────────────
-  const handleSubscribe = async (plan: (typeof plans)[number]) => {
-    if (plan.tier === "free") {
-      router.push("/auth/signup");
-      return;
-    }
-
-    if (plan.tier === "enterprise") {
-      window.location.href = "mailto:sales@zidwell.com";
-      return;
-    }
-
-    if (userLoading) return;
-
-    if (!userData?.id) {
-      const callbackUrl =
-        `/pricing?upgrade=${plan.tier}` +
-        `&billing=${selectedBilling}` +
-        `&scroll=pricing`;
-      router.push(
-        `/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`,
-      );
-      return;
-    }
-
-    await startCheckout(plan, selectedBilling);
-  };
-
-  // ────────────────────────────────────────────────────────────
-  // Subscription state helpers
-  // ────────────────────────────────────────────────────────────
-  const isCurrentPlan = (tier: string) =>
-    subscription?.tier === tier && subscription?.status === "active";
-
-  const isFreeUser = !subscription || subscription.tier === "free";
-
-  // ────────────────────────────────────────────────────────────
-  // RENDER
-  // ────────────────────────────────────────────────────────────
   return (
     <section
       id="pricing"
@@ -298,51 +152,24 @@ export function PricingNew() {
         highlight ? "pricing-highlight" : ""
       }`}
     >
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes pricingPulse {
-              0%   { box-shadow: 0 0 0 0 rgba(229, 179, 51, 0.55); }
-              70%  { box-shadow: 0 0 0 18px rgba(229, 179, 51, 0); }
-              100% { box-shadow: 0 0 0 0 rgba(229, 179, 51, 0); }
-            }
-            @keyframes fadeSlideUp {
-              from { opacity: 0; transform: translateY(16px); }
-              to   { opacity: 1; transform: translateY(0); }
-            }
-            #pricing .plan-card {
-              animation: fadeSlideUp 500ms ease-out both;
-            }
-            #pricing .plan-card:nth-child(2) { animation-delay: 80ms; }
-            #pricing .plan-card:nth-child(3) { animation-delay: 160ms; }
-            #pricing .plan-card:nth-child(4) { animation-delay: 240ms; }
-            #pricing.pricing-highlight {
-              animation: pricingPulse 1.6s ease-out;
-            }
-          `,
-        }}
-      />
-
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
             Pricing
           </p>
           <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
-            One bundle. One annual payment.
+            Simple plans. Transparent fees.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            Our Business Toolkit gives you more tools to organize and operate
-            your business from anywhere, as it grows.
+            Start free on Starter. Upgrade as you grow. Cancel anytime.
           </p>
         </div>
 
-        {/* Billing toggle */}
         <div className="mt-8 flex items-center justify-center">
           <div className="inline-flex items-center p-1 rounded-full bg-surface border border-border">
             <button
               type="button"
-              onClick={() => setSelectedBilling("monthly")}
+              onClick={() => setSelectedBilling("yearly")}
               disabled={processing !== null}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
                 selectedBilling === "monthly"
@@ -370,59 +197,62 @@ export function PricingNew() {
           </div>
         </div>
 
-        {/* Cards */}
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 max-w-7xl relative">
-          {plans.map((plan) => {
-            const isProcessing = processing === plan.tier;
-            const isYearly = selectedBilling === "yearly";
-            const isFree = plan.tier === "free";
-            const isCurrent = isCurrentPlan(plan.tier);
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {ZIDWELL_PLANS.map((plan) => {
+            const isProcessing = processing === plan.id;
+            const isCurrent =
+              activeTier === plan.id && subscription?.status === "active";
+            const isLocked =
+              isActivePaid && plan.id !== "starter" && activeTier !== plan.id;
 
-            const freeDisabled = isFree && !isFreeUser;
-            const disabled =
-              isProcessing || userLoading || isCurrent || freeDisabled;
-
-            const displayPrice = isYearly ? plan.yearlyPrice : plan.price;
-            const displayAlt = isYearly
-              ? plan.yearlyAltPrice
-              : plan.altPrice;
-
+            const priceNum =
+              selectedBilling === "yearly" ? plan.yearly : plan.monthly;
+            const priceLabel =
+              selectedBilling === "yearly"
+                ? plan.yearlyLabel
+                : plan.monthlyLabel;
+            const periodLabel =
+              plan.id === "starter"
+                ? "forever"
+                : selectedBilling === "yearly"
+                  ? "per year"
+                  : "per month";
             const ctaLabel = isCurrent
-              ? "Current Plan"
-              : isFree && !isFreeUser
-                ? "Included"
+              ? "Current plan"
+              : isLocked
+                ? "Subscription active"
                 : plan.cta;
 
             return (
               <div
-                key={plan.name}
-                className={`plan-card relative squircle-lg p-5 sm:p-6 border transition-all duration-200 flex flex-col ${
-                  plan.featured
+                key={plan.id}
+                className={`relative squircle-lg p-5 sm:p-6 border transition-all duration-200 flex flex-col ${
+                  plan.highlighted
                     ? "bg-ink text-background border-ink shadow-float"
                     : "bg-background border-border hover:bg-[var(--color-accent-yellow)]/5"
                 } ${isCurrent ? "ring-2 ring-primary-custom" : ""}`}
               >
-                {plan.featured && !isCurrent && (
+                {plan.highlighted && !isCurrent && (
                   <div className="absolute -top-4 left-6 rotate-[-2deg] bg-primary-custom text-ink text-[10px] font-semibold px-3 py-1 rounded-full shadow-soft whitespace-nowrap">
-                    Most founders start here
+                    Most popular
                   </div>
                 )}
                 {isCurrent && (
-                  <div className="absolute -top-4 left-6 rotate-[-2deg] bg-leaf text-background text-[10px] font-semibold px-3 py-1 rounded-full shadow-soft whitespace-nowrap">
-                    Current Plan
+                  <div className="absolute -top-4 left-6 rotate-[-2deg] bg-leaf text-background text-[10px] font-semibold px-3 py-1 rounded-full shadow-soft whitespace-nowrap flex items-center gap-1">
+                    <Crown className="h-3 w-3" /> Current plan
                   </div>
                 )}
 
                 <p
                   className={`font-display text-base sm:text-lg font-semibold leading-tight ${
-                    plan.featured ? "text-background" : "text-foreground"
+                    plan.highlighted ? "text-background" : "text-foreground"
                   }`}
                 >
                   {plan.name}
                 </p>
                 <p
                   className={`text-[11px] sm:text-xs mt-1 leading-snug ${
-                    plan.featured
+                    plan.highlighted
                       ? "text-background/60"
                       : "text-muted-foreground"
                   }`}
@@ -431,62 +261,84 @@ export function PricingNew() {
                 </p>
 
                 <div className="mt-5 sm:mt-6">
-                  <p
+                  {priceLabel && (
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        plan.highlighted
+                          ? "text-background/60"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {priceLabel}{" "}
+                    </span>
+                  )}
+                  <span
                     className={`font-display text-2xl sm:text-3xl lg:text-4xl font-semibold tabular leading-none break-words ${
-                      plan.featured ? "text-background" : "text-foreground"
+                      plan.highlighted ? "text-background" : "text-foreground"
                     }`}
                   >
-                    {displayPrice}
-                  </p>
+                    {plan.id === "starter" ? "Free" : formatNaira(priceNum)}
+                  </span>
                   <p
                     className={`mt-1.5 text-[10px] sm:text-[11px] leading-tight ${
-                      plan.featured
+                      plan.highlighted
                         ? "text-background/50"
                         : "text-muted-foreground"
                     }`}
                   >
-                    {isFree ? "free forever" : `/year · ${displayAlt}`}
+                    /{periodLabel}
+                    {selectedBilling === "yearly" && plan.id !== "starter" && (
+                      <span className="ml-2 text-green-500 font-semibold">
+                        Save {formatNaira(plan.monthly * 12 - plan.yearly)}
+                      </span>
+                    )}
                   </p>
                 </div>
 
-                <ul className="mt-5 flex-1 space-y-2">
-                  {plan.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-[11px] sm:text-xs leading-snug"
-                    >
-                      <Check
-                        className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${
-                          plan.featured
-                            ? "text-primary-custom"
-                            : "text-leaf"
-                        }`}
-                      />
-                      <span
-                        className={
-                          plan.featured
-                            ? "text-background/90"
-                            : "text-foreground"
-                        }
+                {plan.features && (
+                  <ul className="mt-4 flex-1 space-y-1.5">
+                    {plan.features.map((f) => (
+                      <li
+                        key={f}
+                        className="flex items-start gap-2 text-[11px] sm:text-xs leading-snug"
                       >
-                        {f}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <Check
+                          className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${
+                            plan.highlighted
+                              ? "text-primary-custom"
+                              : "text-leaf"
+                          }`}
+                        />
+                        <span
+                          className={
+                            plan.highlighted
+                              ? "text-background/90"
+                              : "text-foreground"
+                          }
+                        >
+                          {f}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
                 <button
                   onClick={() => handleSubscribe(plan)}
-                  disabled={disabled}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold bg-primary-custom text-ink hover:opacity-90 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-center"
+                  disabled={isLoading || isProcessing || isCurrent || isLocked}
+                  className={`mt-5 inline-flex w-full items-center justify-center gap-2 px-4 py-2.5 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-center ${
+                    plan.highlighted
+                      ? "bg-primary-custom text-ink hover:opacity-90"
+                      : "bg-surface text-foreground hover:bg-surface-2 border border-border"
+                  }`}
                 >
                   {isProcessing ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-                      <span>Processing…</span>
+                      Starting…
                     </>
                   ) : (
-                    <span className="leading-tight">{ctaLabel}</span>
+                    ctaLabel
                   )}
                 </button>
               </div>
@@ -496,7 +348,7 @@ export function PricingNew() {
 
         <p className="mt-10 text-center text-xs text-muted-foreground">
           Prices in Naira. Card or bank transfer. Subscribe anytime, cancel
-          anytime.
+          anytime. A 3.5% fee applies to successful payments.
         </p>
       </div>
     </section>
