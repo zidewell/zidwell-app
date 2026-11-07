@@ -1,19 +1,23 @@
-import Image from "next/image";
+// app/components/home-component/ToolsBento.tsx
 import Link from "next/link";
 import {
-  Landmark,
+  BookOpen,
   FileText,
   Receipt,
-  FilePen,
-  FolderLock,
-  Store,
-  Calculator,
+  FileSignature,
+  FileSpreadsheet,
   Wallet,
-  HeartPulse,
-  ClipboardList,
-  MonitorCog,
+  ArrowLeftRight,
+  Phone,
+  Wifi,
+  Tv,
+  FolderLock,
+  MapPin,
+  Target,
+  Store,
   ArrowRight,
-  BookOpen,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 
 const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
@@ -22,12 +26,108 @@ const zidStore =
     ? { href: "/online-store", external: false }
     : { href: `https://${ZIDSTORE_HOST}`, external: true };
 
-/**
- * The 7 core toolkit features — one card each, in orbit-node style.
- * Order mirrors ToolkitOrbit: Store, Bank, Bookkeeping, Tax, Invoice,
- * Multi-signatory (Console), Business Plan.
- */
-const featureCards = [
+type FeatureCard = {
+  key: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  href: string;
+  external: boolean;
+  tone: "gold" | "leaf";
+  badge?: "new" | "soon";
+};
+
+const featureCards: FeatureCard[] = [
+  {
+    key: "bookkeeping",
+    icon: BookOpen,
+    title: "Bookkeeping",
+    desc: "Track daily income & expenses.",
+    href: "/features/bookkeeping",
+    external: false,
+    tone: "gold",
+  },
+  {
+    key: "invoice",
+    icon: FileText,
+    title: "Invoice",
+    desc: "Create & send branded invoices.",
+    href: "/features/invoice",
+    external: false,
+    tone: "gold",
+  },
+  {
+    key: "receipt",
+    icon: Receipt,
+    title: "Receipt",
+    desc: "Issue digital receipts instantly.",
+    href: "/features/receipt",
+    external: false,
+    tone: "leaf",
+  },
+  {
+    key: "contracts",
+    icon: FileSignature,
+    title: "Contracts",
+    desc: "Manage business contracts.",
+    href: "/features/contracts",
+    external: false,
+    tone: "gold",
+  },
+  {
+    key: "tax",
+    icon: FileSpreadsheet,
+    title: "Tax Manager",
+    desc: "File your taxes, tax-ready summaries.",
+    href: "/features/tax",
+    external: false,
+    tone: "leaf",
+  },
+  {
+    key: "wallet",
+    icon: Wallet,
+    title: "Fund Wallet",
+    desc: "Top up your Zidwell wallet.",
+    href: "/features/wallet",
+    external: false,
+    tone: "gold",
+  },
+  {
+    key: "transfer",
+    icon: ArrowLeftRight,
+    title: "Transfer",
+    desc: "Send money instantly.",
+    href: "/features/transfer",
+    external: false,
+    tone: "leaf",
+  },
+  {
+    key: "airtime",
+    icon: Phone,
+    title: "Buy Airtime",
+    desc: "Recharge any network.",
+    href: "/features/airtime",
+    external: false,
+    tone: "gold",
+  },
+  {
+    key: "data",
+    icon: Wifi,
+    title: "Buy Data",
+    desc: "Purchase data bundles.",
+    href: "/features/data",
+    external: false,
+    tone: "leaf",
+  },
+  {
+    key: "cable-tv",
+    icon: Tv,
+    title: "Cable TV",
+    desc: "Pay TV subscription.",
+    href: "/features/cable-tv",
+    external: false,
+    tone: "gold",
+  },
   {
     key: "zidstore",
     icon: Store,
@@ -35,63 +135,40 @@ const featureCards = [
     desc: "Your own storefront, live in minutes.",
     href: zidStore.href,
     external: zidStore.external,
-    tone: "gold" as const,
+    tone: "gold",
+    badge: "new",
   },
   {
-    key: "bank-account",
-    icon: Landmark,
-    title: "Business Bank Account",
-    desc: "A real account with signatories.",
-    href: "/features/bank-account",
+    key: "document-vault",
+    icon: FolderLock,
+    title: "Document Vault",
+    desc: "Securely store & share files.",
+    href: "#",
     external: false,
-    tone: "leaf" as const,
+    tone: "leaf",
+    badge: "soon",
   },
   {
-    key: "bookkeeping",
-    icon: BookOpen,
-    title: "Bookkeeping",
-    desc: "Every transaction auto-categorized.",
-    href: "/features/bookkeeping",
+    key: "virtual-office",
+    icon: MapPin,
+    title: "Virtual Office",
+    desc: "Get a real mailing address.",
+    href: "#",
     external: false,
-    tone: "gold" as const,
-  },
-  {
-    key: "tax",
-    icon: Calculator,
-    title: "Tax Manager",
-    desc: "Tax-ready summaries, one click away.",
-    href: "/features/tax",
-    external: false,
-    tone: "leaf" as const,
-  },
-  {
-    key: "invoice",
-    icon: FileText,
-    title: "Invoice",
-    desc: "Send a branded PDF. It self-files when paid.",
-    href: "/features/invoice",
-    external: false,
-    tone: "gold" as const,
-  },
-  {
-    key: "console",
-    icon: MonitorCog,
-    title: "Multi-signatory",
-    desc: "Roles, approvals and a full audit log.",
-    href: "/features/console",
-    external: false,
-    tone: "leaf" as const,
+    tone: "gold",
+    badge: "soon",
   },
   {
     key: "business-plan",
-    icon: ClipboardList,
+    icon: Target,
     title: "Business Plan",
-    desc: "A plan template built for African founders.",
-    href: "/features/business-plan",
+    desc: "Set goals & stay accountable.",
+    href: "#",
     external: false,
-    tone: "gold" as const,
+    tone: "leaf",
+    badge: "soon",
   },
-] as const;
+];
 
 export function ToolsBento() {
   return (
@@ -110,25 +187,44 @@ export function ToolsBento() {
           </p>
         </div>
 
-        {/* Feature grid — 7 cards, orbit-node style */}
         <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {featureCards.map((it) => {
             const Icon = it.icon;
             const isGold = it.tone === "gold";
+            const isSoon = it.badge === "soon";
+            const isNew = it.badge === "new";
 
-            return (
-              <Link
-                key={it.key}
-                href={it.href}
-                {...(it.external
-                  ? { target: "_blank", rel: "noopener noreferrer" }
-                  : {})}
-                className="group relative flex flex-col justify-between gap-4 min-h-[180px] squircle-lg bg-background border border-border p-5 sm:p-6
-                           hover:border-primary-custom/70 hover:bg-[var(--color-accent-yellow)]/5 hover:-translate-y-1 hover:shadow-float
-                           active:translate-y-0 transition-all duration-200
-                           outline-none focus-visible:ring-2 focus-visible:ring-primary-custom"
-              >
-                {/* Icon tile — mirror of orbit node's icon treatment */}
+            const cardClass = `
+              group relative flex flex-col justify-between gap-4 min-h-[180px]
+              squircle-lg bg-background border p-5 sm:p-6
+              transition-all duration-200
+              outline-none focus-visible:ring-2 focus-visible:ring-primary-custom
+              ${
+                isSoon
+                  ? "border-amber-200/70 dark:border-amber-500/25 opacity-90 cursor-not-allowed"
+                  : isNew
+                    ? "border-amber-200 dark:border-amber-500/30 ring-1 ring-amber-100 dark:ring-amber-500/10 hover:border-primary-custom/70 hover:bg-[var(--color-accent-yellow)]/5 hover:-translate-y-1 hover:shadow-float active:translate-y-0"
+                    : "border-border hover:border-primary-custom/70 hover:bg-[var(--color-accent-yellow)]/5 hover:-translate-y-1 hover:shadow-float active:translate-y-0"
+              }
+            `;
+
+            const content = (
+              <>
+                <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                  {isSoon && (
+                    <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                      <Clock className="h-2.5 w-2.5" />
+                      Soon
+                    </span>
+                  )}
+                  {isNew && (
+                    <span className="flex items-center gap-1 px-1.5 py-[2px] rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/70 dark:border-amber-500/25 text-[9px] font-semibold uppercase tracking-wide leading-none">
+                      <Sparkles className="h-2.5 w-2.5" />
+                      New
+                    </span>
+                  )}
+                </div>
+
                 <span
                   className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-colors ${
                     isGold
@@ -143,51 +239,59 @@ export function ToolsBento() {
                   />
                 </span>
 
-                {/* Text block */}
                 <div>
                   <h3 className="font-display text-base sm:text-lg font-semibold flex items-center gap-1.5 leading-tight">
                     {it.title}
-                    <ArrowRight className="h-4 w-4 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary-custom shrink-0" />
+                    {!isSoon && (
+                      <ArrowRight className="h-4 w-4 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary-custom shrink-0" />
+                    )}
                   </h3>
                   <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
                     {it.desc}
                   </p>
+                  {isSoon && (
+                    <p className="mt-2 flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                      <Clock className="h-3 w-3" />
+                      Coming Soon
+                    </p>
+                  )}
                 </div>
+              </>
+            );
+
+            if (isSoon) {
+              return (
+                <div key={it.key} aria-disabled="true" className={cardClass}>
+                  {content}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={it.key}
+                href={it.href}
+                {...(it.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                className={cardClass}
+              >
+                {content}
               </Link>
             );
           })}
-
-          {/* 8th cell — "See all" slot keeps the grid balanced (7 cards + 1 CTA) */}
-          <Link
-            href="#pricing"
-            className="group relative flex flex-col items-start justify-between gap-4 min-h-[180px] squircle-lg border border-dashed border-border bg-surface/50 p-5 sm:p-6
-                       hover:border-primary-custom/70 hover:bg-[var(--color-accent-yellow)]/5 hover:-translate-y-1 hover:shadow-float
-                       active:translate-y-0 transition-all duration-200
-                       outline-none focus-visible:ring-2 focus-visible:ring-primary-custom"
-          >
-            <span className="h-12 w-12 rounded-2xl flex items-center justify-center border border-dashed border-border text-muted-foreground group-hover:border-primary-custom/40 group-hover:text-primary-custom transition-colors">
-              <ArrowRight className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 className="font-display text-base sm:text-lg font-semibold leading-tight">
-                See all tools
-              </h3>
-              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
-                Plus payroll, HMO, contracts, vault and more.
-              </p>
-            </div>
-          </Link>
         </div>
 
-        {/* Secondary "also included" strip — kept below the grid */}
+        {/* Secondary "also included" strip */}
         <div className="mt-8 squircle bg-background border border-border p-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          <span className="text-muted-foreground font-medium">Also included:</span>
+          <span className="text-muted-foreground font-medium">
+            Also included:
+          </span>
           {[
-            { icon: FilePen, l: "Contracts" },
+            { icon: FileSignature, l: "Contracts" },
             { icon: FolderLock, l: "Vault" },
             { icon: Receipt, l: "Receipts" },
             { icon: Wallet, l: "Payroll", addon: true },
-            { icon: HeartPulse, l: "HMO", addon: true },
           ].map((it) => {
             const Icon = it.icon;
             return (
@@ -199,7 +303,9 @@ export function ToolsBento() {
                 <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                 {it.l}
                 {it.addon && (
-                  <span className="text-[9px] text-muted-foreground">(add-on)</span>
+                  <span className="text-[9px] text-muted-foreground">
+                    (add-on)
+                  </span>
                 )}
               </a>
             );

@@ -15,8 +15,9 @@ export function EditorialQuote() {
             I close the books on the 1st and go back to selling.
           </blockquote>
           <div className="mt-8 flex items-center gap-3">
+            {/* ✅ updated image */}
             <img
-              src="https://images.pexels.com/photos/3769021/pexels-photo-3769021.jpeg?auto=compress&cs=tinysrgb&w=128&h=128&fit=crop&crop=face"
+              src="https://images.unsplash.com/photo-1605602517387-ec78b947335e?w=1000&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D"
               alt="Amaka Okonkwo"
               width={56}
               height={56}

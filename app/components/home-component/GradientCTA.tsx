@@ -35,7 +35,7 @@ export function GradientCTA() {
               </p>
               <h2 className="mt-3 font-narrow-display text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight leading-[1.05]">
                 Join over{" "}
-                <span style={{ color: "var(--gold)" }}>5,000+</span> businesses
+                <span style={{ color: "var(--gold)" }}>500+</span> businesses
                 using Zidwell to simplify payments.
               </h2>
               <p className="mt-4 text-base text-white/70 max-w-lg leading-relaxed">

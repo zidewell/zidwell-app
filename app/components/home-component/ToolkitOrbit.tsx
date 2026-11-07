@@ -3,7 +3,6 @@ import {
   BookOpen,
   Calculator,
   FileChartColumn,
-  HeartPulse,
   Landmark,
   Store,
   Users,
@@ -29,14 +28,16 @@ const styles = `
     margin-inline: auto;
     display: grid;
     place-items: center;
+    color: var(--ink);
   }
 
+  /* Outer ring — mix from foreground so it shows on both themes */
   .zm-orbit::before {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: 999px;
-    border: 1px solid color-mix(in oklab, var(--background) 18%, transparent);
+    border: 1px solid color-mix(in oklab, var(--ink) 18%, transparent);
     pointer-events: none;
   }
 
@@ -44,7 +45,7 @@ const styles = `
     position: absolute;
     inset: 10%;
     border-radius: 999px;
-    border: 1px solid color-mix(in oklab, var(--gold) 30%, transparent);
+    border: 1px solid color-mix(in oklab, var(--gold) 35%, transparent);
     pointer-events: none;
   }
 
@@ -52,12 +53,11 @@ const styles = `
     position: absolute;
     inset: 23%;
     border-radius: 999px;
-    border: 1px solid color-mix(in oklab, var(--gold) 20%, transparent);
+    border: 1px solid color-mix(in oklab, var(--gold) 22%, transparent);
     opacity: 0.55;
     pointer-events: none;
   }
 
-  /* Rotor spins the gold dots around the ring */
   .zm-orbit-rotor {
     position: absolute;
     inset: 0;
@@ -72,6 +72,27 @@ const styles = `
     to   { transform: rotate(360deg); }
   }
 
+  .zm-orbit-nodes {
+    position: absolute;
+    inset: 0;
+    animation: zm-orbit-spin 54s linear infinite;
+    transform-origin: center center;
+    will-change: transform;
+    pointer-events: none;
+  }
+
+  .zm-orbit-node-counter {
+    animation: zm-orbit-spin-reverse 54s linear infinite;
+    transform-origin: center center;
+    will-change: transform;
+  }
+
+  @keyframes zm-orbit-spin-reverse {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(-360deg); }
+  }
+
+  /* Node card — surface + border so it adapts to theme */
   .zm-orbit-node {
     position: absolute;
     top: 50%;
@@ -86,15 +107,16 @@ const styles = `
     gap: 0.4rem;
     padding: 0.65rem;
     border-radius: 1.25rem;
-    border: 1px solid color-mix(in oklab, var(--background) 18%, transparent);
-    background: color-mix(in oklab, var(--ink) 92%, transparent);
-    color: var(--background);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
     box-shadow: var(--shadow-float);
     text-align: center;
     min-height: 5.35rem;
     z-index: 3;
     transform-origin: center center;
     transition: transform 0.25s ease;
+    pointer-events: auto;
   }
 
   .zm-orbit-node:hover {
@@ -111,6 +133,7 @@ const styles = `
   .zm-orbit-node-gold svg { color: var(--gold); }
   .zm-orbit-node-leaf svg { color: var(--leaf); }
 
+  /* Core — inverted look that adapts automatically */
   .zm-orbit-core {
     position: relative;
     z-index: 4;
@@ -123,25 +146,13 @@ const styles = `
     gap: 0.45rem;
     border-radius: 999px;
     border: 1px solid color-mix(in oklab, var(--gold) 40%, transparent);
-    background: var(--ink);
-    color: var(--background);
+    background: var(--background);
+    color: var(--ink);
     text-align: center;
     box-shadow:
       0 0 0 12px color-mix(in oklab, var(--gold) 8%, transparent),
       var(--shadow-float);
     padding: 1.5rem;
-  }
-
-  .zm-orbit-core-mark {
-    width: 2.5rem;
-    height: 2.5rem;
-    display: grid;
-    place-items: center;
-    border-radius: 0.8rem;
-    background: var(--gold);
-    color: var(--ink);
-    font-family: var(--font-display, "Space Grotesk", system-ui, sans-serif);
-    font-weight: 700;
   }
 
   .zm-orbit-core p {
@@ -150,11 +161,6 @@ const styles = `
     font-size: clamp(0.8rem, 2vw, 1.1rem);
     font-weight: 600;
     line-height: 1.15;
-  }
-
-  .zm-orbit-core > span:last-child {
-    color: color-mix(in oklab, var(--background) 58%, transparent);
-    font-size: 0.6rem;
   }
 
   @media (max-width: 520px) {
@@ -169,7 +175,14 @@ const styles = `
     }
     .zm-orbit-node span { font-size: 0.48rem; max-width: 4.8rem; }
     .zm-orbit-core { width: 38%; padding: 0.8rem; }
-    .zm-orbit-core-mark { width: 2rem; height: 2rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .zm-orbit-rotor,
+    .zm-orbit-nodes,
+    .zm-orbit-node-counter {
+      animation: none;
+    }
   }
 `;
 
@@ -210,24 +223,32 @@ export function ToolkitOrbit() {
         })}
       </div>
 
-      {/* Static tool nodes */}
-      {tools.map(({ icon: Icon, label, angle, tone }) => {
-        const rad = ((angle - 90) * Math.PI) / 180;
-        const x = 50 + Math.cos(rad) * radiusPct;
-        const y = 50 + Math.sin(rad) * radiusPct;
-        return (
-          <div
-            key={label}
-            className={`zm-orbit-node zm-orbit-node-${tone}`}
-            style={{ top: `${y}%`, left: `${x}%` }}
-          >
-            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span>{label}</span>
-          </div>
-        );
-      })}
+      {/* Rotating tool nodes — the whole node travels, counter-rotor keeps
+          the card upright. */}
+      <div className="zm-orbit-nodes" aria-hidden={false}>
+        {tools.map(({ icon: Icon, label, angle, tone }) => {
+          const rad = ((angle - 90) * Math.PI) / 180;
+          const x = 50 + Math.cos(rad) * radiusPct;
+          const y = 50 + Math.sin(rad) * radiusPct;
+          return (
+            <div
+              key={label}
+              style={{ position: "absolute", top: `${y}%`, left: `${x}%` }}
+            >
+              <div className="zm-orbit-node-counter">
+                <div
+                  className={`zm-orbit-node zm-orbit-node-${tone}`}
+                  style={{ top: 0, left: 0 }}
+                >
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <span>{label}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-     
       <div className="zm-orbit-core">
         <Link href="/" className="flex items-center flex-col gap-2 cursor-pointer">
           <Image
@@ -237,12 +258,10 @@ export function ToolkitOrbit() {
             height={26}
             className="md:w-16 object-contain"
           />
-          <span className=" font-bold tracking-tight uppercase font-display">
+          <span className="font-bold tracking-tight uppercase font-display">
             Business Toolkit
           </span>
         </Link>
-      
-    
       </div>
     </div>
   );

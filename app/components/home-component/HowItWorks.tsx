@@ -12,12 +12,6 @@ const steps = [
   { n: "03", t: "Start For Free, Upgrade to Pro as You Grow" },
 ];
 
-/**
- * Full-area clickable overlay. Clicking anywhere on it will:
- * 1. Hide the overlay
- * 2. Find and click TubePlayer's actual play button
- * So ONE click = video plays.
- */
 function VideoPlayOverlay() {
   const [playing, setPlaying] = useState(false);
   if (playing) return null;
@@ -25,15 +19,11 @@ function VideoPlayOverlay() {
   const handlePlay = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-
-    // Hide overlay immediately
     setPlaying(true);
 
-    // Find the video wrapper
     const wrap = (e.currentTarget as HTMLElement).closest("[data-video-wrap]");
     if (!wrap) return;
 
-    // Try every known selector for TubePlayer's play button
     const selectors = [
       ".tubeplayer-play-button",
       ".tubeplayer-controls button[aria-label*='Play']",
@@ -47,7 +37,6 @@ function VideoPlayOverlay() {
       const btn = wrap.querySelector<HTMLElement>(sel);
       if (btn) {
         btn.click();
-        // Also try the iframe postMessage API for YouTube
         if (sel.includes("iframe") && btn instanceof HTMLIFrameElement) {
           try {
             btn.contentWindow?.postMessage(
@@ -60,7 +49,6 @@ function VideoPlayOverlay() {
       }
     }
 
-    // Fallback: try the YouTube IFrame API postMessage directly
     const iframe = wrap.querySelector("iframe");
     if (iframe?.contentWindow) {
       try {
@@ -178,7 +166,8 @@ export function HowItWorks() {
             </div>
 
             <div className="relative">
-              <div className="sticky top-24 rotate-[-2deg] squircle-lg overflow-hidden border border-border shadow-float bg-black">
+              {/* rotation removed — was rotate-[-2deg] */}
+              <div className="sticky top-24 squircle-lg overflow-hidden border border-border shadow-float bg-black">
                 <div className="relative w-full aspect-video" data-video-wrap>
                   <div
                     data-tube-inline={VIDEO_ID}
@@ -234,8 +223,12 @@ export function HowItWorks() {
                     </h3>
 
                     {i === 1 && (
-                      <div className="mt-4 w-full rotate-[-2deg] squircle-sm overflow-hidden border border-border shadow-float bg-black">
-                        <div className="relative w-full aspect-video" data-video-wrap>
+                      // rotation removed — was rotate-[-2deg]
+                      <div className="mt-4 w-full squircle-sm overflow-hidden border border-border shadow-float bg-black">
+                        <div
+                          className="relative w-full aspect-video"
+                          data-video-wrap
+                        >
                           <div
                             data-tube-inline={VIDEO_ID}
                             data-tube-theme="dark"

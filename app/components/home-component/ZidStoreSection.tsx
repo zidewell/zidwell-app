@@ -105,7 +105,8 @@ export function ZidStoreSection() {
               <Store className="h-3.5 w-3.5 text-[var(--color-accent-yellow)]" />
               New · ZidStore
             </span>
-            <h2 className="mt-5 font-display text-4xl sm:text-5xl font-semibold tracking-tight text-(--text-primary)">
+            {/* ✅ now uses .font-narrow-display */}
+            <h2 className="mt-5 font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight text-(--text-primary)">
               The Shopify alternative for African businesses.
             </h2>
             <p className="mt-4 text-(--text-secondary)">
