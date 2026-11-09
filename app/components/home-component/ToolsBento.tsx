@@ -86,8 +86,8 @@ const featureCards: FeatureCard[] = [
   {
     key: "wallet",
     icon: Wallet,
-    title: "Fund Wallet",
-    desc: "Top up your Zidwell wallet.",
+    title: "Business Account",
+    desc: "Provide by our banking partners.",
     href: "/features/wallet",
     external: false,
     tone: "gold",
@@ -132,7 +132,7 @@ const featureCards: FeatureCard[] = [
     key: "zidstore",
     icon: Store,
     title: "Online Store",
-    desc: "Your own storefront, live in minutes.",
+    desc: "Own an online store, sell globally.",
     href: zidStore.href,
     external: zidStore.external,
     tone: "gold",
@@ -142,7 +142,7 @@ const featureCards: FeatureCard[] = [
     key: "document-vault",
     icon: FolderLock,
     title: "Document Vault",
-    desc: "Securely store & share files.",
+    desc: "Store sensitive financial documents.",
     href: "#",
     external: false,
     tone: "leaf",
@@ -175,15 +175,12 @@ export function ToolsBento() {
     <section id="tools" className="py-28 bg-surface scroll-mt-20">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-widest text-leaf mb-4">
-            The toolkit
-          </p>
           <h2 className="font-narrow-display text-4xl sm:text-5xl font-semibold tracking-tight">
-            Everything your business needs. Nothing it doesn&apos;t.
+            Everything a Business Needs<br />
+            to Run Smoothly Everyday.
           </h2>
           <p className="mt-4 text-muted-foreground">
-            A bank account, automatic bookkeeping, and every document tool a
-            founder actually uses — in one bundle, not eleven subscriptions.
+            Business operations tools end to end on one plartform with your team having access as well
           </p>
         </div>
 
@@ -228,7 +225,7 @@ export function ToolsBento() {
                 <span
                   className={`h-12 w-12 rounded-2xl flex items-center justify-center border transition-colors ${
                     isGold
-                      ? "bg-[var(--color-accent-yellow)]/15 border-[var(--color-accent-yellow)]/30 group-hover:bg-[var(--color-accent-yellow)]/25"
+                      ? "bg-(--color-accent-yellow)/15 border-[varborder-(--color-accent-yellow)/30 group-hover:bg-[var(--color-accent-yellow)/25"
                       : "bg-leaf/10 border-leaf/25 group-hover:bg-leaf/20"
                   }`}
                 >
@@ -282,41 +279,7 @@ export function ToolsBento() {
           })}
         </div>
 
-        {/* Secondary "also included" strip */}
-        <div className="mt-8 squircle bg-background border border-border p-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          <span className="text-muted-foreground font-medium">
-            Also included:
-          </span>
-          {[
-            { icon: FileSignature, l: "Contracts" },
-            { icon: FolderLock, l: "Vault" },
-            { icon: Receipt, l: "Receipts" },
-            { icon: Wallet, l: "Payroll", addon: true },
-          ].map((it) => {
-            const Icon = it.icon;
-            return (
-              <a
-                key={it.l}
-                href="#"
-                className="inline-flex items-center gap-1.5 text-foreground hover:text-primary-custom hover:underline underline-offset-2 transition-colors cursor-pointer"
-              >
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                {it.l}
-                {it.addon && (
-                  <span className="text-[9px] text-muted-foreground">
-                    (add-on)
-                  </span>
-                )}
-              </a>
-            );
-          })}
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-1 text-primary-custom font-medium ml-auto hover:underline underline-offset-2 cursor-pointer"
-          >
-            See plans <ArrowRight className="h-3.5 w-3.5" />
-          </a>
-        </div>
+       
       </div>
     </section>
   );
