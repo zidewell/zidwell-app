@@ -2,8 +2,8 @@
 const PAYSTACK_BASE = "https://api.paystack.co";
 
 export function paystackHeaders() {
-  const secret = process.env.PAYSTACK_SECRET_KEY;
-  if (!secret) throw new Error("PAYSTACK_SECRET_KEY is not set");
+  const secret = process.env.DIGITAL_PAYSTACK_SECRET_KEY;
+  if (!secret) throw new Error("DIGITAL_PAYSTACK_SECRET_KEY is not set");
   return {
     Authorization: `Bearer ${secret}`,
     "Content-Type": "application/json",

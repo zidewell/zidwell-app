@@ -26,9 +26,8 @@ export function EditorialQuote() {
             />
             <div>
               <p className="font-display text-sm font-semibold text-white">
-                Thomas Okonkwo
-              </p>
-              <p className="text-xs text-white/60">Founder, Mara Home · Lagos</p>
+                Thomas O.              </p>
+              <p className="text-xs text-white/60">Founder, Lagos</p>
             </div>
           </div>
         </div>

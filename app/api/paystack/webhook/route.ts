@@ -8,11 +8,12 @@ import {
 } from "./helpers/verify-signature";
 import { processPaymentPageFromPaystack } from "./services/payment-page.service";
 import { processSubscriptionFromPaystack } from "./services/subscription.service";
+import { processPlatformSubscriptionFromPaystack } from "./services/platform-subscription.service";
 import { processStoreActivationFromPaystack } from "./services/store-activation.service";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export const dynamic = "force-dynamic";
@@ -91,6 +92,11 @@ export async function POST(req: NextRequest) {
         return handleResult(result);
       }
 
+      if (meta.type === "platform_subscription") {
+        const result = await processPlatformSubscriptionFromPaystack(payload);
+        return handleResult(result);
+      }
+
       if (meta.type === "zidstore_subscription") {
         const result = await processSubscriptionFromPaystack(payload);
         return handleResult(result);
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(
-        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`
+        `[${requestId}] charge.success ignored — metadata.type=${meta.type}`,
       );
       return NextResponse.json({ message: "Event ignored" }, { status: 200 });
     }
@@ -113,7 +119,7 @@ export async function POST(req: NextRequest) {
     console.error(`[${requestId}] ❌ unhandled error:`, err);
     return NextResponse.json(
       { error: err.message || "Internal error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

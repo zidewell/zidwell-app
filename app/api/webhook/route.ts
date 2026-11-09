@@ -6,19 +6,13 @@ import { verifyNombaSignature } from "./helpers/signature-verification";
 import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
 import { processPayout } from "./services/payout.service";
-import { processPayoutRefund } from "./services/payout-refund.service";       // ✅ NEW
-import { processPaymentReversal } from "./services/payment-reversal.service"; // ✅ NEW
-import {
-  processSubscriptionPayment,
-  processSubscriptionBankTransfer,
-  checkIfSubscriptionPayment,
-  checkIfSubscriptionBankTransfer,
-} from "./services/subscription-service";
+import { processPayoutRefund } from "./services/payout-refund.service";
+import { processPaymentReversal } from "./services/payment-reversal.service";
 import { processCardPaymentWebhook } from "./services/card-payment.service";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 type WebhookResponse =
@@ -37,7 +31,7 @@ type WebhookResponse =
 // ============================================================
 function checkIfStoreActivationPayment(
   orderReference: string,
-  payload: any
+  payload: any,
 ): boolean {
   if (orderReference?.startsWith("ACT-")) {
     return true;
@@ -55,11 +49,10 @@ function checkIfStoreActivationPayment(
 // REGULAR WALLET DEPOSIT CHECK
 // ============================================================
 async function isRegularWalletDeposit(
-  aliasAccountReference: string
+  aliasAccountReference: string,
 ): Promise<boolean> {
   if (!aliasAccountReference) return false;
 
-  if (aliasAccountReference.startsWith("VA-SUB-")) return false;
   if (aliasAccountReference.startsWith("VA-PP-")) return false;
   if (aliasAccountReference.startsWith("PPL")) return false;
 
@@ -107,9 +100,8 @@ function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
   const isInvoiceReference =
     orderReference?.startsWith("INV-") ||
     orderReference?.startsWith("INVOICE-");
-  const isSubscriptionRef = orderReference?.startsWith("SUB_");
 
-  return (hasInvoiceMetadata || isInvoiceReference) && !isSubscriptionRef;
+  return hasInvoiceMetadata || isInvoiceReference;
 }
 
 // ============================================================
@@ -172,7 +164,7 @@ export async function POST(req: NextRequest) {
     const aliasAccountReference =
       tx.aliasAccountReference || tx.alias_account_reference;
     const transactionAmount = safeNum(
-      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0
+      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0,
     );
     const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
     const txStatus = (tx.status || payload.data?.status || "")
@@ -191,7 +183,7 @@ export async function POST(req: NextRequest) {
     // ============================================================
     const isStoreActivation = checkIfStoreActivationPayment(
       orderReference,
-      payload
+      payload,
     );
 
     if (
@@ -228,7 +220,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(
           { error: "Payment not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -247,11 +239,11 @@ export async function POST(req: NextRequest) {
       if (paymentUpdateError) {
         console.error(
           "❌ Failed to update store activation payment:",
-          paymentUpdateError
+          paymentUpdateError,
         );
         return NextResponse.json(
           { error: "Failed to update payment status" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -281,7 +273,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(
           { error: "Failed to activate store" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -296,7 +288,7 @@ export async function POST(req: NextRequest) {
         if (draftDeleteError) {
           console.error(
             "Failed to delete create draft on activation:",
-            draftDeleteError
+            draftDeleteError,
           );
         } else {
           console.log("Create draft cleared for user:", payment.user_id);
@@ -325,7 +317,10 @@ export async function POST(req: NextRequest) {
           });
 
         if (walletInsertError) {
-          console.error("Failed to create store owner wallet:", walletInsertError);
+          console.error(
+            "Failed to create store owner wallet:",
+            walletInsertError,
+          );
         } else {
           console.log("✅ Store owner wallet created");
         }
@@ -361,7 +356,7 @@ export async function POST(req: NextRequest) {
       if (paymentError || !payment) {
         console.error(
           "Card payment not found for order reference:",
-          orderReference
+          orderReference,
         );
         const { data: completedPayment } = await supabase
           .from("payment_page_payments")
@@ -381,7 +376,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json(
           { error: "Payment not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -397,51 +392,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // PRIORITY 2: SUBSCRIPTION BANK TRANSFERS
-    // ============================================================
-    const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(
-      aliasAccountReference,
-      payload
-    );
-    if (
-      isSubscriptionBankTransfer &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing subscription bank transfer...");
-      const result = await processSubscriptionBankTransfer(payload, {
-        nombaTransactionId,
-        aliasAccountReference,
-        transactionAmount,
-        customer,
-        tx,
-      });
-      return handleErrorResponse(result);
-    }
-
-    // ============================================================
-    // PRIORITY 3: SUBSCRIPTION CARD PAYMENTS
-    // ============================================================
-    const isSubscriptionCard = checkIfSubscriptionPayment(
-      orderReference,
-      payload
-    );
-    if (
-      isSubscriptionCard &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing subscription card payment...");
-      const result = await processSubscriptionPayment(payload, {
-        nombaTransactionId,
-        orderReference,
-      });
-      return handleErrorResponse(result);
-    }
-
-    // ============================================================
-    // PRIORITY 4: REGULAR WALLET DEPOSITS
+    // PRIORITY 2: REGULAR WALLET DEPOSITS
     // ============================================================
     const isRegularDeposit = await isRegularWalletDeposit(
-      aliasAccountReference
+      aliasAccountReference,
     );
     if (
       isRegularDeposit &&
@@ -460,7 +414,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // PRIORITY 5: INVOICE PAYMENTS
+    // PRIORITY 3: INVOICE PAYMENTS
     // ============================================================
     const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
     if (
@@ -482,7 +436,7 @@ export async function POST(req: NextRequest) {
           const statusCode = result.status || 500;
           return NextResponse.json(
             { error: result.error },
-            { status: statusCode }
+            { status: statusCode },
           );
         }
       } else if (result && "success" in result) {
@@ -491,7 +445,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // PRIORITY 6: FALLBACK VIRTUAL ACCOUNT DEPOSIT
+    // PRIORITY 4: FALLBACK VIRTUAL ACCOUNT DEPOSIT
     // ============================================================
     if (
       aliasAccountReference &&
@@ -510,18 +464,16 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 7: PAYOUT REFUNDS (NEW)
-    // Nomba returned money to your corporate wallet.
-    // Credit the user back if they were originally deducted.
+    // PRIORITY 5: PAYOUT REFUNDS
     // ============================================================
     if (eventType === "payout_refund") {
       console.log("Processing payout refund...");
 
       const walletBalanceBefore = safeNum(
-        payload.data?.merchant?.walletBalanceBefore ?? 0
+        payload.data?.merchant?.walletBalanceBefore ?? 0,
       );
       const walletBalanceAfter = safeNum(
-        payload.data?.merchant?.walletBalance ?? 0
+        payload.data?.merchant?.walletBalance ?? 0,
       );
       const refundAmount = safeNum(tx.transactionAmount ?? 0);
 
@@ -538,9 +490,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // ✅ PRIORITY 8: PAYMENT REVERSALS (NEW)
-    // A customer credit was reversed by the bank.
-    // Debit the user's wallet to claw back the money.
+    // PRIORITY 6: PAYMENT REVERSALS
     // ============================================================
     if (eventType === "payment_reversal") {
       console.log("Processing payment reversal...");
@@ -555,7 +505,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================================
-    // WITHDRAWALS/TRANSFERS (PAYOUTS)
+    // PRIORITY 7: WITHDRAWALS/TRANSFERS (PAYOUTS)
     // ============================================================
     const transactionType = (tx.type || "").toLowerCase();
     const isPayout =
@@ -580,23 +530,7 @@ export async function POST(req: NextRequest) {
     console.error("Webhook error:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-// export async function POST(req: Request) {
-//   const timestamp = req.headers.get("nomba-timestamp");
-//   const signature = req.headers.get("nomba-sig-value");
-
-//   // ✅ TEMP: Allow missing headers only for initial verification
-//   if (!timestamp || !signature) {
-//     console.log("Nomba initial webhook verification ping — allowing");
-//     return new Response(JSON.stringify({ verified: true }), { status: 200 });
-//   }
-
-//   // 🔐 Normal processing for real events
-//   const body = await req.json();
-//   console.log("Nomba Webhook Triggered", body);
-
-//   return new Response(JSON.stringify({ received: true }), { status: 200 });
-// }

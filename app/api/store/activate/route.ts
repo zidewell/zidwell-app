@@ -14,10 +14,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const ZIDWELL_PAYSTACK_SECRET_KEY = process.env.ZIDWELL_PAYSTACK_SECRET_KEY;
 
-if (!PAYSTACK_SECRET_KEY) {
-  console.error("[store-activate] FATAL: PAYSTACK_SECRET_KEY is not set");
+if (!ZIDWELL_PAYSTACK_SECRET_KEY) {
+  console.error("[store-activate] FATAL: ZIDWELL_PAYSTACK_SECRET_KEY is not set");
 }
 
 const baseUrl =
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (!PAYSTACK_SECRET_KEY) {
+    if (!ZIDWELL_PAYSTACK_SECRET_KEY) {
       const err = NextResponse.json(
         { error: "Payment service not configured. Please contact support." },
         { status: 500 }

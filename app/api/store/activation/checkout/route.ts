@@ -10,7 +10,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
+const ZIDWELL_PAYSTACK_SECRET_KEY = process.env.ZIDWELL_PAYSTACK_SECRET_KEY!;
 
 const BASE_URL =
   process.env.NODE_ENV === "development"
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${ZIDWELL_PAYSTACK_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

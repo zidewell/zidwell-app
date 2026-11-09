@@ -12,10 +12,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const DIGITAL_PAYSTACK_SECRET_KEY = process.env.DIGITAL_PAYSTACK_SECRET_KEY;
 
-if (!PAYSTACK_SECRET_KEY) {
-  console.error("[zidstore-checkout] FATAL: PAYSTACK_SECRET_KEY is not set");
+if (!DIGITAL_PAYSTACK_SECRET_KEY) {
+  console.error("[zidstore-checkout] FATAL: DIGITAL_PAYSTACK_SECRET_KEY is not set");
 }
 
 const BASE_URL =
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (!PAYSTACK_SECRET_KEY) {
+    if (!DIGITAL_PAYSTACK_SECRET_KEY) {
       const err = NextResponse.json(
         { error: "Payment service not configured. Please contact support." },
         { status: 500 },
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${DIGITAL_PAYSTACK_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

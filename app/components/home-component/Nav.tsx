@@ -1,7 +1,7 @@
 // app/components/home-component/Nav.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Menu,
@@ -11,48 +11,124 @@ import {
   LayoutDashboard,
   LogOut,
   ChevronDown,
+  BookOpen,
+  FileText,
+  Receipt,
+  FileSignature,
+  FileSpreadsheet,
+  Wallet,
+  ArrowLeftRight,
+  Store,
+  GraduationCap,
+  Tag,
+  Settings,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 
-const ZIDSTORE_HOST =
-  process.env.NEXT_PUBLIC_ZIDSTORE_HOST || "store.zidwell.com";
+/* ------------------------------------------------------------------ */
+/*  ZidStore host                                                     */
+/*  Single source of truth — matches ToolsBento.                     */
+/* ------------------------------------------------------------------ */
+const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
+const zidStore =
+  process.env.NODE_ENV === "development" || !ZIDSTORE_HOST
+    ? { href: "/online-store", external: false }
+    : { href: `https://${ZIDSTORE_HOST}`, external: true };
 
-const isProductionDomain =
-  typeof window !== "undefined" &&
-  (window.location.hostname === "zidwell.com" ||
-    window.location.hostname === "www.zidwell.com");
+/* ------------------------------------------------------------------ */
+/*  Nav model                                                         */
+/* ------------------------------------------------------------------ */
 
-const zidStore = isProductionDomain
-  ? { href: `https://${ZIDSTORE_HOST}`, external: true }
-  : { href: "/online-store", external: false };
+type SimpleLink = { name: string; href: string; external?: boolean };
 
-const navLinks = [
-  { name: "Invoice", href: "/features/invoice", external: false },
-  { name: "Receipt", href: "/features/receipt", external: false },
-  { name: "Schools", href: "/schools", external: false },
-  { name: "ZidStore", href: zidStore.href, external: zidStore.external },
-  { name: "Blog", href: "/blog", external: false },
-  { name: "Contact", href: "contact", external: false },
+type ProductItem = {
+  name: string;
+  href: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const productItems: ProductItem[] = [
+  {
+    name: "Bookkeeping",
+    href: "/features/bookkeeping",
+    desc: "Daily income & expenses, categorised.",
+    icon: BookOpen,
+  },
+  {
+    name: "Invoices",
+    href: "/features/invoice",
+    desc: "Branded invoices with live payment status.",
+    icon: FileText,
+  },
+  {
+    name: "Receipts",
+    href: "/features/receipt",
+    desc: "Instant digital receipts on every sale.",
+    icon: Receipt,
+  },
+  {
+    name: "Contracts",
+    href: "/features/contracts",
+    desc: "Draft, sign and store agreements.",
+    icon: FileSignature,
+  },
+  {
+    name: "Tax Manager",
+    href: "/features/tax",
+    desc: "Tax-ready summaries, filed on time.",
+    icon: FileSpreadsheet,
+  },
+  {
+    name: "Business Account",
+    href: "/features/wallet",
+    desc: "A real account, powered by our partners.",
+    icon: Wallet,
+  },
+  // {
+  //   name: "Transfers",
+  //   href: "/features/transfer",
+  //   desc: "Send money to any Nigerian bank.",
+  //   icon: ArrowLeftRight,
+  // },
 ];
+
+const simpleLinks: SimpleLink[] = [
+  { name: "Schools", href: "/schools" },
+  { name: "Pricing", href: "/pricing" },
+  { name: "Store", href: zidStore.href, external: zidStore.external },
+  { name: "Blog", href: "/blog" },
+  { name: "Contact", href: "/contact" }, // fixed: was missing leading slash
+];
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
 
 export function Nav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [dark, setDark] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [productMenuOpen, setProductMenuOpen] = useState(false);
+
   const pathname = usePathname();
   const router = useRouter();
   const { userData, loading, handleSessionExpired } = useUserContextData();
 
   const isAuthenticated = !!userData?.id;
 
+  const productMenuRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  /* --- theme --- */
   useEffect(() => {
     const stored = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)")
+      .matches;
     const isDark = stored === "dark" || (stored === null && prefersDark);
     setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
@@ -64,57 +140,62 @@ export function Nav() {
     localStorage.setItem("theme", isDark ? "dark" : "light");
   };
 
+  /* --- scroll state --- */
   useEffect(() => {
-    const handleScroll = () => setHasScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setHasScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* --- close everything on route change --- */
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProductMenuOpen(false);
+  }, [pathname]);
+
+  /* --- lock body scroll when mobile sheet is open --- */
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isMenuOpen);
     return () => document.body.classList.remove("overflow-hidden");
   }, [isMenuOpen]);
 
+  /* --- outside-click for dropdowns --- */
   useEffect(() => {
-    if (!profileMenuOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest("[data-profile-menu]")) {
+    if (!profileMenuOpen && !productMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (productMenuRef.current && !productMenuRef.current.contains(t)) {
+        setProductMenuOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(t)) {
         setProfileMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [profileMenuOpen]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setProductMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [profileMenuOpen, productMenuOpen]);
 
-  const handleNavigation = (href: string, external = false) => {
+  /* --- navigation helpers --- */
+  const go = (href: string, external?: boolean) => {
     if (external) {
       window.open(href, "_blank", "noopener,noreferrer");
-      setIsMenuOpen(false);
-      return;
-    }
-    if (href.startsWith("/")) {
-      router.push(href);
     } else {
-      if (window.location.pathname === "/") {
-        const el = document.getElementById(href);
-        if (el) {
-          const yOffset = -96;
-          const y =
-            el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: "smooth" });
-        }
-      } else {
-        router.push(`/#${href}`);
-      }
+      router.push(href);
     }
     setIsMenuOpen(false);
-  };
-
-  const handleGoToDashboard = () => {
-    router.push("/dashboard");
-    setIsMenuOpen(false);
-    setProfileMenuOpen(false);
+    setProductMenuOpen(false);
   };
 
   const handleLogout = async () => {
@@ -138,295 +219,403 @@ export function Nav() {
       .join("")
       .toUpperCase() || "U";
 
+  /* ------------------------------------------------------------------ */
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={[
+        "fixed inset-x-0 top-0 z-50 transition-[background,box-shadow,border-color] duration-200",
         hasScrolled
-          ? "bg-background/80 backdrop-blur-md border-b border-border shadow-soft"
-          : "bg-background border-b border-transparent"
-      }`}
+          ? "bg-background/85 backdrop-blur-md border-b border-border"
+          : "bg-background border-b border-transparent",
+      ].join(" ")}
     >
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="flex h-16 md:h-[72px] items-center justify-between gap-6">
+          {/* ---------- Logo ---------- */}
+          <Link
+            href="/"
+            className="flex items-center gap-2 group shrink-0"
+            aria-label="Zidwell home"
+          >
             <Image
               src="/logo.png"
-              alt="Zidwell Logo"
-              width={49}
-              height={40}
-              className="w-10 object-contain transition-transform group-hover:scale-105"
+              alt=""
+              width={40}
+              height={32}
+              className="w-9 object-contain transition-transform group-hover:scale-[1.03]"
             />
-            <span className="text-xl font-bold tracking-tight text-ink font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] uppercase">
+            <span className="text-[17px] font-bold tracking-tight text-ink uppercase font-['Space_Grotesk',system-ui,sans-serif]">
               Zidwell
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7">
-            {navLinks.map((link) => (
+          {/* ---------- Desktop nav ---------- */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {/* Product dropdown */}
+            <div ref={productMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setProductMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={productMenuOpen}
+                className={[
+                  "flex items-center gap-1 px-3 py-2 text-[14px] font-medium rounded-lg transition-colors",
+                  productMenuOpen
+                    ? "text-ink bg-surface"
+                    : "text-muted-foreground hover:text-ink hover:bg-surface",
+                ].join(" ")}
+              >
+                Product
+                <ChevronDown
+                  size={14}
+                  className={[
+                    "transition-transform duration-200",
+                    productMenuOpen ? "rotate-180" : "",
+                  ].join(" ")}
+                />
+              </button>
+
+              {productMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute left-0 top-full mt-2 w-[540px] rounded-2xl border border-border bg-background shadow-xl p-3 grid grid-cols-2 gap-1"
+                >
+                  {productItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.name}
+                        role="menuitem"
+                        onClick={() => go(item.href)}
+                        className="group flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-surface transition-colors"
+                      >
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-(--color-accent-yellow)/12 text-primary-custom">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[13.5px] font-semibold text-ink leading-tight">
+                            {item.name}
+                          </span>
+                          <span className="mt-0.5 block text-[12px] text-muted-foreground leading-snug">
+                            {item.desc}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {simpleLinks.map((link) => (
               <button
                 key={link.name}
-                onClick={() => handleNavigation(link.href, link.external)}
-                className="font-medium text-muted-foreground hover:text-ink transition-colors relative group font-['Be_Vietnam_Pro',system-ui,sans-serif] py-2"
+                type="button"
+                onClick={() => go(link.href, link.external)}
+                className="px-3 py-2 text-[14px] font-medium rounded-lg text-muted-foreground hover:text-ink hover:bg-surface transition-colors"
               >
                 {link.name}
-                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gold transition-all duration-300 group-hover:w-full" />
               </button>
             ))}
           </nav>
 
-          {/* Right Section */}
-          <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center gap-3">
-              {/* Theme toggle */}
-              <div className="flex items-center gap-1 p-1 bg-surface rounded-xl">
-                <button
-                  onClick={() => setTheme(false)}
-                  className={`p-2 rounded-lg transition-all ${
-                    !dark
-                      ? "bg-gold text-[color:var(--primary-foreground)]"
-                      : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                  aria-label="Switch to light mode"
-                  aria-pressed={!dark}
-                >
-                  <Sun size={18} />
-                </button>
-                <button
-                  onClick={() => setTheme(true)}
-                  className={`p-2 rounded-lg transition-all ${
-                    dark
-                      ? "bg-gold text-[color:var(--primary-foreground)]"
-                      : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/10"
-                  }`}
-                  aria-label="Switch to dark mode"
-                  aria-pressed={dark}
-                >
-                  <Moon size={18} />
-                </button>
-              </div>
+          {/* ---------- Right cluster ---------- */}
+          <div className="flex items-center gap-2">
+            {/* Theme toggle — quiet icon button, desktop only */}
+            <button
+              type="button"
+              onClick={() => setTheme(!dark)}
+              aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+              className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-ink hover:bg-surface transition-colors"
+            >
+              {dark ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
 
-              {/* Auth-aware section */}
+            {/* Desktop auth zone */}
+            <div className="hidden lg:flex items-center gap-2">
               {loading ? (
-                <div className="h-9 w-44 rounded-xl bg-surface animate-pulse" />
+                <div className="h-9 w-40 rounded-lg bg-surface animate-pulse" />
               ) : isAuthenticated ? (
-                <div className="flex items-center gap-2">
+                <div ref={profileMenuRef} className="relative">
                   <button
-                    onClick={handleGoToDashboard}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 rounded-xl transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
+                    type="button"
+                    onClick={() => setProfileMenuOpen((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={profileMenuOpen}
+                    className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 border border-border bg-surface hover:bg-surface-2 transition-colors"
                   >
-                    <LayoutDashboard size={16} />
-                    Dashboard
+                    {userData?.profile_picture ? (
+                      <img
+                        src={userData.profile_picture}
+                        alt=""
+                        className="h-7 w-7 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-[11px] font-bold">
+                        {initials}
+                      </span>
+                    )}
+                    <span className="text-[13.5px] font-semibold text-ink max-w-[100px] truncate">
+                      {firstName}
+                    </span>
+                    <ChevronDown
+                      size={13}
+                      className={[
+                        "text-muted-foreground transition-transform duration-200",
+                        profileMenuOpen ? "rotate-180" : "",
+                      ].join(" ")}
+                    />
                   </button>
 
-                  <div className="relative" data-profile-menu>
-                    <button
-                      onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-xl border border-border bg-surface hover:bg-surface-2 transition"
-                      aria-label="Open profile menu"
-                      aria-expanded={profileMenuOpen}
+                  {profileMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-border bg-background shadow-xl overflow-hidden"
                     >
-                      {userData?.profile_picture ? (
-                        <img
-                          src={userData.profile_picture}
-                          alt={firstName}
-                          className="h-7 w-7 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-xs font-bold">
-                          {initials}
-                        </span>
-                      )}
-                      <span className="text-sm font-semibold text-ink font-['Be_Vietnam_Pro',system-ui,sans-serif]">
-                        {firstName}
-                      </span>
-                      <ChevronDown
-                        size={14}
-                        className="text-muted-foreground"
-                      />
-                    </button>
-
-                    {profileMenuOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-background shadow-pop overflow-hidden">
-                        <div className="px-4 py-3 border-b border-border">
-                          <p className="text-sm font-bold text-ink truncate">
-                            {userData?.full_name || "Account"}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {userData?.email || ""}
-                          </p>
-                        </div>
-                        <button
-                          onClick={handleGoToDashboard}
-                          className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-ink hover:bg-surface transition"
-                        >
-                          <LayoutDashboard size={16} />
-                          Dashboard
-                        </button>
-                        <button
-                          onClick={handleLogout}
-                          className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/5 transition border-t border-border"
-                        >
-                          <LogOut size={16} />
-                          Log out
-                        </button>
+                      <div className="px-4 py-3 border-b border-border">
+                        <p className="text-[13.5px] font-semibold text-ink truncate">
+                          {userData?.full_name || "Account"}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground truncate">
+                          {userData?.email || ""}
+                        </p>
                       </div>
-                    )}
-                  </div>
+
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          router.push("/dashboard");
+                        }}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-ink hover:bg-surface transition-colors"
+                      >
+                        <LayoutDashboard size={15} className="text-muted-foreground" />
+                        Dashboard
+                      </button>
+
+                      <button
+                        role="menuitem"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          router.push("/dashboard/settings");
+                        }}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-ink hover:bg-surface transition-colors"
+                      >
+                        <Settings size={15} className="text-muted-foreground" />
+                        Settings
+                      </button>
+
+                      <button
+                        role="menuitem"
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-destructive hover:bg-destructive/5 transition-colors border-t border-border"
+                      >
+                        <LogOut size={15} />
+                        Log out
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
                   <button
+                    type="button"
                     onClick={() => router.push("/auth/login")}
-                    className="px-4 py-2 text-sm font-semibold text-ink hover:bg-surface rounded-xl transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
+                    className="px-3 py-2 text-[14px] font-medium text-ink hover:bg-surface rounded-lg transition-colors"
                   >
-                    Log In
+                    Sign in
                   </button>
                   <button
+                    type="button"
                     onClick={() => router.push("/auth/signup")}
-                    className="px-4 py-2 text-sm font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 rounded-xl transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
+                    className="px-4 py-2 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 rounded-lg transition"
                   >
-                    Get Started Free
+                    Get started
                   </button>
                 </>
               )}
             </div>
 
+            {/* Mobile menu trigger */}
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-xl border border-border bg-surface text-ink"
-              aria-label="Toggle menu"
+              type="button"
+              onClick={() => setIsMenuOpen((v) => !v)}
+              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
               aria-expanded={isMenuOpen}
+              className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink hover:bg-surface-2 transition-colors"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Mobile / Tablet Navigation */}
-        {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-border animate-slide-in max-h-[calc(100vh-5rem)] overflow-y-auto">
-            <nav className="flex flex-col gap-1">
-              {navLinks.map((link) => (
+      {/* ------------------------------------------------------------------ */}
+      {/*  Mobile sheet — full screen, grouped                              */}
+      {/* ------------------------------------------------------------------ */}
+      {isMenuOpen && (
+        <div className="lg:hidden fixed inset-0 top-16 bg-background animate-slide-in overflow-y-auto">
+          <div className="container mx-auto px-4 py-5 space-y-6">
+            {/* Theme row — sits at the top, small and unobtrusive */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
+              <span className="text-[13px] font-medium text-muted-foreground">
+                Appearance
+              </span>
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-background border border-border">
                 <button
-                  key={link.name}
-                  onClick={() => handleNavigation(link.href, link.external)}
-                  className="w-full text-left text-sm font-medium text-muted-foreground hover:text-ink transition-colors py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
+                  type="button"
+                  onClick={() => setTheme(false)}
+                  aria-pressed={!dark}
+                  className={[
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors",
+                    !dark
+                      ? "bg-gold text-[color:var(--primary-foreground)]"
+                      : "text-muted-foreground",
+                  ].join(" ")}
                 >
-                  {link.name}
+                  <Sun size={13} /> Light
                 </button>
-              ))}
-
-              <div className="pt-4 mt-2 border-t border-border">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]">
-                  Theme
-                </p>
-                <div
-                  role="group"
-                  aria-label="Theme selection"
-                  className="grid grid-cols-2 gap-2 p-1 bg-surface rounded-xl"
+                <button
+                  type="button"
+                  onClick={() => setTheme(true)}
+                  aria-pressed={dark}
+                  className={[
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors",
+                    dark
+                      ? "bg-gold text-[color:var(--primary-foreground)]"
+                      : "text-muted-foreground",
+                  ].join(" ")}
                 >
+                  <Moon size={13} /> Dark
+                </button>
+              </div>
+            </div>
+
+            {/* Product */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+                Product
+              </p>
+              <div className="grid grid-cols-2 gap-1">
+                {productItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => go(item.href)}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left hover:bg-surface transition-colors"
+                    >
+                      <Icon className="h-4 w-4 text-primary-custom shrink-0" />
+                      <span className="text-[13.5px] font-medium text-ink truncate">
+                        {item.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Company */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+                Company
+              </p>
+              <div className="flex flex-col">
+                {simpleLinks.map((link) => (
                   <button
-                    onClick={() => setTheme(false)}
-                    aria-pressed={!dark}
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                      !dark
-                        ? "bg-gold text-[color:var(--primary-foreground)] shadow-sm"
-                        : "text-muted-foreground hover:text-ink"
-                    }`}
+                    key={link.name}
+                    type="button"
+                    onClick={() => go(link.href, link.external)}
+                    className="flex items-center justify-between rounded-xl px-3 py-3 text-[14px] font-medium text-ink hover:bg-surface transition-colors"
                   >
-                    <Sun size={16} />
-                    Light
+                    <span>{link.name}</span>
+                    {link.external && (
+                      <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
                   </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Auth zone */}
+            <div className="pt-4 border-t border-border">
+              {loading ? (
+                <div className="h-11 w-full rounded-xl bg-surface animate-pulse" />
+              ) : isAuthenticated ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 rounded-xl bg-surface px-3 py-3">
+                    {userData?.profile_picture ? (
+                      <img
+                        src={userData.profile_picture}
+                        alt=""
+                        className="h-9 w-9 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-[12px] font-bold">
+                        {initials}
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13.5px] font-semibold text-ink truncate">
+                        {userData?.full_name || "Account"}
+                      </p>
+                      <p className="text-[12px] text-muted-foreground truncate">
+                        {userData?.email || ""}
+                      </p>
+                    </div>
+                  </div>
+
                   <button
-                    onClick={() => setTheme(true)}
-                    aria-pressed={dark}
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                      dark
-                        ? "bg-gold text-[color:var(--primary-foreground)] shadow-sm"
-                        : "text-muted-foreground hover:text-ink"
-                    }`}
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push("/dashboard");
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 transition"
                   >
-                    <Moon size={16} />
-                    Dark
+                    <LayoutDashboard size={15} />
+                    Open dashboard
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[14px] font-semibold text-destructive hover:bg-destructive/5 transition"
+                  >
+                    <LogOut size={15} />
+                    Log out
                   </button>
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-3 pt-4 border-t border-border">
-                {loading ? (
-                  <div className="h-10 w-full rounded-xl bg-surface animate-pulse" />
-                ) : isAuthenticated ? (
-                  <>
-                    <button
-                      onClick={handleGoToDashboard}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                    >
-                      <LayoutDashboard size={16} />
-                      Dashboard
-                    </button>
-
-                    <button
-                      onClick={handleGoToDashboard}
-                      className="flex items-center gap-3 w-full text-left px-3 py-3 rounded-xl bg-surface hover:bg-surface-2 transition"
-                    >
-                      {userData?.profile_picture ? (
-                        <img
-                          src={userData.profile_picture}
-                          alt={firstName}
-                          className="h-9 w-9 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-sm font-bold">
-                          {initials}
-                        </span>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-ink truncate">
-                          {userData?.full_name || "Account"}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {userData?.email || ""}
-                        </p>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/5 transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                    >
-                      <LogOut size={16} />
-                      Log out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      className="w-full justify-center text-ink hover:bg-surface rounded-xl py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                      onClick={() => {
-                        router.push("/auth/login");
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      Log In
-                    </button>
-                    <button
-                      className="w-full justify-center bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 rounded-xl py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                      onClick={() => {
-                        router.push("/auth/signup");
-                        setIsMenuOpen(false);
-                      }}
-                    >
-                      Get Started Free
-                    </button>
-                  </>
-                )}
-              </div>
-            </nav>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push("/auth/signup");
+                    }}
+                    className="w-full rounded-xl py-3 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 transition"
+                  >
+                    Get started
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push("/auth/login");
+                    }}
+                    className="w-full rounded-xl py-3 text-[14px] font-medium text-ink border border-border hover:bg-surface transition"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   );
 }
