@@ -2,9 +2,8 @@
 import React, { useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { useUserContextData } from "@/app/context/userData";
+import type { SubscriptionTier } from "@/app/hooks/useSubscripion";
 import Swal from "sweetalert2";
-
-type SubscriptionTier = "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
 
 interface ProfileHeaderProps {
   name: string;
@@ -16,10 +15,9 @@ interface ProfileHeaderProps {
 
 const tierLabels: Record<SubscriptionTier, string> = {
   free: "Free",
-  solopreneur: "Solopreneur",
+  starter: "Free",
   sme: "SME",
   enterprise: "Enterprise",
-  corporation: "Corporation",
 };
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({

@@ -10,14 +10,12 @@ import {
   CreditCard,
   Zap,
   Crown,
-  Sparkles,
   Clock,
   Star,
   Briefcase,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { SubscriptionBadge } from "./subscriptionBadges";
 
 export function SubscriptionDashboard() {
   const {
@@ -31,7 +29,6 @@ export function SubscriptionDashboard() {
     isFree,
     isSME,
     isEnterprise,
-    isConsole,
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -114,10 +111,8 @@ export function SubscriptionDashboard() {
         return <Zap className="w-5 h-5 text-green-600" />;
       case "enterprise":
         return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "console":
-        return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
-        return null;
+        return <Star className="w-5 h-5 text-gray-600" />;
     }
   };
 
@@ -126,19 +121,24 @@ export function SubscriptionDashboard() {
       case "free":
         return "Free";
       case "starter":
-        return "Starter";
+        return "Free"; // starter is the free plan
       case "sme":
         return "SME";
       case "enterprise":
         return "Enterprise";
-      case "console":
-        return "Console";
       default:
         return tier;
     }
   };
 
   const limits = getPlanLimits();
+
+  // Safe formatter — handles number | "unlimited"
+  const formatLimit = (value: unknown): string => {
+    if (value === "unlimited") return "Unlimited";
+    if (typeof value === "number") return String(value);
+    return "—";
+  };
 
   const isFeatureIncluded = (featureName: string): boolean => {
     return (limits as any)[featureName] === true;
@@ -232,9 +232,7 @@ export function SubscriptionDashboard() {
                       Invoice limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.invoices === "unlimited"
-                        ? "Unlimited"
-                        : limits.invoices}
+                      {formatLimit(limits.invoices)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -242,9 +240,7 @@ export function SubscriptionDashboard() {
                       Receipt limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.receipts === "unlimited"
-                        ? "Unlimited"
-                        : limits.receipts}
+                      {formatLimit(limits.receipts)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -252,9 +248,7 @@ export function SubscriptionDashboard() {
                       Contract limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.contracts === "unlimited"
-                        ? "Unlimited"
-                        : limits.contracts}
+                      {formatLimit(limits.contracts)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -394,42 +388,6 @@ export function SubscriptionDashboard() {
                 </div>
               </div>
             )}
-
-            {isConsole && (
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Console Plan Benefits
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">
-                      Everything in Enterprise, plus:
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Sub Accounts:</span> Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Roles &amp; Permissions:</span>{" "}
-                    Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Approvals:</span> Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Team members:</span> Unlimited
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Advanced Reporting:</span>{" "}
-                    Included
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Dedicated
-                    account manager
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {!isFree && subscription.status === "active" && (
@@ -508,7 +466,7 @@ export function SubscriptionDashboard() {
           </div>
         )}
 
-      {/* Payment History - Placeholder */}
+      {/* Payment History */}
       {!isFree && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
@@ -522,22 +480,16 @@ export function SubscriptionDashboard() {
         </div>
       )}
 
-      {/* Upgrade Options */}
-      {!isConsole && (
+      {/* Upgrade Options — real tiers only */}
+      {!isEnterprise && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["starter", "sme", "enterprise", "console"]
+            {(["starter", "sme", "enterprise"] as const)
               .filter((tier) => {
-                const tiers = [
-                  "free",
-                  "starter",
-                  "sme",
-                  "enterprise",
-                  "console",
-                ];
+                const tiers = ["free", "starter", "sme", "enterprise"];
                 const currentIndex = tiers.indexOf(subscription.tier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;

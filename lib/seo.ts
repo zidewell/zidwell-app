@@ -6,8 +6,8 @@ export const siteConfig = {
   description:
     "All-in-one finance and business management platform for Nigerian SMEs. Professional accounting, invoicing, contracts, receipts, and financial tools.",
   url: "https://zidwell.com",
-  ogImage: "https://zidwell.com/images/og-image.png",
-  twitterImage: "https://zidwell.com/images/twitter-card.jpg",
+  ogImage: "https://zidwell.com/zidwell-cover-meta.png",
+  twitterImage: "https://zidwell.com/zidwell-cover-meta.png",
   locale: "en_NG",
   type: "website" as const,
 };
@@ -47,7 +47,6 @@ export const ZIDSTORE_VIDEO_URL = "https://youtu.be/iGCQ8AGhuS8";
  * resolves against the *origin*, never the sub-path.
  */
 function absoluteAsset(path: string, baseUrl: string): string {
-  // Use the URL constructor with a leading "/" to strip any sub-path on baseUrl.
   const origin = new URL(baseUrl).origin;
   return new URL(path.startsWith("/") ? path : `/${path}`, origin).toString();
 }
@@ -63,7 +62,7 @@ export const zidStoreConfig = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Schema.org Generators — Zidwell (unchanged)
+// Schema.org Generators — Zidwell
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function generateOrganizationSchema() {
@@ -350,7 +349,7 @@ export function generateStoreMetadata(store: {
           : fallbackDescription;
 
   const storeUrl = `${siteConfig.url}/store/${store.slug}`;
-  const image = store.logo || `${siteConfig.url}/images/og-image.png`;
+  const image = store.logo || siteConfig.ogImage;
 
   return {
     metadataBase: new URL(siteConfig.url),
@@ -428,7 +427,7 @@ export function generateStoreFrontSchema(store: {
   }>;
 }) {
   const storeUrl = `${siteConfig.url}/store/${store.slug}`;
-  const imageUrl = store.logo || `${siteConfig.url}/images/og-image.png`;
+  const imageUrl = store.logo || siteConfig.ogImage;
 
   const products = Array.isArray(store.products) ? store.products : [];
   const keywords = Array.isArray(store.keywords)
@@ -507,7 +506,7 @@ export function generateProductMetadata(product: {
       ? product.productImages
       : product.coverImage
         ? [product.coverImage]
-        : [`${siteConfig.url}/images/og-image.png`];
+        : [siteConfig.ogImage];
 
   const priceFormatted = `₦${(Number(product.price) || 0).toLocaleString()}`;
 
@@ -589,7 +588,7 @@ export function generateProductSchema(product: {
       ? product.productImages
       : product.coverImage
         ? [product.coverImage]
-        : [`${siteConfig.url}/images/og-image.png`];
+        : [siteConfig.ogImage];
 
   const availability =
     product.inStock === false
@@ -662,20 +661,9 @@ export function generateProductSchema(product: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ZIDSTORE LANDING PAGE SEO  ← FIXED
+// ZIDSTORE LANDING PAGE SEO
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Metadata for the ZidStore landing page (`/online-store`, served on
- * store.zidwell.com in production).
- *
- * IMPORTANT: og:image is resolved against the *origin* of ZIDSTORE_BASE_URL,
- * not its full URL. Otherwise when NEXT_PUBLIC_ZIDSTORE_HOST is unset and
- * ZIDSTORE_BASE_URL = "https://zidwell.com/online-store", you'd end up with
- * "https://zidwell.com/online-store/seo-online-store-feature-image.png"
- * → 404 → no og:image → social platforms fall back to the first img on page
- * (the nav logo).
- */
 export function generateZidStoreMetadata(): Metadata {
   const canonical = ZIDSTORE_BASE_URL;
   const ogImage = absoluteAsset(ZIDSTORE_OG_IMAGE, ZIDSTORE_BASE_URL);
@@ -858,7 +846,7 @@ export function generateZidStoreSchema() {
   return { softwareApp, howTo, breadcrumb };
 }
 
-export function generateZidStorePageSchemaArray() {
+export function generpZELkorMwhkkpShF5PvT8YnqRCupnLTNG() {
   const { softwareApp, howTo, breadcrumb } = generateZidStoreSchema();
   return [softwareApp, howTo, breadcrumb];
 }

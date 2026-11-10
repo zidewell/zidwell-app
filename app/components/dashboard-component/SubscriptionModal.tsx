@@ -3,15 +3,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  X,
-  Check,
-  Zap,
-  Crown,
-  Rocket,
-  Gem,
-  Briefcase,
-} from "lucide-react";
+import { X, Check, Zap, Crown, Rocket, Briefcase } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { useSubscription } from "@/app/hooks/useSubscripion";
@@ -28,20 +20,18 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   );
   const { userTier } = useSubscription();
 
-  if (userTier === "console") return null;
+  // Enterprise is the highest real tier — nothing to upgrade to.
+  if (userTier === "enterprise") return null;
 
-  const getNextTier = () => {
+  const getNextTier = (): string => {
     switch (userTier) {
       case "free":
-        return "starter";
       case "starter":
         return "sme";
       case "sme":
         return "enterprise";
-      case "enterprise":
-        return "console";
       default:
-        return "starter";
+        return "sme";
     }
   };
 
@@ -53,30 +43,9 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   const getNextTierInfo = () => {
     switch (userTier) {
       case "free":
-        return {
-          currentTier: "Free",
-          nextTier: "Starter",
-          title: "Upgrade to Starter",
-          description: "Start putting structure around your business",
-          icon: <Briefcase className="h-6 w-6 text-white" />,
-          badge: "GET STRUCTURED",
-          primaryCta: "Go Starter",
-          monthlyPrice: "₦8,325",
-          annualPrice: "₦99,900",
-          annualSavings: "one annual payment",
-          features: [
-            "Business bank account",
-            "Business Plan Template",
-            "Automatic Bookkeeping",
-            "Invoice Tool",
-            "Receipt Tool",
-            "Online storefront",
-            "Document Vault",
-          ],
-        };
       case "starter":
         return {
-          currentTier: "Starter",
+          currentTier: "Free",
           nextTier: "SME",
           title: "Upgrade to SME",
           description: "Run your business properly",
@@ -87,10 +56,12 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           annualPrice: "₦199,900",
           annualSavings: "one annual payment",
           features: [
-            "Everything in Starter, plus:",
+            "Unlimited invoices & receipts",
             "International payments",
             "One Extra User",
-            "Payroll, HMO, Tax Filing Support add-ons",
+            "Tax calculator",
+            "Financial statements",
+            "1 Contract",
           ],
         };
       case "sme":
@@ -106,54 +77,34 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           annualPrice: "₦599,900",
           annualSavings: "one annual payment",
           features: [
-            "Business bank account with higher limits",
+            "Everything in SME, plus:",
             "Increased transaction limits",
-            "Connect Your Bank Accounts",
+            "Connect Bank Accounts",
             "Three Extra Users",
+            "Lawyer Signature on Contracts",
+            "10 Contracts",
             "Dedicated support team",
-            "All SME add-ons available",
-          ],
-        };
-      case "enterprise":
-        return {
-          currentTier: "Enterprise",
-          nextTier: "Console",
-          title: "Upgrade to Console",
-          description: "Custom pricing for organizations",
-          icon: <Gem className="h-6 w-6 text-white" />,
-          badge: "GO CONSOLE",
-          primaryCta: "Talk to Sales",
-          monthlyPrice: "Custom",
-          annualPrice: "Custom",
-          annualSavings: "tailored to you",
-          features: [
-            "Sub Accounts",
-            "Roles & Permissions",
-            "Approvals",
-            "Unlimited users",
-            "Custom pricing",
           ],
         };
       default:
         return {
           currentTier: "Free",
-          nextTier: "Starter",
-          title: "Upgrade to Starter",
-          description: "Start putting structure around your business",
-          icon: <Briefcase className="h-6 w-6 text-white" />,
-          badge: "GET STRUCTURED",
-          primaryCta: "Go Starter",
-          monthlyPrice: "₦8,325",
-          annualPrice: "₦99,900",
+          nextTier: "SME",
+          title: "Upgrade to SME",
+          description: "Run your business properly",
+          icon: <Rocket className="h-6 w-6 text-white" />,
+          badge: "RUN YOUR BUSINESS",
+          primaryCta: "Go SME",
+          monthlyPrice: "₦16,658",
+          annualPrice: "₦199,900",
           annualSavings: "one annual payment",
           features: [
-            "Business bank account",
-            "Business Plan Template",
-            "Automatic Bookkeeping",
-            "Invoice Tool",
-            "Receipt Tool",
-            "Online storefront",
-            "Document Vault",
+            "Unlimited invoices & receipts",
+            "International payments",
+            "One Extra User",
+            "Tax calculator",
+            "Financial statements",
+            "1 Contract",
           ],
         };
     }
@@ -246,48 +197,38 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </span>
               </div>
 
-              {userTier !== "enterprise" && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setSelectedPlan("monthly")}
-                      className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === "monthly"
-                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      Monthly equivalent
-                    </button>
-                    <button
-                      onClick={() => setSelectedPlan("annual")}
-                      className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === "annual"
-                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      Annual
-                      <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-yellow-900 text-[8px] font-bold px-1 py-0.5 rounded-full">
-                        BEST
-                      </span>
-                    </button>
-                  </div>
+              <div className="mb-4">
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setSelectedPlan("monthly")}
+                    className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      selectedPlan === "monthly"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    Monthly equivalent
+                  </button>
+                  <button
+                    onClick={() => setSelectedPlan("annual")}
+                    className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      selectedPlan === "annual"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    Annual
+                    <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-yellow-900 text-[8px] font-bold px-1 py-0.5 rounded-full">
+                      BEST
+                    </span>
+                  </button>
                 </div>
-              )}
+              </div>
 
-              <div
-                className={`relative rounded-xl ${
-                  userTier === "enterprise"
-                    ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
-                    : "bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow)"
-                } p-4 shadow-lg mb-4`}
-              >
-                {userTier !== "enterprise" && (
-                  <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    RECOMMENDED
-                  </div>
-                )}
+              <div className="relative rounded-xl bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow) p-4 shadow-lg mb-4">
+                <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  RECOMMENDED
+                </div>
 
                 <div className="flex items-center gap-2 mb-2">
                   {tierInfo.icon}
@@ -298,20 +239,14 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <div className="mb-2">
                   <span className="text-2xl font-bold">
-                    {userTier === "enterprise"
-                      ? tierInfo.monthlyPrice
-                      : selectedPlan === "annual"
-                        ? tierInfo.annualPrice
-                        : tierInfo.monthlyPrice}
+                    {selectedPlan === "annual"
+                      ? tierInfo.annualPrice
+                      : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === "enterprise"
-                      ? ""
-                      : selectedPlan === "annual"
-                        ? "/year"
-                        : "/mo"}
+                    {selectedPlan === "annual" ? "/year" : "/mo"}
                   </span>
-                  {selectedPlan === "annual" && userTier !== "enterprise" && (
+                  {selectedPlan === "annual" && (
                     <p className="text-[10px] text-(--color-accent-yellow)">
                       {tierInfo.annualSavings}
                     </p>
@@ -324,13 +259,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       key={index}
                       className="flex items-start gap-1.5 text-xs"
                     >
-                      <Check
-                        className={`h-3 w-3 shrink-0 mt-0.5 ${
-                          userTier === "enterprise"
-                            ? "text-purple-500"
-                            : "text-(--color-accent-yellow)"
-                        }`}
-                      />
+                      <Check className="h-3 w-3 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
                       <span>{feature}</span>
                     </li>
                   ))}
@@ -340,11 +269,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
               <div className="flex flex-col items-center gap-2">
                 <Button
                   onClick={handleViewPricing}
-                  className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
-                    userTier === "enterprise"
-                      ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
-                      : "bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
-                  }`}
+                  className="w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
                 >
                   {tierInfo.primaryCta}
                   <Zap className="ml-1.5 h-3.5 w-3.5" />
@@ -356,9 +281,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === "enterprise"
-                    ? "Contact sales for custom pricing"
-                    : "7-day free trial on all plans"}
+                  7-day free trial on all plans
                 </p>
               </div>
             </div>

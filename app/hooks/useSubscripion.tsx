@@ -6,12 +6,11 @@ import { useCallback, useEffect, useMemo } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import useSWR from "swr";
 
-export type SubscriptionTier =
-  | "free"
-  | "starter"
-  | "sme"
-  | "enterprise"
-  | "console";
+// Real Zidwell tiers. "starter" IS the free plan — it's the default
+// tier a user lands on and it has zero cost. "free" exists only as a
+// pre-subscription sentinel so the hook has a value to return before
+// the first subscription row is created.
+export type SubscriptionTier = "free" | "starter" | "sme" | "enterprise";
 
 // Tier hierarchy for access control — lowest → highest
 const TIER_HIERARCHY: SubscriptionTier[] = [
@@ -19,16 +18,14 @@ const TIER_HIERARCHY: SubscriptionTier[] = [
   "starter",
   "sme",
   "enterprise",
-  "console",
 ];
 
-// Display names, kept in one place so every consumer agrees
+// Display names — starter and free both render as "Free"
 const TIER_DISPLAY_NAME: Record<SubscriptionTier, string> = {
   free: "Free",
-  starter: "Starter",
+  starter: "Free",
   sme: "SME",
   enterprise: "Enterprise",
-  console: "Console",
 };
 
 // Fetcher for SWR
@@ -38,6 +35,25 @@ const fetcher = async (url: string) => {
     throw new Error("Failed to fetch subscription data");
   }
   return response.json();
+};
+
+/**
+ * Normalize whatever the API returns into a valid SubscriptionTier.
+ *
+ * - "booster" and "console" are ZidStore-only tiers that can appear in
+ *   `users.subscription_tier`. They carry no Zidwell invoice meaning,
+ *   so we normalize them down to "starter" (the free plan).
+ * - Anything unrecognized or missing → "free".
+ */
+const normalizeTier = (rawTier?: string | null): SubscriptionTier => {
+  if (!rawTier) return "free";
+  const lower = rawTier.toLowerCase();
+  if (lower === "free") return "free";
+  if (lower === "starter") return "starter";
+  if (lower === "sme") return "sme";
+  if (lower === "enterprise") return "enterprise";
+  // "booster", "console", and anything else → treat as starter
+  return "starter";
 };
 
 export const useSubscription = () => {
@@ -69,13 +85,9 @@ export const useSubscription = () => {
   } = useSWR(subscriptionCacheKey, fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
-    // Critical: allow refetch to bypass dedupe.
-    // Previous 60s dedupe meant a refetch immediately after checkout
-    // was silently skipped because SWR thought it had fetched
-    // less than a minute ago.
     dedupingInterval: 1000,
-    // Seed only on first load, not as a permanent override of SWR data
-    fallbackData: subscription ?? undefined,    onError: (error) => {
+    fallbackData: subscription ?? undefined,
+    onError: (error) => {
       console.error("SWR subscription fetch error:", error);
     },
   });
@@ -86,7 +98,6 @@ export const useSubscription = () => {
 
     const channelName = `subscription-changes-${userData.id}`;
 
-    // Remove any existing channel with this name (StrictMode / re-render guard)
     const existingChannel = supabase
       .getChannels()
       .find((ch) => ch.topic === `realtime:${channelName}`);
@@ -105,7 +116,6 @@ export const useSubscription = () => {
           filter: `user_id=eq.${userData.id}`,
         },
         () => {
-          // Revalidate SWR cache immediately on DB change
           mutateSubscription();
           contextRefresh();
         },
@@ -117,10 +127,9 @@ export const useSubscription = () => {
     };
   }, [userData?.id, mutateSubscription, contextRefresh, supabase]);
 
-  // ─── Current tier / status ───
-  const currentTier: SubscriptionTier =
-    ((cachedSubscription?.tier || subscription?.tier) as SubscriptionTier) ||
-    "free";
+  // ─── Current tier / status (normalized) ───
+  const rawTier = cachedSubscription?.tier || subscription?.tier;
+  const currentTier: SubscriptionTier = normalizeTier(rawTier);
 
   const currentStatus =
     cachedSubscription?.status || subscription?.status || "active";
@@ -135,7 +144,6 @@ export const useSubscription = () => {
     [currentTier],
   );
 
-  // Async version (kept for compatibility with context API)
   const enhancedCanAccessFeature = useCallback(
     async (featureKey: string, currentCount?: number) => {
       return canAccessFeature(featureKey, currentCount);
@@ -144,6 +152,7 @@ export const useSubscription = () => {
   );
 
   // ─── Plan limits (per-tier feature map) ───
+  // starter and free are the same plan — 5 invoices / 5 receipts.
   const getPlanLimits = useCallback(() => {
     const limits = {
       free: {
@@ -160,8 +169,8 @@ export const useSubscription = () => {
         basicFinancialOverview: true,
       },
       starter: {
-        invoices: "unlimited",
-        receipts: "unlimited",
+        invoices: 5,
+        receipts: 5,
         contracts: 0,
         teamMembers: 0,
         bankAccounts: 0,
@@ -200,29 +209,6 @@ export const useSubscription = () => {
         increasedTransactionLimits: true,
         dedicatedSupportTeam: true,
       },
-      console: {
-        invoices: "unlimited",
-        receipts: "unlimited",
-        contracts: "unlimited",
-        teamMembers: "unlimited",
-        bankAccounts: "unlimited",
-        businessBankAccount: true,
-        businessPlanTemplate: true,
-        automaticBookkeeping: true,
-        onlineStorefront: true,
-        documentVault: true,
-        internationalPayments: true,
-        connectBankAccounts: true,
-        increasedTransactionLimits: true,
-        dedicatedSupportTeam: true,
-        subAccounts: true,
-        rolesPermissions: true,
-        approvalSystem: true,
-        payrollSystem: true,
-        advancedReporting: true,
-        customFinancialStructure: true,
-        dedicatedAccountManager: true,
-      },
     };
 
     return limits[currentTier] || limits.free;
@@ -233,7 +219,6 @@ export const useSubscription = () => {
     (targetTier: SubscriptionTier): string[] => {
       const benefitsMap: Record<string, string[]> = {
         free_to_starter: [
-          "Unlimited invoices & receipts",
           "Business bank account",
           "Business Plan Template",
           "Automatic Bookkeeping",
@@ -244,6 +229,7 @@ export const useSubscription = () => {
         ],
         free_to_sme: [
           "Everything in Starter, plus:",
+          "Unlimited invoices & receipts",
           "International payments",
           "One Extra User",
           "Add-ons: Payroll, HMO, Tax Filing Support",
@@ -255,32 +241,19 @@ export const useSubscription = () => {
           "Three Extra Users",
           "Dedicated support team",
         ],
-        free_to_console: [
-          "Everything in Enterprise, plus:",
-          "Sub Accounts",
-          "Roles & Permissions",
-          "Approvals",
-          "Unlimited users",
-          "Custom pricing",
-        ],
         starter_to_sme: [
+          "Unlimited invoices & receipts",
           "International payments",
           "One Extra User",
           "Add-ons: Payroll, HMO, Tax Filing Support",
         ],
         starter_to_enterprise: [
+          "Unlimited invoices & receipts",
           "International payments",
           "Connect Your Bank Accounts",
           "Increased transaction limits",
           "Three Extra Users",
           "Dedicated support team",
-        ],
-        starter_to_console: [
-          "Everything in Enterprise, plus:",
-          "Sub Accounts",
-          "Roles & Permissions",
-          "Approvals",
-          "Unlimited users",
         ],
         sme_to_enterprise: [
           "Increased transaction limits",
@@ -288,40 +261,19 @@ export const useSubscription = () => {
           "Three Extra Users (up from 1)",
           "Dedicated support team",
         ],
-        sme_to_console: [
-          "Everything in Enterprise, plus:",
-          "Sub Accounts",
-          "Roles & Permissions",
-          "Approvals",
-          "Unlimited users",
-        ],
-        enterprise_to_console: [
-          "Sub Accounts",
-          "Roles & Permissions",
-          "Approvals",
-          "Unlimited users",
-          "Custom pricing",
-        ],
       };
 
       const key = `${currentTier}_to_${targetTier}`;
       return (
-        benefitsMap[key] ||
-        contextGetUpgradeBenefits(targetTier) ||
-        []
+        benefitsMap[key] || contextGetUpgradeBenefits(targetTier) || []
       );
     },
     [currentTier, contextGetUpgradeBenefits],
   );
 
   // ─── Refresh helper ───
-  // This is what the pricing pages call as `refetch`.
-  // It forces SWR to bypass the dedupe window and re-fetch,
-  // then syncs the context. Each step is isolated so a failure
-  // in one doesn't kill the other.
   const refreshAll = useCallback(async () => {
     try {
-      // revalidate: true forces SWR to bypass dedupe and re-fetch
       await mutateSubscription(undefined, { revalidate: true });
     } catch (err) {
       console.error("[useSubscription] SWR revalidate failed:", err);
@@ -334,21 +286,20 @@ export const useSubscription = () => {
   }, [mutateSubscription, contextRefresh]);
 
   // ─── Tier boolean flags ───
-  const isFree = currentTier === "free";
+  const isFree = currentTier === "free" || currentTier === "starter";
   const isStarter = currentTier === "starter";
   const isSME = currentTier === "sme";
   const isEnterprise = currentTier === "enterprise";
-  const isConsole = currentTier === "console";
 
   // ─── Feature access helpers ───
-  const hasUnlimitedInvoices = isStarter || isSME || isEnterprise || isConsole;
-  const hasUnlimitedReceipts = isStarter || isSME || isEnterprise || isConsole;
-  const hasUnlimitedContracts = isConsole;
+  const hasUnlimitedInvoices = isSME || isEnterprise;
+  const hasUnlimitedReceipts = isSME || isEnterprise;
+  const hasUnlimitedContracts = false;
 
-  const canAccessTaxCalculator = isSME || isEnterprise || isConsole;
-  const canAccessTaxSupport = isEnterprise || isConsole;
-  const canAccessFullTaxFiling = isConsole;
-  const canAddLawyerSignature = isEnterprise || isConsole;
+  const canAccessTaxCalculator = isSME || isEnterprise;
+  const canAccessTaxSupport = isEnterprise;
+  const canAccessFullTaxFiling = false;
+  const canAddLawyerSignature = isEnterprise;
 
   // ─── Display helpers ───
   const getTierDisplayName = useCallback((): string => {
@@ -356,25 +307,13 @@ export const useSubscription = () => {
   }, [currentTier]);
 
   const getTierIconName = useCallback((): string => {
-    if (isConsole) return "Sparkles";
     if (isEnterprise) return "Crown";
     if (isSME) return "Zap";
     if (isStarter) return "Briefcase";
     return "Star";
-  }, [isConsole, isEnterprise, isSME, isStarter]);
+  }, [isEnterprise, isSME, isStarter]);
 
   const getTierColors = useCallback(() => {
-    if (isConsole) {
-      return {
-        bg: "bg-purple-100 dark:bg-purple-900/20",
-        border: "border-purple-200 dark:border-purple-800",
-        text: "text-purple-600 dark:text-purple-400",
-        badge:
-          "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
-        hover: "hover:bg-purple-50 dark:hover:bg-purple-900/30",
-        icon: "text-purple-600 dark:text-purple-400",
-      };
-    }
     if (isEnterprise) {
       return {
         bg: "bg-amber-100 dark:bg-amber-900/20",
@@ -416,7 +355,7 @@ export const useSubscription = () => {
       hover: "hover:bg-gray-50 dark:hover:bg-gray-800/50",
       icon: "text-gray-600 dark:text-gray-400",
     };
-  }, [isConsole, isEnterprise, isSME, isStarter]);
+  }, [isEnterprise, isSME, isStarter]);
 
   // ─── Expiry info ───
   const expiresAt = cachedSubscription?.expiresAt || subscription?.expiresAt;
@@ -427,24 +366,13 @@ export const useSubscription = () => {
       )
     : null;
 
-  // The single "loading" flag pricing pages should care about:
-  // true only until the first SWR fetch resolves, then false.
-  // This prevents button flicker during revalidation polls.
   const loading = !cachedSubscription && (swrLoading || subscriptionLoading);
 
   return {
-    // Core subscription data
     subscription: cachedSubscription || subscription,
     loading,
     isValidating,
-    /**
-     * Force a fresh fetch of the subscription, bypassing the SWR
-     * dedupe window. Callers can await this. Used by the pricing
-     * pages after `?payment=success` to close the gap between
-     * the Nomba redirect and the webhook committing the row.
-     */
     refetch: refreshAll,
-    // Legacy alias — some components still use `refreshSubscription`
     refreshSubscription: refreshAll,
 
     // Tier info
@@ -452,18 +380,17 @@ export const useSubscription = () => {
     currentTier,
     currentStatus,
 
-    // Tier boolean flags (canonical names)
+    // Canonical flags
     isFree,
     isStarter,
     isSME,
     isEnterprise,
-    isConsole,
 
-    // Legacy aliases from an earlier naming pass
+    // Legacy aliases kept so existing consumers don't break
     isZidLite: isStarter,
     isGrowth: isSME,
     isPremium: isEnterprise,
-    isElite: isConsole,
+    isElite: isEnterprise,
 
     // Feature access helpers
     hasUnlimitedInvoices,

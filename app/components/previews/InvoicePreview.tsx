@@ -1,8 +1,8 @@
+// app/components/previews/InvoicePreview.tsx
 "use client";
 
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
-import { Progress } from "../ui/progress";
 
 interface InvoicePreviewProps {
   invoice: any;
@@ -10,15 +10,20 @@ interface InvoicePreviewProps {
 
 export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
   const items = Array.isArray(invoice.items) ? invoice.items : [];
-  const paymentProgress =
-    invoice.allowMultiplePayments && invoice.targetQuantity
-      ? (invoice.paidQuantity / invoice.targetQuantity) * 100
-      : 0;
+
+  const hasSenderDetails =
+    invoice.businessName || invoice.fromName || invoice.fromEmail || invoice.fromPhone;
+
+  const hasClientDetails =
+    invoice.billTo ||
+    invoice.clientName ||
+    invoice.clientEmail ||
+    invoice.clientPhone;
 
   return (
     <Card className="p-4 bg-white dark:bg-gray-900 border-border dark:border-gray-800 h-full overflow-auto">
       <div className="max-w-xl mx-auto">
-        {/* Header - Payment Page Style */}
+        {/* Header */}
         <div className="text-center mb-8">
           {invoice.businessLogo && (
             <img
@@ -28,7 +33,7 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
             />
           )}
           <h2 className="text-3xl font-bold text-foreground dark:text-gray-100 mb-2">
-            {invoice.businessName}
+            {invoice.businessName || "Your Business"}
           </h2>
           <p className="text-muted-foreground dark:text-gray-400">
             Payment Request
@@ -40,33 +45,74 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
           </div>
         </div>
 
-        {/* Client Details - Only if filled */}
-        {(invoice.clientName || invoice.clientEmail || invoice.clientPhone) && (
-          <>
-            <div className="mb-6 p-4 bg-muted/50 dark:bg-gray-800 rounded-lg">
-              <div className="text-xs font-semibold text-muted-foreground dark:text-gray-400 mb-2">
-                BILL TO
-              </div>
-              <div className="text-foreground dark:text-gray-200">
-                {invoice.clientName && (
-                  <div className="font-semibold">{invoice.clientName}</div>
-                )}
-                {invoice.clientEmail && (
-                  <div className="text-sm text-muted-foreground dark:text-gray-400">
-                    {invoice.clientEmail}
-                  </div>
-                )}
-                {invoice.clientPhone && (
-                  <div className="text-sm text-muted-foreground dark:text-gray-400">
-                    {invoice.clientPhone}
-                  </div>
-                )}
-              </div>
+        {/* Bill From */}
+        {hasSenderDetails && (
+          <div className="mb-4 p-4 bg-muted/50 dark:bg-gray-800 rounded-lg">
+            <div className="text-xs font-semibold text-muted-foreground dark:text-gray-400 mb-2">
+              BILL FROM
             </div>
-          </>
+            <div className="text-foreground dark:text-gray-200">
+              <div className="font-bold text-lg">
+                {invoice.businessName || "Your Business"}
+              </div>
+              {invoice.fromName &&
+                invoice.fromName !== invoice.businessName && (
+                  <div className="text-sm text-muted-foreground dark:text-gray-400">
+                    Attn: {invoice.fromName}
+                  </div>
+                )}
+              {invoice.fromEmail && (
+                <div className="text-sm text-muted-foreground dark:text-gray-400">
+                  {invoice.fromEmail}
+                </div>
+              )}
+              {invoice.fromPhone && (
+                <div className="text-sm text-muted-foreground dark:text-gray-400">
+                  {invoice.fromPhone}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* Items - Payment Page Style */}
+        {/* Bill To */}
+        {hasClientDetails && (
+          <div className="mb-6 p-4 bg-muted/50 dark:bg-gray-800 rounded-lg">
+            <div className="text-xs font-semibold text-muted-foreground dark:text-gray-400 mb-2">
+              BILL TO
+            </div>
+            <div className="text-foreground dark:text-gray-200">
+              {invoice.billTo && (
+                <div className="font-bold text-lg mb-0.5">{invoice.billTo}</div>
+              )}
+              {invoice.clientName && (
+                <div
+                  className={
+                    invoice.billTo
+                      ? "text-sm text-muted-foreground dark:text-gray-400"
+                      : "font-semibold"
+                  }
+                >
+                  {invoice.billTo
+                    ? `Attn: ${invoice.clientName}`
+                    : invoice.clientName}
+                </div>
+              )}
+              {invoice.clientEmail && (
+                <div className="text-sm text-muted-foreground dark:text-gray-400">
+                  {invoice.clientEmail}
+                </div>
+              )}
+              {invoice.clientPhone && (
+                <div className="text-sm text-muted-foreground dark:text-gray-400">
+                  {invoice.clientPhone}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Items */}
         <div className="mb-6">
           <h3 className="text-lg font-semibold mb-4 text-foreground dark:text-gray-200">
             Payment Details
@@ -100,7 +146,7 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
           </div>
         </div>
 
-        {/* Totals - Card Style */}
+        {/* Totals */}
         <div className="p-6 bg-muted/50 dark:bg-gray-800 rounded-lg border border-border dark:border-gray-700">
           <div className="space-y-2">
             <div className="flex justify-between text-foreground dark:text-gray-200">

@@ -5,23 +5,29 @@ import { useSubscription } from "@/app/hooks/useSubscripion";
 import {
   Crown,
   Zap,
-  Sparkles,
   AlertCircle,
   Clock,
   Briefcase,
-  Rocket,
+  Star,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { TIER_DISPLAY_NAMES } from "@/lib/subscription-features";
 
 const tierConfig = {
+  free: {
+    icon: Star,
+    color: "text-gray-600",
+    bg: "bg-gray-100",
+    darkBg: "dark:bg-gray-800",
+    darkColor: "dark:text-gray-300",
+    label: "Free",
+  },
   starter: {
     icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-100",
     darkBg: "dark:bg-blue-900/30",
     darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.starter,
+    label: "Free", // starter IS the free plan
   },
   sme: {
     icon: Zap,
@@ -29,7 +35,7 @@ const tierConfig = {
     bg: "bg-green-100",
     darkBg: "dark:bg-green-900/30",
     darkColor: "dark:text-green-300",
-    label: TIER_DISPLAY_NAMES.sme,
+    label: "SME",
   },
   enterprise: {
     icon: Crown,
@@ -37,23 +43,7 @@ const tierConfig = {
     bg: "bg-(--color-accent-yellow)/10",
     darkBg: "dark:bg-(--color-accent-yellow)/20",
     darkColor: "dark:text-(--color-accent-yellow)",
-    label: TIER_DISPLAY_NAMES.enterprise,
-  },
-  booster: {
-    icon: Rocket,
-    color: "text-orange-600",
-    bg: "bg-orange-100",
-    darkBg: "dark:bg-orange-900/30",
-    darkColor: "dark:text-orange-300",
-    label: TIER_DISPLAY_NAMES.booster,
-  },
-  console: {
-    icon: Sparkles,
-    color: "text-purple-600",
-    bg: "bg-purple-100",
-    darkBg: "dark:bg-purple-900/30",
-    darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.console,
+    label: "Enterprise",
   },
 };
 
@@ -74,10 +64,11 @@ export function SubscriptionBadge({
   showTrial = false,
   featureKey = "bookkeeping_access",
 }: SubscriptionBadgeProps) {
-  const { subscription, isActive } = useSubscription();
+  const { subscription, isActive, userTier } = useSubscription();
   const [trialInfo, setTrialInfo] = useState<any>(null);
 
-  const tier = (subscription?.tier ?? "starter") as keyof typeof tierConfig;
+  // useSubscription already normalizes booster/console → starter
+  const tier = (userTier ?? "starter") as keyof typeof tierConfig;
   const config = tierConfig[tier] ?? fallbackConfig;
   const Icon = config.icon;
 
@@ -101,9 +92,7 @@ export function SubscriptionBadge({
   if (showTrial && tier === "starter" && trialInfo?.isActive) {
     return (
       <div
-        className={`inline-flex items-center gap-1 rounded-full font-medium
-        bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300
-        ${sizeClasses[size]} ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 ${sizeClasses[size]} ${className}`}
       >
         <Clock
           className={
@@ -115,12 +104,10 @@ export function SubscriptionBadge({
     );
   }
 
-  if (!isActive && tier !== "starter") {
+  if (!isActive && tier !== "starter" && tier !== "free") {
     return (
       <div
-        className={`inline-flex items-center gap-1 rounded-full font-medium
-        bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300
-        ${sizeClasses[size]} ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 ${sizeClasses[size]} ${className}`}
       >
         <AlertCircle
           className={
@@ -134,9 +121,7 @@ export function SubscriptionBadge({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-full font-medium
-      ${config.bg} ${config.color} ${config.darkBg} ${config.darkColor}
-      ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full font-medium ${config.bg} ${config.color} ${config.darkBg} ${config.darkColor} ${sizeClasses[size]} ${className}`}
     >
       {showIcon && (
         <Icon

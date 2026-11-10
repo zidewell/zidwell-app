@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import RichTextArea from "./RichTextArea";
-
 import SignContractToggle from "./SignContractToggle";
 import PreviewTab from "./PreviewTab";
 import { ContractSuccessModal } from "./ContractSuccessModal";
@@ -21,7 +20,6 @@ import {
   Trash2,
   Crown,
   Zap,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { Button } from "../ui/button";
@@ -37,7 +35,6 @@ import { SignaturePad } from "../SignaturePad";
 import Link from "next/link";
 import { Switch } from "../ui/switch";
 
-// Types
 type ContractDraft = {
   id: string;
   contract_id?: string;
@@ -100,59 +97,48 @@ interface SaveContractResponse {
   message?: string;
 }
 
+// Contract limits per tier
+const CONTRACT_LIMITS = {
+  free: 0,
+  starter: 0,
+  sme: 1,
+  enterprise: 10,
+} as const;
+
 const FormBody: React.FC = () => {
   const router = useRouter();
   const { userData } = useUserContextData();
   const { userTier } = useSubscription();
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
+  const [, setIsLoadingDrafts] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedContractId, setSavedContractId] = useState<string>("");
   const [showContractSummary, setShowContractSummary] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
+  const [, setUploadingFile] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
   const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
-  // Determine user tier
-  const isFree = userTier === "free";
-  const isStarterUser = userTier === "starter";
-  const isSMEUser = userTier === "sme";
+  // Real Zidwell tiers only
   const isEnterpriseUser = userTier === "enterprise";
-  const isConsoleUser = userTier === "console";
+  const isSmeUser = userTier === "sme";
+  const isStarterUser = userTier === "starter" || userTier === "free";
 
-  // Lawyer signature available for Enterprise and Corporation
-  const canAddLawyerSignature = isEnterpriseUser || isConsoleUser;
+  // Only Enterprise gets lawyer signatures
+  const canAddLawyerSignature = isEnterpriseUser;
 
-  // Unlimited contracts for SME, Enterprise, Corporation
-  const hasUnlimitedContracts =
-    isSMEUser || isEnterpriseUser || isConsoleUser;
+  // No unlimited tier for contracts
+  const hasUnlimitedContracts = false;
 
-  // Contract limits based on tier
-  const contractLimit =
-    isFree || isStarterUser
-      ? 0
-      : isSMEUser
-        ? 1
-        : isEnterpriseUser
-          ? 10
-          : Infinity; // Corporation unlimited
+  const contractLimit = CONTRACT_LIMITS[userTier] ?? 0;
 
-  // Get tier icon and color
   const getTierInfo = () => {
-    if (isConsoleUser)
-      return {
-        icon: Sparkles,
-        color: "text-purple-600",
-        bg: "bg-purple-100",
-        label: "Console",
-      };
     if (isEnterpriseUser)
       return {
         icon: Crown,
@@ -160,25 +146,18 @@ const FormBody: React.FC = () => {
         bg: "bg-amber-100",
         label: "Enterprise",
       };
-    if (isSMEUser)
+    if (isSmeUser)
       return {
         icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isStarterUser)
-      return {
-        icon: Zap,
-        color: "text-blue-600",
-        bg: "bg-blue-100",
-        label: "Starter",
-      };
     return {
-      icon: Star,
-      color: "text-(--text-secondary)",
-      bg: "bg-(--bg-secondary)",
-      label: "Free Trial",
+      icon: Zap,
+      color: "text-blue-600",
+      bg: "bg-blue-100",
+      label: "Free",
     };
   };
 
@@ -191,10 +170,8 @@ const FormBody: React.FC = () => {
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState(creatorName);
 
-  // Local signature state
   const [localSignature, setLocalSignature] = useState<string | null>(null);
 
-  // Contract count for tier limits
   const [contractCount, setContractCount] = useState(0);
 
   const [form, setForm] = useState<FormState>({
@@ -225,12 +202,10 @@ const FormBody: React.FC = () => {
     termsConsent: "",
   });
 
-  // Update local signature when creatorSignature changes
   useEffect(() => {
     setLocalSignature(creatorSignature);
   }, [creatorSignature]);
 
-  // Fetch contract count for tier limits
   useEffect(() => {
     const fetchContractCount = async () => {
       if (!userData?.email) return;
@@ -350,11 +325,7 @@ const FormBody: React.FC = () => {
           setTimeout(() => {
             Swal.fire({
               title: "Drafts Found!",
-              html: `You have <strong>${
-                result.drafts.length
-              }</strong> saved draft${
-                result.drafts.length !== 1 ? "s" : ""
-              }.<br><br>Would you like to load the most recent one?`,
+              html: `You have <strong>${result.drafts.length}</strong> saved draft${result.drafts.length !== 1 ? "s" : ""}.<br><br>Would you like to load the most recent one?`,
               icon: "info",
               showCancelButton: true,
               showDenyButton: true,
@@ -520,10 +491,8 @@ const FormBody: React.FC = () => {
 
     const paymentTerms = draft.metadata?.payment_terms || "";
 
-    // Get the contract content
     let contractContent = draft.contract_content || draft.contract_text || "";
 
-    // Check if the content is wrapped in quotes (JSON string)
     if (typeof contractContent === "string") {
       if (contractContent.startsWith('"') && contractContent.endsWith('"')) {
         try {
@@ -538,9 +507,7 @@ const FormBody: React.FC = () => {
         if (typeof parsed === "string") {
           contractContent = parsed;
         }
-      } catch {
-        // Not JSON, keep as is
-      }
+      } catch {}
 
       const textarea = document.createElement("textarea");
       textarea.innerHTML = contractContent;
@@ -576,7 +543,7 @@ const FormBody: React.FC = () => {
       setCreatorSignature(draft.creator_signature);
       setLocalSignature(draft.creator_signature);
     }
-    if (draft.include_lawyer_signature) {
+    if (draft.include_lawyer_signature && canAddLawyerSignature) {
       setIncludeLawyerSignature(draft.include_lawyer_signature);
     }
 
@@ -692,7 +659,9 @@ const FormBody: React.FC = () => {
         is_draft: true,
         creator_name: creatorName,
         creator_signature: localSignature || creatorSignature,
-        include_lawyer_signature: includeLawyerSignature,
+        include_lawyer_signature: canAddLawyerSignature
+          ? includeLawyerSignature
+          : false,
         metadata: {
           payment_terms: form.paymentTerms,
           contract_date: form.contractDate,
@@ -941,13 +910,17 @@ const FormBody: React.FC = () => {
         contract_type: "custom",
         status: isDraft ? "draft" : "pending",
         is_draft: isDraft,
-        include_lawyer_signature: includeLawyerSignature,
+        include_lawyer_signature: canAddLawyerSignature
+          ? includeLawyerSignature
+          : false,
         creator_name: creatorName,
         creator_signature: localSignature || creatorSignature,
         metadata: {
           attachments: attachmentsData,
           attachment_count: attachments.length,
-          lawyer_signature: includeLawyerSignature,
+          lawyer_signature: canAddLawyerSignature
+            ? includeLawyerSignature
+            : false,
           payment_terms: form.paymentTerms,
           contract_date: form.contractDate,
           creator_name: creatorName,
@@ -1069,9 +1042,9 @@ const FormBody: React.FC = () => {
   const handleSubmit = async (isDraft: boolean = false) => {
     if (isSubmitting || isSavingDraft) return;
 
-    // Check limit for tiers without unlimited contracts
-    if (!hasUnlimitedContracts && !isDraft) {
-      if (isFree || isStarterUser) {
+    // Check contract limit
+    if (!isDraft) {
+      if (isStarterUser) {
         setShowUpgradePrompt(true);
         return;
       }
@@ -1159,28 +1132,6 @@ const FormBody: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (file: File) => {
-    if (isSubmitting) {
-      Swal.fire({
-        icon: "warning",
-        title: "Form is Processing",
-        text: "Cannot upload files while submission is in progress.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-      });
-      return;
-    }
-
-    const previewUrl = file.type.startsWith("image/")
-      ? URL.createObjectURL(file)
-      : undefined;
-
-    setAttachments((prev) => [
-      ...prev,
-      { file, name: file.name, size: file.size, type: file.type, previewUrl },
-    ]);
-    setHasUnsavedChanges(true);
-  };
-
   const handleRemoveAttachment = (index: number) => {
     if (isSubmitting) {
       Swal.fire({
@@ -1201,7 +1152,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleLawyerToggle = (checked: boolean) => {
-    if (isSubmitting) return;
+    if (isSubmitting || !canAddLawyerSignature) return;
     setIncludeLawyerSignature(checked);
   };
 
@@ -1233,32 +1184,25 @@ const FormBody: React.FC = () => {
   };
 
   const getLimitDisplay = () => {
-    if (hasUnlimitedContracts) return "Unlimited";
-    if (isFree || isStarterUser) return "0/0";
-    if (isSMEUser) return `${Math.max(0, 1 - contractCount)}/1`;
-    if (isEnterpriseUser) return `${Math.max(0, 10 - contractCount)}/10`;
+    if (isStarterUser) return "0/0";
+    if (isSmeUser) return `${Math.max(0, CONTRACT_LIMITS.sme - contractCount)}/1`;
+    if (isEnterpriseUser)
+      return `${Math.max(0, CONTRACT_LIMITS.enterprise - contractCount)}/10`;
     return "0/0";
   };
 
   const getTierMessage = () => {
-    if (isConsoleUser) {
-      return "You have unlimited contracts! Create as many as you need.";
-    }
     if (isEnterpriseUser) {
-      return `You have ${Math.max(0, 10 - contractCount)} contract${Math.max(0, 10 - contractCount) !== 1 ? "s" : ""} remaining.`;
+      return `You have ${Math.max(0, CONTRACT_LIMITS.enterprise - contractCount)} contract${Math.max(0, CONTRACT_LIMITS.enterprise - contractCount) !== 1 ? "s" : ""} remaining.`;
     }
-    if (isSMEUser) {
-      return `You have ${Math.max(0, 1 - contractCount)} contract${Math.max(0, 1 - contractCount) !== 1 ? "s" : ""} remaining.`;
+    if (isSmeUser) {
+      return `You have ${Math.max(0, CONTRACT_LIMITS.sme - contractCount)} contract${Math.max(0, CONTRACT_LIMITS.sme - contractCount) !== 1 ? "s" : ""} remaining.`;
     }
-    if (isStarterUser) {
-      return "Starter plan does not include contracts. Upgrade to SME or higher.";
-    }
-    return "Free plan does not include contracts. Upgrade to SME or higher.";
+    return "The Free plan doesn't include contracts. Upgrade to SME or Enterprise.";
   };
 
   return (
     <>
-      {/* Upgrade Prompt Modal */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-(--bg-primary) rounded-xl max-w-md w-full p-6">
@@ -1269,11 +1213,11 @@ const FormBody: React.FC = () => {
               Contract Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isFree || isStarterUser
-                ? "Your plan does not include contracts. Upgrade to SME or higher to create contracts!"
-                : isSMEUser
-                  ? "You've used all your SME contracts. Upgrade to Enterprise for more contracts!"
-                  : "You've used all your Enterprise contracts. Upgrade to Console for unlimited!"}
+              {isStarterUser
+                ? "Your plan doesn't include contracts. Upgrade to SME or higher to create contracts!"
+                : isSmeUser
+                  ? "You've used your SME contract. Upgrade to Enterprise for 10 contracts!"
+                  : "You've used all 10 Enterprise contracts."}
             </p>
             <div className="flex gap-3">
               <Button
@@ -1311,7 +1255,7 @@ const FormBody: React.FC = () => {
         dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
-        userTier={userTier as any}
+        userTier={userTier as "free" | "starter" | "sme" | "enterprise"}
         contractCount={contractCount}
         hasUnlimitedContracts={hasUnlimitedContracts}
       />
@@ -1366,7 +1310,6 @@ const FormBody: React.FC = () => {
                   <h1 className="md:text-3xl text-xl font-bold text-(--text-primary)">
                     Create Contract
                   </h1>
-                  {/* Single Tier Badge */}
                   <div
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
                   >
@@ -1383,22 +1326,12 @@ const FormBody: React.FC = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-2">
-              {!hasUnlimitedContracts && (
-                <Badge
-                  variant="outline"
-                  className="bg-blue-50 text-blue-700 border-blue-200"
-                >
-                  {getLimitDisplay()} used
-                </Badge>
-              )}
-              {hasUnlimitedContracts && (
-                <Badge
-                  variant="outline"
-                  className="bg-purple-50 text-purple-700 border-purple-200"
-                >
-                  Unlimited
-                </Badge>
-              )}
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-700 border-blue-200"
+              >
+                {getLimitDisplay()} used
+              </Badge>
               {hasUnsavedChanges && (
                 <Badge
                   variant="outline"
@@ -1416,7 +1349,7 @@ const FormBody: React.FC = () => {
                   {attachments.length}
                 </Badge>
               )}
-              {includeLawyerSignature && (
+              {includeLawyerSignature && canAddLawyerSignature && (
                 <Badge
                   variant="outline"
                   className="bg-purple-50 text-purple-700 border-purple-200"
@@ -1436,44 +1369,32 @@ const FormBody: React.FC = () => {
           </div>
 
           {/* Tier Message */}
-          {!isFree && (
+          {!isStarterUser && (
             <div
               className={`mb-6 p-4 rounded-lg border-2 ${
-                isConsoleUser
-                  ? "bg-purple-50 border-purple-200"
-                  : isEnterpriseUser
-                    ? "bg-amber-50 border-amber-200"
-                    : isSMEUser
-                      ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
-                      : isStarterUser
-                        ? "bg-blue-50 border-blue-200"
-                        : ""
+                isEnterpriseUser
+                  ? "bg-amber-50 border-amber-200"
+                  : isSmeUser
+                    ? "bg-(--color-accent-yellow)/5 border-(--color-accent-yellow)/20"
+                    : ""
               }`}
             >
               <p
                 className={`font-medium flex items-center gap-2 ${
-                  isConsoleUser
-                    ? "text-purple-600"
-                    : isEnterpriseUser
-                      ? "text-amber-600"
-                      : isSMEUser
-                        ? "text-(--color-accent-yellow)"
-                        : isStarterUser
-                          ? "text-blue-600"
-                          : ""
+                  isEnterpriseUser
+                    ? "text-amber-600"
+                    : isSmeUser
+                      ? "text-(--color-accent-yellow)"
+                      : ""
                 }`}
               >
                 <span
                   className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    isConsoleUser
-                      ? "bg-purple-100 text-purple-600 border border-purple-200"
-                      : isEnterpriseUser
-                        ? "bg-amber-100 text-amber-600 border border-amber-200"
-                        : isSMEUser
-                          ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
-                          : isStarterUser
-                            ? "bg-blue-100 text-blue-600 border border-blue-200"
-                            : ""
+                    isEnterpriseUser
+                      ? "bg-amber-100 text-amber-600 border border-amber-200"
+                      : isSmeUser
+                        ? "bg-(--color-accent-yellow)/10 text-(--color-accent-yellow) border border-(--color-accent-yellow)/20"
+                        : ""
                   }`}
                 >
                   {tierInfo.label.toUpperCase()}
@@ -1762,7 +1683,6 @@ const FormBody: React.FC = () => {
                 )}
               </section>
 
-              {/* Signature Section */}
               <section className="md:border md:border-(--border-color) rounded-lg md:p-6 md:bg-(--bg-secondary)">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                   <div className="mb-4 sm:mb-0">
@@ -1787,7 +1707,6 @@ const FormBody: React.FC = () => {
                   )}
                 </div>
 
-                {/* Load Saved Signature Button */}
                 {userData?.id && !localSignature && (
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -1890,8 +1809,10 @@ const FormBody: React.FC = () => {
                 receiverPhone={form.receiverPhone}
                 attachments={attachments}
                 setActiveTab={setActiveTab}
-                includeLawyerSignature={includeLawyerSignature}
-                onIncludeLawyerChange={setIncludeLawyerSignature}
+                includeLawyerSignature={
+                  canAddLawyerSignature ? includeLawyerSignature : false
+                }
+                onIncludeLawyerChange={handleLawyerToggle}
                 creatorName={creatorName}
                 onCreatorNameChange={setCreatorName}
                 creatorSignature={localSignature || creatorSignature}

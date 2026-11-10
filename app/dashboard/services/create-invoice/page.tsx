@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Crown,
   Zap,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -25,14 +24,10 @@ import { useUserContextData } from "@/app/context/userData";
 export default function InvoicePage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { subscription, userTier } = useSubscription();
-  const isSMEUser = userTier === "sme";
-  const isEnterpriseUser = userTier === "enterprise";
-  const isStarterUser = userTier === "starter";
-  const isConsoleUser = userTier === "console";
+  const { userTier } = useSubscription();
   const { userData } = useUserContextData();
   const [usage, setUsage] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -40,7 +35,6 @@ export default function InvoicePage() {
 
       try {
         const res = await fetch("/api/user/usage");
-
         if (res.ok) {
           const data = await res.json();
           setUsage(data);
@@ -55,22 +49,16 @@ export default function InvoicePage() {
     fetchUsage();
   }, [userData]);
 
-  const isFree = userTier === "free";
-  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser || isConsoleUser;
+  // Zidwell tiers: starter (= free, 5 invoices), sme, enterprise
+  const isStarterUser = userTier === "starter" || userTier === "free";
+  const isSMEUser = userTier === "sme";
+  const isEnterpriseUser = userTier === "enterprise";
+  const hasUnlimitedInvoices = isSMEUser || isEnterpriseUser;
 
-  const usedInvoices = usage?.invoices?.used || 0;
-  const limit = hasUnlimitedInvoices ? "unlimited" : isStarterUser ? 10 : 5;
   const remaining = usage?.invoices?.remaining || 0;
   const hasReachedLimit = !hasUnlimitedInvoices && remaining <= 0;
 
   const getTierInfo = () => {
-    if (isConsoleUser)
-      return {
-        icon: Sparkles,
-        color: "text-purple-600 dark:text-purple-400",
-        bg: "bg-purple-100 dark:bg-purple-900/30",
-        label: "Console",
-      };
     if (isEnterpriseUser)
       return {
         icon: Crown,
@@ -85,18 +73,11 @@ export default function InvoicePage() {
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isStarterUser)
-      return {
-        icon: Zap,
-        color: "text-blue-600 dark:text-blue-400",
-        bg: "bg-blue-100 dark:bg-blue-900/30",
-        label: "Starter",
-      };
     return {
-      icon: Star,
-      color: "text-gray-600 dark:text-gray-400",
-      bg: "bg-gray-100 dark:bg-gray-800",
-      label: "Free Trial",
+      icon: Zap,
+      color: "text-blue-600 dark:text-blue-400",
+      bg: "bg-blue-100 dark:bg-blue-900/30",
+      label: "Free",
     };
   };
 
@@ -104,17 +85,12 @@ export default function InvoicePage() {
   const TierIcon = tierInfo.icon;
 
   const getTierMessage = () => {
-    if (isConsoleUser) {
-      return "You have unlimited invoices with priority support!";
-    }
-    if (isEnterpriseUser) {
-      return "You have unlimited invoices!";
-    }
-    if (isSMEUser) {
-      return "You have unlimited invoices!";
-    }
+    if (isEnterpriseUser) return "You have unlimited invoices!";
+    if (isSMEUser) return "You have unlimited invoices!";
     if (isStarterUser) {
-      return `You have ${remaining} invoice${remaining !== 1 ? "s" : ""} remaining.`;
+      return remaining > 0
+        ? `You have ${remaining} free invoice${remaining !== 1 ? "s" : ""} remaining.`
+        : "You've used all 5 free invoices. Upgrade to SME for unlimited invoicing.";
     }
     return null;
   };
@@ -176,12 +152,10 @@ export default function InvoicePage() {
                 </div>
               </div>
 
-              {/* Tier Message - For paid tiers */}
-              {tierMessage && !isFree && (
+              {/* Tier Message */}
+              {tierMessage && (
                 <div className="mb-6 p-4 rounded-md border-2 bg-(--bg-secondary) border-(--border-color) shadow-soft squircle-lg">
-                  <p
-                    className={`font-medium flex items-center gap-2 text-(--text-primary)`}
-                  >
+                  <p className="font-medium flex items-center gap-2 text-(--text-primary)">
                     <span className="px-2 py-0.5 rounded text-xs font-bold bg-(--color-accent-yellow) text-(--color-ink)">
                       {tierInfo.label.toUpperCase()}
                     </span>
@@ -230,11 +204,9 @@ export default function InvoicePage() {
                         <Button
                           className="bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90 squircle-md"
                           size="lg"
-                          disabled={isFree && hasReachedLimit}
+                          disabled={hasReachedLimit}
                         >
-                          {isFree && hasReachedLimit
-                            ? "Limit Reached"
-                            : "Create Invoice"}
+                          {hasReachedLimit ? "Limit Reached" : "Create Invoice"}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </Link>

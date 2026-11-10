@@ -1,6 +1,11 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Be_Vietnam_Pro, Oswald, Archivo_Narrow } from "next/font/google";
+import {
+  Space_Grotesk,
+  Be_Vietnam_Pro,
+  Oswald,
+  Archivo_Narrow,
+} from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "./context/userData";
 import SessionWatcher from "./components/SessionWatcher";
@@ -19,7 +24,7 @@ import {
   generateSoftwareAppSchema,
   generateLocalBusinessSchema,
   generateZidStoreMetadata,
-  generateZidStorePageSchemaArray,
+  generpZELkorMwhkkpShF5PvT8YnqRCupnLTNG,
   ZIDSTORE_HOST,
   ZIDSTORE_OG_IMAGE,
 } from "@/lib/seo";
@@ -118,17 +123,62 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
+  // ── Zidwell (main site) — now includes openGraph + twitter ────────────────
+  const zidwellTitle =
+    "Zidwell — Finance & Business Management for Nigerian SMEs";
+  const zidwellDescription =
+    "All-in-one finance and business management platform for Nigerian SMEs. Professional accounting, invoicing, contracts, receipts, and financial tools.";
+  const zidwellOgImage = "https://zidwell.com/zidwell-cover-meta.png";
+
   return {
     ...shared,
     metadataBase: new URL("https://zidwell.com"),
     category: "Finance & Business Management",
     classification: "Business, Finance, Accounting, SME Tools",
     title: {
-      default: "Zidwell — Finance & Business Management for Nigerian SMEs",
+      default: zidwellTitle,
       template: "%s | Zidwell",
     },
-    description:
-      "All-in-one finance and business management platform for Nigerian SMEs. Professional accounting, invoicing, contracts, receipts, and financial tools.",
+    description: zidwellDescription,
+    alternates: {
+      canonical: "https://zidwell.com",
+    },
+    openGraph: {
+      type: "website",
+      locale: "en_NG",
+      url: "https://zidwell.com",
+      siteName: "Zidwell",
+      title: zidwellTitle,
+      description: zidwellDescription,
+      images: [
+        {
+          url: zidwellOgImage,
+          width: 1200,
+          height: 630,
+          alt: "Zidwell — Finance & Business Management for Nigerian SMEs",
+          type: "image/png",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@zidwellapp",
+      creator: "@zidwellapp",
+      title: zidwellTitle,
+      description: zidwellDescription,
+      images: [zidwellOgImage],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
   };
 }
 
@@ -163,7 +213,7 @@ export default async function RootLayout({
       ];
 
   const zidStoreSchemas = isZidStore
-    ? generateZidStorePageSchemaArray()
+    ? generpZELkorMwhkkpShF5PvT8YnqRCupnLTNG()
     : [];
 
   const allSchemas = [...zidwellSchemas, ...zidStoreSchemas];
@@ -175,11 +225,6 @@ export default async function RootLayout({
       className={`${spaceGrotesk.variable} ${beVietnamPro.variable} ${archivoNarrow.variable}`}
     >
       <head>
-        {/*
-          JSON-LD structured data — safe to render inline.
-          We keep `dangerouslySetInnerHTML` because it's valid LD+JSON,
-          not executable code. Next.js serializes it correctly.
-        */}
         {allSchemas.map((schema, i) => (
           <script
             key={i}
@@ -208,7 +253,7 @@ export default async function RootLayout({
         <link rel="preload" href="/logo.png" as="image" type="image/png" />
         <link
           rel="preload"
-          href={isZidStore ? ZIDSTORE_OG_IMAGE : "/images/og-image.png"}
+          href={isZidStore ? ZIDSTORE_OG_IMAGE : "/zidwell-cover-meta.png"}
           as="image"
           type="image/png"
         />
@@ -222,12 +267,6 @@ export default async function RootLayout({
         className="bg-(--bg-primary) text-(--text-primary) antialiased"
         suppressHydrationWarning={true}
       >
-        {/*
-          Theme-init script — MUST run before hydration to avoid a
-          flash of the wrong theme. Use next/script with
-          strategy="beforeInteractive" so Next handles the insertion
-          correctly and React doesn't complain about inline <script>.
-        */}
         <Script
           id="theme-init"
           strategy="beforeInteractive"
@@ -256,10 +295,8 @@ export default async function RootLayout({
           />
         )}
 
-      
-
         <ThemeProvider>
-            <Toaster richColors position="top-center" />
+          <Toaster richColors position="top-center" />
           <ThemeWrapper>
             <UserProvider>
               <BlogProvider>

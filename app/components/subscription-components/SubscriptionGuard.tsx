@@ -4,32 +4,24 @@
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Crown,
-  Zap,
-  Sparkles,
-  Star,
-  Lock,
-  Building2,
-  Briefcase,
-} from "lucide-react";
+import { Crown, Zap, Sparkles, Star, Lock, Briefcase } from "lucide-react";
 import Link from "next/link";
 
 interface SubscriptionPageGuardProps {
   children: React.ReactNode;
-  requiredTier: "free" | "starter" | "sme" | "enterprise" | "console";
+  requiredTier: "free" | "starter" | "sme" | "enterprise";
   featureKey: string;
   title?: string;
   description?: string;
 }
 
+// Real Zidwell tiers. starter is the free plan.
 const tierConfig = {
   free: {
     icon: Star,
     color: "text-gray-600",
     bg: "bg-gray-100",
     price: "₦0",
-    yearlyPrice: "",
     features: [
       "Up to 5 invoices",
       "Up to 5 receipts",
@@ -41,34 +33,30 @@ const tierConfig = {
     icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-50",
-    price: "₦99,900/year",
-    yearlyPrice: "",
+    price: "₦0",
     features: [
       "Business bank account",
       "Business Plan Template",
       "Automatic Bookkeeping",
-      "Invoice Tool",
-      "Receipt Tool",
+      "Invoice Tool (5/month)",
+      "Receipt Tool (5/month)",
       "Online storefront",
       "Document Vault",
     ],
   },
   sme: {
-    icon: Building2,
+    icon: Zap,
     color: "text-(--color-accent-yellow)",
     bg: "bg-(--color-accent-yellow)/10",
     price: "₦199,900/year",
-    yearlyPrice: "",
     features: [
-      "Business bank account",
-      "Business Plan Template",
-      "Automatic Bookkeeping",
-      "Invoice Tool",
-      "Receipt Tool",
+      "Unlimited invoices & receipts",
       "International payments",
-      "Online storefront",
-      "Document Vault",
       "One Extra User",
+      "Tax Calculator",
+      "Financial Statements",
+      "1 Contract",
+      "Priority support",
     ],
   },
   enterprise: {
@@ -76,35 +64,14 @@ const tierConfig = {
     color: "text-amber-600",
     bg: "bg-amber-50",
     price: "₦599,900/year",
-    yearlyPrice: "",
     features: [
-      "Business bank account",
+      "Everything in SME, plus:",
       "Increased transaction limits",
-      "Business Plan Template",
-      "Automatic Bookkeeping",
-      "Connect Your Bank Accounts",
-      "Invoice Tool",
-      "Receipt Tool",
-      "International payments",
-      "Online storefront",
-      "Document Vault",
+      "Connect Bank Accounts",
       "Three Extra Users",
+      "Lawyer Signature on Contracts",
+      "10 Contracts",
       "Dedicated support team",
-    ],
-  },
-  console: {
-    icon: Sparkles,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    price: "Custom pricing",
-    yearlyPrice: "",
-    features: [
-      "Everything in Enterprise",
-      "Sub Accounts",
-      "Roles & Permissions",
-      "Approvals",
-      "Unlimited users",
-      "Custom pricing",
     ],
   },
 };
@@ -116,8 +83,7 @@ export function SubscriptionPageGuard({
   title = "Premium Feature",
   description = "This feature requires an upgraded plan",
 }: SubscriptionPageGuardProps) {
-  const { canAccessFeature, loading, subscription, userTier } =
-    useSubscription();
+  const { canAccessFeature, loading, userTier } = useSubscription();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
 
@@ -145,14 +111,13 @@ export function SubscriptionPageGuard({
   const hasAccess = canAccessFeature(featureKey);
 
   if (!hasAccess) {
-    const config = tierConfig[requiredTier as keyof typeof tierConfig];
+    const config = tierConfig[requiredTier];
     const Icon = config?.icon || Lock;
 
     const getTierDisplayName = (tier: string) => {
-      if (tier === "starter") return "Starter";
+      if (tier === "starter") return "Starter (Free)";
       if (tier === "sme") return "SME";
       if (tier === "enterprise") return "Enterprise";
-      if (tier === "console") return "Console";
       return tier;
     };
 
@@ -178,9 +143,7 @@ export function SubscriptionPageGuard({
             <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-8 max-w-md w-full">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <Icon className={`w-5 h-5 ${config.color}`} />
-                <span className="capitalize">
-                  {getTierDisplayName(requiredTier)} Plan Benefits
-                </span>
+                <span>{getTierDisplayName(requiredTier)} Plan Benefits</span>
               </h3>
               <ul className="space-y-3 mb-6">
                 {config.features.map((feature, index) => (
@@ -188,9 +151,7 @@ export function SubscriptionPageGuard({
                     <div
                       className={`w-5 h-5 rounded-full ${config.bg} flex items-center justify-center shrink-0 mt-0.5`}
                     >
-                      <div
-                        className={`w-2 h-2 rounded-full ${config.color}`}
-                      />
+                      <div className={`w-2 h-2 rounded-full ${config.color}`} />
                     </div>
                     <span className="text-gray-700">{feature}</span>
                   </li>
@@ -201,16 +162,13 @@ export function SubscriptionPageGuard({
               </p>
               <Link
                 href={`/pricing?upgrade=${requiredTier}`}
-                className={`block w-full py-3 px-4 rounded-lg text-center font-bold transition-all
-                  ${
-                    requiredTier === "enterprise"
-                      ? "bg-amber-600 text-white hover:bg-amber-700"
-                      : requiredTier === "console"
-                        ? "bg-purple-600 text-white hover:bg-purple-700"
-                        : requiredTier === "sme"
-                          ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
+                className={`block w-full py-3 px-4 rounded-lg text-center font-bold transition-all ${
+                  requiredTier === "enterprise"
+                    ? "bg-amber-600 text-white hover:bg-amber-700"
+                    : requiredTier === "sme"
+                      ? "bg-(--color-accent-yellow) text-gray-900 hover:bg-(--color-accent-yellow)/90"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
               >
                 Upgrade to {getTierDisplayName(requiredTier)}
               </Link>

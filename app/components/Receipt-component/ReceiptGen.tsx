@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, AlertCircle, Crown } from "lucide-react";
+import { Plus, Search, Crown } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
@@ -15,7 +15,7 @@ import {
 import ReceiptList from "./RecieptLIst";
 import CreateReceipt from "@/app/components/Receipt-component/CreateReciept";
 import Link from "next/link";
-import { Badge } from "../ui/badge";
+import { useSubscription } from "@/app/hooks/useSubscripion";
 
 interface ReceiptItem {
   id: string;
@@ -62,37 +62,30 @@ export interface Receipt {
 interface ReceiptGenProps {
   receipts: Receipt[];
   loading: boolean;
-  userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
-  remainingReceipts?: string | number;
 }
 
-export default function ReceiptGen({
-  receipts,
-  loading,
-  userTier,
-  remainingReceipts = 5,
-}: ReceiptGenProps) {
+const RECEIPT_LIMITS: Record<string, number> = {
+  free: 5,
+  starter: 5,
+  sme: Infinity,
+  enterprise: Infinity,
+};
+
+export default function ReceiptGen({ receipts, loading }: ReceiptGenProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [activeTab, setActiveTab] = useState("Receipts");
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
-  // Calculate limits based on tier
-  const isFree = userTier === "free";
-  const isStarter = userTier === "starter";
-  const isSME = userTier === "sme";
-  const isEnterprise = userTier === "enterprise";
-  const isConsole = userTier === "console";
+  const { userTier } = useSubscription();
 
-  const hasUnlimitedReceipts = isSME || isEnterprise || isConsole;
+  const receiptLimit = RECEIPT_LIMITS[userTier] ?? 5;
+  const hasUnlimitedReceipts = !Number.isFinite(receiptLimit);
   const receiptCount = receipts.length;
-  const receiptLimit = isFree ? 5 : isStarter ? 10 : Infinity;
-  const hasReachedLimit = !hasUnlimitedReceipts && receiptCount >= receiptLimit;
+  const hasReachedLimit =
+    !hasUnlimitedReceipts && receiptCount >= receiptLimit;
 
-  const totalAmount = receipts.reduce((sum, receipt) => {
-    return sum + receipt.total;
-  }, 0);
-
+  const totalAmount = receipts.reduce((sum, receipt) => sum + receipt.total, 0);
   const signedReceipt = receipts.filter(
     (rcp) => rcp.status === "signed",
   ).length;
@@ -123,38 +116,9 @@ export default function ReceiptGen({
     }
   };
 
-  const getRemainingText = () => {
-    if (hasUnlimitedReceipts) return "Unlimited";
-    if (isStarter) return `${Math.max(0, 10 - receiptCount)} remaining`;
-    return `${Math.max(0, 5 - receiptCount)} remaining`;
-  };
-
-  const getUsageColor = () => {
-    if (hasUnlimitedReceipts) {
-      if (isConsole)
-        return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
-      if (isEnterprise)
-        return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400";
-      return "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow)";
-    }
-    if (isStarter) {
-      if (receiptCount >= 10)
-        return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
-      if (receiptCount >= 8)
-        return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
-      return "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400";
-    }
-    // Free tier
-    if (receiptCount >= 5)
-      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
-    if (receiptCount >= 4)
-      return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
-    return "bg-(--color-accent-yellow)/20 text-(--color-accent-yellow) dark:bg-(--color-accent-yellow)/20 dark:text-(--color-accent-yellow)";
-  };
-
   return (
     <div className="space-y-6">
-      {/* Upgrade Prompt Modal */}
+      {/* Upgrade prompt — only fires when user clicks New Receipt at limit */}
       {showUpgradePrompt && (
         <div className="fixed inset-0 bg-black/50 dark:bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-(--bg-primary) dark:bg-gray-900 rounded-xl max-w-md w-full p-6 shadow-pop border border-(--border-color) squircle-lg">
@@ -162,12 +126,11 @@ export default function ReceiptGen({
               <Crown className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
             <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
-              Upgrade Required
+              Receipt Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isStarter
-                ? "You've used all your Starter receipts. Upgrade to SME or higher for unlimited receipts!"
-                : "You've used all your free receipts. Upgrade to SME or higher for unlimited receipts!"}
+              You've used all {receiptLimit} free receipts. Upgrade to SME or
+              Enterprise for unlimited receipts.
             </p>
             <div className="flex gap-3">
               <Button
@@ -187,7 +150,7 @@ export default function ReceiptGen({
         </div>
       )}
 
-      {/* Summary Cards */}
+      {/* Stats */}
       {activeTab === "Receipts" && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
@@ -247,9 +210,9 @@ export default function ReceiptGen({
           </TabsTrigger>
           <TabsTrigger
             value="create"
-            disabled={hasReachedLimit && !hasUnlimitedReceipts}
+            disabled={hasReachedLimit}
             className={`squircle-md ${
-              hasReachedLimit && !hasUnlimitedReceipts
+              hasReachedLimit
                 ? "opacity-50 cursor-not-allowed"
                 : "data-[state=active]:bg-(--bg-primary) data-[state=active]:text-(--color-accent-yellow) text-(--text-secondary)"
             }`}
@@ -259,11 +222,9 @@ export default function ReceiptGen({
         </TabsList>
 
         <TabsContent value="Receipts" className="space-y-6">
-          {/* Search and Filter */}
           <Card className="bg-(--bg-primary) border border-(--border-color) shadow-soft squircle-lg">
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                {/* Search Input */}
                 <div className="relative w-full sm:flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) w-4 h-4" />
                   <Input
@@ -275,7 +236,6 @@ export default function ReceiptGen({
                   />
                 </div>
 
-                {/* Status Filter Buttons */}
                 <div className="flex flex-wrap gap-2">
                   {["All", "Signed", "Pending", "Draft"].map((status) => (
                     <Button
@@ -296,16 +256,15 @@ export default function ReceiptGen({
                   ))}
                 </div>
 
-                {/* New Receipt Button */}
                 <div className="w-full sm:w-auto">
                   <Button
                     className={`w-full sm:w-auto transition-all duration-300 squircle-md ${
-                      hasReachedLimit && !hasUnlimitedReceipts
+                      hasReachedLimit
                         ? "bg-gray-400 cursor-not-allowed dark:bg-gray-600"
                         : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
                     }`}
                     onClick={handleCreateClick}
-                    disabled={hasReachedLimit && !hasUnlimitedReceipts}
+                    disabled={hasReachedLimit}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     New Receipt
@@ -315,15 +274,11 @@ export default function ReceiptGen({
             </CardContent>
           </Card>
 
-          {/* Receipts List */}
           <ReceiptList receipts={filteredReceipts} loading={loading} />
         </TabsContent>
 
         <TabsContent value="create">
-          <CreateReceipt
-            userTier={userTier}
-            hasReachedLimit={hasReachedLimit}
-          />
+          <CreateReceipt userTier={userTier} hasReachedLimit={hasReachedLimit} />
         </TabsContent>
       </Tabs>
     </div>

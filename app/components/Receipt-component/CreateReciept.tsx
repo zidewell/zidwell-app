@@ -7,26 +7,16 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   FileText,
-  History,
   Save,
   Loader2,
   Eye,
   Mail,
-  MailX,
   Phone,
-  Trash2,
   EyeOff,
-  Check,
-  Download,
-  AlertCircle,
   Crown,
-  Zap,
-  Sparkles,
-  Star,
 } from "lucide-react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -45,14 +35,11 @@ import { useSubscription } from "../../hooks/useSubscripion";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
 import posthog from "posthog-js";
-import { Badge } from "../ui/badge";
 import { GenerateReceiptModal } from "./GenerateReceiptModal";
 import { ReceiptPreview } from "../previews/RecieptPreview";
 import Link from "next/link";
 
-// Import separated components
 import { ReceiptSummary } from "./ReceiptSummary";
 import { SignaturePad } from "../SignaturePad";
 import { ReceiptItemsForm } from "./ReceiptItemsForm";
@@ -70,37 +57,26 @@ import type {
 } from "./receiptTypes";
 import ReceiptPDFGenerator from "./ReceiptPDFGenerator";
 
-interface ReceiptUsageInfo {
-  used: number;
-  limit: number | string;
-  remaining: number | string;
-  hasAccess: boolean;
-  isChecking: boolean;
-  requiresUpgrade: boolean;
-}
-
 interface CreateReceiptProps {
-userTier?: "free" | "starter" | "sme" | "enterprise" | "console";
+  userTier?: "free" | "starter" | "sme" | "enterprise";
   hasReachedLimit?: boolean;
 }
 
-const MySwal = withReactContent(Swal);
+const RECEIPT_LIMITS: Record<string, number> = {
+  free: 5,
+  starter: 5,
+  sme: Infinity,
+  enterprise: Infinity,
+};
+
+const resolveReceiptLimit = (tier: string): number =>
+  RECEIPT_LIMITS[tier] ?? 5;
 
 function CreateReceiptPage({
   userTier,
   hasReachedLimit = false,
 }: CreateReceiptProps) {
-  // Get subscription data directly from hook
-  const {
-    userTier: subscriptionTier,
-    isSME,
-    isEnterprise,
-    isConsole,
-    isStarter,
-    hasRequiredTier,
-    getPlanLimits,
-  } = useSubscription();
-
+  const { userTier: subscriptionTier } = useSubscription();
   const effectiveUserTier = subscriptionTier || userTier || "free";
 
   const [loading, setLoading] = useState(false);
@@ -118,80 +94,13 @@ function CreateReceiptPage({
   const [sendEmailAutomatically, setSendEmailAutomatically] = useState(true);
 
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { userData } = useUserContextData();
   const [generatedReceiptData, setGeneratedReceiptData] = useState<any>(null);
 
   const sellerNameRef = useRef<HTMLInputElement>(null);
-  const sellerPhoneRef = useRef<HTMLInputElement>(null);
-  const sellerEmailRef = useRef<HTMLInputElement>(null);
-  const receiverNameRef = useRef<HTMLInputElement>(null);
-  const receiverEmailRef = useRef<HTMLInputElement>(null);
-  const receiverPhoneRef = useRef<HTMLInputElement>(null);
 
-  // Determine user tier
-  const isEnterpriseUser = isEnterprise || effectiveUserTier === "enterprise";
-  const isConsoleUser = isConsole || effectiveUserTier === "console";
-  const isSMEUser = isSME || effectiveUserTier === "sme";
-  const isStarterUser = isStarter || effectiveUserTier === "starter";
-  const isFreeUser = effectiveUserTier === "free";
-
-  const hasUnlimitedReceipts = isSMEUser || isEnterpriseUser || isConsoleUser;
-
-  // Receipt limits
-  const freeTierLimit = 5;
-  const solopreneurLimit = 10;
-
-  // Get tier info
-  const getTierInfo = () => {
-    if (isConsoleUser)
-      return {
-        icon: Sparkles,
-        color: "text-purple-600 dark:text-purple-400",
-        bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Corporation",
-      };
-    if (isEnterpriseUser)
-      return {
-        icon: Crown,
-        color: "text-amber-600 dark:text-amber-400",
-        bg: "bg-amber-100 dark:bg-amber-900/20",
-        label: "Enterprise",
-      };
-    if (isSMEUser)
-      return {
-        icon: Star,
-        color: "text-(--color-accent-yellow)",
-        bg: "bg-(--color-accent-yellow)/10",
-        label: "SME",
-      };
-    if (isStarterUser)
-      return {
-        icon: Zap,
-        color: "text-blue-600 dark:text-blue-400",
-        bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Solopreneur",
-      };
-    return {
-      icon: Star,
-      color: "text-gray-600 dark:text-gray-400",
-      bg: "bg-gray-100 dark:bg-gray-800",
-      label: "Free Trial",
-    };
-  };
-
-  const tierInfo = getTierInfo();
-  const TierIcon = tierInfo.icon;
-
-  // Usage tracking 
-  const [receiptUsage, setReceiptUsage] = useState<ReceiptUsageInfo>({
-    used: 0,
-    limit: hasUnlimitedReceipts ? "unlimited" : isStarterUser ? solopreneurLimit : freeTierLimit,
-    remaining: hasUnlimitedReceipts ? "unlimited" : isStarterUser ? solopreneurLimit : freeTierLimit,
-    hasAccess: true,
-    isChecking: true,
-    requiresUpgrade: false,
-  });
+  const receiptLimit = resolveReceiptLimit(effectiveUserTier);
+  const hasUnlimitedReceipts = !Number.isFinite(receiptLimit);
 
   const [receiptType, setReceiptType] = useState<ReceiptType>("general");
   const [seller, setSeller] = useState<SellerInfo>({
@@ -212,77 +121,29 @@ function CreateReceiptPage({
   >("transfer");
   const [sellerSignature, setSellerSignature] = useState("");
 
-  // Drafts state
   const [userDrafts, setUserDrafts] = useState<ReceiptDraft[]>([]);
-  const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
+  const [, setIsLoadingDrafts] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
 
-  // Modal states
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedReceiptId, setSavedReceiptId] = useState<string>("");
 
-  // Fetch receipt usage
-  useEffect(() => {
-    const fetchUsage = async () => {
-      if (!userData?.id) return;
-
-      try {
-        const res = await fetch("/api/user/usage");
-        if (res.ok) {
-          const data = await res.json();
-
-          setReceiptUsage({
-            used: data.receipts.used || 0,
-            limit: hasUnlimitedReceipts
-              ? "unlimited"
-              : data.receipts.limit || (isStarterUser ? solopreneurLimit : freeTierLimit),
-            remaining: hasUnlimitedReceipts
-              ? "unlimited"
-              : data.receipts.remaining ||
-                Math.max(
-                  0,
-                  (isStarterUser ? solopreneurLimit : freeTierLimit) - (data.receipts.used || 0),
-                ),
-            hasAccess: true,
-            isChecking: false,
-            requiresUpgrade:
-              !hasUnlimitedReceipts &&
-              (data.receipts.remaining <= 0 ||
-                (data.receipts.used || 0) >= (isStarterUser ? solopreneurLimit : freeTierLimit)),
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching usage:", error);
-        setReceiptUsage((prev) => ({ ...prev, isChecking: false }));
-      }
-    };
-
-    fetchUsage();
-  }, [userData?.id, hasUnlimitedReceipts, isStarterUser]);
-
-  // Check if user has free receipt access
   const hasFreeReceiptAccess = (): boolean => {
     if (hasUnlimitedReceipts) return true;
-    if (typeof receiptUsage.remaining === "number") {
-      return receiptUsage.remaining > 0;
-    }
-    return receiptUsage.remaining === "unlimited";
+    return !hasReachedLimit;
   };
 
-  // Generate receipt ID
   const generateReceiptId = useCallback(() => {
     const datePart = new Date().getFullYear();
     const randomPart = Math.floor(1000 + Math.random() * 9000);
     return `REC-${datePart}-${randomPart}`;
   }, []);
 
-  // Generate unique token
   const generateToken = useCallback(() => {
     return `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // Initialize form with user data
   useEffect(() => {
     if (userData) {
       const sellerInfo = {
@@ -290,13 +151,10 @@ function CreateReceiptPage({
         email: userData.email || "",
         phone: userData.phone || "",
       };
-
       setSeller(sellerInfo);
 
       setTimeout(() => {
-        if (sellerNameRef.current) {
-          sellerNameRef.current.focus();
-        }
+        if (sellerNameRef.current) sellerNameRef.current.focus();
       }, 500);
 
       if (
@@ -308,14 +166,10 @@ function CreateReceiptPage({
     }
   }, [userData, isInitialLoad]);
 
-  // Load drafts on component mount
   useEffect(() => {
-    if (userData?.id) {
-      loadUserDrafts();
-    }
+    if (userData?.id) loadUserDrafts();
   }, [userData?.id]);
 
-  // Detect unsaved changes
   useEffect(() => {
     if (!isInitialLoad) {
       const hasContent =
@@ -326,10 +180,7 @@ function CreateReceiptPage({
         receiver.phone ||
         items.some((item) => item.description || item.amount > 0) ||
         sellerSignature;
-
-      if (hasContent) {
-        setHasUnsavedChanges(true);
-      }
+      if (hasContent) setHasUnsavedChanges(true);
     }
   }, [
     isInitialLoad,
@@ -341,7 +192,6 @@ function CreateReceiptPage({
     paymentMethod,
   ]);
 
-  // Before unload warning
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -351,253 +201,95 @@ function CreateReceiptPage({
         return e.returnValue;
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Reset upgrade prompt when user has unlimited receipts
-  useEffect(() => {
-    if (hasUnlimitedReceipts && showUpgradePrompt) {
-      setShowUpgradePrompt(false);
-    }
-  }, [hasUnlimitedReceipts, showUpgradePrompt]);
-
-  // SIGNATURE SAVE/LOAD FUNCTIONS
   const loadSignatureManually = async () => {
     try {
       if (!userData?.id) {
-        Swal.fire({
-          icon: "warning",
-          title: "Not Logged In",
-          text: "You need to be logged in to load saved signatures.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
+        toast.warning("You need to be logged in to load saved signatures.");
         return;
       }
-
-      const res = await fetch(`/api/saved-signature?userId=${userData.id}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
+      const res = await fetch(`/api/saved-signature?userId=${userData.id}`);
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        if (data.signature) {
-          setSellerSignature(data.signature);
-          setSaveSignatureForFuture(true);
-
-          Swal.fire({
-            icon: "success",
-            title: "Signature Loaded",
-            text: "Your saved signature has been loaded.",
-            confirmButtonColor: "var(--color-accent-yellow)",
-            background: "var(--bg-primary)",
-            timer: 2000,
-            showConfirmButton: false,
-            customClass: { popup: "squircle-lg" },
-          });
-        } else {
-          Swal.fire({
-            icon: "info",
-            title: "No Saved Signature",
-            text: "No saved signature found. Please create a new one.",
-            confirmButtonColor: "var(--color-accent-yellow)",
-            background: "var(--bg-primary)",
-            timer: 2000,
-            showConfirmButton: false,
-            customClass: { popup: "squircle-lg" },
-          });
-        }
+      if (res.ok && data.success && data.signature) {
+        setSellerSignature(data.signature);
+        setSaveSignatureForFuture(true);
+        toast.success("Saved signature loaded");
       } else {
-        Swal.fire({
-          icon: "error",
-          title: "Load Failed",
-          text: "Failed to load saved signature. Please try again.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
+        toast.info("No saved signature found");
       }
     } catch (error) {
-      Swal.fire({
-        icon: "error",
-        title: "Load Failed",
-        text: "Failed to load saved signature. Please try again.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
+      console.error("Failed to load signature:", error);
+      toast.error("Failed to load saved signature");
     }
   };
 
   const saveSignatureToDatabase = async (signatureDataUrl: string) => {
     try {
-      if (!userData?.id) {
-        return false;
-      }
-
+      if (!userData?.id) return false;
       const res = await fetch("/api/saved-signature", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData.id,
           signature: signatureDataUrl,
         }),
       });
-
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
+      return res.ok && data.success;
+    } catch {
       return false;
-    }
-  };
-
-  const handleSaveSignatureToggle = async (save: boolean) => {
-    setSaveSignatureForFuture(save);
-
-    if (save && sellerSignature && userData?.id) {
-      try {
-        const saved = await saveSignatureToDatabase(sellerSignature);
-        if (saved) {
-          Swal.fire({
-            icon: "success",
-            title: "Signature Saved",
-            text: "Your signature has been saved for future use.",
-            confirmButtonColor: "var(--color-accent-yellow)",
-            background: "var(--bg-primary)",
-            timer: 2000,
-            showConfirmButton: false,
-            customClass: { popup: "squircle-lg" },
-          });
-        }
-      } catch (error) {
-        Swal.fire({
-          icon: "error",
-          title: "Save Failed",
-          text: "Failed to save signature. Please try again.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
-      }
-    }
-
-    if (!save && userData?.id) {
-      try {
-        await deleteSavedSignature();
-      } catch (error) {}
-    }
-  };
-
-  const handleSignatureChange = async (signature: string) => {
-    setSellerSignature(signature);
-
-    if (!signature && saveSignatureForFuture && userData?.id) {
-      try {
-        await deleteSavedSignature();
-      } catch (error) {}
-    }
-
-    if (signature && saveSignatureForFuture && userData?.id) {
-      try {
-        await saveSignatureToDatabase(signature);
-      } catch (error) {}
     }
   };
 
   const deleteSavedSignature = async () => {
     try {
       if (!userData?.id) return false;
-
       const res = await fetch("/api/saved-signature", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: userData.id }),
       });
-
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
+      return res.ok && data.success;
+    } catch {
       return false;
+    }
+  };
+
+  const handleSaveSignatureToggle = async (save: boolean) => {
+    setSaveSignatureForFuture(save);
+    if (save && sellerSignature && userData?.id) {
+      await saveSignatureToDatabase(sellerSignature);
+    }
+    if (!save && userData?.id) {
+      await deleteSavedSignature();
+    }
+  };
+
+  const handleSignatureChange = async (signature: string) => {
+    setSellerSignature(signature);
+    if (!signature && saveSignatureForFuture && userData?.id) {
+      await deleteSavedSignature();
+    }
+    if (signature && saveSignatureForFuture && userData?.id) {
+      await saveSignatureToDatabase(signature);
     }
   };
 
   const loadUserDrafts = async () => {
     try {
-      if (!userData?.id) {
-        return;
-      }
-
+      if (!userData?.id) return;
       setIsLoadingDrafts(true);
       const res = await fetch(
         `/api/receipt/receipt-drafts?userId=${userData.id}`,
       );
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       const result: DraftsResponse = await res.json();
-
       if (result.success && result.drafts && result.drafts.length > 0) {
         setUserDrafts(result.drafts);
-
-        if (
-          !seller.name &&
-          !receiver.name &&
-          items.every((item) => !item.description && item.amount === 0) &&
-          !sellerSignature
-        ) {
-          setTimeout(() => {
-            Swal.fire({
-              title: "Drafts Found!",
-              html: `You have <strong>${
-                result.drafts.length
-              }</strong> saved draft${
-                result.drafts.length !== 1 ? "s" : ""
-              }.<br><br>Would you like to load the most recent one?`,
-              icon: "info",
-              showCancelButton: true,
-              showDenyButton: true,
-              confirmButtonText: "Load Recent",
-              denyButtonText: "View All Drafts",
-              cancelButtonText: "Start Fresh",
-              confirmButtonColor: "var(--color-accent-yellow)",
-              cancelButtonColor: "#6b7280",
-              denyButtonColor: "#3b82f6",
-              width: 500,
-              background: "var(--bg-primary)",
-              customClass: { popup: "squircle-lg" },
-            }).then((swalResult) => {
-              if (swalResult.isConfirmed) {
-                const recentDraft = result.drafts[0];
-                loadDraftIntoForm(recentDraft);
-              } else if (swalResult.isDenied) {
-                showDraftsList(result.drafts);
-              }
-            });
-          }, 1000);
-        }
       }
     } catch (error) {
       console.error("Failed to load drafts:", error);
@@ -613,8 +305,7 @@ function CreateReceiptPage({
       if (typeof draft.receipt_items === "string") {
         try {
           receiptItems = JSON.parse(draft.receipt_items);
-        } catch (e) {
-          console.error("Failed to parse receipt_items:", e);
+        } catch {
           receiptItems = [];
         }
       } else if (Array.isArray(draft.receipt_items)) {
@@ -622,16 +313,18 @@ function CreateReceiptPage({
       }
 
       if (receiptItems && receiptItems.length > 0) {
-        const items = receiptItems.map((item: any) => ({
-          id:
-            item.id ||
-            `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          description: item.description || "",
-          quantity: item.quantity || 1,
-          unitPrice: item.unitPrice || item.amount || 0,
-          amount: item.amount || (item.quantity || 1) * (item.unitPrice || 0),
-        }));
-        setItems(items);
+        setItems(
+          receiptItems.map((item: any) => ({
+            id:
+              item.id ||
+              `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            description: item.description || "",
+            quantity: item.quantity || 1,
+            unitPrice: item.unitPrice || item.amount || 0,
+            amount:
+              item.amount || (item.quantity || 1) * (item.unitPrice || 0),
+          })),
+        );
       }
 
       setSeller({
@@ -639,188 +332,40 @@ function CreateReceiptPage({
         email: draft.initiator_email || "",
         phone: "",
       });
-
       setReceiver({
         name: draft.client_name || "",
         email: draft.client_email || "",
         phone: draft.client_phone || "",
       });
-
       if (draft.seller_signature) {
         setSellerSignature(draft.seller_signature);
-        setSaveSignatureForFuture(true);
-      } else {
-        setSellerSignature("");
       }
-
-      if (draft.payment_for) {
-        const typeMatch = draft.payment_for.toLowerCase();
-        if (typeMatch.includes("product")) setReceiptType("product");
-        else if (typeMatch.includes("service")) setReceiptType("service");
-        else if (typeMatch.includes("booking")) setReceiptType("bookings");
-        else if (typeMatch.includes("rental")) setReceiptType("rental");
-        else if (typeMatch.includes("fund") || typeMatch.includes("transfer"))
-          setReceiptType("funds_transfer");
-        else setReceiptType("general");
-      }
-
-      if (draft.payment_method) {
-        setPaymentMethod(draft.payment_method as any);
-      }
-
       setCurrentDraftId(draft.id);
       setHasUnsavedChanges(false);
-
-      Swal.fire({
-        icon: "success",
-        title: "Draft Loaded!",
-        text: "Your receipt draft has been loaded successfully.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        timer: 2000,
-        showConfirmButton: false,
-        customClass: { popup: "squircle-lg" },
-      });
+      toast.success("Draft loaded");
     } catch (error) {
       console.error("Error loading draft:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error Loading Draft",
-        text: "Failed to load draft data. Please try again.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
+      toast.error("Failed to load draft");
     }
   };
 
-  const showDraftsList = (draftsList: ReceiptDraft[]) => {
-    const draftListHTML = draftsList
-      .map(
-        (draft, index) => `
-          <div style="padding: 12px; border-bottom: 1px solid #e5e7eb; cursor: pointer; transition: background-color 0.2s;" 
-               data-draft-index="${index}"
-               class="hover:bg-gray-50 dark:hover:bg-gray-800 rounded flex justify-between items-start">
-            <div>
-              <strong class="text-gray-900 dark:text-white">${
-                draft.business_name || "Untitled Receipt"
-              }</strong><br>
-              <small class="text-gray-600 dark:text-gray-400">To: ${
-                draft.client_name || "No recipient"
-              }</small><br>
-              <small class="text-gray-500 dark:text-gray-500">Email: ${
-                draft.client_email || "Not provided"
-              }</small><br>
-              <small class="text-gray-500 dark:text-gray-500">Phone: ${
-                draft.client_phone || "Not provided"
-              }</small><br>
-              <small class="text-gray-500 dark:text-gray-500">Amount: ₦${draft.total.toLocaleString()}</small><br>
-              <small class="text-gray-500 dark:text-gray-500">Created: ${new Date(
-                draft.created_at,
-              ).toLocaleDateString()}</small>
-            </div>
-            <button 
-              class="text-red-500 hover:text-red-700 ml-4 p-1" 
-              data-delete-index="${index}"
-              onclick="event.stopPropagation();"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-            </button>
-          </div>
-        `,
-      )
-      .join("");
-
-    Swal.fire({
-      title: "Select a Draft to Load",
-      html: `
-        <div style="text-align: left; max-height: 300px; overflow-y: auto; padding-right: 4px;" class="dark:bg-gray-900">
-          ${draftListHTML}
-        </div>
-      `,
-      showConfirmButton: true,
-      confirmButtonText: "Close",
-      confirmButtonColor: "var(--color-accent-yellow)",
-      width: 600,
-      background: "var(--bg-primary)",
-      customClass: { popup: "squircle-lg" },
-      didOpen: () => {
-        const draftElements = document.querySelectorAll("[data-draft-index]");
-        draftElements.forEach((element) => {
-          element.addEventListener("click", (e) => {
-            if (!(e.target as HTMLElement).closest("[data-delete-index]")) {
-              const index = parseInt(
-                element.getAttribute("data-draft-index") || "0",
-              );
-              loadDraftIntoForm(draftsList[index]);
-              Swal.close();
-            }
-          });
-        });
-
-        const deleteButtons = document.querySelectorAll("[data-delete-index]");
-        deleteButtons.forEach((button) => {
-          button.addEventListener("click", async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            const index = parseInt(
-              button.getAttribute("data-delete-index") || "0",
-            );
-            const draftToDelete = draftsList[index];
-
-            const result = await Swal.fire({
-              title: "Delete Draft?",
-              text: `Are you sure you want to delete "${
-                draftToDelete.business_name || "Untitled Receipt"
-              }"?`,
-              icon: "warning",
-              showCancelButton: true,
-              confirmButtonColor: "var(--color-accent-yellow)",
-              cancelButtonColor: "#6b7280",
-              confirmButtonText: "Yes, delete it!",
-              cancelButtonText: "Cancel",
-              background: "var(--bg-primary)",
-              customClass: { popup: "squircle-lg" },
-            });
-
-            if (result.isConfirmed) {
-              await deleteDraft(draftToDelete.id);
-              Swal.close();
-            }
-          });
-        });
-      },
-    });
-  };
-
-  const calculateTotal = () => {
-    return items.reduce((total, item) => total + (item.amount || 0), 0);
-  };
+  const calculateTotal = () =>
+    items.reduce((total, item) => total + (item.amount || 0), 0);
 
   const validateForm = (): { isValid: boolean; errorMessages: string[] } => {
     const errorMessages: string[] = [];
 
-    if (!seller.name.trim()) {
-      errorMessages.push("• Seller name is required");
-    }
-
+    if (!seller.name.trim()) errorMessages.push("• Seller name is required");
     if (!seller.email.trim()) {
       errorMessages.push("• Seller email is required");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(seller.email)) {
       errorMessages.push("• Invalid seller email format");
     }
-
-    if (!receiver.name.trim()) {
+    if (!receiver.name.trim())
       errorMessages.push("• Receiver name is required");
-    }
-
     if (receiver.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receiver.email)) {
       errorMessages.push("• Invalid receiver email format");
     }
-
     if (items.every((item) => !item.description && item.amount === 0)) {
       errorMessages.push("• At least one item is required");
     }
@@ -834,15 +379,7 @@ function CreateReceiptPage({
       setIsFormLocked(true);
 
       if (!userData?.id) {
-        Swal.fire({
-          icon: "warning",
-          title: "Unauthorized",
-          text: "You must be logged in to save a draft.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
-        setIsFormLocked(false);
+        toast.error("You must be logged in to save a draft");
         return;
       }
 
@@ -852,29 +389,13 @@ function CreateReceiptPage({
         items.every((item) => !item.description && item.amount === 0) &&
         !sellerSignature
       ) {
-        Swal.fire({
-          icon: "warning",
-          title: "No Content",
-          text: "Please add some content before saving as draft.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
-        setIsFormLocked(false);
+        toast.warning("Please add some content before saving");
         return;
       }
 
       const receiptId = generateReceiptId();
       const totalAmount = calculateTotal();
       const token = generateToken();
-
-      const receipt_items = items.map((item) => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity || 1,
-        unitPrice: item.unitPrice || 0,
-        amount: item.amount || 0,
-      }));
 
       const payload: any = {
         token,
@@ -901,14 +422,13 @@ function CreateReceiptPage({
         verification_code: "",
         redirect_url: "",
         status: "draft",
-        receipt_items: receipt_items,
+        receipt_items: items,
         seller_signature: sellerSignature || null,
         send_email_automatically: sendEmailAutomatically,
       };
 
       let method = "POST";
       let endpoint = "/api/receipt/receipt-drafts";
-
       if (currentDraftId) {
         method = "PUT";
         payload.id = currentDraftId;
@@ -921,35 +441,16 @@ function CreateReceiptPage({
       });
 
       const result = await res.json();
-
-      if (!res.ok) {
+      if (!res.ok)
         throw new Error(
           result.error || result.message || "Failed to save draft",
         );
-      }
 
-      Swal.fire({
-        icon: "success",
-        title: currentDraftId ? "Draft Updated!" : "Draft Saved!",
-        text: currentDraftId
-          ? "Your receipt draft has been updated successfully."
-          : "Your receipt draft has been saved successfully.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
-
+      toast.success(currentDraftId ? "Draft updated" : "Draft saved");
       setHasUnsavedChanges(false);
       await loadUserDrafts();
     } catch (err: any) {
-      Swal.fire({
-        icon: "error",
-        title: "Failed to Save Draft",
-        text: err.message || "An unexpected error occurred.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
+      toast.error(err.message || "Failed to save draft");
     } finally {
       setDraftLoading(false);
       setIsFormLocked(false);
@@ -960,34 +461,6 @@ function CreateReceiptPage({
     setIsProcessing(false);
     setIsSubmitting(false);
   }, []);
-
-  const deleteDraft = async (draftId: string) => {
-    try {
-      const res = await fetch(
-        `/api/receipt/receipt-drafts?id=${draftId}&userId=${userData?.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to delete draft");
-      }
-
-      toast.success("Draft deleted successfully");
-
-      if (currentDraftId === draftId) {
-        setCurrentDraftId(null);
-        resetForm();
-      }
-
-      await loadUserDrafts();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete draft");
-    }
-  };
 
   const baseUrl =
     process.env.NODE_ENV === "development"
@@ -1041,11 +514,8 @@ function CreateReceiptPage({
         send_email_automatically: sendEmailAutomatically,
       };
 
-      const endpoint = "/api/receipt/send-receipt";
-      const method = "POST";
-
-      const res = await fetch(endpoint, {
-        method,
+      const res = await fetch("/api/receipt/send-receipt", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -1070,7 +540,6 @@ function CreateReceiptPage({
           metadata: result.metadata || {},
           ...result.data,
         };
-
         setSavedReceiptData(receiptData);
         setGeneratedSigningLink(
           result.signingLink || `${baseUrl}/sign-receipt/${token}`,
@@ -1097,6 +566,15 @@ function CreateReceiptPage({
     }
   };
 
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#F5B800", "#191919", "#00B64F", "#ffffff"],
+    });
+  };
+
   const processReceiptAndSubmit = async () => {
     try {
       setIsProcessing(true);
@@ -1112,10 +590,10 @@ function CreateReceiptPage({
           total_amount: calculateTotal(),
           sends_email_automatically: sendEmailAutomatically,
         });
+
         setGeneratedSigningLink(result.signingLink || "");
         setSavedReceiptId(result.receiptId || "");
 
-        // Prepare receipt data for PDF download
         const receiptDataForPDF = {
           receipt_id: result.receiptId || generateReceiptId(),
           business_name: seller.name,
@@ -1155,89 +633,26 @@ function CreateReceiptPage({
         resetAllLoadingStates();
       }
     } catch (error) {
+      console.error("Processing error:", error);
       resetAllLoadingStates();
-
-      Swal.fire({
-        icon: "error",
-        title: "Processing Failed",
-        text: "Failed to process your request. Please try again.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
     }
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
-    if (hasUnlimitedReceipts) {
-      if (isDraft) {
-        await handleSaveDraft();
-        return;
-      }
-
-      try {
-        setIsSubmitting(true);
-
-        const { isValid, errorMessages } = validateForm();
-
-        if (!isValid) {
-          Swal.fire({
-            icon: "error",
-            title: "Validation Error",
-            html: `
-              <div class="text-left">
-                <p class="font-semibold mb-2">Please fix the following errors:</p>
-                <ul class="list-disc pl-4 space-y-1">
-                  ${errorMessages.map((msg) => `<li>${msg}</li>`).join("")}
-                </ul>
-              </div>
-            `,
-            confirmButtonColor: "var(--color-accent-yellow)",
-            confirmButtonText: "OK",
-            width: 500,
-            background: "var(--bg-primary)",
-            customClass: { popup: "squircle-lg" },
-          });
-          setIsSubmitting(false);
-          return;
-        }
-
-        setShowReceiptSummary(true);
-      } catch (error) {
-        console.error("Submit error:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Submission Error",
-          text: "An error occurred while processing your request.",
-          confirmButtonColor: "var(--color-accent-yellow)",
-          background: "var(--bg-primary)",
-          customClass: { popup: "squircle-lg" },
-        });
-      } finally {
-        setIsSubmitting(false);
-      }
-      return;
-    }
-
-    if (!hasUnlimitedReceipts) {
-      if (receiptUsage.requiresUpgrade && !isDraft) {
-        setShowUpgradePrompt(true);
-        return;
-      }
-    }
-
-    if (isSubmitting || isProcessing || draftLoading) {
-      return;
-    }
+    if (isSubmitting || isProcessing || draftLoading) return;
 
     if (isDraft) {
       await handleSaveDraft();
       return;
     }
 
+    if (!hasUnlimitedReceipts && hasReachedLimit) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-
       const { isValid, errorMessages } = validateForm();
 
       if (!isValid) {
@@ -1258,21 +673,12 @@ function CreateReceiptPage({
           background: "var(--bg-primary)",
           customClass: { popup: "squircle-lg" },
         });
-        setIsSubmitting(false);
         return;
       }
 
       setShowReceiptSummary(true);
     } catch (error) {
       console.error("Submit error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Submission Error",
-        text: "An error occurred while processing your request.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
     } finally {
       setIsSubmitting(false);
     }
@@ -1280,13 +686,7 @@ function CreateReceiptPage({
 
   const handleSummaryConfirm = () => {
     setShowReceiptSummary(false);
-
-    if (hasUnlimitedReceipts) {
-      processReceiptAndSubmit();
-      return;
-    }
-
-    if (hasFreeReceiptAccess()) {
+    if (hasUnlimitedReceipts || hasFreeReceiptAccess()) {
       processReceiptAndSubmit();
     } else {
       setShowUpgradePrompt(true);
@@ -1298,87 +698,14 @@ function CreateReceiptPage({
     resetAllLoadingStates();
   };
 
-  const triggerConfetti = () => {
-    confetti({
-      particleCount: 150,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ["#F5B800", "#191919", "#00B64F", "#ffffff"],
-    });
-  };
-
   const handleCopySigningLink = (link: string) => {
     navigator.clipboard.writeText(link);
     toast.success("Receipt link copied to clipboard");
   };
 
-  const resetForm = () => {
-    if (isFormLocked || isProcessing) {
-      Swal.fire({
-        icon: "warning",
-        title: "Form is Processing",
-        text: "Cannot clear form while submission is in progress.",
-        confirmButtonColor: "var(--color-accent-yellow)",
-        background: "var(--bg-primary)",
-        customClass: { popup: "squircle-lg" },
-      });
-      return;
-    }
-
-    Swal.fire({
-      title: "Clear Form?",
-      text: "This will remove all current form data including signature.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "var(--color-accent-yellow)",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Clear",
-      cancelButtonText: "Cancel",
-      background: "var(--bg-primary)",
-      customClass: { popup: "squircle-lg" },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setSeller({
-          name: userData?.fullName
-            ? `${userData.fullName}`
-            : userData?.email || "",
-          email: userData?.email || "",
-          phone: userData?.phone || "",
-        });
-        setReceiver({ name: "", email: "", phone: "" });
-        setItems([
-          {
-            id: "item_1",
-            description: "",
-            amount: 0,
-            quantity: 1,
-            unitPrice: 0,
-          },
-        ]);
-        setPaymentMethod("transfer");
-        setSellerSignature("");
-        setReceiptType("general");
-        setCurrentDraftId(null);
-        setHasUnsavedChanges(false);
-        setSaveSignatureForFuture(false);
-        setSendEmailAutomatically(true);
-
-        toast.success("Form has been cleared successfully.");
-
-        setTimeout(() => {
-          if (sellerNameRef.current) {
-            sellerNameRef.current.focus();
-          }
-        }, 100);
-      }
-    });
-  };
-
-  // Prepare receipt data for summary
   const getReceiptSummaryData = () => {
     const totalAmount = calculateTotal();
     const receiptId = generateReceiptId();
-
     const receiptItems: ReceiptSummaryItem[] = items.map((item) => ({
       item: item.description || "Unnamed item",
       quantity: item.quantity || 1,
@@ -1398,7 +725,6 @@ function CreateReceiptPage({
     };
   };
 
-  // Get button text based on state
   const getGenerateButtonText = () => {
     if (isProcessing || isSubmitting) {
       return (
@@ -1419,43 +745,9 @@ function CreateReceiptPage({
   const customFocusStyle =
     "focus:ring-2 focus:ring-(--color-accent-yellow) focus:ring-offset-2 focus:ring-(--color-accent-yellow) transition-all duration-200 outline-none";
 
-  // Get tier display name
-  const getTierDisplayName = () => {
-    if (isConsoleUser) return "Corporation";
-    if (isEnterpriseUser) return "Enterprise";
-    if (isSMEUser) return "SME";
-    if (isStarterUser) return "Solopreneur";
-    return "Free Trial";
-  };
-
-  // Get remaining text for badge
-  const getRemainingText = (): string => {
-    if (hasUnlimitedReceipts) return "UNLIMITED";
-    if (isStarterUser) return "10 limit";
-    if (typeof receiptUsage.remaining === "number" && receiptUsage.remaining > 0) {
-      return `${receiptUsage.remaining} left`;
-    }
-    return "Limit reached";
-  };
-
-  // Get remaining color for badge
-  const getRemainingColor = (): string => {
-    if (hasUnlimitedReceipts) {
-      if (isConsoleUser) return "bg-purple-600";
-      if (isEnterpriseUser) return "bg-amber-600";
-      if (isSMEUser) return "bg-(--color-accent-yellow)";
-      return "bg-purple-600";
-    }
-    if (isStarterUser) return "bg-blue-600";
-    if (typeof receiptUsage.remaining === "number" && receiptUsage.remaining > 0) {
-      return "bg-(--color-accent-yellow)";
-    }
-    return "bg-destructive";
-  };
-
   return (
     <>
-      {/* Upgrade Prompt Modal - Only show for Free and Solopreneur tiers */}
+      {/* Upgrade modal — only fires on click at limit, not on page load */}
       {showUpgradePrompt && !hasUnlimitedReceipts && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-(--bg-primary) rounded-xl max-w-md w-full p-6 shadow-pop border border-(--border-color) squircle-lg">
@@ -1463,12 +755,11 @@ function CreateReceiptPage({
               <Crown className="w-6 h-6 text-red-600" />
             </div>
             <h3 className="text-xl font-bold text-center mb-2 text-(--text-primary)">
-              Upgrade Required
+              Receipt Limit Reached
             </h3>
             <p className="text-(--text-secondary) text-center mb-6">
-              {isStarterUser
-                ? "You've used all your Solopreneur receipts. Upgrade to SME or higher for unlimited receipts!"
-                : "You've used all your free receipts. Upgrade to SME or higher for unlimited receipts!"}
+              You've used all {receiptLimit} free receipts. Upgrade to SME or
+              Enterprise for unlimited receipts.
             </p>
             <div className="flex gap-3">
               <Button
@@ -1516,77 +807,7 @@ function CreateReceiptPage({
 
       <div className="min-h-screen">
         <div className="">
-          {/* Usage Warning Banner - Only show for Free and Solopreneur tiers */}
-          {!hasUnlimitedReceipts && !receiptUsage.isChecking && (
-            <div
-              className={`mb-4 p-3 rounded-lg border max-w-3xl mx-auto squircle-md ${
-                receiptUsage.requiresUpgrade
-                  ? "bg-red-50 border-red-200"
-                  : typeof receiptUsage.remaining === "number" &&
-                      receiptUsage.remaining <= (isStarterUser ? 3 : 2)
-                    ? "bg-yellow-50 border-yellow-200"
-                    : "bg-[var(--color-accent-yellow)]/10 border-[var(--color-accent-yellow)]"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <AlertCircle
-                  className={`w-5 h-5 mt-0.5 ${
-                    receiptUsage.requiresUpgrade
-                      ? "text-red-500"
-                      : typeof receiptUsage.remaining === "number" &&
-                          receiptUsage.remaining <= (isStarterUser ? 3 : 2)
-                        ? "text-yellow-500"
-                        : "text-[var(--color-accent-yellow)]"
-                  }`}
-                />
-                <div className="flex-1">
-                  <p
-                    className={`font-medium ${
-                      receiptUsage.requiresUpgrade
-                        ? "text-red-700"
-                        : typeof receiptUsage.remaining === "number" &&
-                            receiptUsage.remaining <= (isStarterUser ? 3 : 2)
-                          ? "text-yellow-700"
-                          : "text-[var(--color-accent-yellow)]"
-                    }`}
-                  >
-                    {receiptUsage.requiresUpgrade
-                      ? isStarterUser
-                        ? "Solopreneur receipts exhausted - Upgrade required"
-                        : "Free receipts exhausted - Upgrade required"
-                      : `${receiptUsage.remaining} receipt${receiptUsage.remaining !== 1 ? "s" : ""} remaining`}
-                  </p>
-                  <p className="text-sm text-(--text-secondary) mt-1">
-                    {receiptUsage.requiresUpgrade
-                      ? "Upgrade to SME plan or higher for unlimited receipts."
-                      : `You have ${receiptUsage.remaining} ${isStarterUser ? "Solopreneur" : "free"} ${receiptUsage.remaining === 1 ? "receipt" : "receipts"} left.`}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tier Badge in Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="text-xl font-semibold text-(--text-primary)">
-              Create Receipt
-            </h2>
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
-            >
-              <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-              <span className={`text-xs font-semibold ${tierInfo.color}`}>
-                {tierInfo.label}
-              </span>
-            </div>
-            {!receiptUsage.isChecking && (
-              <span
-                className={`px-2 py-1 text-white text-xs font-bold rounded ${getRemainingColor()}`}
-              >
-                {getRemainingText()}
-              </span>
-            )}
-          </div>
+          {/* No banner here — page-level banner is the single source */}
 
           <Tabs
             defaultValue="create"
@@ -1613,7 +834,6 @@ function CreateReceiptPage({
               </TabsTrigger>
             </TabsList>
 
-            {/* Create Receipt Tab */}
             <TabsContent value="create" className="mt-6">
               <div className="flex items-start justify-between mb-6">
                 {generatedReceiptData && (
@@ -1628,7 +848,6 @@ function CreateReceiptPage({
                 )}
               </div>
 
-              {/* Create Receipt Form */}
               <div className="md:max-w-3xl mx-auto bg-(--bg-primary) p-6 rounded-lg shadow-soft border border-(--border-color) squircle-lg">
                 <form
                   onSubmit={(e) => {
@@ -1637,7 +856,6 @@ function CreateReceiptPage({
                   }}
                   className="space-y-8"
                 >
-                  {/* Receipt Type */}
                   <div className="animate-fade-in">
                     <ReceiptTypeSelector
                       value={receiptType}
@@ -1646,7 +864,7 @@ function CreateReceiptPage({
                     />
                   </div>
 
-                  {/* Seller Information */}
+                  {/* Seller */}
                   <div
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.1s" }}
@@ -1689,7 +907,6 @@ function CreateReceiptPage({
                           <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                           <Input
                             id="seller-phone"
-                            ref={sellerPhoneRef}
                             placeholder="+234 800 000 0000"
                             value={seller.phone}
                             onChange={(e) =>
@@ -1711,7 +928,6 @@ function CreateReceiptPage({
                           <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                           <Input
                             id="seller-email"
-                            ref={sellerEmailRef}
                             type="email"
                             placeholder="email@example.com"
                             value={seller.email}
@@ -1726,7 +942,7 @@ function CreateReceiptPage({
                     </div>
                   </div>
 
-                  {/* Receiver Information */}
+                  {/* Receiver */}
                   <div
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.15s" }}
@@ -1737,7 +953,6 @@ function CreateReceiptPage({
                       </span>
                       Receiver Information
                     </h2>
-
                     <div className="grid gap-4">
                       <div>
                         <Label
@@ -1749,7 +964,6 @@ function CreateReceiptPage({
                         </Label>
                         <Input
                           id="receiver-name"
-                          ref={receiverNameRef}
                           placeholder="Enter receiver's full name"
                           value={receiver.name}
                           onChange={(e) =>
@@ -1772,7 +986,6 @@ function CreateReceiptPage({
                             <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                             <Input
                               id="receiver-email"
-                              ref={receiverEmailRef}
                               type="email"
                               placeholder="receiver@example.com"
                               value={receiver.email}
@@ -1786,16 +999,7 @@ function CreateReceiptPage({
                               disabled={isFormLocked || isProcessing}
                             />
                           </div>
-                          {receiver.email &&
-                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                              receiver.email,
-                            ) && (
-                              <p className="text-xs text-red-500 mt-1">
-                                Please enter a valid email address
-                              </p>
-                            )}
                         </div>
-
                         <div>
                           <Label
                             htmlFor="receiver-phone"
@@ -1807,7 +1011,6 @@ function CreateReceiptPage({
                             <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-(--text-secondary) h-4 w-4" />
                             <Input
                               id="receiver-phone"
-                              ref={receiverPhoneRef}
                               placeholder="+234 800 000 0000"
                               value={receiver.phone}
                               onChange={(e) =>
@@ -1825,7 +1028,7 @@ function CreateReceiptPage({
                     </div>
                   </div>
 
-                  {/* Transaction Details */}
+                  {/* Transaction */}
                   <div
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.2s" }}
@@ -1888,7 +1091,7 @@ function CreateReceiptPage({
                     </div>
                   </div>
 
-                  {/* Seller Signature */}
+                  {/* Signature */}
                   <div
                     className="space-y-4 animate-fade-in"
                     style={{ animationDelay: "0.25s" }}
@@ -1907,7 +1110,6 @@ function CreateReceiptPage({
                       onLoadSaved={loadSignatureManually}
                     />
 
-                    {/* Toggle Button for Saving Signature */}
                     <div className="flex items-center justify-between p-3 bg-[var(--bg-secondary)] rounded-lg border border-(--border-color) squircle-md">
                       <div className="flex items-center space-x-3">
                         <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -1931,7 +1133,7 @@ function CreateReceiptPage({
                     </div>
                   </div>
 
-                  {/* Email Automation Toggle */}
+                  {/* Email automation */}
                   <div
                     className="space-y-4 animate-fade-in border-t border-(--border-color) pt-6"
                     style={{ animationDelay: "0.3s" }}
@@ -1954,12 +1156,6 @@ function CreateReceiptPage({
                               ? "An email will be sent to the client with the receipt link"
                               : "You'll need to share the receipt link manually with the client"}
                           </p>
-                          {sendEmailAutomatically && !receiver.email && (
-                            <p className="text-xs text-yellow-600 mt-1">
-                              ⚠️ Client email is required for automatic email
-                              sending
-                            </p>
-                          )}
                         </div>
                       </div>
                       <Switch
@@ -1971,7 +1167,7 @@ function CreateReceiptPage({
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Actions */}
                   <div className="pt-4 flex gap-3">
                     <Button
                       type="button"
@@ -2001,108 +1197,23 @@ function CreateReceiptPage({
                       type="submit"
                       variant="default"
                       size="lg"
-                      className={`flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-2 focus:ring-offset-2 focus:ring-(--color-accent-yellow) squircle-md`}
+                      className="flex-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 focus:ring-2 focus:ring-offset-2 focus:ring-(--color-accent-yellow) squircle-md"
                       disabled={
                         isProcessing ||
                         isSubmitting ||
                         isFormLocked ||
-                        draftLoading
+                        draftLoading ||
+                        (hasReachedLimit && !hasUnlimitedReceipts)
                       }
                     >
                       {getGenerateButtonText()}
                     </Button>
                   </div>
-
-                  {/* Upgrade Required Warning */}
-                  {receiptUsage.requiresUpgrade && !hasUnlimitedReceipts && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg squircle-md">
-                      <div className="flex items-start gap-3">
-                        <Crown className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
-                        <div>
-                          <h3 className="font-medium text-red-800">
-                            {isStarterUser ? "Solopreneur" : "Free"} Receipts
-                            Exhausted
-                          </h3>
-                          <p className="text-sm text-red-700 mt-1">
-                            {isStarterUser
-                              ? "You've used all your Solopreneur receipts. Upgrade to SME plan for unlimited receipts."
-                              : "You've used all your free receipts. Upgrade to SME plan for unlimited receipts."}
-                          </p>
-                          <div className="flex gap-3 mt-3">
-                            <Link href="/pricing?upgrade=sme">
-                              <Button
-                                size="sm"
-                                className="bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90 squircle-sm"
-                              >
-                                Upgrade Now
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </form>
               </div>
             </TabsContent>
 
-            {/* Preview Receipt Tab */}
             <TabsContent value="preview" className="mt-6">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-start space-x-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (isFormLocked || isProcessing) {
-                        Swal.fire({
-                          icon: "warning",
-                          title: "Form is Processing",
-                          text: "Cannot navigate away while submission is in progress.",
-                          confirmButtonColor: "var(--color-accent-yellow)",
-                          background: "var(--bg-primary)",
-                          customClass: { popup: "squircle-lg" },
-                        });
-                        return;
-                      }
-                      router.back();
-                    }}
-                    className="text-[var(--color-accent-yellow)] hover:bg-[var(--bg-secondary)]"
-                    disabled={isProcessing}
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Back
-                  </Button>
-
-                  <div>
-                    <h1 className="text-2xl font-bold text-(--text-primary)">
-                      Receipt Preview
-                    </h1>
-                    <p className="text-sm text-(--text-secondary)">
-                      Live preview of your receipt as you fill out the form
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="bg-blue-50 text-blue-700 border-blue-200"
-                  >
-                    Live Preview
-                  </Badge>
-                  {isProcessing && (
-                    <Badge
-                      variant="outline"
-                      className="bg-red-50 text-red-700 border-red-200"
-                    >
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                      Generating...
-                    </Badge>
-                  )}
-                </div>
-              </div>
-
               <div className="space-y-6">
                 <ReceiptPreview
                   receiptType={receiptType}
@@ -2115,13 +1226,10 @@ function CreateReceiptPage({
                   isProcessingPayment={isProcessing}
                 />
 
-                {/* Action Buttons */}
                 <div className="flex justify-between items-center pt-4 border-t border-(--border-color)">
-                  <div className="text-sm text-(--text-secondary)">
-                    <p>
-                      Switch to the "Create Receipt" tab to edit your receipt
-                    </p>
-                  </div>
+                  <p className="text-sm text-(--text-secondary)">
+                    Switch to the "Create Receipt" tab to edit your receipt
+                  </p>
                   <Button
                     variant="outline"
                     onClick={() => setActiveTab("create")}

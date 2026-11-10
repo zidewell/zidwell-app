@@ -5,7 +5,7 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import TaxCalculator from "@/app/components/tax-filling-components/TaxCalculator";
 import { Button } from "@/app/components/ui/button";
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { ArrowLeft, Crown, Zap, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Crown, Zap, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import Link from "next/link";
@@ -13,26 +13,17 @@ import Link from "next/link";
 function TaxFilingPage() {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { subscription, userTier } = useSubscription();
+  const { userTier } = useSubscription();
 
-  const isFree = userTier === "free";
-  const isStarterUser = userTier === "starter";
+  const isStarterUser = userTier === "starter" || userTier === "free";
   const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
-  const isConsoleUser = userTier === "console";
 
-  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser || isConsoleUser;
-  const hasTaxSupport = isEnterpriseUser || isConsoleUser;
-  const hasFullTaxFiling = isConsoleUser;
+  const hasTaxCalculatorAccess = isSMEUser || isEnterpriseUser;
+  const hasTaxSupport = isEnterpriseUser;
+  const hasFullTaxFiling = false; // no tier has full filing in current model
 
   const getTierInfo = () => {
-    if (isConsoleUser)
-      return {
-        icon: Sparkles,
-        color: "text-purple-600",
-        bg: "bg-purple-100 dark:bg-purple-900/20",
-        label: "Console",
-      };
     if (isEnterpriseUser)
       return {
         icon: Crown,
@@ -40,24 +31,17 @@ function TaxFilingPage() {
         bg: "bg-amber-100 dark:bg-amber-900/20",
         label: "Enterprise",
       };
-    if (userTier === "sme")
+    if (isSMEUser)
       return {
         icon: Star,
         color: "text-(--color-accent-yellow)",
         bg: "bg-(--color-accent-yellow)/10",
         label: "SME",
       };
-    if (isStarterUser)
-      return {
-        icon: Zap,
-        color: "text-blue-600",
-        bg: "bg-blue-100 dark:bg-blue-900/20",
-        label: "Starter",
-      };
     return {
-      icon: Star,
-      color: "text-(--text-secondary)",
-      bg: "bg-(--bg-secondary)",
+      icon: Zap,
+      color: "text-blue-600",
+      bg: "bg-blue-100 dark:bg-blue-900/20",
       label: "Free",
     };
   };
@@ -99,13 +83,16 @@ function TaxFilingPage() {
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${tierInfo.bg}`}
                   >
                     <TierIcon className={`w-4 h-4 ${tierInfo.color}`} />
-                    <span className={`text-xs font-semibold ${tierInfo.color}`}>
+                    <span
+                      className={`text-xs font-semibold ${tierInfo.color}`}
+                    >
                       {tierInfo.label}
                     </span>
                   </div>
                 </div>
                 <p className="text-sm md:text-base text-(--text-secondary)">
-                  Free tax calculator for everyone. Filing support for Enterprise+.
+                  Free tax calculator for everyone. Filing support for
+                  Enterprise+.
                 </p>
               </div>
             </div>
@@ -145,45 +132,7 @@ function TaxFilingPage() {
 
             {hasFullTaxFiling && (
               <div className="mt-8 grid md:grid-cols-3 gap-6">
-                <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
-                  <h3 className="font-bold text-lg text-(--text-primary) mb-3">
-                    VAT Filing
-                  </h3>
-                  <p className="text-(--text-secondary) mb-4">
-                    File your VAT returns
-                  </p>
-                  <Link href="/dashboard/services/tax-filing/vat">
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white border-2 border-(--border-color) shadow-soft active:shadow-none transition-all">
-                      File VAT
-                    </Button>
-                  </Link>
-                </div>
-                <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
-                  <h3 className="font-bold text-lg text-(--text-primary) mb-3">
-                    PAYE Filing
-                  </h3>
-                  <p className="text-(--text-secondary) mb-4">
-                    File employee taxes
-                  </p>
-                  <Link href="/dashboard/services/tax-filing/paye">
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white border-2 border-(--border-color) shadow-soft active:shadow-none transition-all">
-                      File PAYE
-                    </Button>
-                  </Link>
-                </div>
-                <div className="bg-(--bg-primary) border-2 border-purple-200 dark:border-purple-800 rounded-md p-6 shadow-soft hover:shadow-pop transition-all">
-                  <h3 className="font-bold text-lg text-(--text-primary) mb-3">
-                    WHT Filing
-                  </h3>
-                  <p className="text-(--text-secondary) mb-4">
-                    Withholding tax filing
-                  </p>
-                  <Link href="/dashboard/services/tax-filing/wht">
-                    <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white border-2 border-(--border-color) shadow-soft active:shadow-none transition-all">
-                      File WHT
-                    </Button>
-                  </Link>
-                </div>
+                {/* Removed — no tier has full filing in current model */}
               </div>
             )}
           </div>

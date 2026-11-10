@@ -45,7 +45,7 @@ export const ZIDWELL_PLANS: Plan[] = [
     name: "SME",
     monthly: 9900,
     yearly: 49900,
-    tagline: "For growing businesses doing real volume.",
+    tagline: "For growing businesses.",
     note: "For growing small businesses with a small team.",
     highlighted: true,
     cta: "Subscribe to SME",
@@ -65,7 +65,7 @@ export const ZIDWELL_PLANS: Plan[] = [
     name: "Enterprise",
     monthly: 19900,
     yearly: 99900,
-    tagline: "For established brands and multi-store sellers.",
+    tagline: "For bigger businesses who need more tools.",
     note: "For organizations with teams and multiple operators.",
     cta: "Subscribe to Enterprise",
     features: [
@@ -91,7 +91,7 @@ export const ZIDSTORE_PLANS: Plan[] = [
     yearly: 2400000,
     monthlyLabel: "From",
     yearlyLabel: "From",
-    tagline: "Custom volume pricing for high-volume merchants.",
+    tagline: "Custom for advertising your business.",
     cta: "Talk to sales",
     mailto: true,
     features: [

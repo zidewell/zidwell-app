@@ -11,18 +11,26 @@ import {
 } from "../utils/invoiceUtils";
 import { showCustomNotification } from "../utils/notification";
 
+// Numeric invoice limit per tier — Infinity means unlimited.
+// booster/console are normalized to starter by useSubscription.
+const INVOICE_LIMITS: Record<string, number> = {
+  free: 5,
+  starter: 5,
+  sme: Infinity,
+  enterprise: Infinity,
+};
+
+const resolveInvoiceLimit = (tier: string): number =>
+  INVOICE_LIMITS[tier] ?? 5;
+
 export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userData } = useUserContextData();
-  const { 
-    userTier, 
-    isSME, 
-    isEnterprise, 
-    isConsole, 
-    isStarter,
-    isFree 
-  } = useSubscription();
+  const { userTier } = useSubscription();
+
+  const tierLimit = resolveInvoiceLimit(userTier);
+  const hasUnlimitedAccess = !Number.isFinite(tierLimit);
 
   const [form, setForm] = useState<InvoiceForm>({
     name: "",
@@ -40,23 +48,25 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     business_logo: "",
     redirect_url: "",
     business_name: "",
+    senderName: "",
+    senderPhone: "",
     allowMultiplePayments: false,
     clientPhone: "",
     targetQuantity: 1,
     sendEmailAutomatically: true,
   });
 
-  // NEW: Usage tracking with the subscription system
+  // Initial usage — reflects the tier's real limit immediately
   const [invoiceUsage, setInvoiceUsage] = useState<InvoiceUsageInfo>({
     used: 0,
-    limit: 5,
-    remaining: 5,
+    limit: hasUnlimitedAccess ? "unlimited" : tierLimit,
+    remaining: hasUnlimitedAccess ? "unlimited" : tierLimit,
     hasAccess: true,
     isChecking: true,
-    canCreate: true,
+    canCreate: hasUnlimitedAccess,
   });
 
-  // Fetch usage data
+  // Fetch usage — the DB (`subscription_features`) wins over the local fallback
   useEffect(() => {
     const fetchUsage = async () => {
       if (!userData?.id) return;
@@ -65,27 +75,30 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
         const res = await fetch("/api/user/usage");
         if (res.ok) {
           const data = await res.json();
-          
-          // Determine if user can create based on tier and remaining
-          let canCreate = false;
-          const hasUnlimited = data.invoices.limit === "unlimited";
-          
-          if (hasUnlimited) {
-            canCreate = true; // Unlimited tiers can always create
-          } else {
-            // For limited tiers (free/solopreneur), check remaining count
-            const remaining = data.invoices.remaining;
-            canCreate = typeof remaining === "number" && remaining > 0;
-          }
+          const apiLimit = data.invoices?.limit;
+          const apiRemaining = data.invoices?.remaining;
+          const used = data.invoices?.used ?? 0;
+
+          const isUnlimited = apiLimit === "unlimited";
+          const canCreate = isUnlimited
+            ? true
+            : typeof apiRemaining === "number"
+              ? apiRemaining > 0
+              : false;
 
           setInvoiceUsage({
-            used: data.invoices.used,
-            limit: data.invoices.limit,
-            remaining: data.invoices.remaining,
-            hasAccess: data.invoices.remaining > 0 || hasUnlimited,
+            used,
+            limit: isUnlimited ? "unlimited" : (apiLimit ?? tierLimit),
+            remaining: isUnlimited
+              ? "unlimited"
+              : (apiRemaining ??
+                Math.max(0, tierLimit - used)),
+            hasAccess: isUnlimited || canCreate,
             isChecking: false,
-            canCreate: canCreate,
+            canCreate,
           });
+        } else {
+          setInvoiceUsage((prev) => ({ ...prev, isChecking: false }));
         }
       } catch (error) {
         console.error("Error fetching usage:", error);
@@ -94,7 +107,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     };
 
     fetchUsage();
-  }, [userData?.id, userTier]);
+  }, [userData?.id, userTier, tierLimit]);
 
   // Initialize from userData
   useEffect(() => {
@@ -103,12 +116,14 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
 
       setForm((prev) => ({
         ...prev,
-        invoice_id: generateInvoiceId(),
+        invoice_id: prev.invoice_id || generateInvoiceId(),
         issue_date: today,
-        from: userData.email || "",
-        business_name: userData.fullName
+        from: prev.from || userData.email || "",
+        business_name: prev.business_name || userData.fullName
           ? `${userData.fullName}`
           : userData.email || "",
+        senderName: prev.senderName || userData.fullName || userData.email || "",
+        senderPhone: prev.senderPhone || userData.phone || "",
       }));
     }
   }, [userData]);
@@ -116,11 +131,10 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   const handleItemSubmit = (item: any) => {
     const itemWithId = {
       ...item,
-      id: generateItemId(),
+      id: item.id || generateItemId(),
     };
 
     if (item.id) {
-      // Update existing item
       setForm((prev) => ({
         ...prev,
         invoice_items: prev.invoice_items.map((i) =>
@@ -128,7 +142,6 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
         ),
       }));
     } else {
-      // Add new item
       setForm((prev) => ({
         ...prev,
         invoice_items: [...prev.invoice_items, itemWithId],
@@ -151,7 +164,7 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
   };
 
   const validateInvoiceForm = () => {
-    let newErrors: Record<string, string> = {};
+    const newErrors: Record<string, string> = {};
 
     if (!form.business_name.trim())
       newErrors.business_name = "Business name is required.";
@@ -166,19 +179,13 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     } else {
       form.invoice_items.forEach((item, index) => {
         if (!item.description.trim()) {
-          newErrors[`item_${index}`] = `Item ${
-            index + 1
-          } description is required.`;
+          newErrors[`item_${index}`] = `Item ${index + 1} description is required.`;
         }
         if (!item.quantity || Number(item.quantity) <= 0) {
-          newErrors[`quantity_${index}`] = `Item ${
-            index + 1
-          } quantity must be greater than 0.`;
+          newErrors[`quantity_${index}`] = `Item ${index + 1} quantity must be greater than 0.`;
         }
         if (!item.unitPrice || Number(item.unitPrice) <= 0) {
-          newErrors[`price_${index}`] = `Item ${
-            index + 1
-          } price must be greater than 0.`;
+          newErrors[`price_${index}`] = `Item ${index + 1} price must be greater than 0.`;
         }
       });
     }
@@ -200,34 +207,23 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // FIXED: Proper canCreate check that handles "unlimited" correctly
-  const getCanCreate = (): boolean => {
-    // If still checking, default to false
+  // Unlimited tiers (sme/enterprise) always can create. Starter/free
+  // rely on `remaining` from the DB.
+  const canCreate = (): boolean => {
     if (invoiceUsage.isChecking) return false;
-    
-    // SME/Enterprise/Corporation always have unlimited access
-    if (isSME || isEnterprise || isConsole) return true;
-    
-    // For limited tiers (free/solopreneur), check if remaining > 0
+    if (hasUnlimitedAccess) return true;
     if (typeof invoiceUsage.remaining === "number") {
       return invoiceUsage.remaining > 0;
     }
-    
-    // If remaining is "unlimited" (shouldn't happen for free/solopreneur), return true
     return invoiceUsage.remaining === "unlimited";
   };
 
-  // FIXED: Get remaining count as number for display
-  const getRemainingCount = (): number => {
+  const remainingInvoices = (): number => {
     if (typeof invoiceUsage.remaining === "number") {
       return invoiceUsage.remaining;
     }
-    // For unlimited tiers, return a high number for display
-    return 999;
+    return hasUnlimitedAccess ? Infinity : 0;
   };
-
-  // Check if user has unlimited access
-  const hasUnlimitedAccess = isSME || isEnterprise || isConsole;
 
   return {
     form,
@@ -238,8 +234,8 @@ export const useInvoiceForm = (onInvoiceCreated?: () => void) => {
     validateInvoiceForm,
     handleChange,
     calculateTotals: () => calculateTotals(form.invoice_items, form.fee_option),
-    canCreate: getCanCreate(),
-    remainingInvoices: getRemainingCount(),
+    canCreate: canCreate(),
+    remainingInvoices: remainingInvoices(),
     hasUnlimitedAccess,
     isChecking: invoiceUsage.isChecking,
     userTier,

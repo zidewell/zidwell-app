@@ -12,6 +12,7 @@ import { HowItWorks } from "./components/home-component/HowItWorks";
 import { ZidStoreSection } from "./components/home-component/ZidStoreSection";
 import { VideoTestimonials } from "./components/home-component/VideoTestimonials";
 import { GradientCTA } from "./components/home-component/GradientCTA";
+import RecentArticles from "./components/dashboard-component/RecentArticles";
 
 export default function HomePage() {
   return (
@@ -22,7 +23,6 @@ export default function HomePage() {
         <Hero />
         <TrustMarquee />
 
-      
         <ToolsBento />
 
         <HowItWorks />
@@ -32,6 +32,9 @@ export default function HomePage() {
         <EditorialQuote />
         <PricingNew />
         <FAQNew />
+        <div className="px-6 mx-auto md:w-6xl">
+          <RecentArticles />
+        </div>
         <GradientCTA />
       </main>
       <Footer />
