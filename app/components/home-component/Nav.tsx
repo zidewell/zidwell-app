@@ -30,7 +30,6 @@ import { useUserContextData } from "@/app/context/userData";
 
 /* ------------------------------------------------------------------ */
 /*  ZidStore host                                                     */
-/*  Single source of truth — matches ToolsBento.                     */
 /* ------------------------------------------------------------------ */
 const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
 const zidStore =
@@ -88,12 +87,6 @@ const productItems: ProductItem[] = [
     desc: "A real account, powered by our partners.",
     icon: Wallet,
   },
-  // {
-  //   name: "Transfers",
-  //   href: "/features/transfer",
-  //   desc: "Send money to any Nigerian bank.",
-  //   icon: ArrowLeftRight,
-  // },
 ];
 
 const simpleLinks: SimpleLink[] = [
@@ -101,7 +94,7 @@ const simpleLinks: SimpleLink[] = [
   { name: "Pricing", href: "/pricing" },
   { name: "ZidStore", href: zidStore.href, external: zidStore.external },
   { name: "Blog", href: "/blog" },
-  { name: "Contact", href: "/contact" }, // fixed: was missing leading slash
+  { name: "Contact", href: "/contact" },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -322,7 +315,7 @@ export function Nav() {
 
           {/* ---------- Right cluster ---------- */}
           <div className="flex items-center gap-2">
-            {/* Theme toggle — quiet icon button, desktop only */}
+            {/* Theme toggle */}
             <button
               type="button"
               onClick={() => setTheme(!dark)}
@@ -452,12 +445,14 @@ export function Nav() {
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/*  Mobile sheet — full screen, grouped                              */}
+      {/*  Mobile sheet — full height, guaranteed on top, solid bg          */}
       {/* ------------------------------------------------------------------ */}
       {isMenuOpen && (
-        <div className="lg:hidden fixed inset-0 top-16 bg-background animate-slide-in overflow-y-auto">
+        <div
+          className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-background overflow-y-auto overscroll-contain animate-slide-in"
+        >
           <div className="container mx-auto px-4 py-5 space-y-6">
-            {/* Theme row — sits at the top, small and unobtrusive */}
+            {/* Theme row */}
             <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
               <span className="text-[13px] font-medium text-muted-foreground">
                 Appearance
