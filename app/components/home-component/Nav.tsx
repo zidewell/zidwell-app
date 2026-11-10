@@ -99,7 +99,7 @@ const productItems: ProductItem[] = [
 const simpleLinks: SimpleLink[] = [
   { name: "Schools", href: "/schools" },
   { name: "Pricing", href: "/pricing" },
-  { name: "Store", href: zidStore.href, external: zidStore.external },
+  { name: "ZidStore", href: zidStore.href, external: zidStore.external },
   { name: "Blog", href: "/blog" },
   { name: "Contact", href: "/contact" }, // fixed: was missing leading slash
 ];

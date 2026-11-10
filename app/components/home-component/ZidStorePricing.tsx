@@ -26,11 +26,14 @@ import {
 
 const heading = "font-['Space_Grotesk',sans-serif]";
 
+// Default billing period — yearly is the default selection.
+const DEFAULT_BILLING_PERIOD: BillingPeriod = "yearly";
+
 export function ZidStorePricing() {
   const router = useRouter();
   const subState = useSubscriptionState();
   const [busyPlan, setBusyPlan] = useState<Plan["id"] | null>(null);
-  const [billing, setBilling] = useState<BillingPeriod>("yearly");
+  const [billing, setBilling] = useState<BillingPeriod>(DEFAULT_BILLING_PERIOD);
 
   const isActivePaid = subState.status === "paid" && !!subState.tier;
   const activeTier = subState.tier;
@@ -180,16 +183,6 @@ export function ZidStorePricing() {
       <div className="mt-8 flex items-center gap-2">
         <div className="inline-flex rounded-2xl border border-(--border-color) bg-(--bg-primary) p-1">
           <button
-            onClick={() => setBilling("monthly")}
-            className={`cursor-pointer rounded-xl px-4 py-2 text-[13px] font-bold transition-colors ${
-              billing === "monthly"
-                ? "bg-(--color-accent-yellow) text-[#191919]"
-                : "text-(--text-secondary) hover:text-(--text-primary)"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
             onClick={() => setBilling("yearly")}
             className={`cursor-pointer rounded-xl px-4 py-2 text-[13px] font-bold transition-colors ${
               billing === "yearly"
@@ -199,8 +192,18 @@ export function ZidStorePricing() {
           >
             Yearly
             <span className="ml-1.5 rounded-full bg-green-500/15 px-1.5 py-0.5 text-[10px] font-bold text-green-600 dark:text-green-400">
-              Save
+              Save up to 20%
             </span>
+          </button>
+          <button
+            onClick={() => setBilling("monthly")}
+            className={`cursor-pointer rounded-xl px-4 py-2 text-[13px] font-bold transition-colors ${
+              billing === "monthly"
+                ? "bg-(--color-accent-yellow) text-[#191919]"
+                : "text-(--text-secondary) hover:text-(--text-primary)"
+            }`}
+          >
+            Monthly
           </button>
         </div>
       </div>

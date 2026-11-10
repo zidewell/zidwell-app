@@ -14,6 +14,9 @@ import {
   formatNaira,
 } from "@/app/components/home-component/plans";
 
+// Default billing period — yearly is the default selection.
+const DEFAULT_BILLING_PERIOD: BillingPeriod = "yearly";
+
 export function PricingNew() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,7 +29,7 @@ export function PricingNew() {
 
   const [processing, setProcessing] = useState<string | null>(null);
   const [selectedBilling, setSelectedBilling] =
-    useState<BillingPeriod>("monthly");
+    useState<BillingPeriod>(DEFAULT_BILLING_PERIOD);
   const [highlight, setHighlight] = useState(false);
   const sectionRef = useRef<HTMLElement | null>(null);
 
@@ -172,18 +175,6 @@ export function PricingNew() {
               onClick={() => setSelectedBilling("yearly")}
               disabled={processing !== null}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
-                selectedBilling === "monthly"
-                  ? "bg-primary-custom text-ink"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedBilling("yearly")}
-              disabled={processing !== null}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
                 selectedBilling === "yearly"
                   ? "bg-primary-custom text-ink"
                   : "text-muted-foreground hover:text-foreground"
@@ -193,6 +184,18 @@ export function PricingNew() {
               <span className="text-[10px] ml-1 opacity-80">
                 Save up to 20%
               </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedBilling("monthly")}
+              disabled={processing !== null}
+              className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                selectedBilling === "monthly"
+                  ? "bg-primary-custom text-ink"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Monthly
             </button>
           </div>
         </div>
