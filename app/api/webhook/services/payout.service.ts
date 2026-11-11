@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 interface PayoutWebhookParams {
@@ -14,14 +14,6 @@ interface PayoutWebhookParams {
   failureReason?: string;
 }
 
-/**
- * Handle payout webhook result:
- * - On SUCCESS: finalize balance deduction (already locked in deduct_wallet_balance_with_lock)
- * - On FAILURE: refund the deducted amount back to user
- *
- * Idempotency key ensures the balance change happens exactly once even if
- * the webhook is delivered multiple times.
- */
 export async function handlePayoutWebhook({
   pendingTxId,
   success,
@@ -30,7 +22,6 @@ export async function handlePayoutWebhook({
   failureReason,
 }: PayoutWebhookParams): Promise<{ ok: boolean; message: string }> {
   try {
-    // 1. Fetch pending transaction
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .select("*")
@@ -40,57 +31,76 @@ export async function handlePayoutWebhook({
     if (txError || !pendingTx) {
       console.error(
         `[payout-webhook] Pending tx ${pendingTxId} not found:`,
-        txError
+        txError,
       );
       return { ok: false, message: "Pending transaction not found" };
     }
 
-    // 2. If already finalized, skip (idempotency at app layer too)
-    if (pendingTx.status === "success" || pendingTx.status === "failed") {
+    // Already finalized?
+    if (
+      pendingTx.status === "success" ||
+      pendingTx.status === "failed"
+    ) {
       console.log(
-        `[payout-webhook] Tx ${pendingTxId} already finalized (${pendingTx.status}), skipping`
+        `[payout-webhook] Tx ${pendingTxId} already finalized (${pendingTx.status}), skipping`,
       );
       return { ok: true, message: "Already processed" };
     }
 
     const deductedAmount =
-      Number(pendingTx.total_deduction) || Number(pendingTx.amount) || 0;
+      Number(pendingTx.total_deduction) ||
+      Number(pendingTx.amount) ||
+      0;
     if (deductedAmount <= 0) {
       console.error(
-        `[payout-webhook] Invalid deducted amount for tx ${pendingTxId}`
+        `[payout-webhook] Invalid deducted amount for tx ${pendingTxId}`,
       );
       return { ok: false, message: "Invalid deducted amount" };
     }
 
     if (success) {
-      // 3a. SUCCESS: Finalize the deduction (balance already moved by
-      //     deduct_wallet_balance_with_lock when the payout was initiated)
+      // SUCCESS: finalize — if the payout was never deducted at creation
+      // time, deduct now so money leaves the wallet.
       const totalDeduction = deductedAmount + Number(nombaFee || 0);
 
-      const { data: deductResult, error: deductError } = await supabase.rpc(
-        "deduct_wallet_balance_with_lock",
-        {
-          p_user_id: pendingTx.user_id,
-          p_amount: totalDeduction,
-          p_transaction_id: pendingTx.id,
-          p_idempotency_key: `payout_${pendingTx.id}`,
-        }
-      );
+      // Check whether the wallet deduction already happened
+      const wasDeducted =
+        pendingTx.deducted_at != null &&
+        pendingTx.balance_before != null;
 
-      if (deductError) {
-        console.error(
-          `[payout-webhook] Balance lock/deduct failed for ${pendingTxId}:`,
-          deductError
+      if (!wasDeducted) {
+        console.warn(
+          `[payout-webhook] ⚠️ Tx ${pendingTxId} succeeded but never deducted — retroactively deducting ${totalDeduction}`,
         );
-        return { ok: false, message: deductError.message };
+
+        const { data: newBalance, error: deductError } =
+          await supabase.rpc("mutate_wallet_balance", {
+            p_user_id: pendingTx.user_id,
+            p_amount: -totalDeduction,
+            p_transaction_id: pendingTx.id,
+            p_reason: "payout_webhook_retroactive_deduction",
+            p_idempotency_key: `payout_retro_deduct_${pendingTx.id}`,
+          });
+
+        if (deductError) {
+          console.error(
+            `[payout-webhook] ❌ Retroactive deduction failed:`,
+            deductError,
+          );
+          return { ok: false, message: deductError.message };
+        }
+
+        console.log(
+          `[payout-webhook] ✅ Retroactively deducted ₦${totalDeduction}. New balance: ₦${newBalance}`,
+        );
       }
 
-      // Update transaction status to success
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
           status: "success",
           external_response: {
+            ...(pendingTx.external_response || {}),
             nomba_transaction_id: nombaTransactionId,
             nomba_fee: nombaFee,
             finalized_at: new Date().toISOString(),
@@ -102,69 +112,85 @@ export async function handlePayoutWebhook({
       if (updateError) {
         console.error(
           `[payout-webhook] Failed to mark tx ${pendingTxId} success:`,
-          updateError
+          updateError,
         );
         return { ok: false, message: updateError.message };
       }
 
-      console.log(
-        `[payout-webhook] Payout ${pendingTxId} SUCCESS. New balance: ${deductResult}`
-      );
+      console.log(`[payout-webhook] Payout ${pendingTxId} → SUCCESS`);
       return { ok: true, message: "Payout finalized" };
     }
 
-    // 3b. FAILURE: Refund the deducted amount back to the user
-    // Create a refund transaction record first
-    const { data: refundTx, error: refundTxError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: pendingTx.user_id,
-        type: "refund",
-        amount: deductedAmount,
-        status: "success",
-        reference: `REFUND_${pendingTx.reference || pendingTx.id}`,
-        description: `Refund for failed payout ${pendingTx.reference || pendingTx.id}`,
-      })
-      .select()
-      .single();
+    // FAILURE: refund if the wallet was actually deducted
+    const wasDeducted =
+      pendingTx.deducted_at != null &&
+      pendingTx.balance_before != null;
 
-    if (refundTxError || !refundTx) {
-      console.error(
-        `[payout-webhook] Failed to create refund tx for ${pendingTxId}:`,
-        refundTxError
-      );
-      return { ok: false, message: "Failed to create refund tx" };
-    }
+    if (wasDeducted && deductedAmount > 0) {
+      const { data: refundTx, error: refundTxError } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: pendingTx.user_id,
+          type: "refund",
+          amount: deductedAmount,
+          status: "pending",
+          reference: `REFUND_${pendingTx.merchant_tx_ref || pendingTx.id}`,
+          description: `Refund for failed payout ${
+            pendingTx.merchant_tx_ref || pendingTx.id
+          }`,
+        })
+        .select()
+        .single();
 
-    const { data: newBalance, error: refundError } = await supabase.rpc(
-      "mutate_wallet_balance",
-      {
-        p_user_id: pendingTx.user_id,
-        p_amount: deductedAmount, // positive = credit
-        p_transaction_id: refundTx.id,
-        p_reason: "payout_failure_refund",
-        p_idempotency_key: `payout_refund_${pendingTx.id}`,
+      if (refundTxError || !refundTx) {
+        console.error(
+          `[payout-webhook] Failed to create refund tx:`,
+          refundTxError,
+        );
+        return { ok: false, message: "Failed to create refund tx" };
       }
-    );
 
-    if (refundError) {
-      console.error(
-        `[payout-webhook] Refund RPC failed for ${pendingTxId}:`,
-        refundError
+      const { data: newBalance, error: refundError } =
+        await supabase.rpc("mutate_wallet_balance", {
+          p_user_id: pendingTx.user_id,
+          p_amount: deductedAmount,
+          p_transaction_id: refundTx.id,
+          p_reason: "payout_failure_refund",
+          p_idempotency_key: `payout_refund_${pendingTx.id}`,
+        });
+
+      if (refundError) {
+        console.error(
+          `[payout-webhook] Refund RPC failed:`,
+          refundError,
+        );
+        return { ok: false, message: refundError.message };
+      }
+
+      await supabase
+        .from("transactions")
+        .update({ status: "success", updated_at: new Date().toISOString() })
+        .eq("id", refundTx.id);
+
+      console.log(
+        `[payout-webhook] ✅ Refunded ₦${deductedAmount}. New balance: ₦${newBalance}`,
       );
-      return { ok: false, message: refundError.message };
+    } else {
+      console.log(
+        `[payout-webhook] Tx ${pendingTxId} was never deducted — no refund needed`,
+      );
     }
 
-    // Mark original tx as failed
     const { error: failUpdateError } = await supabase
       .from("transactions")
       .update({
         status: "failed",
         external_response: {
+          ...(pendingTx.external_response || {}),
           nomba_transaction_id: nombaTransactionId,
-          failure_reason: failureReason || "Payout failed at gateway",
-          refunded: true,
-          refund_transaction_id: refundTx.id,
+          failure_reason:
+            failureReason || "Payout failed at gateway",
+          refunded: wasDeducted,
           finalized_at: new Date().toISOString(),
         },
         updated_at: new Date().toISOString(),
@@ -174,13 +200,11 @@ export async function handlePayoutWebhook({
     if (failUpdateError) {
       console.error(
         `[payout-webhook] Failed to mark tx ${pendingTxId} failed:`,
-        failUpdateError
+        failUpdateError,
       );
     }
 
-    console.log(
-      `[payout-webhook] Payout ${pendingTxId} FAILED → refunded ${deductedAmount}. New balance: ${newBalance}`
-    );
+    console.log(`[payout-webhook] Payout ${pendingTxId} → FAILED`);
     return { ok: true, message: "Payout failed, refunded" };
   } catch (err: any) {
     console.error("[payout-webhook] Unexpected error:", err);
