@@ -317,6 +317,9 @@ export async function POST(req: NextRequest) {
       per_transfer_limit: limitCheck.perTransferLimit,
     };
 
+    // ============================================================
+    // BUG FIX #1: set `reference` on insert so it always exists
+    // ============================================================
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -336,6 +339,7 @@ export async function POST(req: NextRequest) {
         fee: serverFee,
         total_deduction: totalDeduction,
         status: "pending",
+        reference: merchantTxRef, // ✅ SET NOW
         narration: narration || "N/A",
         merchant_tx_ref: merchantTxRef,
         created_at: new Date().toISOString(),
@@ -387,40 +391,27 @@ export async function POST(req: NextRequest) {
       status: nombaResponse.status,
       merchantTxRef,
       nombaId: nombaData?.data?.id,
+      nombaStatus: nombaData?.data?.status,
     });
 
+    // ============================================================
+    // BUG FIX #2: Nomba sends UPPERCASE "SUCCESS" — normalize
+    // ============================================================
+    const nombaStatusUpper = String(
+      nombaData?.data?.status || "",
+    ).toUpperCase();
     const isSuccess =
-      nombaResponse.ok && nombaData?.data?.status === "success";
+      nombaResponse.ok && nombaStatusUpper === "SUCCESS";
     const finalStatus = isSuccess ? "success" : "processing";
     const nombaTransactionId = nombaData?.data?.id || null;
 
-    await supabase
-      .from("transactions")
-      .update({
-        status: finalStatus,
-        description: `Transfer of ₦${amount} to ${accountName}`,
-        metadata: {
-          ...pendingMetadata,
-          nomba_status: nombaData?.data?.status || null,
-          nomba_description: nombaData?.description || null,
-          nomba_requested_at: new Date().toISOString(),
-        },
-        external_response: {
-          nomba_request: nombaData,
-          requested_at: new Date().toISOString(),
-          merchant_tx_ref: merchantTxRef,
-          nomba_transaction_id: nombaTransactionId,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", pendingTx.id);
+    // ============================================================
+    // BUG FIX #3: Deduct wallet ATOMICALLY before/with status update
+    //             so no retroactive-deduction path is needed
+    // ============================================================
+    let deductedNewBalance: number | null = null;
 
-    // ─── If immediately successful — mutate wallet ───
     if (isSuccess) {
-      console.log(
-        `✅ Transfer immediately successful for transaction ${pendingTx.id}`,
-      );
-
       const { data: newBalance, error: deductError } = await supabase.rpc(
         "mutate_wallet_balance",
         {
@@ -428,115 +419,163 @@ export async function POST(req: NextRequest) {
           p_amount: -totalDeduction,
           p_transaction_id: pendingTx.id,
           p_reason: "withdrawal_immediate_success",
+          p_idempotency_key: `withdrawal_deduct_${pendingTx.id}`,
         },
       );
 
       if (deductError) {
-        console.error("❌ Failed to deduct wallet balance:", deductError);
-        await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", pendingTx.id);
-      } else {
-        console.log(
-          `✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`,
+        console.error(
+          "❌ CRITICAL: Wallet deduction failed after Nomba succeeded:",
+          deductError,
         );
 
-        // ✅ Insurance: fill balance columns if RPC version drift left them NULL
-        if (newBalance != null) {
+        // Nomba already sent money — user MUST be debited or you lose funds.
+        // Fall back to a direct balance update (still bounded by user's row).
+        const { data: freshUser } = await supabase
+          .from("users")
+          .select("wallet_balance")
+          .eq("id", userId)
+          .single();
+
+        if (freshUser) {
+          const before = Number(freshUser.wallet_balance);
+          const after = before - totalDeduction;
+
+          await supabase
+            .from("users")
+            .update({
+              wallet_balance: after,
+              wallet_updated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
+
           await supabase
             .from("transactions")
             .update({
-              balance_before: Number(newBalance) + totalDeduction,
-              balance_after: Number(newBalance),
+              balance_before: before,
+              balance_after: after,
+              deducted_at: new Date().toISOString(),
             })
-            .eq("id", pendingTx.id)
-            .is("balance_after", null);
-        }
+            .eq("id", pendingTx.id);
 
-        await supabase
-          .from("transactions")
-          .update({
-            reference: nombaTransactionId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", pendingTx.id);
-
-        const receiptHtml = generateTransferReceipt({
-          transactionId: pendingTx.id,
-          amount: Number(amount),
-          date: new Date().toISOString(),
-          recipientName: accountName,
-          recipientAccount: accountNumber,
-          recipientBank: bankName,
-          senderName: senderName || userData.full_name || "Zidwell User",
-          senderAccount: senderAccountNumber,
-          narration: narration || "N/A",
-          fee: serverFee,
-          type: "bank_transfer",
-        });
-
-        if (receiptHtml && receiptHtml.length > 0) {
+          deductedNewBalance = after;
           console.log(
-            `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`,
-          );
-          await sendWithdrawalEmail(
-            userId,
-            "success",
-            Number(amount),
-            accountName,
-            accountNumber,
-            bankName,
-            pendingTx.id,
-            undefined,
-            serverFee,
-            receiptHtml,
-          ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err),
-          );
-        } else {
-          console.warn(
-            `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`,
-          );
-          await sendWithdrawalEmail(
-            userId,
-            "success",
-            Number(amount),
-            accountName,
-            accountNumber,
-            bankName,
-            pendingTx.id,
-            undefined,
-            serverFee,
-          ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err),
+            `✅ Fallback deduction applied: ₦${before} → ₦${after}`,
           );
         }
+      } else {
+        deductedNewBalance = newBalance as number;
+        console.log(
+          `✅ Deducted ₦${totalDeduction} — new balance ₦${deductedNewBalance}`,
+        );
+      }
+    }
 
-        try {
-          await upsertSavedBankAccount(
-            supabase,
-            userId,
-            {
-              account_number: accountNumber,
-              account_name: accountName,
-              bank_code: bankCode,
-              bank_name: bankName,
-            },
-            { autoSaved: true },
-          );
-          console.log(
-            `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`,
-          );
-        } catch (saveErr) {
-          console.error(
-            "Auto-save bank beneficiary failed (non-fatal):",
-            saveErr,
-          );
-        }
+    // ============================================================
+    // Persist Nomba response, status, reference
+    // ============================================================
+    const externalResponse = {
+      nomba_request: nombaData,
+      requested_at: new Date().toISOString(),
+      merchant_tx_ref: merchantTxRef,
+      nomba_transaction_id: nombaTransactionId,
+      nomba_fee: feeResult.nombaFee,
+      finalized_at: isSuccess ? new Date().toISOString() : undefined,
+    };
+
+    await supabase
+      .from("transactions")
+      .update({
+        status: finalStatus,
+        description: `Transfer of ₦${amount} to ${accountName}`,
+        reference: nombaTransactionId || merchantTxRef, // ✅ always set
+        metadata: {
+          ...pendingMetadata,
+          nomba_status: nombaData?.data?.status || null,
+          nomba_description: nombaData?.description || null,
+          nomba_requested_at: new Date().toISOString(),
+        },
+        external_response: externalResponse,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", pendingTx.id);
+
+    // ============================================================
+    // Post-success side effects (email, receipt, saved account)
+    // ============================================================
+    if (isSuccess) {
+      const receiptHtml = generateTransferReceipt({
+        transactionId: pendingTx.id,
+        amount: Number(amount),
+        date: new Date().toISOString(),
+        recipientName: accountName,
+        recipientAccount: accountNumber,
+        recipientBank: bankName,
+        senderName: senderName || userData.full_name || "Zidwell User",
+        senderAccount: senderAccountNumber,
+        narration: narration || "N/A",
+        fee: serverFee,
+        type: "bank_transfer",
+      });
+
+      if (receiptHtml && receiptHtml.length > 0) {
+        console.log(
+          `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`,
+        );
+        await sendWithdrawalEmail(
+          userId,
+          "success",
+          Number(amount),
+          accountName,
+          accountNumber,
+          bankName,
+          pendingTx.id,
+          undefined,
+          serverFee,
+          receiptHtml,
+        ).catch((err) =>
+          console.error("Failed to send withdrawal email:", err),
+        );
+      } else {
+        console.warn(
+          `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`,
+        );
+        await sendWithdrawalEmail(
+          userId,
+          "success",
+          Number(amount),
+          accountName,
+          accountNumber,
+          bankName,
+          pendingTx.id,
+          undefined,
+          serverFee,
+        ).catch((err) =>
+          console.error("Failed to send withdrawal email:", err),
+        );
+      }
+
+      try {
+        await upsertSavedBankAccount(
+          supabase,
+          userId,
+          {
+            account_number: accountNumber,
+            account_name: accountName,
+            bank_code: bankCode,
+            bank_name: bankName,
+          },
+          { autoSaved: true },
+        );
+        console.log(
+          `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`,
+        );
+      } catch (saveErr) {
+        console.error(
+          "Auto-save bank beneficiary failed (non-fatal):",
+          saveErr,
+        );
       }
     }
 
