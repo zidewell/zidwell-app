@@ -7,6 +7,8 @@
 //     become empty/undefined at edge runtime.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Kept for backward compatibility with any UI that renders the list.
+// No longer used to gate access.
 export const ALLOWED_PAYMENT_EMAILS = [
   "characterinternational@gmail.com",
   "ibrahimlawalabbalolo@gmail.com",
@@ -19,10 +21,21 @@ export const ALLOWED_PAYMENT_EMAILS = [
 
 // Pre-normalized lowercase set for O(1) lookups everywhere.
 export const ALLOWED_PAYMENT_EMAIL_SET: ReadonlySet<string> = new Set(
-  ALLOWED_PAYMENT_EMAILS.map((e) => e.toLowerCase())
+  ALLOWED_PAYMENT_EMAILS.map((e) => e.toLowerCase()),
 );
 
-export const canAccessPaymentPage = (userEmail?: string | null): boolean => {
-  if (!userEmail) return false;
-  return ALLOWED_PAYMENT_EMAIL_SET.has(userEmail.toLowerCase());
+/**
+ * The payment page / online store is now available to **everyone**.
+ *
+ * This helper is kept so existing imports keep compiling. It always
+ * returns `true` and no longer inspects the email.
+ *
+ * Do not re-introduce email gating here without also reverting:
+ *   - proxy.ts                       (requiresPaymentEmailRestriction,
+ *                                     requiresStoreOwnership bypass)
+ *   - app/.../FeatureCards.tsx       (getFeatures push + locked check)
+ *   - app/.../DashboardSidebar.tsx   (showPaymentPage)
+ */
+export const canAccessPaymentPage = (_userEmail?: string | null): boolean => {
+  return true;
 };

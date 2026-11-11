@@ -2,6 +2,7 @@
 
 "use client";
 
+
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -32,6 +33,7 @@ interface PaymentDetails {
   redirectUrl?: string;
 }
 
+
 interface PaymentMetadata {
   customFields?: Record<string, any>;
   selectedStudents?: string[];
@@ -40,7 +42,6 @@ interface PaymentMetadata {
   pageType?: string;
   [key: string]: any;
 }
-
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -439,6 +440,7 @@ function PaymentSuccessContent() {
   );
 }
 
+
 // Main page export with Suspense
 export default function PaymentSuccessPage() {
   return (
@@ -456,3 +458,4 @@ export default function PaymentSuccessPage() {
     </Suspense>
   );
 }
+

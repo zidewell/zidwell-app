@@ -28,6 +28,8 @@ import { useStore } from "@/app/context/StoreContext";
 import { toast } from "sonner";
 import { DateFilter } from "@/app/components/date-filter";
 import type { DateRange } from "react-day-picker";
+import { getSellerTier } from "@/app/lib/store-tier";
+import { SellerBadge } from "@/app/components/store/SellerBadge";
 import { type PeriodKey } from "@/app/components/date-filter";
 import {
   DropdownMenu,
@@ -413,9 +415,11 @@ function PaymentPageCard({
 function Greeting({
   storeName,
   firstName,
+  sellerTier,
 }: {
   storeName?: string;
   firstName?: string;
+  sellerTier?: 'starter' | 'sme' | 'enterprise' | 'booster';
 }) {
   const [greeting, setGreeting] = useState("Good morning");
   const [emoji, setEmoji] = useState("🌅");
@@ -423,17 +427,13 @@ function Greeting({
   useEffect(() => {
     const hour = new Date().getHours();
     if (hour < 12) {
-      setGreeting("Good morning");
-      setEmoji("🌅");
-    } else if (hour < 17) {
       setGreeting("Good afternoon");
       setEmoji("☀️");
-    } else if (hour < 21) {
+    } else if (hour < 17) {
       setGreeting("Good evening");
-      setEmoji("🌆");
+      setEmoji("🌙");
     } else {
       setGreeting("Good night");
-      setEmoji("🌙");
     }
   }, []);
 
@@ -446,18 +446,21 @@ function Greeting({
       className="mb-2"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
           <Waves className="size-6 text-primary" />
-        </div>
         <div className="min-w-0">
           <h1 className="text-3xl font-bold text-foreground break-words">
             {greeting}, {displayName} {emoji}
           </h1>
           {storeName && (
-            <p className="text-sm text-muted-foreground mt-1 break-words">
-              Welcome to{" "}
-              <span className="text-primary font-medium">{storeName}</span>
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground break-words">
+                Welcome to{" "}
+                <span className="text-primary font-medium">{storeName}</span>
+              </p>
+              {sellerTier && sellerTier !== 'starter' && (
+                <SellerBadge tier={sellerTier} />
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -491,6 +494,7 @@ export default function PaymentDashboardPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isStoreCheckComplete, setIsStoreCheckComplete] = useState(false);
   const [dataReady, setDataReady] = useState(false);
+  const [sellerTier, setSellerTier] = useState<'starter' | 'sme' | 'enterprise' | 'booster'>('starter');
  
   const isRefreshingRef = useRef(false);
   const lastRefreshTime = useRef(0);
@@ -516,6 +520,13 @@ export default function PaymentDashboardPage() {
       isMounted = false;
     };
   }, [fetchStore]);
+
+  // Fetch seller tier when store is loaded
+  useEffect(() => {
+    if (store?.ownerId) {
+      getSellerTier(store.ownerId).then(setSellerTier).catch(() => setSellerTier('starter'));
+    }
+  }, [store?.ownerId]);
 
   // STEP 2: Load pages
   useEffect(() => {
@@ -656,7 +667,7 @@ export default function PaymentDashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-8 mb-10">
         <div className="min-w-0">
           <p className="eyebrow text-muted-foreground">Online Store</p>
-          <Greeting storeName={storeName} firstName={firstName} />
+          <Greeting storeName={storeName} firstName={firstName} sellerTier={sellerTier} />
           <div className="mt-7 flex flex-wrap items-center gap-3 w-full">
             <a
               href={`/store/${storeSlug}`}

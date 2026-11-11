@@ -1,8 +1,7 @@
-// app/invoice/[publicToken]/page.tsx
+// app/pay-invoice/[publicToken]/page.tsx
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { CreditCard } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { Separator } from "@/app/components/ui/separator";
 import DownloadInvoiceButton from "../downloadButton";
@@ -10,7 +9,6 @@ import DownloadInvoiceButton from "../downloadButton";
 import { ToastProvider } from "@/app/components/ui/toast";
 import PaymentForm from "../../components/Invoice-components/PaymentForm";
 
-// Types
 interface InvoiceItem {
   id: string;
   description: string;
@@ -28,6 +26,7 @@ interface InvoiceData {
   due_date: string;
   from_name: string;
   from_email: string;
+  initiator_phone?: string;
   client_name: string;
   client_email: string;
   client_phone: string;
@@ -58,7 +57,6 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Missing Supabase environment variables");
 }
 
-// Initialize Supabase client
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 export default async function InvoicePage({
@@ -73,7 +71,6 @@ export default async function InvoicePage({
       return notFound();
     }
 
-    // Fetch invoice with error handling
     const { data: invoice, error } = await supabase
       .from("invoices")
       .select(
@@ -90,7 +87,6 @@ export default async function InvoicePage({
       return notFound();
     }
 
-    // Transform invoice items
     const items: InvoiceItem[] = (invoice.invoice_items || []).map(
       (dbItem: any) => ({
         id: dbItem.id,
@@ -101,7 +97,6 @@ export default async function InvoicePage({
       }),
     );
 
-    // Prepare invoice data
     const invoiceData: InvoiceData = {
       id: invoice.id,
       business_name: invoice.business_name,
@@ -111,6 +106,7 @@ export default async function InvoicePage({
       due_date: invoice.due_date,
       from_name: invoice.from_name,
       from_email: invoice.from_email,
+      initiator_phone: invoice.initiator_phone || undefined,
       client_name: invoice.client_name,
       client_email: invoice.client_email,
       client_phone: invoice.client_phone,
@@ -138,22 +134,16 @@ export default async function InvoicePage({
       <ToastProvider>
         <div className="min-h-screen bg-(--bg-primary)">
           <div className="container mx-auto py-12 px-4 max-w-3xl">
-            {/* Header */}
             <HeaderSection invoice={invoice} />
 
-            {/* Invoice Card */}
             <Card className="p-8 mb-6 bg-(--bg-primary) border border-(--border-color) shadow-soft">
-              {/* Business Header */}
               <BusinessHeaderSection invoice={invoice} />
 
               <Separator className="my-6 bg-(--border-color)" />
 
-              {/* Payment Status */}
               {invoice.allow_multiple_payments && (
                 <MultiplePaymentsSection invoice={invoice} />
               )}
-
-              {/* Payment Form Component */}
 
               <PaymentForm
                 invoiceId={invoice.invoice_id}
@@ -165,32 +155,25 @@ export default async function InvoicePage({
                 initiatorBankName={invoice.initiator_bank_name}
               />
 
-              {/* Client Information */}
               <ClientInformationSection invoice={invoice} />
 
-              {/* Message */}
               {invoice.message && <MessageSection invoice={invoice} />}
 
-              {/* Items */}
               <InvoiceItemsSection items={items} />
 
               <Separator className="my-6 bg-(--border-color)" />
 
-              {/* Totals */}
               <TotalsSection invoice={invoice} />
 
-              {/* Customer Note */}
               {invoice.customer_note && (
                 <CustomerNoteSection invoice={invoice} />
               )}
             </Card>
 
-            {/* Action Buttons */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <DownloadInvoiceButton invoiceData={invoiceData} />
             </div>
 
-            {/* Footer */}
             <FooterSection invoice={invoice} />
           </div>
         </div>
@@ -203,6 +186,7 @@ export default async function InvoicePage({
 }
 
 // Helper Components
+
 function HeaderSection({ invoice }: { invoice: any }) {
   return (
     <div className="text-center mb-8">
@@ -271,6 +255,11 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
       <div className="space-y-2">
         <h3 className="font-semibold text-(--text-primary)">Bill To</h3>
         <div className="text-sm text-(--text-secondary)">
+          {invoice.bill_to && (
+            <p className="font-medium text-(--text-primary)">
+              {invoice.bill_to}
+            </p>
+          )}
           {invoice.client_name ? (
             <>
               <p className="font-medium text-(--text-primary)">
@@ -291,7 +280,7 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
             {invoice.from_name}
           </p>
           <p>{invoice.from_email}</p>
-          {invoice.bill_to && <p className="mt-1">{invoice.bill_to}</p>}
+          {invoice.initiator_phone && <p>{invoice.initiator_phone}</p>}
         </div>
       </div>
     </div>

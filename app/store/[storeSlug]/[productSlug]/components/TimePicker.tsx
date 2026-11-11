@@ -33,7 +33,7 @@ export function TimePicker({ value, onChange, disabled }: Props) {
               onClick={() => onChange(slot)}
               className={`rounded-md px-3 py-2 text-sm transition ${
                 selected
-                  ? "bg-[#FDC020] text-[#191919] font-semibold"
+                  ? "bg-[#F5B800] text-[#191919] font-semibold"
                   : "hover:bg-muted text-foreground/80"
               }`}
             >

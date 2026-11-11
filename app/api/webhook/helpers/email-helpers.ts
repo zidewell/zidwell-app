@@ -1,3 +1,4 @@
+// app/api/webhook/helpers/email-helpers.ts
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
 import puppeteer from "puppeteer-core";
@@ -201,10 +202,12 @@ async function sendWithdrawalEmail(
   transactionId?: string,
   errorDetail?: string,
   fee?: number,
-  receiptHtml?: string
+  receiptHtml?: string,
 ) {
   try {
-    console.log(`📧 Attempting to send ${status} withdrawal email for user ${userId}`);
+    console.log(
+      `📧 Attempting to send ${status} withdrawal email for user ${userId}`,
+    );
     console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
 
     const { data: user, error } = await supabase
@@ -260,7 +263,9 @@ async function sendWithdrawalEmail(
     };
 
     if (status === "success" && receiptHtml && transactionId) {
-      console.log(`📎 Attempting to attach receipt for transaction ${transactionId}`);
+      console.log(
+        `📎 Attempting to attach receipt for transaction ${transactionId}`,
+      );
 
       try {
         const logo = getLogoBase64();
@@ -268,11 +273,11 @@ async function sendWithdrawalEmail(
         if (logo) {
           finalHtml = receiptHtml.replace(
             /src="[^"]*\/logo\.png"/g,
-            `src="${logo}"`
+            `src="${logo}"`,
           );
         }
 
-        console.log('🔄 Generating PDF with Puppeteer...');
+        console.log("🔄 Generating PDF with Puppeteer...");
         const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
         console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
 
@@ -280,11 +285,10 @@ async function sendWithdrawalEmail(
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
             content: pdfBuffer,
-            contentType: 'application/pdf',
-          }
+            contentType: "application/pdf",
+          },
         ];
         console.log(`✅ PDF receipt attached for transaction ${transactionId}`);
-
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for email:", pdfError);
         console.log(`⚠️ Email sent without PDF attachment`);
@@ -304,30 +308,219 @@ async function sendWithdrawalEmail(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// REFUND EMAIL
+//
+// Sent when a payout fails and Nomba returns the money to our corporate
+// wallet, and we credit the user's wallet back. Mirrors the visual format
+// of sendWithdrawalEmail so the user experience is consistent.
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendRefundEmail(
+  userId: string,
+  amount: number,
+  refundAmount: number,
+  recipientName: string,
+  recipientAccount: string,
+  bankName: string,
+  transactionId?: string,
+  originalFee?: number,
+) {
+  try {
+    console.log(`📧 Attempting to send refund email for user ${userId}`);
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("email, first_name")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ Failed to fetch user for refund email:", error);
+      return;
+    }
+
+    if (!user) {
+      console.error("❌ User not found for ID:", userId);
+      return;
+    }
+
+    if (!user.email) {
+      console.error("❌ User has no email address:", userId);
+      return;
+    }
+
+    console.log(`📧 Sending refund email to: ${user.email}`);
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: `🔄 Refund Processed - ${formatNaira(refundAmount)}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <h3 style="color: #3b82f6;">🔄 Refund Processed</h3>
+          <p>Hi ${user.first_name || "there"},</p>
+          <p>Your recent transfer could not be completed by the bank. The funds have been returned to your Zidwell wallet.</p>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+            <p><strong>Refund Amount:</strong> ${formatNaira(refundAmount)}</p>
+            ${originalFee && originalFee > 0 ? `<p><strong>Fee Refunded:</strong> ${formatNaira(originalFee)}</p>` : ""}
+            <p><strong>Original Transfer:</strong> ${formatNaira(amount)}</p>
+            <p><strong>Recipient:</strong> ${recipientName}</p>
+            <p><strong>Account:</strong> ${recipientAccount}</p>
+            <p><strong>Bank:</strong> ${bankName}</p>
+            ${transactionId ? `<p><strong>Transaction ID:</strong> ${transactionId}</p>` : ""}
+          </div>
+          <p style="margin-top: 15px; color: #16a34a; font-weight: 600;">
+            ✅ ${formatNaira(refundAmount)} has been credited back to your wallet.
+          </p>
+          <p style="color: #666; font-size: 14px;">
+            The transfer failed due to a bank-side issue. You can try the transfer again or contact support if the problem persists.
+          </p>
+          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+        </div>
+      `,
+    });
+
+    console.log(`✅ Refund email sent successfully to ${user.email}!`);
+  } catch (error) {
+    console.error("❌ Failed to send refund email:", error);
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVERSAL EMAIL
+//
+// Sent when a previously-credited customer payment is reversed by the bank
+// (e.g. sender recalls the transfer). The user's wallet is debited and we
+// notify them that the funds were clawed back.
+//
+// Signature matches the call in payment-reversal.service.ts:
+//   (userId, reversedAmount, walletDebited, balanceBefore, balanceAfter,
+//    transactionReference, description?, shortfall?)
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendReversalEmail(
+  userId: string,
+  reversedAmount: number,
+  walletDebited: number,
+  balanceBefore: number,
+  balanceAfter: number,
+  transactionReference: string,
+  description?: string,
+  shortfall: boolean = false,
+) {
+  try {
+    console.log(`📧 Attempting to send reversal email for user ${userId}`);
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("email, first_name")
+      .eq("id", userId)
+      .single();
+
+    if (error) {
+      console.error("❌ Failed to fetch user for reversal email:", error);
+      return;
+    }
+
+    if (!user) {
+      console.error("❌ User not found for ID:", userId);
+      return;
+    }
+
+    if (!user.email) {
+      console.error("❌ User has no email address:", userId);
+      return;
+    }
+
+    console.log(`📧 Sending reversal email to: ${user.email}`);
+
+    const shortfallAmount = shortfall
+      ? Math.max(0, reversedAmount - walletDebited)
+      : 0;
+
+    const shortfallBlock = shortfall
+      ? `
+        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #f59e0b;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">
+            <strong>⚠️ Insufficient balance:</strong>
+            Only ${formatNaira(walletDebited)} could be recovered from your wallet.
+            The remaining ${formatNaira(shortfallAmount)} has been recorded against your account.
+            Please top up your wallet or contact support.
+          </p>
+        </div>
+      `
+      : "";
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: `⚠️ Payment Reversal - ${formatNaira(reversedAmount)}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
+          <h3 style="color: #ef4444;">⚠️ Payment Reversal</h3>
+          <p>Hi ${user.first_name || "there"},</p>
+          <p>A payment that was previously credited to your wallet has been reversed by the bank. This typically happens when the sender's bank recalls the funds.</p>
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
+            <p><strong>Reversed Amount:</strong> ${formatNaira(reversedAmount)}</p>
+            <p><strong>Debited From Wallet:</strong> ${formatNaira(walletDebited)}</p>
+            <p><strong>Balance Before:</strong> ${formatNaira(balanceBefore)}</p>
+            <p><strong>New Wallet Balance:</strong> ${formatNaira(balanceAfter)}</p>
+            ${description ? `<p><strong>Description:</strong> ${description}</p>` : ""}
+            <p><strong>Reference:</strong> ${transactionReference}</p>
+          </div>
+          ${shortfallBlock}
+          <p style="margin-top: 15px; color: #ef4444; font-weight: 600;">
+            ❌ ${formatNaira(walletDebited)} has been deducted from your wallet.
+          </p>
+          <p style="color: #666; font-size: 14px;">
+            If you believe this reversal is an error, please contact support with the reference above.
+          </p>
+          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
+        </div>
+      `,
+    });
+
+    console.log(`✅ Reversal email sent successfully to ${user.email}!`);
+  } catch (error) {
+    console.error("❌ Failed to send reversal email:", error);
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // generateTransferReceipt — fee removed from user-facing receipt
 // ─────────────────────────────────────────────────────────────────────────────
 function generateTransferReceipt(data: any): string {
   const amountDisplay = Number(data.amount).toLocaleString("en-NG", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 
-  const formattedDate = new Date(data.date).toLocaleString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+  const formattedDate = new Date(data.date).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   const escapeHtml = (str: string) => {
-    if (!str) return '';
+    if (!str) return "";
     return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   };
 
   return `
@@ -436,8 +629,8 @@ function generateTransferReceipt(data: any): string {
         <div class="narration-wrapper">
           <div>
             <div class="detail-title">From</div>
-            <div class="detail-value">${escapeHtml(data.senderName || 'Zidwell User')}</div>
-            ${data.senderAccount ? `<div class="sub">${escapeHtml(data.senderAccount)}</div>` : ''}
+            <div class="detail-value">${escapeHtml(data.senderName || "Zidwell User")}</div>
+            ${data.senderAccount ? `<div class="sub">${escapeHtml(data.senderAccount)}</div>` : ""}
           </div>
         </div>
       </div>
@@ -453,14 +646,16 @@ function generateTransferReceipt(data: any): string {
         <div class="narration-wrapper">
           <div>
             <div class="detail-title">To</div>
-            <div class="detail-value">${escapeHtml(data.recipientName || 'N/A')}</div>
-            ${data.recipientAccount ? `<div class="sub">${escapeHtml(data.recipientAccount)}</div>` : ''}
-            ${data.recipientBank ? `<div class="sub">${escapeHtml(data.recipientBank)}</div>` : ''}
+            <div class="detail-value">${escapeHtml(data.recipientName || "N/A")}</div>
+            ${data.recipientAccount ? `<div class="sub">${escapeHtml(data.recipientAccount)}</div>` : ""}
+            ${data.recipientBank ? `<div class="sub">${escapeHtml(data.recipientBank)}</div>` : ""}
           </div>
         </div>
       </div>
     </div>
-    ${data.narration ? `
+    ${
+      data.narration
+        ? `
     <div class="detail-row">
       <div class="left">
         <div class="icon">
@@ -476,7 +671,9 @@ function generateTransferReceipt(data: any): string {
         </div>
       </div>
     </div>
-    ` : ''}
+    `
+        : ""
+    }
     <div class="detail-row detail-row-last">
       <div class="left">
         <div class="icon">
@@ -510,5 +707,7 @@ export {
   sendInvoiceCreatorNotificationEmail,
   sendVirtualAccountDepositEmail,
   sendWithdrawalEmail,
-  generateTransferReceipt
+  sendRefundEmail,
+  sendReversalEmail,
+  generateTransferReceipt,
 };

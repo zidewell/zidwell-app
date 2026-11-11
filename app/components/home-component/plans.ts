@@ -1,123 +1,141 @@
-export const plans = [
+// app/components/home-component/plans.ts
+
+export type PlanTier = "starter" | "sme" | "enterprise" | "booster";
+export type BillingPeriod = "monthly" | "yearly";
+
+export interface Plan {
+  id: PlanTier;
+  name: string;
+  monthly: number;
+  yearly: number;
+  yearlyLabel?: string;
+  monthlyLabel?: string;
+  tagline: string;
+  note?: string;
+  highlighted?: boolean;
+  cta: string;
+  mailto?: boolean;
+  features?: string[];
+}
+
+// ─────────────────────────────────────────────────────────────
+// ZIDWELL — main business toolkit. NO booster.
+// ─────────────────────────────────────────────────────────────
+export const ZIDWELL_PLANS: Plan[] = [
   {
-    name: "Free",
-    tier: "free",
-    tagline: "Start Managing Your Money",
-    price: "₦0",
-    altPrice: "$0",
-    suffix: "/month",
-    note: "For individuals and early-stage freelancers.",
-    region: "global",
+    id: "starter",
+    name: "Starter",
+    monthly: 0,
+    yearly: 0,
+    tagline: "Perfect for testing the waters.",
+    note: "For solo founders and early-stage businesses.",
+    cta: "Start free",
     features: [
-      "Manual bookkeeping — Global",
-      "Auto-bookkeeping (Wallet users, Nigeria)",
-      "Payment Links & Sales pages (Nigeria)",
-      "Free business bank account (Nigeria)",
-      "Up to 5 invoices — Global",
-      "Up to 5 receipts — Global",
-      "Basic financial overview",
+      "Online storefront",
+      "Product images",
+      "Payment links",
+      "Business Bank Account",
+      "Bookkeeping (Basic)",
+      "Tax Manager (Basic)",
+      "5 invoices / 5 receipts / month",
     ],
-    cta: "Start Free",
-    featured: false,
-    amount: 0,
   },
-  // {
-  //   name: "Solopreneur",
-  //   tier: "solopreneur",
-  //   tagline: "Get Organized",
-  //   price: "₦4,900",
-  //   altPrice: "$3.99",
-  //   suffix: "/month",
-  //   yearlyPrice: "₦49,000/year (save ₦9,800)",
-  //   yearlyAmount: 49000,
-  //   note: "For freelancers and solo business owners.",
-  //   region: "global",
-  //   features: [
-  //     "Everything in Free, plus:",
-  //     "Up to 10 invoices",
-  //     "Unlimited receipts",
-  //     "Branded invoices",
-  //     "Better expense tracking",
-  //     "Basic financial insights",
-  //   ],
-  //   cta: "Go Solopreneur",
-  //   featured: false,
-  //   amount: 4900,
-  // },
   {
+    id: "sme",
     name: "SME",
-    tier: "sme",
-    tagline: "Run Your Business Properly",
-    price: "₦29,900",
-    altPrice: "$21.99",
-    suffix: "/month",
-    yearlyPrice: "₦299,000/year (save ₦59,800)",
-    yearlyAmount: 299000,
-    note: "For growing small businesses.",
-    region: "global",
+    monthly: 9900,
+    yearly: 49900,
+    tagline: "For growing businesses.",
+    note: "For growing small businesses with a small team.",
+    highlighted: true,
+    cta: "Subscribe to SME",
     features: [
-      "Everything in Solopreneur, plus:",
-      "Upload bank statements (PDF / Excel / CSV)",
-      "Connect up to 3 bank accounts — Nigeria",
-      "Auto-bookkeeping from connected accounts — Nigeria",
-      "Unlimited invoices & receipts",
-      "Vault — store financial documents safely",
-      "Tax calculator",
-      "Financial statements (view): P&L · Cashflow · Balance Sheet",
-      "1 extra team member",
+      "Everything in Starter",
+      "Product videos",
+      "WhatsApp notifications",
+      "CRM",
+      "Custom emails",
+      "Unlimited invoices + receipts",
+      "Advanced bookkeeping + tax",
+      "Priority support",
     ],
-    cta: "Go SME",
-    featured: true,
-    amount: 29900,
   },
   {
+    id: "enterprise",
     name: "Enterprise",
-    tier: "enterprise",
-    tagline: "Team Business Management",
-    price: "₦100,000",
-    altPrice: "$75",
-    suffix: "/month",
-    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
-    yearlyAmount: 1000000,
-    note: "For teams that need structure.",
-    region: "global",
+    monthly: 19900,
+    yearly: 99900,
+    tagline: "For bigger businesses who need more tools.",
+    note: "For organizations with teams and multiple operators.",
+    cta: "Subscribe to Enterprise",
     features: [
-      "Everything in SME, plus:",
-      "Multi-user access (full team)",
-      "Role-based permissions",
-      "Approvals for payments, invoices, receipts, transfers",
-      "Connect up to 5 bank accounts — Nigeria",
-      "Downloadable financial reports",
-      "10 contracts",
-      "Dedicated onboarding support",
+      "Everything in SME",
+      "Turbo bookkeeping + tax",
+      "Increased transaction limits",
+      "Connect external bank accounts",
+      "3 team members",
+      "Priority support",
     ],
-    cta: "Go Enterprise",
-    featured: false,
-    amount: 100000,
-  },
-  {
-    name: "Corporation",
-    tier: "corporation",
-    tagline: "Full Business Finance System",
-    price: "₦300,000",
-    altPrice: "$220",
-    suffix: "/month",
-    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
-    yearlyAmount: 3000000,
-    note: "For large organizations and structured companies.",
-    region: "global",
-    features: [
-      "Everything in Enterprise, plus:",
-      "Unlimited contracts",
-      "Department-based access (HR, Finance, Ops…)",
-      "Connect unlimited bank accounts — Nigeria",
-      "Simple payroll system",
-      "Advanced financial reporting",
-      "Custom financial structure setup",
-      "Priority onboarding & dedicated account manager",
-    ],
-    cta: "Talk to Sales",
-    featured: false,
-    amount: 300000,
   },
 ];
+
+// ─────────────────────────────────────────────────────────────
+// ZIDSTORE — online-store pricing. Includes booster.
+// ─────────────────────────────────────────────────────────────
+export const ZIDSTORE_PLANS: Plan[] = [
+  ...ZIDWELL_PLANS,
+  {
+    id: "booster",
+    name: "Booster",
+    monthly: 200000,
+    yearly: 2400000,
+    monthlyLabel: "From",
+    yearlyLabel: "From",
+    tagline: "Custom for advertising your business.",
+    cta: "Talk to sales",
+    mailto: true,
+    features: [
+      "Everything in Enterprise",
+      "Managed advertising",
+      "Facebook + Instagram + Google + YouTube Ads",
+      "Unlimited team members",
+      "Dedicated account manager",
+    ],
+  },
+];
+
+// Feature matrix used only by ZidStore comparison table.
+export const FEATURE_ROWS: {
+  label: string;
+  values: Record<PlanTier, string | boolean>;
+}[] = [
+  { label: "Online store", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Product images", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Payment links", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Business Bank Account", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Product videos", values: { starter: false, sme: true, enterprise: true, booster: true } },
+  { label: "WhatsApp notifications", values: { starter: false, sme: true, enterprise: true, booster: true } },
+  { label: "CRM", values: { starter: false, sme: true, enterprise: true, booster: true } },
+  { label: "Customized Email to customers", values: { starter: false, sme: true, enterprise: true, booster: true } },
+  {
+    label: "Bookkeeping Tool",
+    values: { starter: "Basic", sme: "Advanced", enterprise: "Turbo", booster: "Turbo" },
+  },
+  {
+    label: "Tax Manager",
+    values: { starter: "Basic", sme: "Advanced", enterprise: "Turbo", booster: "Turbo" },
+  },
+  { label: "Invoicing Tool", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Receipt Tool", values: { starter: true, sme: true, enterprise: true, booster: true } },
+  { label: "Managed advertising", values: { starter: false, sme: false, enterprise: false, booster: true } },
+  { label: "Facebook Ads", values: { starter: false, sme: false, enterprise: false, booster: true } },
+  { label: "Instagram Ads", values: { starter: false, sme: false, enterprise: false, booster: true } },
+  { label: "Google Ads", values: { starter: false, sme: false, enterprise: false, booster: true } },
+  { label: "Youtube Ads", values: { starter: false, sme: false, enterprise: false, booster: true } },
+  {
+    label: "Priority support",
+    values: { starter: false, sme: true, enterprise: true, booster: "Custom" },
+  },
+];
+
+export const formatNaira = (n: number) => `₦${n.toLocaleString()}`;

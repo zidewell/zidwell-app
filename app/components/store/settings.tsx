@@ -1,6 +1,6 @@
 // app/components/store/settings.tsx
 "use client";
-
+import { DeliveryZoneList } from "./DeliveryZoneList";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/app/context/StoreContext";
 import {
@@ -15,6 +15,7 @@ import {
   X,
   MessageCircle,
   Truck,
+  Store,
   Plus,
   Trash2,
   Star,
@@ -30,10 +31,9 @@ import {
   TabsTrigger,
 } from "@/app/components/ui/tabs";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
-import { DeliveryAddressModal } from "./DeliveryAddressModal";
-import type { DeliveryAddress } from "@/lib/delivery-utils";
+import { PickupLocationModal } from "./PickupLocationModal";
+import type { PickupLocation } from "@/lib/delivery-utils";
 
-// ─── Types ───
 interface StoreSettingsShape {
   name: string;
   slug: string;
@@ -49,11 +49,10 @@ interface StoreSettingsShape {
   longitude: number | null;
   whatsappNumber: string;
 
-  // Delivery
-  deliveryEnabled: boolean;
   localPickupEnabled: boolean;
-  localPickupAddress: string;
-  localPickupNotes: string;
+
+  deliveryEnabled: boolean;
+
   deliveryNotes: string;
 }
 
@@ -72,14 +71,12 @@ const DEFAULT_STORE: StoreSettingsShape = {
   longitude: null,
   whatsappNumber: "",
 
-  deliveryEnabled: false,
   localPickupEnabled: false,
-  localPickupAddress: "",
-  localPickupNotes: "",
+
+  deliveryEnabled: false,
   deliveryNotes: "",
 };
 
-// ─── Helper subcomponents ───
 function SectionCard({
   children,
   className,
@@ -183,7 +180,7 @@ function Toggle({
         disabled={disabled}
         className="sr-only peer"
       />
-      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#FDC020] transition-colors duration-200 relative">
+      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#F5B800] transition-colors duration-200 relative">
         <div
           className={cn(
             "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200",
@@ -195,14 +192,11 @@ function Toggle({
   );
 }
 
-// ────────────────────────────────────────────────────────────
-// MAIN COMPONENT
-// ────────────────────────────────────────────────────────────
 export function StoreSettings() {
   const { store: ctxStore, updateStore } = useStore();
 
   const [activeTab, setActiveTab] = useState<
-    "store-info" | "store-location" | "delivery"
+    "store-info" | "store-location" | "fulfillment"
   >("store-info");
 
   const [original, setOriginal] = useState<StoreSettingsShape | null>(null);
@@ -217,36 +211,29 @@ export function StoreSettings() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Delivery state
+  // Pickup locations
   const [storeId, setStoreId] = useState<string | null>(null);
-  const [addresses, setAddresses] = useState<DeliveryAddress[]>([]);
-  const [addressesLoading, setAddressesLoading] = useState(false);
-  const [addressModalOpen, setAddressModalOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<DeliveryAddress | null>(
+  const [locations, setLocations] = useState<PickupLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [pickupModalOpen, setPickupModalOpen] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<PickupLocation | null>(
     null,
   );
-  const [deletingAddressId, setDeletingAddressId] = useState<string | null>(
-    null,
-  );
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Fetch current settings ───
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch("/api/store/settings", {
-          cache: "no-store",
-        });
+        const res = await fetch("/api/store/settings", { cache: "no-store" });
         const data = await res.json();
-
-        if (!res.ok) {
+        if (!res.ok)
           throw new Error(data.error || "Failed to load store settings");
-        }
-
         const s = data.store;
+
         const shape: StoreSettingsShape = {
           name: s.name || "",
           slug: s.slug || "",
@@ -262,10 +249,9 @@ export function StoreSettings() {
           longitude: s.longitude ?? null,
           whatsappNumber: s.whatsapp_number || "",
 
-          deliveryEnabled: s.delivery_enabled === true,
           localPickupEnabled: s.local_pickup_enabled === true,
-          localPickupAddress: s.local_pickup_address || "",
-          localPickupNotes: s.local_pickup_notes || "",
+
+          deliveryEnabled: s.delivery_enabled === true,
           deliveryNotes: s.delivery_notes || "",
         };
 
@@ -287,30 +273,28 @@ export function StoreSettings() {
     };
   }, []);
 
-  // ─── Load delivery addresses once store id is known ───
-  const loadAddresses = useCallback(async () => {
+  const loadLocations = useCallback(async () => {
     if (!storeId) return;
-    setAddressesLoading(true);
+    setLocationsLoading(true);
     try {
       const res = await fetch(
-        `/api/store/delivery-addresses?storeId=${storeId}`,
+        `/api/store/pickup-locations?storeId=${storeId}`,
         { cache: "no-store" },
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load addresses");
-      setAddresses(data.addresses ?? []);
+      if (!res.ok) throw new Error(data.error || "Failed to load locations");
+      setLocations(data.locations ?? []);
     } catch (err: any) {
-      toast.error(err.message || "Failed to load delivery addresses");
+      toast.error(err.message || "Failed to load pickup locations");
     } finally {
-      setAddressesLoading(false);
+      setLocationsLoading(false);
     }
   }, [storeId]);
 
   useEffect(() => {
-    if (storeId) loadAddresses();
-  }, [storeId, loadAddresses]);
+    if (storeId) loadLocations();
+  }, [storeId, loadLocations]);
 
-  // ─── Dirty check ───
   const isDirty = useMemo(() => {
     if (!original) return false;
     return (
@@ -325,17 +309,14 @@ export function StoreSettings() {
       original.latitude !== form.latitude ||
       original.longitude !== form.longitude ||
       original.whatsappNumber !== form.whatsappNumber ||
-      original.deliveryEnabled !== form.deliveryEnabled ||
       original.localPickupEnabled !== form.localPickupEnabled ||
-      original.localPickupAddress !== form.localPickupAddress ||
-      original.localPickupNotes !== form.localPickupNotes ||
+      original.deliveryEnabled !== form.deliveryEnabled ||
       original.deliveryNotes !== form.deliveryNotes ||
       original.keywords.join("|").toLowerCase() !==
         form.keywords.join("|").toLowerCase()
     );
   }, [original, form]);
 
-  // ─── Field setters ───
   const setField = useCallback(
     <K extends keyof StoreSettingsShape>(
       key: K,
@@ -385,7 +366,6 @@ export function StoreSettings() {
     [setField],
   );
 
-  // ─── Copy slug ───
   const copySlug = useCallback(async () => {
     if (!form.slug) return;
     const url =
@@ -402,12 +382,10 @@ export function StoreSettings() {
     }
   }, [form.slug]);
 
-  // ─── Logo upload ───
   const handleLogoSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-
       if (!file.type.startsWith("image/")) {
         toast.error("Please choose an image file");
         return;
@@ -416,22 +394,16 @@ export function StoreSettings() {
         toast.error("Image must be under 3 MB");
         return;
       }
-
       setUploadingLogo(true);
       try {
         const fd = new FormData();
         fd.append("file", file);
-
         const res = await fetch("/api/store/upload-logo", {
           method: "POST",
           body: fd,
         });
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || "Upload failed");
-        }
-
+        if (!res.ok) throw new Error(data.error || "Upload failed");
         setField("logoUrl", data.url);
         toast.success("Logo uploaded");
       } catch (err: any) {
@@ -444,21 +416,16 @@ export function StoreSettings() {
     [setField],
   );
 
-  const removeLogo = useCallback(() => {
-    setField("logoUrl", null);
-  }, [setField]);
+  const removeLogo = useCallback(() => setField("logoUrl", null), [setField]);
 
-  // ─── Location capture ───
   const requestLocation = useCallback(async (): Promise<{
     latitude: number;
     longitude: number;
   } | null> => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setLocationError("Geolocation is not supported on this device.");
-      toast.error("Geolocation not supported");
       return null;
     }
-
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -471,8 +438,7 @@ export function StoreSettings() {
         (err) => {
           let msg = "Could not get your location.";
           if (err.code === err.PERMISSION_DENIED)
-            msg =
-              "Location permission denied. Enable it in your browser settings.";
+            msg = "Location permission denied.";
           else if (err.code === err.POSITION_UNAVAILABLE)
             msg = "Location information is unavailable.";
           else if (err.code === err.TIMEOUT)
@@ -498,7 +464,6 @@ export function StoreSettings() {
         setLocationError(null);
         return;
       }
-
       setLocationLoading(true);
       try {
         const coords = await requestLocation();
@@ -520,57 +485,57 @@ export function StoreSettings() {
     [requestLocation],
   );
 
-  // ─── Delivery address actions ───
-  const openAddAddress = () => {
-    setEditingAddress(null);
-    setAddressModalOpen(true);
+  const openAddLocation = () => {
+    setEditingLocation(null);
+    setPickupModalOpen(true);
   };
 
-  const openEditAddress = (addr: DeliveryAddress) => {
-    setEditingAddress(addr);
-    setAddressModalOpen(true);
+  const openEditLocation = (loc: PickupLocation) => {
+    setEditingLocation(loc);
+    setPickupModalOpen(true);
   };
 
-  const handleDeleteAddress = async (addr: DeliveryAddress) => {
-    setDeletingAddressId(addr.id);
+  const handleDeleteLocation = async (loc: PickupLocation) => {
+    setDeletingId(loc.id);
     try {
-      const res = await fetch(`/api/store/delivery-addresses/${addr.id}`, {
+      const res = await fetch(`/api/store/pickup-locations/${loc.id}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete");
-      toast.success(`Deleted "${addr.label}"`);
-      await loadAddresses();
+      toast.success(`Deleted "${loc.label}"`);
+      await loadLocations();
     } catch (err: any) {
-      toast.error(err.message || "Failed to delete address");
+      toast.error(err.message || "Failed to delete location");
     } finally {
-      setDeletingAddressId(null);
+      setDeletingId(null);
     }
   };
 
-  const handleSetDefaultAddress = async (addr: DeliveryAddress) => {
+  const handleSetDefault = async (loc: PickupLocation) => {
     try {
-      const res = await fetch("/api/store/delivery-addresses/set-default", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: addr.id }),
-      });
+      const res = await fetch(
+        `/api/store/pickup-locations/${loc.id}/set-default`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: loc.id }),
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to set default");
-      toast.success(`"${addr.label}" is now the default`);
-      await loadAddresses();
+      toast.success(`"${loc.label}" is now the default`);
+      await loadLocations();
     } catch (err: any) {
       toast.error(err.message || "Failed to set default");
     }
   };
 
-  // ─── Validation ───
   const validate = useCallback((): boolean => {
     const errs: Record<string, string> = {};
 
     if (!form.name.trim() || form.name.trim().length < 2)
       errs.name = "Store name must be at least 2 characters";
-
     if (!form.state.trim()) errs.state = "State is required";
     if (!form.city.trim()) errs.city = "City is required";
     if (!form.streetAddress.trim())
@@ -584,23 +549,20 @@ export function StoreSettings() {
       }
     }
 
+    
     setErrors(errs);
-
     if (Object.keys(errs).length > 0) {
       const first = Object.values(errs)[0];
       toast.error("Please fix the errors", { description: first });
-
-      // Auto-jump to the offending tab
       if (errs.name || errs.whatsappNumber) setActiveTab("store-info");
       else if (errs.state || errs.city || errs.streetAddress)
         setActiveTab("store-location");
-
+      else setActiveTab("fulfillment");
       return false;
     }
     return true;
   }, [form]);
 
-  // ─── Save ───
   const handleSave = useCallback(async () => {
     if (saving) return;
     if (!isDirty) {
@@ -628,20 +590,15 @@ export function StoreSettings() {
           longitude: form.locationEnabled ? form.longitude : null,
           whatsappNumber: form.whatsappNumber.trim() || null,
 
-          // Delivery fields
-          deliveryEnabled: form.deliveryEnabled,
           localPickupEnabled: form.localPickupEnabled,
-          localPickupAddress: form.localPickupAddress.trim() || null,
-          localPickupNotes: form.localPickupNotes.trim() || null,
+
+          deliveryEnabled: form.deliveryEnabled,
           deliveryNotes: form.deliveryNotes.trim() || null,
         }),
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to save settings");
-      }
+      if (!res.ok) throw new Error(data.error || "Failed to save settings");
 
       await updateStore({
         name: data.store.name,
@@ -660,9 +617,7 @@ export function StoreSettings() {
         name: data.store.name,
         slug: data.store.slug,
         description: data.store.description,
-        keywords: Array.isArray(data.store.keywords)
-          ? data.store.keywords
-          : [],
+        keywords: Array.isArray(data.store.keywords) ? data.store.keywords : [],
         logoUrl: data.store.logo_url || null,
         country: data.store.country,
         state: data.store.state,
@@ -673,10 +628,10 @@ export function StoreSettings() {
         longitude: data.store.longitude ?? null,
         whatsappNumber: data.store.whatsapp_number || "",
 
-        deliveryEnabled: data.store.delivery_enabled === true,
         localPickupEnabled: data.store.local_pickup_enabled === true,
-        localPickupAddress: data.store.local_pickup_address || "",
-        localPickupNotes: data.store.local_pickup_notes || "",
+
+        deliveryEnabled: data.store.delivery_enabled === true,
+    
         deliveryNotes: data.store.delivery_notes || "",
       };
 
@@ -690,22 +645,20 @@ export function StoreSettings() {
     }
   }, [form, isDirty, saving, validate, updateStore]);
 
-  // ─── Loading state ───
   if (loading) {
     return (
       <div className="max-w-4xl space-y-6">
         <div className="h-14 rounded-2xl border border-border bg-card animate-pulse" />
-        <div className="h-64 rounded-[2rem] border border-border bg-card animate-pulse" />
         <div className="h-64 rounded-[2rem] border border-border bg-card animate-pulse" />
       </div>
     );
   }
 
   const keywordsInput = form.keywords.join(", ");
+  const activePickupCount = locations.filter((l) => l.is_active).length;
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* ─────────── Tabs ─────────── */}
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as any)}
@@ -714,37 +667,35 @@ export function StoreSettings() {
         <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted p-1 h-auto">
           <TabsTrigger
             value="store-info"
-            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card"
           >
             <StoreIcon className="size-4 mr-2" />
             Store Info
           </TabsTrigger>
           <TabsTrigger
             value="store-location"
-            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card"
           >
             <MapPin className="size-4 mr-2" />
             Store Location
           </TabsTrigger>
           <TabsTrigger
-            value="delivery"
-            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+            value="fulfillment"
+            className="rounded-xl py-3 text-sm font-bold data-[state=active]:bg-card"
           >
             <Truck className="size-4 mr-2" />
-            Delivery
+            Fulfillment
           </TabsTrigger>
         </TabsList>
 
         {/* ═══════════ TAB: STORE INFO ═══════════ */}
         <TabsContent value="store-info" className="mt-6 space-y-6">
-          {/* ─── Branding (Logo) ─── */}
           <SectionCard>
             <SectionHead
               icon={StoreIcon}
               title="Store Logo"
               copy="Your logo appears on your storefront, receipts, and shared links."
             />
-
             <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-center">
               <div className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border border-border bg-muted/30">
                 {form.logoUrl ? (
@@ -757,7 +708,6 @@ export function StoreSettings() {
                   <StoreIcon className="size-9 text-muted-foreground/50" />
                 )}
               </div>
-
               <div className="flex-1 min-w-0 space-y-3">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -777,7 +727,6 @@ export function StoreSettings() {
                         ? "Replace logo"
                         : "Upload logo"}
                   </button>
-
                   {form.logoUrl && !uploadingLogo && (
                     <button
                       type="button"
@@ -788,7 +737,6 @@ export function StoreSettings() {
                     </button>
                   )}
                 </div>
-
                 <input
                   ref={logoInputRef}
                   type="file"
@@ -796,26 +744,23 @@ export function StoreSettings() {
                   onChange={handleLogoSelect}
                   className="hidden"
                 />
-
                 <p className="text-xs text-muted-foreground">
-                  PNG, JPG, WebP, or GIF · up to 3 MB. Square images work best.
+                  PNG, JPG, WebP, or GIF · up to 3 MB. Square works best.
                 </p>
               </div>
             </div>
           </SectionCard>
 
-          {/* ─── Store Information ─── */}
           <SectionCard>
             <SectionHead
               icon={StoreIcon}
               title="Store Information"
-              copy="The public name, URL, description, and keywords used to describe your store."
+              copy="The public name, URL, description, and keywords."
             />
-
             <div className="mt-8 space-y-7">
               <Field
                 label="Store Name"
-                hint="The public name of your store. Shown on your storefront, receipts and payment links."
+                hint="Shown on your storefront, receipts and payment links."
                 required
                 error={errors.name}
                 htmlFor="name"
@@ -828,7 +773,7 @@ export function StoreSettings() {
                   placeholder="e.g., Juice Hub"
                   disabled={saving}
                   className={cn(
-                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
                     errors.name ? "border-destructive" : "border-border",
                   )}
                 />
@@ -836,7 +781,7 @@ export function StoreSettings() {
 
               <Field
                 label="Store URL"
-                hint="Your store's public web address. This can't be changed after activation — changing it would break existing product links."
+                hint="Can't be changed after activation."
               >
                 <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
                   <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
@@ -847,13 +792,13 @@ export function StoreSettings() {
                     value={form.slug}
                     readOnly
                     disabled
-                    className="flex-1 min-w-0 bg-transparent px-3 py-3.5 text-[15px] font-semibold text-foreground cursor-not-allowed"
+                    className="flex-1 min-w-0 bg-transparent px-3 py-3.5 text-[15px] font-semibold cursor-not-allowed"
                   />
                   <button
                     type="button"
                     onClick={copySlug}
                     aria-label="Copy store URL"
-                    className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border hover:bg-muted transition-colors"
+                    className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border hover:bg-muted"
                   >
                     {copiedSlug ? (
                       <Check className="size-4 text-green-600" />
@@ -866,13 +811,13 @@ export function StoreSettings() {
 
               <Field
                 label="Store Description"
-                hint="Describe your business and what you sell. Appears on your public storefront and in search results."
+                hint="Appears on your storefront and in search results."
                 htmlFor="description"
               >
                 <RichTextArea
                   value={form.description}
                   onChange={handleDescription}
-                  placeholder="Describe what your business is all about to potential customers..."
+                  placeholder="Describe what your business is all about..."
                   minHeight="160px"
                   maxHeight="320px"
                 />
@@ -880,7 +825,7 @@ export function StoreSettings() {
 
               <Field
                 label="Keywords / Phrases"
-                hint="Comma-separated words or phrases people would search to find a business like yours. These power your store's SEO — every product page inherits them."
+                hint="Comma-separated. Powers your store's SEO."
                 htmlFor="keywords"
               >
                 <Input
@@ -890,7 +835,7 @@ export function StoreSettings() {
                   onBlur={(e) => handleKeywordsBlur(e.target.value)}
                   placeholder="phones, iphones, samsung, phone repairs"
                   disabled={saving}
-                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
+                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background"
                 />
                 {form.keywords.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
@@ -921,18 +866,16 @@ export function StoreSettings() {
             </div>
           </SectionCard>
 
-          {/* ─── WhatsApp Contact ─── */}
           <SectionCard>
             <SectionHead
               icon={MessageCircle}
               title="WhatsApp Contact"
-              copy="Buyers can reach you on WhatsApp from your product pages. Toggle it on or off per product."
+              copy="Buyers can reach you on WhatsApp from your product pages."
             />
-
             <div className="mt-8 space-y-4">
               <Field
                 label="WhatsApp Number"
-                hint="Include your country code, no spaces or symbols. Example: 2348012345678 for Nigeria."
+                hint="Include country code, no spaces. Example: 2348012345678"
                 error={errors.whatsappNumber}
                 htmlFor="whatsappNumber"
               >
@@ -950,23 +893,13 @@ export function StoreSettings() {
                   placeholder="2348012345678"
                   disabled={saving}
                   className={cn(
-                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
                     errors.whatsappNumber
                       ? "border-destructive"
                       : "border-border",
                   )}
                 />
               </Field>
-
-              {form.whatsappNumber && (
-                <p className="text-xs text-muted-foreground">
-                  Buyers will open WhatsApp with this number when they tap{" "}
-                  <strong className="text-foreground">
-                    Contact store owner
-                  </strong>{" "}
-                  on a product page.
-                </p>
-              )}
             </div>
           </SectionCard>
         </TabsContent>
@@ -977,13 +910,12 @@ export function StoreSettings() {
             <SectionHead
               icon={MapPin}
               title="Location"
-              copy="Where is your store based? This helps with local search, delivery estimates and customer trust."
+              copy="Where is your store based? Helps with local search and trust."
             />
-
             <div className="mt-8 space-y-7">
               <Field
                 label="Country"
-                hint="The country where your business is registered and operates."
+                hint="Where your business is registered and operates."
                 htmlFor="country"
               >
                 <select
@@ -992,7 +924,7 @@ export function StoreSettings() {
                   value={form.country}
                   onChange={handleInput}
                   disabled={saving}
-                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors"
+                  className="w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border border-border bg-background"
                 >
                   <option value="Nigeria">Nigeria</option>
                   <option value="Ghana">Ghana</option>
@@ -1006,7 +938,7 @@ export function StoreSettings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-7">
                 <Field
                   label="State"
-                  hint="The state or region your business operates from."
+                  hint="The state or region you operate from."
                   required
                   error={errors.state}
                   htmlFor="state"
@@ -1019,12 +951,11 @@ export function StoreSettings() {
                     placeholder="e.g., Lagos"
                     disabled={saving}
                     className={cn(
-                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
                       errors.state ? "border-destructive" : "border-border",
                     )}
                   />
                 </Field>
-
                 <Field
                   label="City"
                   hint="The city or town your store is based in."
@@ -1040,7 +971,7 @@ export function StoreSettings() {
                     placeholder="e.g., Ikeja"
                     disabled={saving}
                     className={cn(
-                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                      "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
                       errors.city ? "border-destructive" : "border-border",
                     )}
                   />
@@ -1049,7 +980,7 @@ export function StoreSettings() {
 
               <Field
                 label="Street Address"
-                hint="Where you operate from. Helps with local search, delivery estimates and customer trust."
+                hint="Where you operate from."
                 required
                 error={errors.streetAddress}
                 htmlFor="streetAddress"
@@ -1062,7 +993,7 @@ export function StoreSettings() {
                   placeholder="e.g., 123 Main Street"
                   disabled={saving}
                   className={cn(
-                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors",
+                    "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
                     errors.streetAddress
                       ? "border-destructive"
                       : "border-border",
@@ -1070,7 +1001,6 @@ export function StoreSettings() {
                 />
               </Field>
 
-              {/* Precise location toggle */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -1080,24 +1010,20 @@ export function StoreSettings() {
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Used for local search and delivery matching on your public
-                    storefront.
+                    Used for local search on your public storefront.
                   </p>
-
                   {form.latitude != null && form.longitude != null && (
                     <p className="text-xs text-green-600 dark:text-green-400 mt-2 break-all font-medium">
                       Captured: {form.latitude.toFixed(5)},{" "}
                       {form.longitude.toFixed(5)}
                     </p>
                   )}
-
                   {locationError && (
                     <p className="text-xs text-destructive mt-2 font-medium">
                       {locationError}
                     </p>
                   )}
                 </div>
-
                 <Toggle
                   checked={form.locationEnabled}
                   onChange={handleLocationToggle}
@@ -1108,41 +1034,28 @@ export function StoreSettings() {
           </SectionCard>
         </TabsContent>
 
-        {/* ═══════════ TAB: DELIVERY ═══════════ */}
-        <TabsContent value="delivery" className="mt-6 space-y-6">
+        {/* ═══════════ TAB: FULFILLMENT ═══════════ */}
+        <TabsContent value="fulfillment" className="mt-6 space-y-6">
           <SectionCard>
             <SectionHead
               icon={Truck}
-              title="Delivery"
-              copy="Configure how customers receive physical products. Add delivery addresses and pickup options — customers will select from these at checkout."
+              title="Fulfillment"
+              copy="How customers receive their orders. Enable pickup, delivery, or both."
             />
 
             <div className="mt-8 space-y-6">
-              {/* Master toggles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-start justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
+              {/* ── Pickup ── */}
+              <div className="rounded-[1.5rem] border border-border overflow-hidden">
+                <div className="flex items-start justify-between gap-3 p-5 bg-muted/20">
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-foreground">
-                      Enable Delivery
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Store className="size-4 text-muted-foreground" />
+                      <p className="font-bold text-sm text-foreground">
+                        Enable Pickup
+                      </p>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Customers choose a delivery address at checkout.
-                    </p>
-                  </div>
-                  <Toggle
-                    checked={form.deliveryEnabled}
-                    onChange={(v) => setField("deliveryEnabled", v)}
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="flex items-start justify-between gap-3 p-5 rounded-[1.5rem] bg-muted/30 border border-border">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-foreground">
-                      Enable Local Pickup
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Let customers pick up from your location.
+                      Let customers pick up from one of your locations.
                     </p>
                   </div>
                   <Toggle
@@ -1151,55 +1064,51 @@ export function StoreSettings() {
                     disabled={saving}
                   />
                 </div>
-              </div>
 
-              {/* Delivery addresses */}
-              {form.deliveryEnabled && (
-                <div className="rounded-[1.5rem] border border-border overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 p-5 border-b border-border bg-muted/20">
-                    <div className="min-w-0">
-                      <p className="font-bold text-sm text-foreground">
-                        Delivery Addresses
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Customers will select one of these at checkout.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={openAddAddress}
-                      disabled={saving || !storeId}
-                      className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
-                    >
-                      <Plus className="size-4" />
-                      Add Address
-                    </button>
-                  </div>
-
-                  <div className="p-5">
-                    {addressesLoading ? (
-                      <div className="space-y-3">
-                        <div className="h-20 rounded-2xl bg-muted animate-pulse" />
-                        <div className="h-20 rounded-2xl bg-muted animate-pulse" />
+                {form.localPickupEnabled && (
+                  <div className="p-5 border-t border-border space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-bold text-sm text-foreground">
+                          Pickup Locations
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Customers will choose one at checkout.
+                        </p>
                       </div>
-                    ) : addresses.length === 0 ? (
-                      <div className="rounded-2xl border-2 border-dashed border-border py-12 text-center">
-                        <Truck className="mx-auto size-8 text-muted-foreground/40" />
+                      <button
+                        type="button"
+                        onClick={openAddLocation}
+                        disabled={saving || !storeId}
+                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#F5B800] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+                      >
+                        <Plus className="size-4" />
+                        Add Location
+                      </button>
+                    </div>
+
+                    {locationsLoading ? (
+                      <div className="space-y-3">
+                        <div className="h-24 rounded-2xl bg-muted animate-pulse" />
+                      </div>
+                    ) : locations.length === 0 ? (
+                      <div className="rounded-2xl border-2 border-dashed border-border py-10 text-center">
+                        <Store className="mx-auto size-8 text-muted-foreground/40" />
                         <p className="mt-3 text-sm font-medium text-foreground">
-                          No delivery addresses yet
+                          No pickup locations yet
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Add your first one so customers can order.
+                          Add one so customers can choose where to pick up.
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {addresses.map((addr) => (
+                        {locations.map((loc) => (
                           <div
-                            key={addr.id}
+                            key={loc.id}
                             className={cn(
-                              "rounded-2xl border p-4 flex items-start justify-between gap-4 transition-colors",
-                              addr.is_active
+                              "rounded-2xl border p-4 flex items-start justify-between gap-4",
+                              loc.is_active
                                 ? "border-border bg-background"
                                 : "border-border bg-muted/20 opacity-70",
                             )}
@@ -1207,48 +1116,47 @@ export function StoreSettings() {
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 mb-1">
                                 <span className="font-bold text-sm text-foreground">
-                                  {addr.label}
+                                  {loc.label}
                                 </span>
-                                {addr.is_default && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                                {loc.is_default && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F5B800]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                                     <Star className="size-3" /> Default
                                   </span>
                                 )}
-                                {!addr.is_active && (
+                                {!loc.is_active && (
                                   <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                                     Inactive
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground">
-                                {addr.contact_name} · {addr.contact_phone}
-                              </p>
                               <p className="text-xs text-muted-foreground mt-0.5 break-words">
-                                {addr.street_address}, {addr.city},{" "}
-                                {addr.state}
+                                {loc.address}
                               </p>
-                              <p className="text-xs font-medium text-foreground/70 mt-1.5">
-                                ₦{Number(addr.delivery_fee).toLocaleString()} ·
-                                ~{addr.estimated_days} day
-                                {addr.estimated_days === 1 ? "" : "s"}
-                              </p>
+                              {loc.notes && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {loc.notes}
+                                </p>
+                              )}
+                              {loc.phone && (
+                                <p className="text-xs font-medium text-foreground/70 mt-1">
+                                  📞 {loc.phone}
+                                </p>
+                              )}
                             </div>
 
                             <div className="flex flex-col gap-1 shrink-0">
                               <button
                                 type="button"
-                                onClick={() => openEditAddress(addr)}
+                                onClick={() => openEditLocation(loc)}
                                 disabled={saving}
                                 className="text-xs font-bold text-foreground underline underline-offset-2 hover:no-underline disabled:opacity-50"
                               >
                                 Edit
                               </button>
-                              {!addr.is_default && addr.is_active && (
+                              {!loc.is_default && loc.is_active && (
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    handleSetDefaultAddress(addr)
-                                  }
+                                  onClick={() => handleSetDefault(loc)}
                                   disabled={saving}
                                   className="text-xs font-bold text-foreground/70 hover:text-foreground disabled:opacity-50"
                                 >
@@ -1257,13 +1165,11 @@ export function StoreSettings() {
                               )}
                               <button
                                 type="button"
-                                onClick={() => handleDeleteAddress(addr)}
-                                disabled={
-                                  saving || deletingAddressId === addr.id
-                                }
+                                onClick={() => handleDeleteLocation(loc)}
+                                disabled={saving || deletingId === loc.id}
                                 className="inline-flex items-center gap-1 text-xs font-bold text-destructive hover:opacity-80 disabled:opacity-50"
                               >
-                                {deletingAddressId === addr.id ? (
+                                {deletingId === loc.id ? (
                                   <Loader2 className="size-3 animate-spin" />
                                 ) : (
                                   <Trash2 className="size-3" />
@@ -1275,81 +1181,72 @@ export function StoreSettings() {
                         ))}
                       </div>
                     )}
+
+                    {form.localPickupEnabled &&
+                      !locationsLoading &&
+                      locations.length === 0 && (
+                        <p className="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-3">
+                          ⚠️ Pickup is enabled but you haven't added any
+                          locations. Customers won't be able to choose pickup at
+                          checkout until you add at least one.
+                        </p>
+                      )}
                   </div>
-                </div>
-              )}
-
-              {/* Pickup config */}
-              {form.localPickupEnabled && (
-                <div className="rounded-[1.5rem] border border-border p-5 space-y-4">
-                  <p className="font-bold text-sm text-foreground">
-                    Local Pickup Details
-                  </p>
-
-                  <Field
-                    label="Pickup Address"
-                    hint="Where should customers come to collect their order?"
-                  >
-                    <textarea
-                      value={form.localPickupAddress}
-                      onChange={(e) =>
-                        setField("localPickupAddress", e.target.value)
-                      }
-                      rows={2}
-                      disabled={saving}
-                      placeholder="e.g., 25 Commissioner Road, Kano, Kano State"
-                      className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
-                    />
-                  </Field>
-
-                  <Field
-                    label="Pickup Notes"
-                    hint="Hours, entry instructions, or anything the customer should know."
-                  >
-                    <textarea
-                      value={form.localPickupNotes}
-                      onChange={(e) =>
-                        setField("localPickupNotes", e.target.value)
-                      }
-                      rows={2}
-                      disabled={saving}
-                      placeholder="e.g., Open Mon-Sat 9am-6pm. Ask for John at reception."
-                      className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {/* Global delivery notes */}
-              <Field
-                label="Delivery Notes (shown to customers)"
-                hint="Optional message about delivery timing, coverage, or policies. Appears at checkout."
-              >
-                <textarea
-                  value={form.deliveryNotes}
-                  onChange={(e) => setField("deliveryNotes", e.target.value)}
-                  rows={2}
-                  disabled={saving}
-                  placeholder="e.g., We deliver within 3-5 business days across Nigeria."
-                  className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background text-foreground focus:outline-none focus:border-foreground transition-colors resize-none"
-                />
-              </Field>
-
-              {form.deliveryEnabled &&
-                !addressesLoading &&
-                addresses.length === 0 && (
-                  <p className="text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-2xl p-3">
-                    ⚠️ Delivery is enabled but you haven't added any addresses.
-                    Customers won't be able to complete delivery orders until
-                    you add at least one.
-                  </p>
                 )}
+              </div>
+
+              {/* ── Delivery ── */}
+              <div className="rounded-[1.5rem] border border-border overflow-hidden">
+                <div className="flex items-start justify-between gap-3 p-5 bg-muted/20">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Truck className="size-4 text-muted-foreground" />
+                      <p className="font-bold text-sm text-foreground">
+                        Enable Delivery
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Customers choose a delivery zone at checkout.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={form.deliveryEnabled}
+                    onChange={(v) => setField("deliveryEnabled", v)}
+                    disabled={saving}
+                  />
+                </div>
+
+                {form.deliveryEnabled && (
+                  <div className="p-5 border-t border-border space-y-4">
+                    <DeliveryZoneList
+                      storeId={storeId ?? ""}
+                      disabled={saving}
+                    />
+
+                    <Field
+                      label="Delivery Notes (optional)"
+                      hint="Shown at checkout. E.g. delivery time, coverage."
+                    >
+                      <textarea
+                        value={form.deliveryNotes}
+                        onChange={(e) =>
+                          setField("deliveryNotes", e.target.value)
+                        }
+                        rows={2}
+                        disabled={saving}
+                        placeholder="e.g., We deliver within 3–5 business days across Nigeria."
+                        className="w-full px-4 py-3 text-sm font-medium rounded-2xl border border-border bg-background resize-none"
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
             </div>
           </SectionCard>
         </TabsContent>
       </Tabs>
 
-      {/* ─────────── Save Bar (always visible) ─────────── */}
+      {/* Save bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[2rem] border border-border bg-card p-6">
         <p className="text-sm text-muted-foreground">
           {isDirty ? "You have unsaved changes." : "All changes are saved."}
@@ -1362,7 +1259,7 @@ export function StoreSettings() {
             "inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-colors",
             saving || !isDirty
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#FDC020] text-black hover:bg-[#eab308]",
+              : "bg-[#F5B800] text-black hover:bg-[#eab308]",
           )}
         >
           {saving ? (
@@ -1377,14 +1274,13 @@ export function StoreSettings() {
         </button>
       </div>
 
-      {/* Delivery address modal */}
-      {addressModalOpen && storeId && (
-        <DeliveryAddressModal
-          open={addressModalOpen}
-          onClose={() => setAddressModalOpen(false)}
-          onSaved={loadAddresses}
+      {pickupModalOpen && storeId && (
+        <PickupLocationModal
+          open={pickupModalOpen}
+          onClose={() => setPickupModalOpen(false)}
+          onSaved={loadLocations}
           storeId={storeId}
-          address={editingAddress}
+          location={editingLocation}
         />
       )}
     </div>

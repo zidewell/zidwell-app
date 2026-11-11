@@ -13,33 +13,15 @@ const MAX_DESCRIPTION = 5000;
 const MAX_KEYWORDS = 20;
 const MAX_KEYWORD_LEN = 40;
 
-// Columns the GET endpoint returns. Kept in one place so GET + PUT
-// stay in sync and we never forget to add a new column in two spots.
 const STORE_SELECT_COLUMNS = [
-  "id",
-  "name",
-  "slug",
-  "description",
-  "keywords",
-  "logo_url",
-  "cover_url",
-  "cac_number",
-  "country",
-  "state",
-  "city",
-  "street_address",
-  "location_enabled",
-  "latitude",
-  "longitude",
-  "whatsapp_number",
-  "is_active",
-  "activation_paid",
-  // ✅ Delivery columns
-  "delivery_enabled",
-  "local_pickup_enabled",
-  "local_pickup_address",
-  "local_pickup_notes",
-  "delivery_notes",
+  "id", "name", "slug", "description", "keywords",
+  "logo_url", "cover_url", "cac_number",
+  "country", "state", "city", "street_address",
+  "location_enabled", "latitude", "longitude",
+  "whatsapp_number", "is_active", "activation_paid",
+  // Fulfillment columns
+  "local_pickup_enabled", "local_pickup_address", "local_pickup_notes",
+  "delivery_enabled", "delivery_fee", "delivery_free_threshold", "delivery_notes",
 ].join(", ");
 
 function normalizeKeywords(input: unknown): string[] {
@@ -62,26 +44,27 @@ function normalizeKeywords(input: unknown): string[] {
 function normalizeWhatsappNumber(input: unknown): string | null | undefined {
   if (input === null) return null;
   if (typeof input !== "string") return undefined;
-
   const digits = input.replace(/\D/g, "").trim();
-
   if (digits.length === 0) return null;
-
   if (digits.length < 7 || digits.length > 15) {
     throw new Error("WhatsApp number must be 7–15 digits (with country code)");
   }
-
   return digits;
 }
 
-// ─── GET /api/store/settings ───
+function normalizeMoney(input: unknown): number | undefined {
+  if (input === null || input === undefined) return undefined;
+  const n = Number(input);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return Math.round(n * 100) / 100;
+}
+
 export async function GET(request: Request) {
   try {
     const { user } = await isAuthenticatedWithRefresh(request as any);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const { data: store, error } = await supabase
       .from("online_stores")
       .select(STORE_SELECT_COLUMNS)
@@ -91,7 +74,6 @@ export async function GET(request: Request) {
     if (error || !store) {
       return NextResponse.json({ error: "Store not found" }, { status: 404 });
     }
-
     return NextResponse.json({ success: true, store });
   } catch (err: any) {
     console.error("Store settings GET error:", err);
@@ -102,7 +84,6 @@ export async function GET(request: Request) {
   }
 }
 
-// ─── PUT /api/store/settings ───
 export async function PUT(request: Request) {
   try {
     const { user } = await isAuthenticatedWithRefresh(request as any);
@@ -112,7 +93,6 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
 
-    // Verify ownership
     const { data: existing, error: fetchError } = await supabase
       .from("online_stores")
       .select("id")
@@ -123,27 +103,19 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Store not found" }, { status: 404 });
     }
 
-    // ─── Validate + collect allowed updates only ───
     const updates: Record<string, any> = {};
 
-    // ── Store info ──
+    // Store info
     if (typeof body.name === "string") {
       const name = body.name.trim();
-      if (name.length < 2) {
+      if (name.length < 2 || name.length > MAX_NAME) {
         return NextResponse.json(
-          { error: "Store name must be at least 2 characters" },
-          { status: 400 },
-        );
-      }
-      if (name.length > MAX_NAME) {
-        return NextResponse.json(
-          { error: `Store name must be at most ${MAX_NAME} characters` },
+          { error: `Store name must be 2–${MAX_NAME} characters` },
           { status: 400 },
         );
       }
       updates.name = name;
     }
-
     if (typeof body.description === "string") {
       if (body.description.length > MAX_DESCRIPTION) {
         return NextResponse.json(
@@ -153,34 +125,26 @@ export async function PUT(request: Request) {
       }
       updates.description = body.description;
     }
-
     if (body.keywords !== undefined) {
       updates.keywords = normalizeKeywords(body.keywords);
     }
-
     if (typeof body.logoUrl === "string" || body.logoUrl === null) {
       updates.logo_url = body.logoUrl;
     }
 
-    // ── Location ──
+    // Location
     if (typeof body.country === "string" && body.country.trim()) {
       updates.country = body.country.trim();
     }
     if (typeof body.state === "string") {
       if (!body.state.trim()) {
-        return NextResponse.json(
-          { error: "State is required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "State is required" }, { status: 400 });
       }
       updates.state = body.state.trim();
     }
     if (typeof body.city === "string") {
       if (!body.city.trim()) {
-        return NextResponse.json(
-          { error: "City is required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "City is required" }, { status: 400 });
       }
       updates.city = body.city.trim();
     }
@@ -193,11 +157,9 @@ export async function PUT(request: Request) {
       }
       updates.street_address = body.streetAddress.trim();
     }
-
     if (typeof body.locationEnabled === "boolean") {
       updates.location_enabled = body.locationEnabled;
     }
-
     if (body.latitude === null || typeof body.latitude === "number") {
       updates.latitude = body.latitude;
     }
@@ -205,7 +167,7 @@ export async function PUT(request: Request) {
       updates.longitude = body.longitude;
     }
 
-    // ── WhatsApp number ──
+    // WhatsApp
     try {
       const normalized = normalizeWhatsappNumber(body.whatsappNumber);
       if (normalized !== undefined) {
@@ -218,10 +180,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    // ── ✅ Delivery settings ──
-    if (typeof body.deliveryEnabled === "boolean") {
-      updates.delivery_enabled = body.deliveryEnabled;
-    }
+    // Pickup
     if (typeof body.localPickupEnabled === "boolean") {
       updates.local_pickup_enabled = body.localPickupEnabled;
     }
@@ -245,6 +204,31 @@ export async function PUT(request: Request) {
           : null;
       updates.local_pickup_notes = v || null;
     }
+
+    // Delivery
+    if (typeof body.deliveryEnabled === "boolean") {
+      updates.delivery_enabled = body.deliveryEnabled;
+    }
+    if (body.deliveryFee !== undefined) {
+      const v = normalizeMoney(body.deliveryFee);
+      if (v === undefined) {
+        return NextResponse.json(
+          { error: "Invalid delivery fee" },
+          { status: 400 },
+        );
+      }
+      updates.delivery_fee = v;
+    }
+    if (body.deliveryFreeThreshold !== undefined) {
+      const v = normalizeMoney(body.deliveryFreeThreshold);
+      if (v === undefined) {
+        return NextResponse.json(
+          { error: "Invalid free-delivery threshold" },
+          { status: 400 },
+        );
+      }
+      updates.delivery_free_threshold = v;
+    }
     if (typeof body.deliveryNotes === "string" || body.deliveryNotes === null) {
       const v =
         typeof body.deliveryNotes === "string"
@@ -260,7 +244,6 @@ export async function PUT(request: Request) {
       );
     }
 
-    // ─── Apply update, scoped by owner_id (never trust client id) ───
     const { data: updated, error: updateError } = await supabase
       .from("online_stores")
       .update(updates)

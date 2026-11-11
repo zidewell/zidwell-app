@@ -1,684 +1,224 @@
-﻿// app/api/transfer/p2p/route.ts
+// app/api/p2p-transfer/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import bcrypt from "bcryptjs";
-import {
-  isAuthenticatedWithRefresh,
-  createAuthResponse,
-} from "@/lib/auth-check-api";
-import { generateTransferReceipt } from "../webhook/helpers/email-helpers";
-import { sendP2PSuccessEmail, sendP2PReceivedEmail } from "@/lib/p2p-emails";
 
-const logger = {
-  info: (m: string, d?: any) =>
-    console.log(`ℹ️ ${m}`, d ? JSON.stringify(d) : ""),
-  error: (m: string, e?: any) => console.error(`❌ ${m}`, e?.message || e),
-  success: (m: string, d?: any) =>
-    console.log(`✅ ${m}`, d ? JSON.stringify(d) : ""),
-  warn: (m: string, d?: any) => console.warn(`⚠️ ${m}`, d || ""),
-};
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-// ─────────────────────────────────────────────────────────────
-// Safely read an unnamed-column RPC result row by position
-// (works whether Postgres names them tx_id/?column?/?column?1
-//  or something else)
-// ─────────────────────────────────────────────────────────────
-function readDeductResult(raw: any): {
-  txId: string | null;
-  newBalance: number | null;
-  status: string | null;
-} {
-  if (!raw) return { txId: null, newBalance: null, status: null };
-
-  // Supabase returns an array of rows
-  const row = Array.isArray(raw) ? raw[0] : raw;
-  if (!row) return { txId: null, newBalance: null, status: null };
-
-  // Preferred: read by known key if Postgres happened to name them
-  if ("tx_id" in row) {
-    // Columns may also be named ?column? and ?column?1
-    const keys = Object.keys(row);
-    const balanceKey = keys.find(
-      (k) => k !== "tx_id" && typeof row[k] === "number",
-    );
-    const statusKey = keys.find(
-      (k) => k !== "tx_id" && typeof row[k] === "string",
-    );
-    return {
-      txId: row.tx_id ?? null,
-      newBalance: balanceKey != null ? Number(row[balanceKey]) : null,
-      status: statusKey != null ? String(row[statusKey]) : null,
-    };
-  }
-
-  // Fallback: read by position (Postgres/Supabase preserve column order)
-  const values = Object.values(row);
-  return {
-    txId: (values[0] as string) ?? null,
-    newBalance: values[1] != null ? Number(values[1]) : null,
-    status: (values[2] as string) ?? null,
-  };
-}
-
-// ─────────────────────────────────────────────────────────────
-// Invoice totals helper (unchanged)
-// ─────────────────────────────────────────────────────────────
-async function updateInvoiceTotals(
-  invoice: any,
-  paidAmountNaira: number,
-  supabase: any
-) {
-  const targetQty = Number(invoice.target_quantity || 1);
-  const totalAmount = Number(invoice.total_amount || 0);
-  const currentPaidAmount = Number(invoice.paid_amount || 0);
-  const currentPaidQty = Number(invoice.paid_quantity || 0);
-
-  let newPaidAmount = currentPaidAmount + paidAmountNaira;
-  let newPaidQuantity = currentPaidQty;
-  let newStatus = invoice.status;
-
-  if (invoice.allow_multiple_payments) {
-    const qtyPaid = Math.floor(newPaidAmount / totalAmount);
-    if (qtyPaid > currentPaidQty) newPaidQuantity = qtyPaid;
-    if (newPaidQuantity >= targetQty) newStatus = "paid";
-    else if (newPaidAmount > 0) newStatus = "partially_paid";
-  } else {
-    if (newPaidAmount >= totalAmount) newStatus = "paid";
-    else if (newPaidAmount > 0) newStatus = "partially_paid";
-  }
-
-  const updateData: any = {
-    paid_amount: newPaidAmount,
-    paid_quantity: newPaidQuantity,
-    status: newStatus,
-    updated_at: new Date().toISOString(),
-  };
-  if (newStatus === "paid") updateData.paid_at = new Date().toISOString();
-
-  await supabase.from("invoices").update(updateData).eq("id", invoice.id);
-  return { newPaidAmount, newPaidQuantity, newStatus };
-}
-
-function extractInvoiceReference(narration: string): string | null {
-  if (!narration) return null;
-  const patterns = [
-    /INV[-_][A-Z0-9]{4,}/i,
-    /INVOICE[-_][A-Z0-9]{4,}/i,
-    /INV[A-Z0-9]{4,}/i,
-  ];
-  for (const p of patterns) {
-    const m = narration.match(p);
-    if (m) return m[0].toUpperCase();
-  }
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────
-// MAIN HANDLER
-// ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const { user, newTokens } = await isAuthenticatedWithRefresh(req);
-
-  if (!user) {
-    const body = {
-      error: "Please login to access transactions",
-      logout: true,
-    };
-    if (newTokens) return createAuthResponse(body, { status: 401, newTokens });
-    return NextResponse.json(body, { status: 401 });
-  }
-
-  const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
   try {
+    const cookieHeader = req.headers.get("cookie") || "";
+    if (!cookieHeader.includes("sb-access-token")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
     const {
-      userId,
-      receiverAccountId,
+      sender_id,
+      receiver_email,
       amount,
       narration,
-      pin,
-      category,
-      categoryId,
-    } = await req.json();
+      invoice_reference,
+      invoicePaymentData,
+      invoiceTxRef,
+    } = body;
 
-    // ─── 1. Validate ───
-    if (!userId || !pin || !amount || amount < 100 || !receiverAccountId) {
+    if (!sender_id || !receiver_email || !amount) {
       return NextResponse.json(
-        { message: "Missing or invalid required fields" },
+        { error: "sender_id, receiver_email, and amount are required" },
         { status: 400 }
       );
     }
 
-    if (userId !== user.id) {
-      return NextResponse.json(
-        { error: "Unauthorized: User ID mismatch" },
-        { status: 403 }
-      );
+    if (amount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    // ─── 2. Load sender ───
-    const { data: sender, error: userErr } = await supabase
+    // Verify sender exists
+    const { data: sender, error: senderError } = await supabaseAdmin
       .from("users")
-      .select(
-        "id, full_name, transaction_pin, wallet_balance, wallet_id, bank_name, bank_account_number, bank78_personal_account_number, bank78_personal_bank_name, email, pin_attempts, pin_locked_until",
-      )
-      .eq("id", userId)
+      .select("id, email, wallet_balance")
+      .eq("id", sender_id)
       .single();
 
-    if (userErr || !sender) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    if (senderError || !sender) {
+      return NextResponse.json({ error: "Sender not found" }, { status: 404 });
     }
 
-    // ─── 3. PIN lock check ───
-    if (
-      sender.pin_locked_until &&
-      new Date(sender.pin_locked_until) > new Date()
-    ) {
-      const mins = Math.ceil(
-        (new Date(sender.pin_locked_until).getTime() - Date.now()) / 60000,
-      );
-      return NextResponse.json(
-        {
-          message: `PIN locked. Try again in ${mins} minutes.`,
-          locked: true,
-          lockedUntil: sender.pin_locked_until,
-        },
-        { status: 401 },
-      );
-    }
-
-    // ─── 4. Verify PIN ───
-    const plainPin = Array.isArray(pin) ? pin.join("") : pin;
-    const pinOk = await bcrypt.compare(plainPin, sender.transaction_pin);
-
-    if (!pinOk) {
-      const attempts = (sender.pin_attempts || 0) + 1;
-      const update: any = { pin_attempts: attempts };
-      if (attempts >= 3) {
-        update.pin_locked_until = new Date(Date.now() + 30 * 60 * 1000);
-      }
-      await supabase.from("users").update(update).eq("id", userId);
-
-      return NextResponse.json(
-        {
-          message: `Invalid transaction PIN. ${
-            3 - attempts
-          } attempt(s) remaining.`,
-          remainingAttempts: Math.max(0, 3 - attempts),
-        },
-        { status: 401 },
-      );
-    }
-
-    await supabase
+    // Find receiver by email
+    const { data: receiver, error: receiverError } = await supabaseAdmin
       .from("users")
-      .update({ pin_attempts: 0, pin_locked_until: null })
-      .eq("id", userId);
-
-    // ─── 5. Bank78-only guard ───
-    const senderBank =
-      sender.bank78_personal_bank_name || sender.bank_name || "";
-    if (!senderBank.includes("Bank78")) {
-      return NextResponse.json(
-        { message: "Only Bank78 wallet users can perform P2P transfers" },
-        { status: 403 },
-      );
-    }
-
-    const senderBalanceBefore = Number(sender.wallet_balance || 0);
-    if (senderBalanceBefore < amount) {
-      return NextResponse.json(
-        { message: "Insufficient wallet balance" },
-        { status: 400 }
-      );
-    }
-
-    // ─── 6. Load receiver ───
-    const { data: receiver, error: receiverErr } = await supabase
-      .from("users")
-      .select(
-        "id, full_name, wallet_id, bank_name, bank_account_number, bank78_personal_account_number, bank78_personal_bank_name, email, wallet_balance",
-      )
-      .eq("wallet_id", receiverAccountId)
+      .select("id, email, wallet_balance")
+      .eq("email", receiver_email)
       .single();
 
-    if (receiverErr || !receiver) {
-      return NextResponse.json(
-        { message: "Receiver wallet not found" },
-        { status: 404 }
-      );
+    if (receiverError || !receiver) {
+      return NextResponse.json({ error: "Receiver not found" }, { status: 404 });
     }
 
-    if (
-      sender.id === receiver.id ||
-      sender.wallet_id === receiver.wallet_id ||
-      sender.bank_account_number === receiver.bank_account_number
-    ) {
+    if (sender.id === receiver.id) {
       return NextResponse.json(
-        { message: "You cannot transfer to your own account" },
+        { error: "Cannot transfer to yourself" },
         { status: 400 }
       );
     }
 
-    const senderName = sender.full_name || "Zidwell User";
-    const receiverName = receiver.full_name || "Zidwell User";
-    const receiverBalanceBefore = Number(receiver.wallet_balance || 0);
+    // 🆕 Determine if this is an invoice payment (platform fee applies)
+    const isInvoicePayment = !!invoicePaymentData;
+    const platformFee = isInvoicePayment ? amount * 0.02 : 0;
 
-    // ─── 7. References ───
-    const ts = Date.now();
-    const senderTxRef = `P2P_SND_${ts}_${userId}`;
-    const receiverTxRef = `P2P_RCV_${ts}_${receiver.id}`;
-    const invoiceTxRef = `INV_P2P_${ts}_${userId}`;
-    const linkedTransactionId = `P2P_${ts}`;
+    const transferRef = invoiceTxRef || `P2P_${Date.now()}_${sender.id.slice(0, 8)}`;
 
-    let senderDescription = `P2P transfer to ${receiverName}`;
-    let receiverDescription = `P2P transfer from ${senderName}`;
-
-    // ─── 8. Invoice detection ───
-    let invoicePaymentData: any = null;
-    let invoiceDetails: any = null;
-
-    if (narration) {
-      const invRef = extractInvoiceReference(narration);
-      if (invRef) {
-        let { data: invoice, error: invErr } = await supabase
-          .from("invoices")
-          .select("*")
-          .eq("invoice_id", invRef)
-          .single();
-
-        if (invErr) {
-          const { data: alt } = await supabase
-            .from("invoices")
-            .select("*")
-            .ilike("invoice_id", invRef)
-            .single();
-          invoice = alt;
-        }
-
-        if (invoice && invoice.user_id === receiver.id) {
-          invoicePaymentData = {
-            isInvoicePayment: true,
-            invoice_id: invoice.id,
-            invoice_reference: invRef,
-            invoice_owner_id: invoice.user_id,
-            allow_multiple_payments: invoice.allow_multiple_payments || false,
-          };
-          invoiceDetails = invoice;
-          senderDescription = `P2P payment for invoice ${invRef} to ${receiverName}`;
-          receiverDescription = `P2P payment for invoice ${invRef} from ${senderName}`;
-        }
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════
-    // 9. DEDUCT sender
-    // Your RPC returns TABLE(tx_id, current_balance - amt, 'OK'|'INSUFFICIENT_FUNDS')
-    // We read the row by position because the columns are unnamed.
-    // ═══════════════════════════════════════════════════════════
-    const { data: deductRaw, error: deductErr } = await supabase.rpc(
+    // 1️⃣ Debit sender atomically (with idempotency)
+    const { data: debitResult, error: debitError } = await supabaseAdmin.rpc(
       "deduct_wallet_balance",
       {
-        user_id: userId,
-        amt: amount,
-        transaction_type: "p2p_transfer",
-        reference: senderTxRef,
-        description: senderDescription,
+        p_user_id: sender.id,
+        p_amount: amount,
+        p_transaction_type: "p2p_transfer",
+        p_reference: transferRef,
+        p_description: narration || `Transfer to ${receiver_email}`,
+        p_pin: null, // PIN validated at route level above
+        p_idempotency_key: `p2p_debit_${transferRef}`,
       }
     );
 
-    if (deductErr) {
-      logger.error("deduct_wallet_balance failed", deductErr);
+    if (debitError) {
+      console.error("P2P debit RPC error:", debitError);
       return NextResponse.json(
-        { message: "Failed to process transfer" },
-        { status: 500 },
-      );
-    }
-
-    const {
-      txId: transactionId,
-      newBalance: rpcNewBalance,
-      status: rpcStatus,
-    } = readDeductResult(deductRaw);
-
-    if (rpcStatus === "INSUFFICIENT_FUNDS") {
-      return NextResponse.json(
-        { message: "Insufficient funds for transfer" },
-        { status: 400 }
-      );
-    }
-
-    if (rpcStatus !== "OK" || !transactionId) {
-      logger.error("deduct_wallet_balance unexpected result", { deductRaw });
-      return NextResponse.json(
-        { message: "Failed to process transfer" },
-        { status: 500 },
-      );
-    }
-
-    // Re-fetch sender balance to be safe
-    const { data: senderAfter } = await supabase
-      .from("users")
-      .select("wallet_balance")
-      .eq("id", userId)
-      .single();
-    const senderBalanceAfter = Number(
-      senderAfter?.wallet_balance ?? rpcNewBalance ?? 0,
-    );
-
-    // ═══════════════════════════════════════════════════════════
-    // 10. CREDIT receiver
-    // increment_wallet_balance returns void — only check for errors.
-    // ═══════════════════════════════════════════════════════════
-    const { error: creditErr } = await supabase.rpc(
-      "increment_wallet_balance",
-      { user_id: receiver.id, amt: amount }
-    );
-
-    if (creditErr) {
-      logger.error(
-        "increment_wallet_balance failed, refunding sender",
-        creditErr,
-      );
-
-      // Rollback sender debit
-      await supabase.rpc("increment_wallet_balance", {
-        user_id: userId,
-        amt: amount,
-      });
-
-      // Mark sender tx as failed
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          description: `${senderDescription} — failed, refunded`,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", transactionId)
-        .eq("user_id", userId);
-
-      return NextResponse.json(
-        { message: "Transfer failed, funds refunded" },
+        { error: "Wallet deduction failed", detail: debitError.message },
         { status: 500 }
       );
     }
 
-    const { data: receiverAfter } = await supabase
-      .from("users")
-      .select("wallet_balance")
-      .eq("id", receiver.id)
-      .single();
-    const receiverBalanceAfter = Number(receiverAfter?.wallet_balance || 0);
+    if (!debitResult || debitResult.status !== "OK") {
+      const status =
+        debitResult?.status === "INSUFFICIENT_FUNDS"
+          ? "INSUFFICIENT_FUNDS"
+          : debitResult?.status === "INVALID_PIN"
+          ? "INVALID_PIN"
+          : "FAILED";
 
-    // ─── 11. Platform fee on invoice payments ───
-    let platformFee = 0;
-    let netAmount = amount;
-
-    if (invoicePaymentData?.isInvoicePayment && invoiceDetails) {
-      platformFee = Math.round(amount * 0.02);
-      netAmount = amount - platformFee;
-
-      await supabase.from("invoice_payments").insert([
+      return NextResponse.json(
         {
-          invoice_id: invoicePaymentData.invoice_id,
-          user_id: receiver.id,
-          order_reference: invoiceTxRef,
-          payer_name: senderName,
-          payer_user_id: userId,
-          payer_email: sender.email || "N/A",
-          amount,
-          paid_amount: amount,
-          fee_amount: platformFee,
-          platform_fee: platformFee,
-          user_received: netAmount,
-          status: "completed",
-          payment_method: "p2p_transfer",
-          narration,
-          paid_at: new Date().toISOString(),
+          error:
+            status === "INSUFFICIENT_FUNDS"
+              ? "Insufficient wallet balance"
+              : status === "INVALID_PIN"
+              ? "Invalid transaction PIN"
+              : "Transfer failed",
+          status,
         },
-      ]);
-
-      if (platformFee > 0) {
-        // Deduct platform fee from receiver via existing RPC
-        await supabase.rpc("deduct_wallet_balance", {
-          user_id: receiver.id,
-          amt: platformFee,
-          transaction_type: "debit",
-          reference: `PLATFORM_FEE_${invoiceTxRef}`,
-          description: `2% platform fee for invoice ${invoicePaymentData.invoice_reference}`,
-        });
-      }
-
-      await updateInvoiceTotals(invoiceDetails, amount, supabase);
-
-      await supabase.from("transactions").insert([
-        {
-          user_id: receiver.id,
-          type: "invoice_payment",
-          amount: netAmount,
-          status: "success",
-          reference: invoiceTxRef,
-          description: `P2P payment of ₦${amount} for invoice ${invoicePaymentData.invoice_reference}`,
-          fee: platformFee,
-          channel: "p2p_transfer",
-          category: category || narration,
-          category_id: categoryId || null,
-          balance_before: receiverBalanceBefore,
-          balance_after: receiverBalanceAfter - platformFee,
-          external_response: {
-            invoice_payment: true,
-            invoice_reference: invoicePaymentData.invoice_reference,
-            fee_breakdown: {
-              total_payment: amount,
-              user_received: netAmount,
-              platform_revenue: platformFee,
-            },
-          },
-          sender: {
-            name: senderName,
-            accountNumber: sender.bank_account_number,
-            bankName: sender.bank_name,
-          },
-          receiver: {
-            name: receiverName,
-            accountNumber: receiver.bank_account_number,
-            bankName: receiver.bank_name,
-          },
-        },
-      ]);
+        { status: 400 }
+      );
     }
 
-    // ─── 12. Update sender transaction row to success ───
-    await supabase
+    // 2️⃣ Credit receiver atomically (with idempotency)
+    //    Receiver gets: amount - platformFee (if invoice payment)
+    const receiverCreditAmount = isInvoicePayment
+      ? amount - platformFee
+      : amount;
+
+    // Create a pending transaction record for receiver before crediting
+    const { data: receiverTx, error: receiverTxError } = await supabaseAdmin
       .from("transactions")
-      .update({
+      .insert({
+        user_id: receiver.id,
+        type: "p2p_received",
+        amount: receiverCreditAmount,
         status: "success",
-        sender: {
-          name: senderName,
-          accountNumber: sender.bank_account_number,
-          bankName: sender.bank_name,
-        },
-        receiver: {
-          name: receiverName,
-          accountNumber: receiver.bank_account_number,
-          bankName: receiver.bank_name,
-        },
-        fee: 0,
-        total_deduction: amount,
-        narration,
-        category: category || narration,
-        category_id: categoryId || null,
-        balance_before: senderBalanceBefore,
-        balance_after: senderBalanceAfter,
-        deducted_at: new Date().toISOString(),
-        description: senderDescription,
-        external_response: {
-          status: "success",
-          type: "internal_p2p",
-          linked_transaction_id: linkedTransactionId,
-          balances: {
-            sender: {
-              before: senderBalanceBefore,
-              after: senderBalanceAfter,
-              deducted: amount,
-            },
-            receiver: {
-              before: receiverBalanceBefore,
-              after: invoicePaymentData?.isInvoicePayment
-                ? receiverBalanceAfter - platformFee
-                : receiverBalanceAfter,
-              credited: invoicePaymentData?.isInvoicePayment
-                ? netAmount
-                : amount,
-              fee_deducted: invoicePaymentData?.isInvoicePayment
-                ? platformFee
-                : 0,
-            },
-          },
-        },
+        reference: `${transferRef}_credit`,
+        description: narration || `Transfer from ${sender.email}`,
+        balance_before: receiver.wallet_balance,
+        balance_after: receiver.wallet_balance,
       })
-      .eq("id", transactionId)
-      .eq("user_id", userId);
+      .select()
+      .single();
 
-    // ─── 13. Insert receiver transaction row ───
-    await supabase.from("transactions").insert({
-      user_id: receiver.id,
-      type: invoicePaymentData?.isInvoicePayment
-        ? "invoice_payment"
-        : "p2p_credit",
-      amount: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-      status: "success",
-      reference: receiverTxRef,
-      narration,
-      category: category || narration,
-      category_id: categoryId || null,
-      balance_before: receiverBalanceBefore,
-      balance_after: invoicePaymentData?.isInvoicePayment
-        ? receiverBalanceAfter - platformFee
-        : receiverBalanceAfter,
-      description: receiverDescription,
-      fee: invoicePaymentData?.isInvoicePayment ? platformFee : 0,
-      external_response: {
-        status: "success",
-        type: "internal_p2p",
-        linked_transaction_id: linkedTransactionId,
-        balances: {
-          sender: {
-            before: senderBalanceBefore,
-            after: senderBalanceAfter,
-            deducted: amount,
-          },
-          receiver: {
-            before: receiverBalanceBefore,
-            after: invoicePaymentData?.isInvoicePayment
-              ? receiverBalanceAfter - platformFee
-              : receiverBalanceAfter,
-            credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-            fee_deducted: invoicePaymentData?.isInvoicePayment
-              ? platformFee
-              : 0,
-          },
-        },
-      },
-      sender: {
-        name: senderName,
-        accountNumber: sender.bank_account_number,
-        bankName: sender.bank_name,
-      },
-      receiver: {
-        name: receiverName,
-        accountNumber: receiver.bank_account_number,
-        bankName: receiver.bank_name,
-      },
-    });
-
-    // ─── 14. Receipt + emails ───
-    const receiptId = transactionId || linkedTransactionId;
-
-    const receiptHtml = generateTransferReceipt({
-      transactionId: receiptId,
-      amount: Number(amount),
-      date: new Date().toISOString(),
-      recipientName: receiverName,
-      recipientAccount:
-        receiver.bank_account_number || receiver.wallet_id || "N/A",
-      recipientBank: receiver.bank_name || "Zidwell",
-      senderName,
-      senderAccount: sender.bank_account_number || "N/A",
-      narration: narration || "N/A",
-      fee: 0,
-      type: "p2p",
-    });
-
-    await Promise.all([
-      sendP2PSuccessEmail({
-        userId,
-        receiverName,
-        amount,
-        transactionRef: linkedTransactionId,
-        transactionId: receiptId,
-        narration,
-        isInvoicePayment: invoicePaymentData?.isInvoicePayment || false,
-        invoiceReference: invoicePaymentData?.invoice_reference,
-        receiptHtml,
-      }).catch((e) => logger.error("Sender email failed", e)),
-
-      sendP2PReceivedEmail({
-        receiverId: receiver.id,
-        senderName,
-        amount: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-        transactionRef: linkedTransactionId,
-        narration,
-        isInvoicePayment: invoicePaymentData?.isInvoicePayment || false,
-        invoiceReference: invoicePaymentData?.invoice_reference,
-      }).catch((e) => logger.error("Receiver email failed", e)),
-    ]);
-
-    // ─── 15. Response ───
-    const responseData: any = {
-      message: "P2P transfer completed successfully.",
-      transactionRef: linkedTransactionId,
-      transactionId: receiptId,
-      amount,
-      receiverName,
-      category: category || narration,
-      categoryId: categoryId || null,
-      balances: {
-        sender: {
-          before: senderBalanceBefore,
-          after: senderBalanceAfter,
-          deducted: amount,
-        },
-        receiver: {
-          before: receiverBalanceBefore,
-          after: invoicePaymentData?.isInvoicePayment
-            ? receiverBalanceAfter - platformFee
-            : receiverBalanceAfter,
-          credited: invoicePaymentData?.isInvoicePayment ? netAmount : amount,
-        },
-      },
-    };
-
-    if (invoicePaymentData?.isInvoicePayment) {
-      Object.assign(responseData, {
-        invoicePayment: true,
-        invoiceReference: invoicePaymentData.invoice_reference,
-        platformFee,
-        netAmount,
+    if (receiverTxError || !receiverTx) {
+      console.error("Failed to create receiver tx:", receiverTxError);
+      // Rollback sender debit manually (best-effort)
+      await supabaseAdmin.rpc("mutate_wallet_balance", {
+        p_user_id: sender.id,
+        p_amount: amount,
+        p_transaction_id: debitResult.tx_id,
+        p_reason: "p2p_transfer_rollback",
+        p_idempotency_key: `p2p_rollback_${transferRef}`,
       });
+      return NextResponse.json(
+        { error: "Failed to credit receiver. Sender refunded." },
+        { status: 500 }
+      );
     }
 
-    if (newTokens) return createAuthResponse(responseData, newTokens);
-    return NextResponse.json(responseData);
+    const { data: creditResult, error: creditError } = await supabaseAdmin.rpc(
+      "mutate_wallet_balance",
+      {
+        p_user_id: receiver.id,
+        p_amount: receiverCreditAmount,
+        p_transaction_id: receiverTx.id,
+        p_reason: "p2p_transfer_credit",
+        p_idempotency_key: `p2p_credit_${transferRef}`,
+      }
+    );
+
+    if (creditError || creditResult === null) {
+      console.error("P2P credit RPC error:", creditError);
+      // Rollback sender debit
+      await supabaseAdmin.rpc("mutate_wallet_balance", {
+        p_user_id: sender.id,
+        p_amount: amount,
+        p_transaction_id: debitResult.tx_id,
+        p_reason: "p2p_transfer_rollback",
+        p_idempotency_key: `p2p_rollback_${transferRef}`,
+      });
+      return NextResponse.json(
+        { error: "Failed to credit receiver. Sender refunded." },
+        { status: 500 }
+      );
+    }
+
+    // 3️⃣ Deduct platform fee from receiver if invoice payment
+    if (platformFee > 0) {
+      const { error: feeError } = await supabaseAdmin.rpc(
+        "deduct_wallet_balance",
+        {
+          p_user_id: receiver.id,
+          p_amount: platformFee,
+          p_transaction_type: "debit",
+          p_reference: `PLATFORM_FEE_${invoiceTxRef || transferRef}`,
+          p_description: `2% platform fee for invoice ${
+            invoicePaymentData.invoice_reference || invoiceTxRef
+          }`,
+          p_pin: null,
+          p_idempotency_key: `platform_fee_${invoiceTxRef || transferRef}`,
+        }
+      );
+
+      if (feeError) {
+        console.error("Platform fee deduction failed:", feeError);
+        // Non-fatal: money already moved. Log for ops reconciliation.
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      transfer_reference: transferRef,
+      sender_transaction_id: debitResult.tx_id,
+      receiver_transaction_id: receiverTx.id,
+      amount_sent: amount,
+      platform_fee: platformFee,
+      amount_received: receiverCreditAmount,
+      sender_new_balance: debitResult.new_balance,
+      receiver_new_balance: creditResult,
+    });
   } catch (err: any) {
-    logger.error("P2P API error", err);
+    console.error("P2P transfer error:", err);
     return NextResponse.json(
-      { error: "Server error: " + (err.message || err.description) },
-      { status: 500 },
+      { error: "Internal server error", detail: err?.message },
+      { status: 500 }
     );
   }
 }

@@ -1,3 +1,4 @@
+// app/pay-invoice/downloadButton.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,7 +6,6 @@ import { Button } from "@/app/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 
-// Types - Make sure these match your other components
 interface InvoiceItem {
   id: string;
   description: string;
@@ -17,7 +17,6 @@ interface InvoiceItem {
   total_amount?: number;
 }
 
-// Fixed InvoiceData interface - matching the one from the main page
 interface InvoiceData {
   id: string;
   business_name: string;
@@ -27,6 +26,7 @@ interface InvoiceData {
   due_date: string;
   from_name: string;
   from_email: string;
+  initiator_phone?: string;
   client_name?: string;
   client_email?: string;
   client_phone?: string;
@@ -48,14 +48,12 @@ interface InvoiceData {
   created_at?: string;
   paid_quantity?: number;
   target_quantity?: number;
-  initiator_phone?: string;
 }
 
 interface DownloadInvoiceButtonProps {
   invoiceData: InvoiceData;
 }
 
-// Helper functions
 const getPaymentProgress = (invoice: InvoiceData): number => {
   if (!invoice.paid_amount || !invoice.total_amount) return 0;
   return (invoice.paid_amount / invoice.total_amount) * 100;
@@ -95,10 +93,8 @@ export default function DownloadInvoiceButton({
     try {
       setLoading(true);
 
-      // Get the logo
       const logoBase64 = await getBase64Logo();
 
-      // Calculate values with proper type safety
       const invoiceItems = Array.isArray(invoiceData.invoice_items)
         ? invoiceData.invoice_items
         : [];
@@ -118,26 +114,30 @@ export default function DownloadInvoiceButton({
       const paymentProgress = getPaymentProgress(invoiceData);
       const paymentCountText = getPaymentCountText(invoiceData);
 
-      // Get status color
       const getStatusColor = (status: string): string => {
         switch (status?.toLowerCase()) {
-          case "paid": return "#00B64F";
-          case "unpaid": return "#FDC020";
-          case "partially_paid": return "#3b82f6";
-          case "overdue": return "#ef4444";
-          case "cancelled": return "#6b7280";
-          default: return "#6b7280";
+          case "paid":
+            return "#00B64F";
+          case "unpaid":
+            return "#FDC020";
+          case "partially_paid":
+            return "#3b82f6";
+          case "overdue":
+            return "#ef4444";
+          case "cancelled":
+            return "#6b7280";
+          default:
+            return "#6b7280";
         }
       };
 
       const statusColor = getStatusColor(invoiceData.status);
 
-      // Format dates safely
       const formatDate = (dateString: string): string => {
         try {
           const date = new Date(dateString);
-          return isNaN(date.getTime()) 
-            ? dateString 
+          return isNaN(date.getTime())
+            ? dateString
             : date.toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "long",
@@ -148,7 +148,14 @@ export default function DownloadInvoiceButton({
         }
       };
 
-      // Generate HTML content for PDF with Zidwell design
+      const fromBusinessName =
+        invoiceData.business_name || invoiceData.from_name || "Zidwell";
+      const fromContactName =
+        invoiceData.from_name &&
+        invoiceData.from_name !== invoiceData.business_name
+          ? invoiceData.from_name
+          : "";
+
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="en">
@@ -157,573 +164,149 @@ export default function DownloadInvoiceButton({
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Invoice ${invoiceData.invoice_id}</title>
           <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              background: #f5f5f5;
-              padding: 40px 20px;
-              color: #1a1a1a;
-              line-height: 1.6;
+              background: #f5f5f5; padding: 40px 20px; color: #1a1a1a; line-height: 1.6;
             }
-            
             .invoice-container {
-              max-width: 880px;
-              margin: 0 auto;
-              background: #ffffff;
-              border-radius: 8px;
-              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.06);
+              max-width: 880px; margin: 0 auto; background: #ffffff;
+              border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 6px 16px rgba(0,0,0,0.06);
               padding: 48px 56px;
             }
-            
-            /* Header */
-            .header {
-              display: flex;
-              align-items: flex-start;
-              justify-content: space-between;
-              gap: 24px;
-            }
-            
-            .brand {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-            }
-            
-            .brand-logo {
-              width: 44px;
-              height: 44px;
-              border-radius: 50%;
-              object-fit: cover;
-              flex-shrink: 0;
-            }
-            
+            .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+            .brand { display: flex; align-items: center; gap: 12px; }
+            .brand-logo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
             .brand-icon {
-              width: 44px;
-              height: 44px;
-              border-radius: 50%;
-              background: #1a1a1a;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-weight: 700;
-              font-size: 20px;
-              flex-shrink: 0;
+              width: 44px; height: 44px; border-radius: 50%; background: #1a1a1a;
+              display: flex; align-items: center; justify-content: center;
+              color: white; font-weight: 700; font-size: 20px; flex-shrink: 0;
             }
-            
-            .brand-name {
-              font-size: 28px;
-              font-weight: 600;
-              letter-spacing: -0.5px;
-              color: #1a1a1a;
-            }
-            
-            .invoice-title-wrapper {
-              text-align: right;
-            }
-            
-            .invoice-title {
-              font-size: 40px;
-              font-weight: 800;
-              letter-spacing: -0.5px;
-              color: #1a1a1a;
-              margin: 0;
-              line-height: 1;
-            }
-            
-            .title-underline {
-              width: 64px;
-              height: 4px;
-              background: #FDC020;
-              border-radius: 4px;
-              margin-top: 8px;
-              margin-left: auto;
-            }
-            
-            /* Meta Section */
-            .meta-section {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 32px;
-              margin-top: 40px;
-            }
-            
-            .from-block {
-              display: flex;
-              align-items: flex-start;
-              gap: 16px;
-              padding-right: 32px;
-              border-right: 1px solid #e5e7eb;
-            }
-            
+            .brand-name { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; color: #1a1a1a; }
+            .invoice-title-wrapper { text-align: right; }
+            .invoice-title { font-size: 40px; font-weight: 800; letter-spacing: -0.5px; color: #1a1a1a; margin: 0; line-height: 1; }
+            .title-underline { width: 64px; height: 4px; background: #FDC020; border-radius: 4px; margin-top: 8px; margin-left: auto; }
+            .meta-section { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; }
+            .from-block { display: flex; align-items: flex-start; gap: 16px; padding-right: 32px; border-right: 1px solid #e5e7eb; }
             .icon-circle {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 40px;
-              height: 40px;
-              border-radius: 50%;
-              background: #FEF3C7;
-              color: #FDC020;
-              flex-shrink: 0;
+              display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+              border-radius: 50%; background: #FEF3C7; color: #FDC020; flex-shrink: 0;
             }
-            
-            .label-small {
-              font-size: 13px;
-              font-weight: 600;
-              color: #FDC020;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            
-            .name-large {
-              font-size: 20px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-top: 4px;
-            }
-            
-            .email-text {
-              font-size: 14px;
-              color: #6b7280;
-            }
-            
-            .meta-list {
-              display: flex;
-              flex-direction: column;
-              gap: 12px;
-              padding-left: 4px;
-            }
-            
-            .meta-row {
-              display: grid;
-              grid-template-columns: 110px 1fr;
-              align-items: center;
-              gap: 8px;
-            }
-            
-            .meta-label {
-              font-size: 14px;
-              color: #6b7280;
-            }
-            
-            .meta-value {
-              font-size: 18px;
-              font-weight: 700;
-              color: #1a1a1a;
-            }
-            
+            .label-small { font-size: 13px; font-weight: 600; color: #FDC020; text-transform: uppercase; letter-spacing: 0.5px; }
+            .name-large { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-top: 4px; }
+            .contact-attn { font-size: 14px; color: #374151; margin-top: 4px; font-weight: 500; }
+            .email-text { font-size: 14px; color: #6b7280; }
+            .meta-list { display: flex; flex-direction: column; gap: 12px; padding-left: 4px; }
+            .meta-row { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 8px; }
+            .meta-label { font-size: 14px; color: #6b7280; }
+            .meta-value { font-size: 18px; font-weight: 700; color: #1a1a1a; }
             .status-badge {
-              display: inline-block;
-              padding: 6px 16px;
-              border-radius: 6px;
-              font-size: 13px;
-              font-weight: 800;
-              letter-spacing: 0.5px;
-              text-transform: uppercase;
-              background: ${statusColor}20;
-              color: ${statusColor};
+              display: inline-block; padding: 6px 16px; border-radius: 6px; font-size: 13px;
+              font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
+              background: ${statusColor}20; color: ${statusColor};
             }
-            
-            /* Info Banner */
             .info-banner {
-              display: flex;
-              align-items: flex-start;
-              gap: 16px;
-              margin-top: 32px;
-              padding: 16px 20px;
-              background: #FEF3C7;
-              border-radius: 8px;
+              display: flex; align-items: flex-start; gap: 16px; margin-top: 32px;
+              padding: 16px 20px; background: #FEF3C7; border-radius: 8px;
             }
-            
             .info-icon {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              width: 32px;
-              height: 32px;
-              border-radius: 50%;
-              border: 2px solid #FDC020;
-              color: #FDC020;
-              flex-shrink: 0;
+              display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;
+              border-radius: 50%; border: 2px solid #FDC020; color: #FDC020; flex-shrink: 0;
             }
-            
-            .info-text {
-              font-size: 14px;
-              color: #1a1a1a;
-              line-height: 1.6;
-            }
-            
-            .info-text strong {
-              color: #FDC020;
-              font-weight: 700;
-            }
-            
-            /* Parties */
-            .parties-section {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 32px;
-              margin-top: 32px;
-            }
-            
-            .party-block {
-              display: flex;
-              align-items: flex-start;
-              gap: 16px;
-            }
-            
+            .info-text { font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+            .info-text strong { color: #FDC020; font-weight: 700; }
+            .parties-section { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 32px; }
+            .party-block { display: flex; align-items: flex-start; gap: 16px; }
             .party-label-badge {
-              display: inline-block;
-              padding: 2px 10px;
-              border-radius: 4px;
-              background: #FEF3C7;
-              font-size: 13px;
-              font-weight: 600;
-              color: #FDC020;
+              display: inline-block; padding: 2px 10px; border-radius: 4px; background: #FEF3C7;
+              font-size: 13px; font-weight: 600; color: #FDC020;
             }
-            
-            .party-name {
-              font-size: 20px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-top: 6px;
-            }
-            
-            .party-detail {
-              font-size: 14px;
-              color: #6b7280;
-            }
-            
-            .account-number {
-              font-size: 20px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-top: 2px;
-            }
-            
-            /* Items Table */
-            .items-section {
-              position: relative;
-              margin-top: 48px;
-            }
-            
-            .items-title {
-              font-size: 20px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-bottom: 16px;
-            }
-            
+            .party-name { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-top: 6px; }
+            .party-detail { font-size: 14px; color: #6b7280; }
+            .account-number { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-top: 2px; }
+            .items-section { position: relative; margin-top: 48px; }
+            .items-title { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 16px; }
             .watermark {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              font-size: 18rem;
-              font-weight: 900;
-              color: #f3f4f6;
-              opacity: 0.5;
-              pointer-events: none;
-              user-select: none;
-              line-height: 1;
-              z-index: 0;
+              position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+              font-size: 18rem; font-weight: 900; color: #f3f4f6; opacity: 0.5;
+              pointer-events: none; user-select: none; line-height: 1; z-index: 0;
             }
-            
-            .table-wrapper {
-              position: relative;
-              overflow-x: auto;
-              z-index: 1;
-            }
-            
-            .items-table {
-              width: 100%;
-              min-width: 520px;
-              border-collapse: collapse;
-            }
-            
-            .items-table thead th {
-              text-align: left;
-              padding: 0 16px 12px 0;
-              font-size: 14px;
-              font-weight: 600;
-              color: #1a1a1a;
-            }
-            
-            .items-table thead th:last-child {
-              padding-right: 0;
-            }
-            
-            .table-divider {
-              height: 2px;
-              background: #FDC020;
-              border: none;
-              margin: 0 0 4px 0;
-            }
-            
-            .items-table tbody td {
-              padding: 20px 16px 20px 0;
-              font-size: 14px;
-              color: #1a1a1a;
-              border-bottom: 1px solid #f3f4f6;
-            }
-            
-            .items-table tbody td:last-child {
-              padding-right: 0;
-            }
-            
-            .items-table tbody tr:last-child td {
-              border-bottom: none;
-            }
-            
-            .subtotal-row td {
-              padding: 16px 16px 4px 0 !important;
-              border-bottom: none !important;
-            }
-            
-            .subtotal-label {
-              text-align: right;
-              font-size: 14px;
-              color: #6b7280;
-            }
-            
-            .subtotal-value {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1a1a1a;
-            }
-            
-            .total-row td {
-              padding: 4px 16px 20px 0 !important;
-              border-bottom: none !important;
-            }
-            
-            .total-label {
-              text-align: right;
-              font-size: 16px;
-              font-weight: 800;
-              letter-spacing: 0.5px;
-              color: #1a1a1a;
-            }
-            
-            .total-value {
-              font-size: 28px;
-              font-weight: 800;
-              color: #FDC020;
-            }
-            
-            /* Footer Divider */
-            .footer-divider {
-              height: 2px;
-              background: #FDC020;
-              margin-top: 40px;
-              border: none;
-            }
-            
-            /* Footer */
-            .footer {
-              display: flex;
-              align-items: flex-start;
-              gap: 16px;
-              margin-top: 32px;
-            }
-            
-            .footer-text {
-              font-size: 14px;
-            }
-            
-            .footer-text strong {
-              font-weight: 700;
-              color: #1a1a1a;
-            }
-            
-            .footer-text .contact-email {
-              font-weight: 500;
-              color: #FDC020;
-            }
-            
-            .footer-muted {
-              color: #6b7280;
-              margin-top: 4px;
-            }
-            
-            .generated-at {
-              margin-top: 40px;
-              font-size: 12px;
-              color: #6b7280;
-            }
-            
-            /* Payment Info */
+            .table-wrapper { position: relative; overflow-x: auto; z-index: 1; }
+            .items-table { width: 100%; min-width: 520px; border-collapse: collapse; }
+            .items-table thead th { text-align: left; padding: 0 16px 12px 0; font-size: 14px; font-weight: 600; color: #1a1a1a; }
+            .items-table thead th:last-child { padding-right: 0; }
+            .table-divider { height: 2px; background: #FDC020; border: none; margin: 0 0 4px 0; }
+            .items-table tbody td { padding: 20px 16px 20px 0; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #f3f4f6; }
+            .items-table tbody td:last-child { padding-right: 0; }
+            .items-table tbody tr:last-child td { border-bottom: none; }
+            .subtotal-row td { padding: 16px 16px 4px 0 !important; border-bottom: none !important; }
+            .subtotal-label { text-align: right; font-size: 14px; color: #6b7280; }
+            .subtotal-value { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+            .total-row td { padding: 4px 16px 20px 0 !important; border-bottom: none !important; }
+            .total-label { text-align: right; font-size: 16px; font-weight: 800; letter-spacing: 0.5px; color: #1a1a1a; }
+            .total-value { font-size: 28px; font-weight: 800; color: #FDC020; }
+            .footer-divider { height: 2px; background: #FDC020; margin-top: 40px; border: none; }
+            .footer { display: flex; align-items: flex-start; gap: 16px; margin-top: 32px; }
+            .footer-text { font-size: 14px; }
+            .footer-text strong { font-weight: 700; color: #1a1a1a; }
+            .footer-text .contact-email { font-weight: 500; color: #FDC020; }
+            .footer-muted { color: #6b7280; margin-top: 4px; }
+            .generated-at { margin-top: 40px; font-size: 12px; color: #6b7280; }
             .payment-info {
-              background: #f0f9ff;
-              padding: 16px 20px;
-              border-radius: 8px;
-              border-left: 4px solid #3b82f6;
-              margin: 20px 0;
+              background: #f0f9ff; padding: 16px 20px; border-radius: 8px;
+              border-left: 4px solid #3b82f6; margin: 20px 0;
             }
-            
-            .payment-info h3 {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-bottom: 8px;
-            }
-            
-            .payment-info p {
-              font-size: 14px;
-              color: #4b5563;
-              margin: 4px 0;
-            }
-            
-            .progress-bar {
-              background-color: #e5e7eb;
-              border-radius: 10px;
-              height: 10px;
-              margin: 10px 0;
-              overflow: hidden;
-            }
-            
-            .progress-fill {
-              background-color: #FDC020;
-              height: 100%;
-              transition: width 0.3s ease;
-            }
-            
+            .payment-info h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+            .payment-info p { font-size: 14px; color: #4b5563; margin: 4px 0; }
+            .progress-bar { background-color: #e5e7eb; border-radius: 10px; height: 10px; margin: 10px 0; overflow: hidden; }
+            .progress-fill { background-color: #FDC020; height: 100%; transition: width 0.3s ease; }
             .multiple-payment-info {
-              background: #fef3c7;
-              padding: 16px 20px;
-              border-radius: 8px;
-              border-left: 4px solid #f59e0b;
-              margin: 20px 0;
+              background: #fef3c7; padding: 16px 20px; border-radius: 8px;
+              border-left: 4px solid #f59e0b; margin: 20px 0;
             }
-            
-            .multiple-payment-info h3 {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-bottom: 8px;
-            }
-            
-            .multiple-payment-info p {
-              font-size: 14px;
-              color: #4b5563;
-              margin: 4px 0;
-            }
-            
+            .multiple-payment-info h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+            .multiple-payment-info p { font-size: 14px; color: #4b5563; margin: 4px 0; }
             .message-box {
-              background: #f8fafc;
-              padding: 16px 20px;
-              border-radius: 8px;
-              border-left: 4px solid #FDC020;
-              margin: 20px 0;
+              background: #f8fafc; padding: 16px 20px; border-radius: 8px;
+              border-left: 4px solid #FDC020; margin: 20px 0;
             }
-            
-            .message-box h3 {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-bottom: 4px;
-            }
-            
-            .message-box p {
-              font-size: 14px;
-              color: #4b5563;
-            }
-            
+            .message-box h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+            .message-box p { font-size: 14px; color: #4b5563; }
             .note-box {
-              background: #f0f9ff;
-              padding: 16px 20px;
-              border-radius: 8px;
-              border-left: 4px solid #0ea5e9;
-              margin: 20px 0;
+              background: #f0f9ff; padding: 16px 20px; border-radius: 8px;
+              border-left: 4px solid #0ea5e9; margin: 20px 0;
             }
-            
-            .note-box h3 {
-              font-size: 16px;
-              font-weight: 700;
-              color: #1a1a1a;
-              margin-bottom: 4px;
-            }
-            
-            .note-box p {
-              font-size: 14px;
-              color: #4b5563;
-            }
-            
-            .fee-note {
-              text-align: right;
-              font-size: 12px;
-              color: #9ca3af;
-              margin-top: 4px;
-            }
-            
+            .note-box h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+            .note-box p { font-size: 14px; color: #4b5563; }
+            .fee-note { text-align: right; font-size: 12px; color: #9ca3af; margin-top: 4px; }
             @media print {
-              body {
-                background: white;
-                padding: 20px;
-              }
-              .invoice-container {
-                box-shadow: none;
-                border-radius: 0;
-                padding: 40px;
-              }
+              body { background: white; padding: 20px; }
+              .invoice-container { box-shadow: none; border-radius: 0; padding: 40px; }
             }
-            
             @media (max-width: 640px) {
-              .invoice-container {
-                padding: 24px;
-              }
-              .header {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 16px;
-              }
-              .invoice-title-wrapper {
-                text-align: left;
-              }
-              .title-underline {
-                margin-left: 0;
-              }
-              .meta-section {
-                grid-template-columns: 1fr;
-                gap: 24px;
-              }
-              .from-block {
-                border-right: none;
-                padding-right: 0;
-              }
-              .parties-section {
-                grid-template-columns: 1fr;
-                gap: 24px;
-              }
-              .meta-row {
-                grid-template-columns: 100px 1fr;
-              }
-              .meta-value {
-                font-size: 16px;
-              }
-              .watermark {
-                font-size: 10rem;
-              }
+              .invoice-container { padding: 24px; }
+              .header { flex-direction: column; align-items: stretch; gap: 16px; }
+              .invoice-title-wrapper { text-align: left; }
+              .title-underline { margin-left: 0; }
+              .meta-section { grid-template-columns: 1fr; gap: 24px; }
+              .from-block { border-right: none; padding-right: 0; }
+              .parties-section { grid-template-columns: 1fr; gap: 24px; }
+              .meta-row { grid-template-columns: 100px 1fr; }
+              .meta-value { font-size: 16px; }
+              .watermark { font-size: 10rem; }
             }
           </style>
         </head>
         <body>
           <div class="invoice-container">
-            <!-- Header -->
             <header class="header">
               <div class="brand">
                 ${logoBase64 ? `
-                  <img src="${logoBase64}" alt="${invoiceData.business_name}" class="brand-logo">
+                  <img src="${logoBase64}" alt="${fromBusinessName}" class="brand-logo">
                 ` : `
-                  <div class="brand-icon">${invoiceData.business_name ? invoiceData.business_name.charAt(0).toUpperCase() : 'Z'}</div>
+                  <div class="brand-icon">${fromBusinessName.charAt(0).toUpperCase()}</div>
                 `}
-                <span class="brand-name">${invoiceData.business_name || "Zidwell"}</span>
+                <span class="brand-name">${fromBusinessName}</span>
               </div>
               <div class="invoice-title-wrapper">
                 <h1 class="invoice-title">INVOICE</h1>
@@ -731,7 +314,6 @@ export default function DownloadInvoiceButton({
               </div>
             </header>
 
-            <!-- Meta + From -->
             <section class="meta-section">
               <div class="from-block">
                 <div class="icon-circle">
@@ -741,9 +323,11 @@ export default function DownloadInvoiceButton({
                   </svg>
                 </div>
                 <div>
-                  <div class="label-small">From:</div>
-                  <div class="name-large">${invoiceData.from_name}</div>
+                  <div class="label-small">Bill From:</div>
+                  <div class="name-large">${fromBusinessName}</div>
+                  ${fromContactName ? `<div class="contact-attn">Attn: ${fromContactName}</div>` : ""}
                   <div class="email-text">${invoiceData.from_email}</div>
+                  ${invoiceData.initiator_phone ? `<div class="email-text">${invoiceData.initiator_phone}</div>` : ""}
                 </div>
               </div>
 
@@ -769,7 +353,6 @@ export default function DownloadInvoiceButton({
               </div>
             </section>
 
-            <!-- Info Banner -->
             <div class="info-banner">
               <div class="info-icon">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -783,7 +366,6 @@ export default function DownloadInvoiceButton({
               </p>
             </div>
 
-            <!-- Bill To + Account Details -->
             <section class="parties-section">
               <div class="party-block">
                 <div class="icon-circle">
@@ -794,7 +376,8 @@ export default function DownloadInvoiceButton({
                 </div>
                 <div>
                   <span class="party-label-badge">Bill To:</span>
-                  <div class="party-name">${invoiceData.client_name || "Client"}</div>
+                  ${invoiceData.bill_to ? `<div class="party-name" style="font-size: 18px;">${invoiceData.bill_to}</div>` : ""}
+                  <div class="party-name" style="${invoiceData.bill_to ? "font-size: 16px; font-weight: 600; margin-top: 2px;" : ""}">${invoiceData.client_name || "Client"}</div>
                   ${invoiceData.client_email ? `<div class="party-detail">${invoiceData.client_email}</div>` : ""}
                   ${invoiceData.client_phone ? `<div class="party-detail">${invoiceData.client_phone}</div>` : ""}
                 </div>
@@ -819,7 +402,7 @@ export default function DownloadInvoiceButton({
 
             ${invoiceData.message ? `
               <div class="message-box">
-                <h3>Message from ${invoiceData.from_name}:</h3>
+                <h3>Message from ${fromBusinessName}:</h3>
                 <p>${invoiceData.message}</p>
               </div>
             ` : ""}
@@ -845,12 +428,9 @@ export default function DownloadInvoiceButton({
               </div>
             ` : ""}
 
-            <!-- Items -->
             <section class="items-section">
               <h2 class="items-title">Invoice Items</h2>
-              
-              <div class="watermark">${invoiceData.business_name ? invoiceData.business_name.charAt(0).toUpperCase() : 'Z'}</div>
-              
+              <div class="watermark">${fromBusinessName.charAt(0).toUpperCase()}</div>
               <div class="table-wrapper">
                 <table class="items-table">
                   <thead>
@@ -900,10 +480,8 @@ export default function DownloadInvoiceButton({
               ` : ""}
             </section>
 
-            <!-- Footer Divider -->
             <hr class="footer-divider">
 
-            <!-- Thank you -->
             <footer class="footer">
               <div class="icon-circle" style="background: #FEF3C7; color: #FDC020;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -934,12 +512,9 @@ export default function DownloadInvoiceButton({
         </html>
       `;
 
-      // Call the PDF generation API
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           html: htmlContent,
           filename: `invoice-${invoiceData.invoice_id}.pdf`,
@@ -953,7 +528,6 @@ export default function DownloadInvoiceButton({
         );
       }
 
-      // Create blob and download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -964,7 +538,6 @@ export default function DownloadInvoiceButton({
       document.body.appendChild(a);
       a.click();
 
-      // Clean up
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 

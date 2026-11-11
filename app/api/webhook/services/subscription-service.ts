@@ -13,8 +13,9 @@ const baseUrl = process.env.NODE_ENV === "development"
   ? "http://localhost:3000"
   : "https://zidwell.com";
 
-// Valid paid tiers
-const PAID_TIERS = ['solopreneur', 'sme', 'enterprise', 'corporation'];
+// Valid paid tiers — MUST match PricingNew component
+// and /api/subscription/checkout VALID_TIERS
+const PAID_TIERS = ['starter', 'sme', 'enterprise'];
 
 function calculateExpiration(billingPeriod: 'monthly' | 'yearly'): Date {
   const expiresAt = new Date();

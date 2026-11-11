@@ -1,3 +1,5 @@
+// app/lib/delivery-utils.ts
+
 export type PageType =
   | "physical"
   | "digital"
@@ -9,32 +11,69 @@ export type PageType =
   | "event"
   | "other";
 
-export interface DeliveryAddress {
-  id: string;
-  store_id: string;
-  label: string;
-  contact_name: string;
-  contact_phone: string;
+export type FulfillmentMethod = "delivery" | "pickup" | "digital";
+
+export interface CustomerDeliveryAddress {
+  full_name: string;
+  phone: string;
   street_address: string;
   city: string;
   state: string;
-  country: string;
-  delivery_fee: number;
-  estimated_days: number;
+  notes?: string | null;
+}
+
+export interface PickupLocation {
+  id: string;
+  store_id: string;
+  label: string;
+  address: string;
+  notes: string | null;
+  phone: string | null;
   is_default: boolean;
   is_active: boolean;
+}
+
+export interface PickupLocationSnapshot {
+  id: string;
+  label: string;
+  address: string;
+  notes: string | null;
+  phone: string | null;
+}
+
+export interface DeliveryZone {
+  id: string;
+  store_id: string;
+  label: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  fee: number;
+  free_threshold: number;
+  notes: string | null;
+  is_default: boolean;
+  is_active: boolean;
+}
+
+export interface DeliveryZoneSnapshot {
+  id: string;
+  label: string;
+  address: string;
+  city: string | null;
+  state: string | null;
+  fee: number;
   notes: string | null;
 }
 
-export interface DeliverySettings {
-  delivery_enabled: boolean;
-  local_pickup_enabled: boolean;
-  local_pickup_address: string | null;
-  local_pickup_notes: string | null;
-  delivery_notes: string | null;
+export interface FulfillmentSelection {
+  method: "delivery" | "pickup" | null;
+  delivery: {
+    selected_zone: DeliveryZoneSnapshot | null;
+    customer_address: CustomerDeliveryAddress | null;
+  } | null;
+  pickup: PickupLocationSnapshot | null;
+  fee: number;
 }
-
-export type FulfillmentMethod = "delivery" | "pickup" | "digital";
 
 export function requiresDelivery(
   pageType?: PageType | string | null,
@@ -48,11 +87,11 @@ export function requiresDelivery(
 export function resolveFulfillmentMethod(params: {
   pageType?: string | null;
   productType?: string | null;
-  deliveryEnabled: boolean;
   pickupEnabled: boolean;
+  deliveryEnabled: boolean;
   chosenMethod?: FulfillmentMethod | null;
 }): FulfillmentMethod {
-  const { pageType, productType, deliveryEnabled, pickupEnabled, chosenMethod } =
+  const { pageType, productType, pickupEnabled, deliveryEnabled, chosenMethod } =
     params;
 
   if (!requiresDelivery(pageType, productType)) return "digital";
@@ -60,43 +99,76 @@ export function resolveFulfillmentMethod(params: {
   if (chosenMethod === "pickup" && pickupEnabled) return "pickup";
   if (chosenMethod === "delivery" && deliveryEnabled) return "delivery";
 
-  if (deliveryEnabled) return "delivery";
   if (pickupEnabled) return "pickup";
+  if (deliveryEnabled) return "delivery";
 
   return "delivery";
 }
 
-export function calculateDeliveryFee(params: {
-  deliveryEnabled: boolean;
-  pickupEnabled: boolean;
-  method: FulfillmentMethod;
-  address?: Pick<DeliveryAddress, "delivery_fee"> | null;
-}): number {
-  const { deliveryEnabled, method, address } = params;
-  if (method === "digital") return 0;
-  if (method === "pickup") return 0;
-  if (!deliveryEnabled) return 0;
-  if (!address) return 0;
-  return Number(address.delivery_fee ?? 0);
+export function calculateZoneFee(
+  zone: { fee: number; free_threshold: number } | null | undefined,
+  cartSubtotal: number,
+): number {
+  if (!zone) return 0;
+  const fee = Number(zone.fee) || 0;
+  const threshold = Number(zone.free_threshold) || 0;
+  if (threshold > 0 && cartSubtotal >= threshold) return 0;
+  return fee;
 }
 
-export function snapshotAddress(addr: DeliveryAddress) {
+export function validateCustomerAddress(
+  addr: CustomerDeliveryAddress | null | undefined,
+): { valid: boolean; missing: string[] } {
+  const missing: string[] = [];
+  if (!addr) {
+    return {
+      valid: false,
+      missing: ["full_name", "phone", "street_address", "city", "state"],
+    };
+  }
+  if (!addr.full_name?.trim()) missing.push("full_name");
+  if (!addr.phone?.trim()) missing.push("phone");
+  if (!addr.street_address?.trim()) missing.push("street_address");
+  if (!addr.city?.trim()) missing.push("city");
+  if (!addr.state?.trim()) missing.push("state");
+  return { valid: missing.length === 0, missing };
+}
+
+export function snapshotPickupLocation(
+  loc: PickupLocation,
+): PickupLocationSnapshot {
   return {
-    id: addr.id,
-    label: addr.label,
-    contact_name: addr.contact_name,
-    contact_phone: addr.contact_phone,
-    street_address: addr.street_address,
-    city: addr.city,
-    state: addr.state,
-    country: addr.country,
-    delivery_fee: addr.delivery_fee,
-    estimated_days: addr.estimated_days,
+    id: loc.id,
+    label: loc.label,
+    address: loc.address,
+    notes: loc.notes,
+    phone: loc.phone,
   };
 }
 
-export function sortAddresses(addresses: DeliveryAddress[]): DeliveryAddress[] {
-  return [...addresses].sort((a, b) => {
+export function snapshotDeliveryZone(zone: DeliveryZone): DeliveryZoneSnapshot {
+  return {
+    id: zone.id,
+    label: zone.label,
+    address: zone.address,
+    city: zone.city,
+    state: zone.state,
+    fee: Number(zone.fee) || 0,
+    notes: zone.notes,
+  };
+}
+
+export function sortPickupLocations(
+  locations: PickupLocation[],
+): PickupLocation[] {
+  return [...locations].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+export function sortDeliveryZones(zones: DeliveryZone[]): DeliveryZone[] {
+  return [...zones].sort((a, b) => {
     if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
     return a.label.localeCompare(b.label);
   });

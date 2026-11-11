@@ -270,7 +270,7 @@ export async function GET(request: NextRequest) {
 
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${baseUrl}/dashboard"
-                   style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px;
+                   style="background: #F5B800; color: #191919; padding: 12px 24px; border-radius: 8px;
                           text-decoration: none; display: inline-block; font-weight: bold;">
                   Go to Dashboard
                 </a>

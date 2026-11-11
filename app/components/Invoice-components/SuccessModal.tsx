@@ -1,3 +1,4 @@
+// app/components/Invoice-components/SuccessModal.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -20,8 +21,10 @@ interface SuccessModalProps {
     client_name: string;
     client_email: string;
     client_phone?: string;
+    bill_to?: string;
     from_email: string;
     from_name: string;
+    initiator_phone?: string;
     issue_date: string;
     payment_type: "single" | "multiple";
     fee_option: "absorbed" | "customer";
@@ -74,7 +77,6 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-(--bg-primary) rounded-xl p-4 sm:p-6 max-w-[95%] sm:max-w-lg md:max-w-4xl w-full mx-auto shadow-pop max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
-        {/* Header Section */}
         <div className="text-center mb-4 sm:mb-6">
           <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[var(--color-lemon-green)]/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
             <svg
@@ -100,9 +102,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           </p>
         </div>
 
-        {/* Content Section */}
         <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
-          {/* Download Option */}
           <div className="rounded-lg border-2 border-(--border-color) p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-[var(--bg-secondary)] flex items-center justify-center shrink-0">
@@ -125,8 +125,10 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                         client_name: invoiceData.client_name,
                         client_email: invoiceData.client_email,
                         client_phone: invoiceData.client_phone,
+                        bill_to: invoiceData.bill_to,
                         from_email: invoiceData.from_email,
                         from_name: invoiceData.from_name,
+                        initiator_phone: invoiceData.initiator_phone,
                         issue_date: invoiceData.issue_date,
                         status: "unpaid",
                         payment_type: invoiceData.payment_type,
@@ -158,7 +160,6 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
             </div>
           </div>
 
-          {/* Share Link Option */}
           {generatedSigningLink && (
             <div className="rounded-lg border-2 border-(--border-color) p-3 sm:p-4 hover:border-[var(--color-accent-yellow)] transition-colors squircle-md">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -218,7 +219,6 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
         <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-(--border-color)">
           <Button
             onClick={onClose}

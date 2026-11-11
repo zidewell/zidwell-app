@@ -2,641 +2,321 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { verifyNombaSignature } from "./helpers/signature-verification";
-import { processInvoicePayment } from "./services/invoice-payment.service";
 import { processVirtualAccountDeposit } from "./services/virtual-account.service";
-import { processPayout } from "./services/payout.service";
-import { processPayoutRefund } from "./services/payout-refund.service";
-import { processPaymentReversal } from "./services/payment-reversal.service";
-import {
-  processSubscriptionPayment,
-  processSubscriptionBankTransfer,
-  checkIfSubscriptionPayment,
-  checkIfSubscriptionBankTransfer,
-} from "./services/subscription-service";
-import { processCardPaymentWebhook } from "./services/card-payment.service";
+import { handleInvoicePayment } from "./services/invoice-payment.service";
+import { handlePayoutWebhook } from "./services/payout.service";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-type WebhookResponse =
-  | {
-      success: boolean;
-      message?: string;
-      subscription_id?: string;
-      credited_amount?: number;
-      new_balance?: number | null;
-      payment_id?: string;
-    }
-  | { error: string; status?: number };
-
-// ============================================================
-// CHECK IF STORE ACTIVATION PAYMENT
-// ============================================================
-function checkIfStoreActivationPayment(
-  orderReference: string,
-  payload: any
-): boolean {
-  if (orderReference?.startsWith("ACT-")) {
-    return true;
-  }
-
-  const metadata = payload.data?.order?.metadata || {};
-  if (metadata.type === "store_activation") {
-    return true;
-  }
-
-  return false;
+function normalizeEventType(raw: string): string {
+  return String(raw || "").trim().toLowerCase().replace(/[.\-]/g, "_");
 }
 
-// ============================================================
-// REGULAR WALLET DEPOSIT CHECK
-// ============================================================
-async function isRegularWalletDeposit(
-  aliasAccountReference: string
-): Promise<boolean> {
-  if (!aliasAccountReference) return false;
-
-  if (aliasAccountReference.startsWith("VA-SUB-")) return false;
-  if (aliasAccountReference.startsWith("VA-PP-")) return false;
-  if (aliasAccountReference.startsWith("PPL")) return false;
-
-  const uuidPattern =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidPattern.test(aliasAccountReference)) return false;
-
-  const { data: user } = await supabase
-    .from("users")
-    .select("id")
-    .eq("id", aliasAccountReference)
-    .single();
-
-  return !!user;
-}
-
-// ============================================================
-// CARD PAYMENT CHECK
-// ============================================================
-function checkIfCardPayment(orderReference: string, payload: any): boolean {
-  if (orderReference?.startsWith("CARD-")) {
-    return true;
-  }
-
-  const metadata = payload.data?.order?.metadata || {};
-  if (metadata.type === "payment_page" && metadata.paymentMethod === "card") {
-    return true;
-  }
-
-  const allowedMethods = payload.data?.order?.allowedPaymentMethods || [];
-  if (allowedMethods.includes("Card") && !payload.data?.order?.virtualAccount) {
-    return true;
-  }
-
-  return false;
-}
-
-// ============================================================
-// INVOICE PAYMENT CHECK
-// ============================================================
-function checkIfInvoicePayment(orderReference: string, payload: any): boolean {
-  const hasInvoiceMetadata =
-    payload.data?.order?.metadata?.invoiceId ||
-    payload.data?.order?.metadata?.invoiceNumber;
-  const isInvoiceReference =
-    orderReference?.startsWith("INV-") ||
-    orderReference?.startsWith("INVOICE-");
-  const isSubscriptionRef = orderReference?.startsWith("SUB_");
-
-  return (hasInvoiceMetadata || isInvoiceReference) && !isSubscriptionRef;
-}
-
-// ============================================================
-// SAFE NUMBER PARSING
-// ============================================================
-function safeNum(v: any): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
-// ============================================================
-// HANDLE ERROR RESPONSE
-// ============================================================
-function handleErrorResponse(result: any): NextResponse {
-  if (result && "error" in result && result.error) {
-    const statusCode =
-      result.status && typeof result.status === "number" ? result.status : 500;
-    return NextResponse.json({ error: result.error }, { status: statusCode });
-  }
-  return NextResponse.json(result);
-}
-
-// ============================================================
-// MAIN WEBHOOK HANDLER
-// ============================================================
 export async function POST(req: NextRequest) {
+  let nombaTransactionId: string | null = null;
+  let claimed = false;
+
   try {
-    console.log("====== Nomba Webhook Received ======");
-
+    // ============================================================
+    // STEP 1: Read body exactly once
+    // ============================================================
     const rawBody = await req.text();
-    let payload;
+    if (!rawBody) {
+      return NextResponse.json({ error: "Empty body" }, { status: 400 });
+    }
 
+    // ============================================================
+    // STEP 2: Extract signature headers
+    // ============================================================
+    const signature =
+      req.headers.get("nomba-signature") ||
+      req.headers.get("nomba-sig-value") ||
+      "";
+    const timestamp = req.headers.get("nomba-timestamp") || "";
+
+    console.log("[webhook] Raw body length:", rawBody.length);
+
+    // ============================================================
+    // STEP 3: Parse JSON
+    // ============================================================
+    let payload: any;
     try {
       payload = JSON.parse(rawBody);
-      console.log("Event type:", payload.event_type || payload.eventType);
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const timestamp = req.headers.get("nomba-timestamp");
-    const signature =
-      req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
-
-    if (!timestamp || !signature) {
-      return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+    if (!signature) {
+      return NextResponse.json(
+        { error: "Missing signature" },
+        { status: 401 },
+      );
     }
 
+    // ============================================================
+    // STEP 4: Verify signature
+    // ============================================================
     const isValid = await verifyNombaSignature(payload, timestamp, signature);
     if (!isValid) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid signature" },
+        { status: 401 },
+      );
+    }
+    console.log("[webhook] ✅ Signature valid");
+
+    // ============================================================
+    // STEP 5: Extract event details
+    // ============================================================
+    const rawEventType: string =
+      payload?.event_type || payload?.eventType || payload?.type || "";
+    const normalizedEvent = normalizeEventType(rawEventType);
+
+    const data = payload?.data || {};
+    const tx = data?.transaction || {};
+    const merchant = data?.merchant || {};
+    const customer = data?.customer || {};
+
+    nombaTransactionId =
+      tx?.transactionId || tx?.transaction_id || payload?.requestId;
+
+    if (!nombaTransactionId) {
+      return NextResponse.json(
+        { error: "Missing transaction ID" },
+        { status: 400 },
+      );
     }
 
-    const eventType = payload.event_type || payload.eventType;
-    const tx = payload.data?.transaction || {};
-    const order = payload.data?.order || {};
-    const customer = payload.data?.customer || {};
-
-    const nombaTransactionId = tx.transactionId || tx.id || tx.reference;
-    const orderReference = order.orderReference;
-    const aliasAccountReference =
-      tx.aliasAccountReference || tx.alias_account_reference;
-    const transactionAmount = safeNum(
-      tx.transactionAmount ?? tx.amount ?? order.amount ?? 0
-    );
-    const nombaFee = safeNum(tx.fee ?? payload.data?.transaction?.fee ?? 0);
-    const txStatus = (tx.status || payload.data?.status || "")
-      .toString()
-      .toLowerCase();
-
-    console.log("Processing:", {
-      eventType,
-      amount: transactionAmount,
-      aliasAccountReference,
-      orderReference,
-    });
-
-    // ============================================================
-    // PRIORITY 0: STORE ACTIVATION PAYMENT
-    // ============================================================
-    const isStoreActivation = checkIfStoreActivationPayment(
-      orderReference,
-      payload
+    console.log(
+      `[webhook] event="${rawEventType}" (norm="${normalizedEvent}") ` +
+        `txId=${nombaTransactionId} type="${tx?.type || "?"}"`,
     );
 
-    if (
-      isStoreActivation &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing store activation payment...");
+    // ============================================================
+    // STEP 6: Replay protection
+    // ============================================================
+    const { data: existing } = await supabase
+      .from("processed_webhooks")
+      .select("id")
+      .eq("nomba_transaction_id", nombaTransactionId)
+      .maybeSingle();
 
-      const { data: payment, error: paymentError } = await supabase
-        .from("store_activation_payments")
-        .select("*")
-        .eq("order_reference", orderReference)
-        .eq("status", "pending")
-        .maybeSingle();
-
-      if (paymentError || !payment) {
-        console.error("Store activation payment not found:", orderReference);
-
-        const { data: completedPayment } = await supabase
-          .from("store_activation_payments")
-          .select("*")
-          .eq("order_reference", orderReference)
-          .eq("status", "completed")
-          .maybeSingle();
-
-        if (completedPayment) {
-          console.log("Store activation already completed");
-          return NextResponse.json({
-            success: true,
-            message: "Already processed",
-            payment_id: completedPayment.id,
-          });
-        }
-
-        return NextResponse.json(
-          { error: "Payment not found" },
-          { status: 404 }
-        );
-      }
-
-      console.log("Found store activation payment:", payment.id);
-
-      const { error: paymentUpdateError } = await supabase
-        .from("store_activation_payments")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          paid_at: new Date().toISOString(),
-          nomba_transaction_id: nombaTransactionId,
-        })
-        .eq("id", payment.id);
-
-      if (paymentUpdateError) {
-        console.error(
-          "❌ Failed to update store activation payment:",
-          paymentUpdateError
-        );
-        return NextResponse.json(
-          { error: "Failed to update payment status" },
-          { status: 500 }
-        );
-      }
-
-      console.log("✅ Payment marked completed:", payment.id);
-
-      const { error: storeUpdateError } = await supabase
-        .from("online_stores")
-        .update({
-          is_active: true,
-          activation_paid: true,
-          activated_at: new Date().toISOString(),
-          activation_reference: payment.reference,
-        })
-        .eq("id", payment.store_id);
-
-      if (storeUpdateError) {
-        console.error("❌ Failed to activate store:", storeUpdateError);
-        await supabase
-          .from("store_activation_payments")
-          .update({
-            status: "pending",
-            completed_at: null,
-            paid_at: null,
-            nomba_transaction_id: null,
-          })
-          .eq("id", payment.id);
-
-        return NextResponse.json(
-          { error: "Failed to activate store" },
-          { status: 500 }
-        );
-      }
-
-      console.log("✅ Store activated:", payment.store_id);
-
-      try {
-        const { error: draftDeleteError } = await supabase
-          .from("store_create_drafts")
-          .delete()
-          .eq("user_id", payment.user_id);
-
-        if (draftDeleteError) {
-          console.error(
-            "Failed to delete create draft on activation:",
-            draftDeleteError
-          );
-        } else {
-          console.log("Create draft cleared for user:", payment.user_id);
-        }
-      } catch (draftErr) {
-        console.error("Unexpected error clearing create draft:", draftErr);
-      }
-
-      const { data: existingWallet } = await supabase
-        .from("store_owner_wallets")
-        .select("id")
-        .eq("user_id", payment.user_id)
-        .maybeSingle();
-
-      if (!existingWallet) {
-        const { error: walletInsertError } = await supabase
-          .from("store_owner_wallets")
-          .insert({
-            user_id: payment.user_id,
-            store_id: payment.store_id,
-            available_balance: 0,
-            pending_balance: 0,
-            total_earned: 0,
-            total_withdrawn: 0,
-            last_activity_at: new Date().toISOString(),
-          });
-
-        if (walletInsertError) {
-          console.error("Failed to create store owner wallet:", walletInsertError);
-        } else {
-          console.log("✅ Store owner wallet created");
-        }
-      }
-
-      console.log("✅ Store activation completed");
-
+    if (existing) {
+      console.log(`[webhook] ${nombaTransactionId} already processed`);
       return NextResponse.json({
         success: true,
-        message: "Store activated successfully",
-        payment_id: payment.id,
+        message: "Webhook already processed",
       });
     }
 
     // ============================================================
-    // PRIORITY 1: CARD PAYMENTS (Payment Pages)
+    // STEP 7: Atomic claim
     // ============================================================
-    const isCardPayment = checkIfCardPayment(orderReference, payload);
+    const { error: claimErr } = await supabase
+      .from("processed_webhooks")
+      .insert({
+        nomba_transaction_id: nombaTransactionId,
+        event_type: rawEventType,
+        payload,
+      });
 
-    if (
-      isCardPayment &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing card payment...");
+    if (claimErr) {
+      if (claimErr.code === "23505") {
+        return NextResponse.json({
+          success: true,
+          message: "Webhook already processed",
+        });
+      }
+      console.error("[webhook] Claim failed:", claimErr);
+      return NextResponse.json(
+        { error: "Webhook processing error" },
+        { status: 500 },
+      );
+    }
+    claimed = true;
 
-      const { data: payment, error: paymentError } = await supabase
-        .from("payment_page_payments")
-        .select("*, payment_pages(*)")
-        .eq("order_reference", orderReference)
-        .eq("status", "pending")
-        .maybeSingle();
+    // ============================================================
+    // STEP 8: Dispatch by event type
+    // ============================================================
+    let handled = false;
 
-      if (paymentError || !payment) {
-        console.error(
-          "Card payment not found for order reference:",
-          orderReference
+    // ---------- VIRTUAL ACCOUNT DEPOSIT (vact_transfer) ----------
+    if (tx?.type === "vact_transfer") {
+      const aliasAccountReference = tx?.aliasAccountReference;
+      const transactionAmount = Number(tx?.transactionAmount ?? 0);
+      const nombaFee = Number(tx?.fee ?? 0);
+
+      console.log(
+        `[webhook] → VA deposit: user=${aliasAccountReference} ` +
+          `gross=₦${transactionAmount} fee=₦${nombaFee}`,
+      );
+
+      if (!aliasAccountReference) {
+        throw new Error(
+          "vact_transfer missing aliasAccountReference (cannot identify user)",
         );
-        const { data: completedPayment } = await supabase
-          .from("payment_page_payments")
-          .select("*, payment_pages(*)")
-          .eq("order_reference", orderReference)
-          .eq("status", "completed")
+      }
+
+      if (transactionAmount <= 0) {
+        throw new Error(`Invalid deposit amount: ${transactionAmount}`);
+      }
+
+      const result = await processVirtualAccountDeposit(payload, {
+        aliasAccountReference,
+        nombaTransactionId,
+        transactionAmount,
+        nombaFee,
+        customer,
+        tx,
+      });
+
+      if ((result as any)?.error) {
+        throw new Error((result as any).error);
+      }
+
+      console.log(
+        `[webhook] ✅ VA deposit handled: ${JSON.stringify(result)}`,
+      );
+      handled = true;
+    }
+    // ---------- PAYOUT / TRANSFER / WITHDRAWAL ----------
+    else if (
+      normalizedEvent.includes("payout") ||
+      normalizedEvent.includes("transfer") ||
+      normalizedEvent.includes("withdrawal")
+    ) {
+      const merchantTxRef = tx?.merchantTxRef || data?.merchantTxRef;
+      const isSuccess =
+        normalizedEvent.includes("success") ||
+        tx?.responseCode === "00" ||
+        String(tx?.status || "").toUpperCase() === "SUCCESS";
+
+      let pendingTxId: string | null = null;
+
+      if (merchantTxRef) {
+        const { data: byMerchantRef } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("merchant_tx_ref", merchantTxRef)
           .maybeSingle();
+        pendingTxId = byMerchantRef?.id || null;
+      }
 
-        if (completedPayment) {
-          console.log("Card payment already completed:", completedPayment.id);
-          return NextResponse.json({
-            success: true,
-            message: "Payment already processed",
-            payment_id: completedPayment.id,
-          });
+      if (!pendingTxId) {
+        const { data: byNombaId } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq(
+            "external_response->>nomba_transaction_id",
+            nombaTransactionId,
+          )
+          .maybeSingle();
+        pendingTxId = byNombaId?.id || null;
+      }
+
+      if (pendingTxId) {
+        const result = await handlePayoutWebhook({
+          pendingTxId,
+          success: isSuccess,
+          nombaTransactionId,
+          nombaFee: Number(tx?.fee || 0),
+          failureReason: tx?.failure_reason || tx?.responseMessage,
+        });
+
+        if (!result.ok) {
+          throw new Error(result.message);
         }
-
-        return NextResponse.json(
-          { error: "Payment not found" },
-          { status: 404 }
+        console.log(`[webhook] ✅ Payout handled: ${result.message}`);
+      } else {
+        console.warn(
+          `[webhook] ⚠️ Payout webhook has no matching transaction: ` +
+            `merchantTxRef=${merchantTxRef} nombaTxId=${nombaTransactionId}`,
         );
       }
-
-      console.log("Found pending card payment:", payment.id);
-
-      const result = await processCardPaymentWebhook(payload, {
-        nombaTransactionId,
-        orderReference,
-        payment,
-      });
-
-      return handleErrorResponse(result);
+      handled = true;
     }
-
-    // ============================================================
-    // PRIORITY 2: SUBSCRIPTION BANK TRANSFERS
-    // ============================================================
-    const isSubscriptionBankTransfer = checkIfSubscriptionBankTransfer(
-      aliasAccountReference,
-      payload
-    );
-    if (
-      isSubscriptionBankTransfer &&
-      (eventType === "payment_success" || txStatus === "success")
+    // ---------- INVOICE / GENERIC PAYMENT ----------
+    else if (
+      normalizedEvent.includes("invoice") ||
+      normalizedEvent === "payment_success" ||
+      normalizedEvent.includes("payment")
     ) {
-      console.log("Processing subscription bank transfer...");
-      const result = await processSubscriptionBankTransfer(payload, {
-        nombaTransactionId,
-        aliasAccountReference,
-        transactionAmount,
-        customer,
-        tx,
-      });
-      return handleErrorResponse(result);
-    }
+      console.log(
+        `[webhook] → Invoice/payment handler: type="${tx?.type}" ` +
+          `amount=${tx?.transactionAmount ?? tx?.amount}`,
+      );
 
-    // ============================================================
-    // PRIORITY 3: SUBSCRIPTION CARD PAYMENTS
-    // ============================================================
-    const isSubscriptionCard = checkIfSubscriptionPayment(
-      orderReference,
-      payload
-    );
-    if (
-      isSubscriptionCard &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing subscription card payment...");
-      const result = await processSubscriptionPayment(payload, {
-        nombaTransactionId,
-        orderReference,
-      });
-      return handleErrorResponse(result);
-    }
+      const userId = tx?.aliasAccountReference;
+      const invoiceId = tx?.invoice_id || data?.invoice_id;
+      const amount = Number(tx?.transactionAmount ?? tx?.amount ?? 0);
 
-    // ============================================================
-    // PRIORITY 4: REGULAR WALLET DEPOSITS
-    // ============================================================
-    // ⭐ This is the ONE branch that triggers user account activation.
-    // After the wallet is credited, we check if the balance has
-    // reached ₦2,000. If so, debit ₦1,000 as the activation fee
-    // and mark the account as active.
-    // ============================================================
-    const isRegularDeposit = await isRegularWalletDeposit(
-      aliasAccountReference
-    );
-    if (
-      isRegularDeposit &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing wallet deposit...");
+      if (userId && invoiceId && amount > 0) {
+        const result = await handleInvoicePayment({
+          userId,
+          amount,
+          transactionReference: nombaTransactionId,
+          invoiceId,
+          invoiceReference:
+            tx?.invoice_reference || data?.invoice_reference,
+          payerEmail: customer?.email || tx?.payer_email,
+          externalResponse: { payload },
+        });
 
-      // 1. Credit the wallet (existing behavior — unchanged)
-      const result = await processVirtualAccountDeposit(payload, {
-        aliasAccountReference,
-        nombaTransactionId,
-        transactionAmount,
-        nombaFee,
-        customer,
-        tx,
-      });
-
-      // 2. After successful credit, run the activation check
-      if (result && !("error" in result)) {
-        try {
-          const { processActivation } = await import("@/lib/activation");
-
-          const activationResult = await processActivation({
-            userId: aliasAccountReference,
-            inflowAmount: transactionAmount,
-            inflowReference: nombaTransactionId,
-            inflowProviderTxId: nombaTransactionId,
-            inflowChannel: "virtual_account",
-            inflowSender: {
-              name:
-                customer.senderName ||
-                customer.name ||
-                "Bank Transfer",
-              bank: customer.bankName,
-              account: customer.accountNumber,
-            },
-          });
-
-          console.log("[webhook] Activation check:", {
-            userId: aliasAccountReference,
-            activated: activationResult.activated,
-            reason: activationResult.reason,
-            newBalance: activationResult.newBalance,
-            feeCharged: activationResult.feeCharged,
-          });
-        } catch (activationErr: any) {
-          // Non-fatal — the funding itself already succeeded
-          console.error(
-            "[webhook] Activation check failed (non-fatal):",
-            activationErr.message
-          );
+        if (!result.ok) {
+          throw new Error(result.message);
         }
+        console.log(`[webhook] ✅ Invoice handled: ${result.message}`);
+      } else {
+        console.warn(
+          `[webhook] ⚠️ Invoice event missing fields: ` +
+            `userId=${userId} invoiceId=${invoiceId} amount=${amount}`,
+        );
       }
-
-      return handleErrorResponse(result);
+      handled = true;
     }
 
-    // ============================================================
-    // PRIORITY 5: INVOICE PAYMENTS
-    // ============================================================
-    const isInvoicePayment = checkIfInvoicePayment(orderReference, payload);
-    if (
-      isInvoicePayment &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing invoice payment...");
-      const result = (await processInvoicePayment(payload, {
-        nombaTransactionId,
-        transactionAmount,
-        nombaFee,
-        orderReference,
-        customer,
-        tx,
-      })) as WebhookResponse;
+    // ---------- UNHANDLED ----------
+    if (!handled) {
+      console.warn(
+        `[webhook] ⚠️ Unhandled event="${rawEventType}" type="${tx?.type}"`,
+      );
 
-      if (result && "error" in result && result.error) {
-        if (!result.error.includes("not found")) {
-          const statusCode = result.status || 500;
-          return NextResponse.json(
-            { error: result.error },
-            { status: statusCode }
-          );
-        }
-      } else if (result && "success" in result) {
-        return NextResponse.json(result);
+      await supabase
+        .from("processed_webhooks")
+        .delete()
+        .eq("nomba_transaction_id", nombaTransactionId);
+
+      return NextResponse.json(
+        { error: `Unhandled: ${rawEventType}/${tx?.type}` },
+        { status: 501 },
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Webhook processed",
+    });
+  } catch (err: any) {
+    console.error("[webhook] ❌ Error:", err);
+
+    if (claimed && nombaTransactionId) {
+      try {
+        await supabase
+          .from("processed_webhooks")
+          .delete()
+          .eq("nomba_transaction_id", nombaTransactionId);
+        console.log(`[webhook] 🔙 Rolled back claim`);
+      } catch (rollbackErr) {
+        console.error("[webhook] Rollback failed:", rollbackErr);
       }
     }
 
-    // ============================================================
-    // PRIORITY 6: FALLBACK VIRTUAL ACCOUNT DEPOSIT
-    // ============================================================
-    if (
-      aliasAccountReference &&
-      (eventType === "payment_success" || txStatus === "success")
-    ) {
-      console.log("Processing fallback virtual account deposit...");
-      const result = await processVirtualAccountDeposit(payload, {
-        aliasAccountReference,
-        nombaTransactionId,
-        transactionAmount,
-        nombaFee,
-        customer,
-        tx,
-      });
-      return handleErrorResponse(result);
-    }
-
-    // ============================================================
-    // PRIORITY 7: PAYOUT REFUNDS
-    // ============================================================
-    if (eventType === "payout_refund") {
-      console.log("Processing payout refund...");
-
-      const walletBalanceBefore = safeNum(
-        payload.data?.merchant?.walletBalanceBefore ?? 0
-      );
-      const walletBalanceAfter = safeNum(
-        payload.data?.merchant?.walletBalance ?? 0
-      );
-      const refundAmount = safeNum(tx.transactionAmount ?? 0);
-
-      const result = await processPayoutRefund(payload, {
-        nombaTransactionId,
-        eventType,
-        tx,
-        walletBalanceBefore,
-        walletBalanceAfter,
-        refundAmount,
-      });
-
-      return handleErrorResponse(result);
-    }
-
-    // ============================================================
-    // PRIORITY 8: PAYMENT REVERSALS
-    // ============================================================
-    if (eventType === "payment_reversal") {
-      console.log("Processing payment reversal...");
-
-      const result = await processPaymentReversal(payload, {
-        nombaTransactionId,
-        transactionAmount,
-        tx,
-      });
-
-      return handleErrorResponse(result);
-    }
-
-    // ============================================================
-    // PRIORITY 9: WITHDRAWALS / TRANSFERS (PAYOUTS)
-    // ============================================================
-    const transactionType = (tx.type || "").toLowerCase();
-    const isPayout =
-      eventType?.toLowerCase().includes("payout") ||
-      transactionType.includes("transfer") ||
-      transactionType.includes("payout");
-
-    if (isPayout) {
-      console.log("Processing payout...");
-      const result = await processPayout(payload, {
-        nombaTransactionId,
-        eventType,
-        txStatus,
-        tx,
-      });
-      return handleErrorResponse(result);
-    }
-
-    console.log("Unhandled event type:", eventType);
-    return NextResponse.json({ message: "Event ignored" }, { status: 200 });
-  } catch (error: any) {
-    console.error("Webhook error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
+      { error: "Internal server error", detail: err?.message },
+      { status: 500 },
     );
   }
 }
-// export async function POST(req: Request) {
-//   const timestamp = req.headers.get("nomba-timestamp");
-//   const signature = req.headers.get("nomba-sig-value");
-
-//   // ✅ TEMP: Allow missing headers only for initial verification
-//   if (!timestamp || !signature) {
-//     console.log("Nomba initial webhook verification ping — allowing");
-//     return new Response(JSON.stringify({ verified: true }), { status: 200 });
-//   }
-
-//   // 🔐 Normal processing for real events
-//   const body = await req.json();
-//   console.log("Nomba Webhook Triggered", body);
-
-//   return new Response(JSON.stringify({ received: true }), { status: 200 });
-// }

@@ -1,19 +1,6 @@
 // proxy.ts
 // ─────────────────────────────────────────────────────────────────────────────
-// Simplified session validation for Next.js 16.
-//
-// Responsibilities:
-//   • Identify public vs protected routes
-//   • Validate auth for protected routes (via Supabase getUser)
-//   • Refresh expired access tokens
-//   • Write refreshed cookies to the response
-//   • Redirect unauthenticated users to /auth/login
-//   • Preserve authorization checks (tier, BVN, admin, store, payment)
-//
-// Removed:
-//   • Timeout races that granted access on failure
-//   • sb-client-session forgery bypass
-//   • Redundant DB session-id lookups in the hot path
+// Session validation + subdomain routing for Next.js 16.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextResponse, type NextRequest } from "next/server";
@@ -25,38 +12,60 @@ import {
   isBvnVerified,
   type UserDetails,
 } from "@/lib/supabase-admin";
-import { canAccessPaymentPage } from "@/lib/constants";
 
 export const TIER_HIERARCHY = [
   "free",
+  "starter",
   "sme",
   "enterprise",
-  "corporation",
+  "console",
 ] as const;
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 
+const ZIDSTORE_HOST =
+  process.env.NEXT_PUBLIC_ZIDSTORE_HOST?.toLowerCase() || "store.zidwell.com";
+
+// Hosts that should get the /online-store → subdomain redirect.
+// Preview deployments (*.vercel.app) and localhost are NOT in this list,
+// so they will serve /online-store in place instead of redirecting.
+// Override via PRODUCTION_HOSTS env var (comma-separated), e.g.
+//   PRODUCTION_HOSTS=zidwell.com,www.zidwell.com
+const PRODUCTION_HOSTS = new Set<string>(
+  (process.env.PRODUCTION_HOSTS ?? "zidwell.com,www.zidwell.com")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
+);
+
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
-  { path: "/dashboard/bookkeeping", requiredTier: "sme" },
+  // Starter and above
+  { path: "/dashboard/bookkeeping", requiredTier: "starter" },
+  { path: "/dashboard/vault", requiredTier: "starter" },
+  { path: "/dashboard/financial-statements", requiredTier: "starter" },
+
+  // SME and above
   { path: "/dashboard/bank-statements", requiredTier: "sme" },
-  { path: "/dashboard/vault", requiredTier: "sme" },
   { path: "/dashboard/tax-calculator", requiredTier: "sme" },
-  { path: "/dashboard/financial-statements", requiredTier: "sme" },
   { path: "/dashboard/connected-accounts", requiredTier: "sme" },
-  { path: "/dashboard/team", requiredTier: "enterprise" },
+  { path: "/dashboard/team", requiredTier: "sme" },
+  { path: "/dashboard/tax-filing", requiredTier: "sme" },
+
+  // Enterprise and above
   { path: "/dashboard/roles", requiredTier: "enterprise" },
   { path: "/dashboard/approvals", requiredTier: "enterprise" },
   { path: "/dashboard/reports", requiredTier: "enterprise" },
   { path: "/dashboard/contracts", requiredTier: "enterprise" },
-  { path: "/dashboard/departments", requiredTier: "corporation" },
-  { path: "/dashboard/payroll", requiredTier: "corporation" },
-  { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
-  { path: "/dashboard/custom-structure", requiredTier: "corporation" },
-  { path: "/dashboard/account-manager", requiredTier: "corporation" },
-  { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
   { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
   { path: "/dashboard/cfo-guidance", requiredTier: "enterprise" },
+
+  // Console (custom)
+  { path: "/dashboard/departments", requiredTier: "console" },
+  { path: "/dashboard/payroll", requiredTier: "console" },
+  { path: "/dashboard/advanced-reporting", requiredTier: "console" },
+  { path: "/dashboard/custom-structure", requiredTier: "console" },
+  { path: "/dashboard/account-manager", requiredTier: "console" },
 ];
 
 const bvnRequiredRoutes = new Set([
@@ -113,7 +122,9 @@ const publicPaths = [
   "/privacy",
   "/terms",
   "/blog",
-   "/auth/session-timeout",
+  "/auth/session-timeout",
+  // ── ZidStore landing page (public in dev; 308'd to subdomain in prod) ──
+  "/online-store",
 ];
 
 const sortedPremiumRoutes = [...premiumRoutes].sort(
@@ -127,14 +138,6 @@ function getRequiredTier(pathname: string): SubscriptionTier | null {
     }
   }
   return null;
-}
-
-function requiresPaymentEmailRestriction(pathname: string): boolean {
-  return (
-    pathname === "/dashboard/services/payment" ||
-    pathname === "/dashboard/services/payment/create" ||
-    pathname === "/dashboard/services/payment/create-link"
-  );
 }
 
 function requiresStoreOwnership(pathname: string): boolean {
@@ -223,6 +226,8 @@ function setAuthCookies(
 ) {
   const secure = process.env.NODE_ENV === "production";
   const maxAge = 60 * 60 * 24 * 7;
+  // Share the session across zidwell.com and store.zidwell.com
+  const domain = secure ? ".zidwell.com" : undefined;
 
   response.cookies.set("sb-access-token", accessToken, {
     httpOnly: true,
@@ -230,6 +235,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
   response.cookies.set("sb-refresh-token", refreshToken, {
     httpOnly: true,
@@ -237,6 +243,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
   response.cookies.set("sb-client-session", "true", {
     httpOnly: false,
@@ -244,6 +251,7 @@ function setAuthCookies(
     sameSite: "lax",
     path: "/",
     maxAge,
+    domain,
   });
 }
 
@@ -361,7 +369,60 @@ async function validateOrRefresh(
 
 export async function proxy(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
+  const hostname = req.headers.get("host")?.split(":")[0]?.toLowerCase();
 
+  // ─────────────────────────────────────────────────────────────────────
+  // Subdomain: store.zidwell.com
+  //   - "/"                          → rewrite to /online-store (URL stays "/")
+  //   - "/online-store"              → 308 to "/" (canonicalize)
+  //   - anything else (assets, API)  → pass through
+  // ─────────────────────────────────────────────────────────────────────
+  if (hostname === ZIDSTORE_HOST) {
+    if (
+      currentPath.startsWith("/_next") ||
+      currentPath.startsWith("/api") ||
+      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/.test(
+        currentPath,
+      )
+    ) {
+      return NextResponse.next();
+    }
+
+    if (currentPath === "/online-store" || currentPath === "/online-store/") {
+      return NextResponse.redirect(new URL("/", req.url), 308);
+    }
+
+    if (currentPath === "/") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/online-store";
+      return NextResponse.rewrite(url);
+    }
+
+    return NextResponse.next();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Main domain: zidwell.com
+  //   - "/online-store" on PRODUCTION hosts → 308 to https://store.zidwell.com/
+  //   - "/online-store" on preview/dev      → serve normally (publicPaths)
+  //
+  // The redirect is gated on the request hostname (not NODE_ENV/VERCEL_ENV),
+  // so Vercel preview deployments (*.vercel.app) and localhost serve the page
+  // in place instead of being bounced to the production subdomain.
+  // ─────────────────────────────────────────────────────────────────────
+  const isProductionHost = hostname ? PRODUCTION_HOSTS.has(hostname) : false;
+
+  if (
+    isProductionHost &&
+    (currentPath === "/online-store" || currentPath.startsWith("/online-store/"))
+  ) {
+    const suffix = currentPath.replace(/^\/online-store/, "");
+    const target = new URL(suffix || "/", `https://${ZIDSTORE_HOST}`);
+    target.search = req.nextUrl.search;
+    return NextResponse.redirect(target, 308);
+  }
+
+  // ── Public storefront slug validation ──
   if (isPublicStoreFront(currentPath)) {
     if (!areStoreFrontSlugsValid(currentPath)) {
       return NextResponse.redirect(new URL("/", req.url));
@@ -369,6 +430,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Public routes (login, signup, /online-store in dev, etc.) ──
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
@@ -377,6 +439,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
+  // ── Auth ──
   const accessToken = req.cookies.get("sb-access-token")?.value;
   const refreshToken = req.cookies.get("sb-refresh-token")?.value;
 
@@ -411,7 +474,6 @@ export async function proxy(req: NextRequest) {
   }
 
   if (!userDetails) {
-    // Could not load profile. Don't log out — likely transient.
     console.warn("⚠️ Could not load user details — allowing request through");
     return NextResponse.next();
   }
@@ -434,23 +496,8 @@ export async function proxy(req: NextRequest) {
     return res;
   };
 
-  if (requiresPaymentEmailRestriction(currentPath)) {
-    const email = user.email?.toLowerCase();
-    if (!canAccessPaymentPage(email)) {
-      const res = NextResponse.redirect(new URL("/dashboard", req.url));
-      res.cookies.set(
-        "payment_access_denied",
-        "You don't have permission to access the payment page",
-        { httpOnly: true, maxAge: 5, path: "/", sameSite: "lax" },
-      );
-      return res;
-    }
-  }
-
-  const emailForStore = user.email?.toLowerCase();
-  const isAuthorizedPaymentUser = canAccessPaymentPage(emailForStore);
-
-  if (requiresStoreOwnership(currentPath) && !isAuthorizedPaymentUser) {
+  // ── Store ownership check ──
+  if (requiresStoreOwnership(currentPath)) {
     try {
       const supabase = getSupabaseAdmin();
       const { data: store, error: storeError } = await supabase
@@ -503,7 +550,7 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // BVN check — uses the canonical helper
+  // ── BVN check ──
   if (bvnRequiredRoutes.has(currentPath) && !isBvnVerified(userDetails)) {
     const res = NextResponse.redirect(
       new URL(
@@ -519,6 +566,7 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
+  // ── Tier check ──
   const requiredTier = getRequiredTier(currentPath);
   if (requiredTier && !hasSufficientTier(userDetails, requiredTier)) {
     const res = NextResponse.redirect(
@@ -537,6 +585,7 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
+  // ── Admin check ──
   if (
     currentPath.startsWith("/admin") ||
     currentPath.startsWith("/blog/admin")
@@ -554,7 +603,9 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/app",
+    "/online-store",
     "/dashboard/:path*",
     "/admin/:path*",
     "/blog/admin/:path*",
@@ -563,5 +614,11 @@ export const config = {
     "/payment-page/status",
     "/payment/callback",
     "/payment-page-success",
+    /*
+     * Also catch arbitrary paths on the ZidStore subdomain so the "/" rewrite
+     * works. Middleware's matcher runs before routing, and "/" is already in
+     * the list above, so no extra entry is strictly required — but keeping
+     * this comment makes it obvious why "/" is not prefixed with a domain.
+     */
   ],
 };

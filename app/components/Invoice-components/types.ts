@@ -1,6 +1,15 @@
 // components/Invoice-components/types.ts
 
-// Shared types to avoid duplicates
+// ============================================================================
+// Shared types
+// ============================================================================
+
+// Zidwell subscription tiers. "starter" is the free plan (5 invoices/month);
+// "free" is only used as a pre-subscription sentinel before the first row
+// is created. Any ZidStore tier (booster / console) is normalized to
+// "starter" by useSubscription before it reaches the invoice components.
+export type SubscriptionTier = "free" | "starter" | "sme" | "enterprise";
+
 export type InvoiceItem = {
   id: string;
   description: string;
@@ -8,6 +17,10 @@ export type InvoiceItem = {
   unitPrice: number;
   total: number;
 };
+
+// ============================================================================
+// Form state
+// ============================================================================
 
 export interface InvoiceForm {
   name: string;
@@ -25,29 +38,34 @@ export interface InvoiceForm {
   business_logo?: string;
   redirect_url?: string;
   business_name: string;
+  /** Contact person name shown under the business name on the invoice */
+  senderName?: string;
+  /** Contact person phone shown under the business name on the invoice */
+  senderPhone?: string;
   allowMultiplePayments: boolean;
   clientPhone?: string;
   targetQuantity: number | "";
   sendEmailAutomatically: boolean;
 }
 
-// NEW: Subscription-based invoice usage tracking
+// ============================================================================
+// Usage tracking
+// ============================================================================
+
 export interface InvoiceUsageInfo {
-  /** Number of invoices used this month */
   used: number;
-  /** Monthly limit based on subscription tier */
-  limit: number | string;
-  /** Remaining invoices for this month */
-  remaining: number | string;
-  /** Whether user has access to create more invoices */
+  limit: number | string | "unlimited";
+  remaining: number | string | "unlimited";
   hasAccess: boolean;
-  /** Loading state */
   isChecking: boolean;
-   isPayPerUse?: boolean;
-    canCreate: boolean;
+  isPayPerUse?: boolean;
+  canCreate: boolean;
 }
 
-// NEW: Props for InvoiceSummary component with usage info
+// ============================================================================
+// Component props
+// ============================================================================
+
 export interface InvoiceSummaryProps {
   invoiceData: InvoiceForm;
   totals: {
@@ -61,11 +79,10 @@ export interface InvoiceSummaryProps {
   confirmInvoice: boolean;
   onBack: () => void;
   onConfirm: () => void;
-  /** Usage information from subscription system */
   usageInfo?: InvoiceUsageInfo;
+  userTier?: SubscriptionTier;
 }
 
-// NEW: Props for PinPopOver with usage info
 export interface PinPopOverProps {
   setIsOpen: (isOpen: boolean) => void;
   isOpen: boolean;
@@ -73,18 +90,43 @@ export interface PinPopOverProps {
   setPin: (pin: string[]) => void;
   inputCount: number;
   onConfirm: () => Promise<void>;
-  /** @deprecated Use usageInfo instead */
   invoiceFeeInfo?: {
     isFree: boolean;
     freeInvoicesLeft: number;
     totalInvoicesCreated: number;
     feeAmount: number;
   };
-  /** Usage information from subscription system */
   usageInfo?: InvoiceUsageInfo;
 }
 
-// Drafts Modal Component
+export interface CreateInvoiceProps {
+  onInvoiceCreated?: () => void;
+}
+
+export interface TabsNavigationProps {
+  activeTab: "create" | "preview";
+  onTabChange: (tab: "create" | "preview") => void;
+  createContent: React.ReactNode;
+  previewContent: React.ReactNode;
+}
+
+export interface InvoiceItemFormProps {
+  item?: InvoiceItem | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (item: InvoiceItem) => void;
+}
+
+export interface InvoiceItemRowProps {
+  item: InvoiceItem;
+  onEdit: (id: string) => void;
+  onRemove: (id: string) => void;
+}
+
+// ============================================================================
+// Drafts
+// ============================================================================
+
 export interface Draft {
   id: string;
   business_name: string;
@@ -105,8 +147,11 @@ export interface Draft {
   redirect_url?: string;
   allow_multiple_payments?: boolean;
   client_phone?: string;
-    send_email_automatically?: boolean;
+  send_email_automatically?: boolean;
   target_quantity?: number;
+  initiator_name?: string;
+  initiator_phone?: string;
+  from_name?: string;
 }
 
 export interface DraftsModalProps {
@@ -118,49 +163,10 @@ export interface DraftsModalProps {
   onStartFresh: () => void;
 }
 
-export interface CreateInvoiceProps {
-  onInvoiceCreated?: () => void;
-}
+// ============================================================================
+// Success modal
+// ============================================================================
 
-/**
- * @deprecated Use InvoiceUsageInfo from subscription system instead
- * This was used for the old free invoice system with free_invoices_left column
- * Now using invoices_used_this_month with limits from subscription_features table
- */
-export interface FreeInvoiceInfo {
-  freeInvoicesLeft: number;
-  totalInvoicesCreated: number;
-  hasFreeInvoices: boolean;
-  isChecking: boolean;
-}
-
-// NEW: Response from the usage API
-export interface UsageApiResponse {
-  invoices: {
-    used: number;
-    limit: number;
-    remaining: number;
-  };
-  receipts: {
-    used: number;
-    limit: number;
-    remaining: number;
-  };
-  contracts: {
-    used: number;
-    limit: number;
-    remaining: number;
-  };
-  bookkeepingTrial: {
-    isActive: boolean;
-    endsAt: Date;
-    daysRemaining: number;
-  } | null;
-  tier: 'free' | 'growth' | 'premium' | 'elite';
-  payPerUseFee?: number;
-}
-
-// NEW: Props for SuccessModal
 export interface SuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -169,7 +175,6 @@ export interface SuccessModalProps {
   onCopyLink: () => void;
   allowMultiplePayments: boolean;
   pdfLoading: boolean;
-  /** Payment progress for multiple payments */
   paymentProgress?: {
     totalAmount: number;
     paidAmount: number;
@@ -181,25 +186,26 @@ export interface SuccessModalProps {
   };
 }
 
-// NEW: Tabs navigation props
-export interface TabsNavigationProps {
-  activeTab: 'create' | 'preview';
-  onTabChange: (tab: 'create' | 'preview') => void;
-  createContent: React.ReactNode;
-  previewContent: React.ReactNode;
-}
+// ============================================================================
+// Usage API response
+// ============================================================================
 
-// NEW: Invoice item form props
-export interface InvoiceItemFormProps {
-  item?: InvoiceItem | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (item: InvoiceItem) => void;
-}
-
-// NEW: Invoice item row props
-export interface InvoiceItemRowProps {
-  item: InvoiceItem;
-  onEdit: (id: string) => void;
-  onRemove: (id: string) => void;
+export interface UsageApiResponse {
+  invoices: {
+    used: number;
+    limit: number | "unlimited";
+    remaining: number | "unlimited";
+    canCreate: boolean;
+  };
+  receipts: {
+    used: number;
+    limit: number | "unlimited";
+    remaining: number | "unlimited";
+  };
+  contracts: {
+    used: number;
+    limit: number | "unlimited";
+    remaining: number | "unlimited";
+  };
+  tier: SubscriptionTier;
 }

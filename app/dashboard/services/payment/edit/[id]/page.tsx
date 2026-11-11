@@ -139,9 +139,9 @@ function PricingSummaryCard({
     if (pricedVariants.length === 0) return null;
 
     return (
-      <div className="rounded-2xl border border-[#FDC020]/30 bg-[#FDC020]/5 overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-3 bg-[#FDC020]/10 border-b border-[#FDC020]/20">
-          <Info className="h-4 w-4 text-[#FDC020]" />
+      <div className="rounded-2xl border border-[#F5B800]/30 bg-[#F5B800]/5 overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-[#F5B800]/10 border-b border-[#F5B800]/20">
+          <Info className="h-4 w-4 text-[#F5B800]" />
           <h4 className="text-sm font-bold text-foreground">
             {isInstallment ? "Installment Plan Summary" : "Payment Summary"}
           </h4>
@@ -213,7 +213,7 @@ function PricingSummaryCard({
             })}
           </div>
 
-          <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#FDC020]/20">
+          <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#F5B800]/20">
             ✓ Buyers pay the price of the variant they pick. The 3.5% fee is
             deducted from your payout — you never charge the buyer extra.
           </p>
@@ -247,9 +247,9 @@ function PricingSummaryCard({
     : 0;
 
   return (
-    <div className="rounded-2xl border border-[#FDC020]/30 bg-[#FDC020]/5 overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 bg-[#FDC020]/10 border-b border-[#FDC020]/20">
-        <Info className="h-4 w-4 text-[#FDC020]" />
+    <div className="rounded-2xl border border-[#F5B800]/30 bg-[#F5B800]/5 overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 bg-[#F5B800]/10 border-b border-[#F5B800]/20">
+        <Info className="h-4 w-4 text-[#F5B800]" />
         <h4 className="text-sm font-bold text-foreground">
           {isInstallment ? "Installment Plan Summary" : "Payment Summary"}
         </h4>
@@ -289,7 +289,7 @@ function PricingSummaryCard({
           </div>
         </div>
 
-        <div className="border-t border-[#FDC020]/20" />
+        <div className="border-t border-[#F5B800]/20" />
 
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
@@ -317,7 +317,7 @@ function PricingSummaryCard({
           </div>
         </div>
 
-        <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#FDC020]/20">
+        <p className="text-[11px] text-muted-foreground leading-relaxed pt-2 border-t border-[#F5B800]/20">
           ✓ Transaction fee: 3.5%.{" "}
           {feePayer === "customers"
             ? "Buyer pays fee (added to total)."
@@ -480,7 +480,7 @@ const EditPaymentPage = () => {
         icon: "error",
         title: "Failed to Load",
         text: error.message || "Could not load the page data.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
       });
     } finally {
       setLoading(false);
@@ -508,7 +508,7 @@ const EditPaymentPage = () => {
             icon: "warning",
             title: "File Too Large",
             text: `"${file.name}" exceeds 10MB. Please compress it.`,
-            confirmButtonColor: "#FDC020",
+            confirmButtonColor: "#F5B800",
           });
           resolve(null);
           return;
@@ -660,7 +660,7 @@ const EditPaymentPage = () => {
         icon: "warning",
         title: "Title Required",
         text: "Please enter a page title before saving.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
       });
       return;
     }
@@ -673,7 +673,7 @@ const EditPaymentPage = () => {
           icon: "warning",
           title: "Variant Name Required",
           text: "Every variant needs a name.",
-          confirmButtonColor: "#FDC020",
+          confirmButtonColor: "#F5B800",
         });
         return;
       }
@@ -682,7 +682,7 @@ const EditPaymentPage = () => {
           icon: "warning",
           title: "Variant Stock Exceeds Page Stock",
           text: `Variants total ${variantSum}, but page stock is ${stock}. Reduce variant stocks or raise page stock.`,
-          confirmButtonColor: "#FDC020",
+          confirmButtonColor: "#F5B800",
         });
         return;
       }
@@ -801,7 +801,7 @@ const EditPaymentPage = () => {
         icon: "success",
         title: "Page Updated",
         text: "Your changes have been saved successfully.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
         confirmButtonText: "Done",
         timer: 2000,
         timerProgressBar: true,
@@ -815,7 +815,7 @@ const EditPaymentPage = () => {
         icon: "error",
         title: "Update Failed",
         text: error.message || "Something went wrong. Please try again.",
-        confirmButtonColor: "#FDC020",
+        confirmButtonColor: "#F5B800",
         confirmButtonText: "OK",
       });
     } finally {
@@ -826,7 +826,7 @@ const EditPaymentPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#FDC020]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#F5B800]" />
       </div>
     );
   }
@@ -964,7 +964,7 @@ const EditPaymentPage = () => {
                     <button
                       onClick={() => productRef.current?.click()}
                       type="button"
-                      className="h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-[#FDC020] transition-colors"
+                      className="h-20 w-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center hover:border-[#F5B800] transition-colors"
                     >
                       <ImagePlus className="h-5 w-5 text-muted-foreground" />
                     </button>
@@ -1050,7 +1050,7 @@ const EditPaymentPage = () => {
                     <Switch
                       checked={requiresShipping}
                       onCheckedChange={setRequiresShipping}
-                      className="data-[state=checked]:bg-[#FDC020]"
+                      className="data-[state=checked]:bg-[#F5B800]"
                     />
                   </div>
                 </div>
@@ -1403,7 +1403,7 @@ const EditPaymentPage = () => {
                   ].map((opt) => (
                     <label
                       key={opt.value}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/20 cursor-pointer hover:border-[#FDC020]/50 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/20 cursor-pointer hover:border-[#F5B800]/50 transition-colors"
                     >
                       <input
                         type="radio"
@@ -1420,7 +1420,7 @@ const EditPaymentPage = () => {
                               | "split between both parties",
                           )
                         }
-                        className="h-4 w-4 text-[#FDC020] border-border focus:ring-[#FDC020]"
+                        className="h-4 w-4 text-[#F5B800] border-border focus:ring-[#F5B800]"
                       />
                       <span className="text-sm text-foreground">
                         {opt.label}
@@ -1443,8 +1443,8 @@ const EditPaymentPage = () => {
                         onClick={() => setPriceType("fixed")}
                         className={`p-3 rounded-xl border-2 transition-colors ${
                           priceType === "fixed"
-                            ? "border-[#FDC020] bg-[#FDC020]/10"
-                            : "border-border hover:border-[#FDC020]/50"
+                            ? "border-[#F5B800] bg-[#F5B800]/10"
+                            : "border-border hover:border-[#F5B800]/50"
                         }`}
                       >
                         Fixed Price
@@ -1454,8 +1454,8 @@ const EditPaymentPage = () => {
                         onClick={() => setPriceType("installment")}
                         className={`p-3 rounded-xl border-2 transition-colors ${
                           priceType === "installment"
-                            ? "border-[#FDC020] bg-[#FDC020]/10"
-                            : "border-border hover:border-[#FDC020]/50"
+                            ? "border-[#F5B800] bg-[#F5B800]/10"
+                            : "border-border hover:border-[#F5B800]/50"
                         }`}
                       >
                         Installment
@@ -1580,7 +1580,7 @@ const EditPaymentPage = () => {
             <Button
               variant="default"
               size="lg"
-              className="w-full py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800] disabled:opacity-50"
+              className="w-full py-6 text-base bg-[#F5B800] text-[#191919] hover:bg-[#e6a800] disabled:opacity-50"
               onClick={handleSave}
               disabled={saving}
             >

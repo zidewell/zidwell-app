@@ -125,7 +125,7 @@ export async function POST(request: Request) {
         .code-display {
             display: inline-block;
             background: rgba(253, 192, 32, 0.1);
-            border: 2px dashed #FDC020;
+            border: 2px dashed #F5B800;
             padding: 30px 50px;
             border-radius: 16px;
         }
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
         
         .text-primary { color: #191919 !important; }
         .text-secondary { color: #666666 !important; }
-        .text-accent { color: #FDC020 !important; }
+        .text-accent { color: #F5B800 !important; }
         .text-success { color: #00B64F !important; }
         
         .text-sm { font-size: 14px !important; }
@@ -178,10 +178,10 @@ export async function POST(request: Request) {
             
             <div class="verification-code-box">
                 <div class="code-display">
-                    <div style="font-size: 12px; color: #FDC020; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
+                    <div style="font-size: 12px; color: #F5B800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 600;">
                         Verification Code
                     </div>
-                    <div style="font-size: 40px; font-weight: 700; letter-spacing: 8px; color: #FDC020; font-family: monospace; margin: 15px 0;">
+                    <div style="font-size: 40px; font-weight: 700; letter-spacing: 8px; color: #F5B800; font-family: monospace; margin: 15px 0;">
                         ${verificationCode}
                     </div>
                     <div style="font-size: 14px; color: #666666; margin-top: 10px;">
@@ -206,7 +206,7 @@ export async function POST(request: Request) {
             </div>
             
             <div style="background: rgba(253, 192, 32, 0.05); padding: 15px; text-align: center; margin-top: 25px; border-radius: 8px;">
-                <p style="margin: 0; color: #FDC020; font-size: 12px;">
+                <p style="margin: 0; color: #F5B800; font-size: 12px;">
                     This is an automated message from Zidwell Contracts. Please do not reply to this email.
                 </p>
             </div>

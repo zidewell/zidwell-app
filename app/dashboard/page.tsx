@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -133,14 +134,24 @@ function DashboardPage() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [userTier]);
 
+  // Format plan name for display
   const formatPlanName = (plan: string) => {
     if (!plan) return "";
     const planMap: Record<string, string> = {
       free: "Free",
-      solopreneur: "Solopreneur",
+      starter: "Starter",
       sme: "SME",
-      enterprise: "Enterprise",
-      corporation: "Corporation",
+      enterprise: "Enterprise"
+    };
+    return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
+  };
+
+  // Get free tier limits
+  const getFreeTierLimits = () => {
+    return {
+      invoices: 5,
+      receipts: 5,
+      contracts: 1,
     };
     return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
@@ -339,9 +350,10 @@ function DashboardPage() {
               </p>
             </div>
 
-            <section>
+            {/* Announcement Slider */}
+            {/*<section>
               <AnnouncementSlider />
-            </section>
+            </section>*/}
 
             <section className="mt-16">
               <h3 className="text-sm font-bold text-[#6b6b6b] dark:text-[#a6a6a6] uppercase tracking-widest mb-4">

@@ -1,7 +1,10 @@
+// app/api/store/delivery-addresses/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth-check-api";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { sortAddresses } from "@/lib/delivery-utils";
+import { sortDeliveryZones } from "@/lib/delivery-utils";
+
+const MAX_ZONES = 20;
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,21 +16,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const storeId = searchParams.get("storeId");
     if (!storeId) {
-      return NextResponse.json({ error: "storeId is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "storeId is required" },
+        { status: 400 },
+      );
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin() as any;
 
-    const { data: store, error: storeErr } = await supabase
+    const { data: store } = await supabase
       .from("online_stores")
       .select("id, owner_id")
       .eq("id", storeId)
       .single();
 
-    if (storeErr || !store) {
-      return NextResponse.json({ error: "Store not found" }, { status: 404 });
-    }
-    if (store.owner_id !== user.id) {
+    if (!store || store.owner_id !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -37,14 +40,16 @@ export async function GET(request: NextRequest) {
       .eq("store_id", storeId);
 
     if (error) {
-      console.error("List delivery addresses error:", error);
+      console.error("List delivery zones error:", error);
       return NextResponse.json(
-        { error: "Failed to load addresses" },
+        { error: "Failed to load delivery zones" },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ addresses: sortAddresses(data ?? []) });
+    return NextResponse.json({
+      zones: sortDeliveryZones(data ?? []),
+    });
   } catch (err: any) {
     console.error("GET delivery-addresses error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -62,35 +67,24 @@ export async function POST(request: NextRequest) {
     const {
       store_id,
       label,
-      contact_name,
-      contact_phone,
-      street_address,
-      city,
-      state,
-      country = "Nigeria",
-      delivery_fee = 0,
-      estimated_days = 3,
+      address,
+      city = null,
+      state = null,
+      fee = 0,
+      free_threshold = 0,
+      notes = null,
       is_default = false,
       is_active = true,
-      notes = null,
     } = body;
 
-    if (
-      !store_id ||
-      !label ||
-      !contact_name ||
-      !contact_phone ||
-      !street_address ||
-      !city ||
-      !state
-    ) {
+    if (!store_id || !label?.trim() || !address?.trim()) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Label and address are required" },
         { status: 400 },
       );
     }
 
-    const supabase = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin() as any;
 
     const { data: store } = await supabase
       .from("online_stores")
@@ -100,6 +94,18 @@ export async function POST(request: NextRequest) {
 
     if (!store || store.owner_id !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { count } = await supabase
+      .from("store_delivery_addresses")
+      .select("id", { count: "exact", head: true })
+      .eq("store_id", store_id);
+
+    if ((count ?? 0) >= MAX_ZONES) {
+      return NextResponse.json(
+        { error: `You can have at most ${MAX_ZONES} delivery zones` },
+        { status: 400 },
+      );
     }
 
     if (is_default) {
@@ -113,31 +119,28 @@ export async function POST(request: NextRequest) {
       .from("store_delivery_addresses")
       .insert({
         store_id,
-        label,
-        contact_name,
-        contact_phone,
-        street_address,
-        city,
-        state,
-        country,
-        delivery_fee,
-        estimated_days,
+        label: label.trim(),
+        address: address.trim(),
+        city: city?.trim() || null,
+        state: state?.trim() || null,
+        fee: Number(fee) || 0,
+        free_threshold: Number(free_threshold) || 0,
+        notes: notes?.trim() || null,
         is_default,
         is_active,
-        notes,
       })
       .select()
       .single();
 
     if (error) {
-      console.error("Create delivery address error:", error);
+      console.error("Create delivery zone error:", error);
       return NextResponse.json(
-        { error: "Failed to create address" },
+        { error: "Failed to create delivery zone" },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ address: data }, { status: 201 });
+    return NextResponse.json({ zone: data }, { status: 201 });
   } catch (err: any) {
     console.error("POST delivery-addresses error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

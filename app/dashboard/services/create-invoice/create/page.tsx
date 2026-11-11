@@ -1,3 +1,4 @@
+// app/dashboard/services/create-invoice/create/page.tsx
 "use client";
 
 import DashboardSidebar from "@/app/components/dashboard-component/DashboardSidebar";
@@ -16,10 +17,8 @@ export default function CreateInvoicePage() {
       />
       <div className="min-h-screen flex flex-col lg:pl-[var(--sidebar-width,288px)] transition-[padding] duration-300 ease-in-out">
         <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto">
-            <CreateInvoice />
-          </div>
+        <main className="flex-1 p-3 sm:p-4 md:p-6 lg:p-8">
+          <CreateInvoice />
         </main>
       </div>
     </div>

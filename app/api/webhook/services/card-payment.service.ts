@@ -3,8 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { sendPaymentPageReceiptWithPDF } from "@/lib/generate-payment-receipts-pdf";
 import { transporter } from "@/lib/node-mailer";
 import {
-  renderDeliveryBlock,
-  deliveryFromPayment,
+  renderFulfillmentBlock,
+  fulfillmentFromPayment,
 } from "@/lib/delivery-email-block";
 
 const supabase = createClient(
@@ -61,6 +61,7 @@ async function recordInstallmentAccount(
           selectedVariantSku: payment.metadata?.selectedVariantSku || null,
           quantity: payment.metadata?.quantity || null,
           shippingAddress: payment.metadata?.shippingAddress || null,
+          pickupLocation: payment.metadata?.pickupLocation || null,
           bookingDate: payment.metadata?.bookingDate || null,
           bookingTime: payment.metadata?.bookingTime || null,
           customerNote: payment.metadata?.customerNote || null,
@@ -185,7 +186,7 @@ function buildWhatsAppButton(
 }
 
 // ============================================================
-// COMPLETION EMAIL (with deliveryHtml)
+// COMPLETION EMAIL
 // ============================================================
 async function sendCompletionEmail({
   customerEmail,
@@ -226,7 +227,7 @@ async function sendCompletionEmail({
 
   const nextStepByType: Record<string, string> = {
     physical:
-      "Your order will be shipped shortly. The merchant will contact you with tracking details.",
+      "Your order will be ready shortly. The merchant will contact you with fulfillment details.",
     digital:
       "Your download link is below. You can also access it any time from the product page.",
     services: "The merchant will contact you to confirm your appointment.",
@@ -553,18 +554,16 @@ export async function processCardPaymentWebhook(
       .eq("id", payment.user_id)
       .single();
 
-    // ─── 8b. Load the store to resolve pickup details for email ───
+    // ─── 8b. Load the store for email context ───
     const { data: store } = await supabase
       .from("online_stores")
-      .select(
-        "id, name, local_pickup_address, local_pickup_notes, delivery_notes",
-      )
+      .select("id, name")
       .eq("id", payment.payment_pages?.store_id)
       .maybeSingle();
 
-    // ─── 8c. Build the delivery HTML once — reused for customer + merchant + PDF ───
-    const deliveryHtml = renderDeliveryBlock(
-      deliveryFromPayment(payment, store),
+    // ─── 8c. Build the fulfillment block once ───
+    const deliveryHtml = renderFulfillmentBlock(
+      fulfillmentFromPayment(payment),
     );
 
     // ─── 9. Customer emails ───

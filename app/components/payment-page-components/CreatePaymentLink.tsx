@@ -30,6 +30,7 @@ import confetti from "canvas-confetti";
 import { useTheme } from "@/app/components/ThemeProvider";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview";
+import posthog from "posthog-js";
 
 // ============================================================
 // CONSTANTS
@@ -70,8 +71,8 @@ const defaultConfig: LinkConfig = {
   currency: "NGN",
   amountMode: "fixed",
   active: true,
-  brandColor: "#FDC020",
-  buttonColor: "#FDC020",
+  brandColor: "#F5B800",
+  buttonColor: "#F5B800",
   buttonText: "Pay Now",
   successMessage: "Payment successful! Thank you.",
   thankYouMessage:
@@ -561,12 +562,20 @@ const CreatePaymentLink = () => {
       }
 
       setCreatedSlug(result.slug);
+      posthog.capture("payment_link_created", {
+        currency: config.currency,
+        amount_mode: config.amountMode,
+        price_type: pageData.priceType,
+        price_amount: pageData.price,
+        has_installments: isInstallment,
+        fee_payer: feePayer,
+      });
 
       confetti({
         particleCount: 150,
         spread: 80,
         origin: { y: 0.5 },
-        colors: ["#FDC020", "#191919", "#00B64F"],
+        colors: ["#F5B800", "#191919", "#00B64F"],
       });
       setShowSuccess(true);
     } catch (err: any) {

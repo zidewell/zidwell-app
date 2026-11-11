@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Crown,
   Zap,
-  Sparkles,
   Star,
   CheckCircle2,
   AlertCircle,
@@ -44,6 +43,7 @@ interface InvoiceSummaryProps {
     targetQuantity: number | "";
     status: "unpaid" | "paid" | "draft";
     business_name: string;
+    senderName?: string;
     allowMultiplePayments: boolean;
   };
   totals: {
@@ -58,7 +58,8 @@ interface InvoiceSummaryProps {
   onBack: () => void;
   onConfirm: () => void;
   usageInfo?: InvoiceUsageInfo;
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
+  // Zidwell tiers: starter (free), sme, enterprise
+  userTier?: "free" | "starter" | "sme" | "enterprise";
 }
 
 export default function InvoiceSummary({
@@ -66,19 +67,16 @@ export default function InvoiceSummary({
   totals,
   initiatorName,
   initiatorEmail,
-  amount,
   confirmInvoice,
   onBack,
   onConfirm,
   usageInfo,
-  userTier = "free",
+  userTier = "starter",
 }: InvoiceSummaryProps) {
-  const isFree = userTier === "free";
-  const isSolopreneur = userTier === "solopreneur";
   const isSME = userTier === "sme";
   const isEnterprise = userTier === "enterprise";
-  const isCorporation = userTier === "corporation";
-  const hasUnlimited = isSME || isEnterprise || isCorporation;
+  const isStarter = userTier === "starter" || userTier === "free";
+  const hasUnlimited = isSME || isEnterprise;
 
   const getRemaining = (): number => {
     if (usageInfo) {
@@ -94,27 +92,18 @@ export default function InvoiceSummary({
   const isChecking = usageInfo?.isChecking || false;
 
   const getTierIcon = () => {
-    if (isCorporation) return <Sparkles className="w-5 h-5 text-purple-600" />;
     if (isEnterprise) return <Crown className="w-5 h-5 text-amber-600" />;
     if (isSME) return <Star className="w-5 h-5 text-(--color-accent-yellow)" />;
-    if (isSolopreneur) return <Zap className="w-5 h-5 text-blue-600" />;
-    return <Star className="w-5 h-5 text-gray-600" />;
+    return <Zap className="w-5 h-5 text-blue-600" />;
   };
 
   const getTierColors = () => {
-    if (isCorporation)
-      return {
-        bg: "bg-purple-50 dark:bg-purple-900/20",
-        border: "border-purple-200 dark:border-purple-800",
-        text: "text-purple-700 dark:text-purple-400",
-        btn: "bg-purple-600 hover:bg-purple-700",
-      };
     if (isEnterprise)
       return {
         bg: "bg-amber-50 dark:bg-amber-900/20",
         border: "border-amber-200 dark:border-amber-800",
         text: "text-amber-700 dark:text-amber-400",
-        btn: "bg-amber-600 hover:bg-amber-700",
+        btn: "bg-amber-600 hover:bg-amber-700 text-white",
       };
     if (isSME)
       return {
@@ -123,18 +112,12 @@ export default function InvoiceSummary({
         text: "text-(--color-accent-yellow)",
         btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
       };
-    if (isSolopreneur)
-      return {
-        bg: "bg-blue-50 dark:bg-blue-900/20",
-        border: "border-blue-200 dark:border-blue-800",
-        text: "text-blue-700 dark:text-blue-400",
-        btn: "bg-blue-600 hover:bg-blue-700 text-white",
-      };
+    // starter = free plan
     return {
-      bg: "bg-gray-50 dark:bg-gray-800",
-      border: "border-gray-200 dark:border-gray-700",
-      text: "text-gray-700 dark:text-gray-400",
-      btn: "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)",
+      bg: "bg-blue-50 dark:bg-blue-900/20",
+      border: "border-blue-200 dark:border-blue-800",
+      text: "text-blue-700 dark:text-blue-400",
+      btn: "bg-blue-600 hover:bg-blue-700 text-white",
     };
   };
 
@@ -142,16 +125,20 @@ export default function InvoiceSummary({
   const tierIcon = getTierIcon();
 
   const getTierDisplayName = () => {
-    if (isCorporation) return "Corporation";
     if (isEnterprise) return "Enterprise";
     if (isSME) return "SME";
-    if (isSolopreneur) return "Solopreneur";
-    return "Free Trial";
+    return "Free";
   };
 
   const safeEmail = initiatorEmail || invoiceData.email || "";
+  const senderBusiness = invoiceData.business_name || initiatorName || "—";
+  const senderContact =
+    invoiceData.senderName &&
+    invoiceData.senderName.trim() &&
+    invoiceData.senderName.trim() !== senderBusiness
+      ? invoiceData.senderName
+      : "";
 
-  // Check if user has reached limit
   const hasReachedLimit = !hasUnlimited && remainingInvoices <= 0;
 
   return (
@@ -174,7 +161,7 @@ export default function InvoiceSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-2xl w-full mx-auto bg-(--bg-primary) rounded-2xl shadow-pop p-6 space-y-4 max-h-[90vh] overflow-y-auto border border-(--border-color) squircle-lg">
-              {/* Invoice Status Banner */}
+              {/* Status banner */}
               {!isChecking && (
                 <div
                   className={`p-4 rounded-lg border ${
@@ -220,10 +207,10 @@ export default function InvoiceSummary({
                           <AlertCircle className="text-yellow-600 mr-3 w-6 h-6" />
                           <div>
                             <p className="font-semibold text-yellow-800 dark:text-yellow-400">
-                              Limit Reached
+                              Free plan limit reached
                             </p>
                             <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                              You've used all your free invoices
+                              You've used all 5 free invoices
                             </p>
                           </div>
                         </>
@@ -276,7 +263,7 @@ export default function InvoiceSummary({
                 </div>
               </div>
 
-              {/* INVOICE DETAILS Section */}
+              {/* Invoice details */}
               <div>
                 <h3 className="text-(--text-secondary) text-sm font-semibold mb-3">
                   Invoice Details
@@ -311,35 +298,37 @@ export default function InvoiceSummary({
                 </div>
               </div>
 
-              {/* PARTIES INVOLVED Section */}
+              {/* Parties */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
-                    From
+                    Bill From
                   </h3>
                   <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-2 text-sm squircle-md">
                     <div>
                       <span className="text-(--text-secondary) block text-xs">
-                        Name
+                        Business
                       </span>
                       <span className="text-(--text-primary) font-medium">
-                        {initiatorName ||
-                          invoiceData.business_name ||
-                          invoiceData.from}
+                        {senderBusiness}
                       </span>
                     </div>
+                    {senderContact && (
+                      <div>
+                        <span className="text-(--text-secondary) block text-xs">
+                          Contact Person
+                        </span>
+                        <span className="text-(--text-primary)">
+                          {senderContact}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-(--text-secondary) block text-xs">
                         Email
                       </span>
-                      <span className="text-(--text-primary)">{safeEmail}</span>
-                    </div>
-                    <div>
-                      <span className="text-(--text-secondary) block text-xs">
-                        Bill To
-                      </span>
                       <span className="text-(--text-primary)">
-                        {invoiceData.bill_to || "Not specified"}
+                        {invoiceData.from || safeEmail || "—"}
                       </span>
                     </div>
                   </div>
@@ -347,9 +336,19 @@ export default function InvoiceSummary({
 
                 <div>
                   <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
-                    To
+                    Bill To
                   </h3>
                   <div className="bg-(--bg-secondary) rounded-lg p-3 space-y-2 text-sm squircle-md">
+                    {invoiceData.bill_to && (
+                      <div>
+                        <span className="text-(--text-secondary) block text-xs">
+                          Company / Department
+                        </span>
+                        <span className="text-(--text-primary) font-medium">
+                          {invoiceData.bill_to}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <span className="text-(--text-secondary) block text-xs">
                         Client Name
@@ -370,14 +369,14 @@ export default function InvoiceSummary({
                 </div>
               </div>
 
-              {/* ITEMS & TOTALS */}
+              {/* Items & Totals */}
               <div>
                 <h3 className="text-(--text-secondary) text-sm font-semibold mb-2">
                   Items & Amount
                 </h3>
                 <div className="bg-(--bg-secondary) rounded-lg p-4 squircle-md">
                   <div className="space-y-2 mb-3">
-                    {invoiceData.invoice_items.map((item, index) => (
+                    {invoiceData.invoice_items.map((item) => (
                       <div
                         key={item.id}
                         className="flex justify-between text-sm"
@@ -394,9 +393,7 @@ export default function InvoiceSummary({
 
                   <div className="border-t border-(--border-color) pt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-(--text-secondary)">
-                        Subtotal
-                      </span>
+                      <span className="text-(--text-secondary)">Subtotal</span>
                       <span className="text-(--text-primary)">
                         ₦{totals.subtotal.toLocaleString()}
                       </span>
@@ -413,7 +410,7 @@ export default function InvoiceSummary({
                 </div>
               </div>
 
-              {/* Important Notes */}
+              {/* Notes */}
               <div
                 className={`rounded-lg p-4 text-sm flex items-start gap-3 ${
                   hasUnlimited
@@ -430,7 +427,6 @@ export default function InvoiceSummary({
                   <ul className="list-disc list-inside space-y-1 text-xs text-(--text-secondary)">
                     <li>This invoice will be sent to the client's email</li>
                     <li>Client can pay via multiple payment methods</li>
-
                     {hasUnlimited ? (
                       <>
                         <li>
@@ -449,19 +445,21 @@ export default function InvoiceSummary({
                           (within plan limit)
                         </li>
                         <li>
-                          You have {remainingInvoices - 1} free{" "}
-                          {remainingInvoices - 1 === 1 ? "invoice" : "invoices"}{" "}
-                          remaining
+                          You have {Math.max(remainingInvoices - 1, 0)} free{" "}
+                          {remainingInvoices - 1 === 1
+                            ? "invoice"
+                            : "invoices"}{" "}
+                          remaining after this
                         </li>
-                        <li>Upgrade to a higher tier for unlimited invoices</li>
+                        <li>Upgrade to SME or Enterprise for unlimited invoices</li>
                       </>
                     ) : (
                       <>
                         <li className="text-yellow-700 font-medium">
-                          ⚠️ You've reached your invoice limit
+                          ⚠️ You've reached your free plan limit
                         </li>
                         <li>
-                          You need to upgrade your plan to create more invoices
+                          Upgrade to SME or Enterprise to create more invoices
                         </li>
                         <li>
                           <Button
@@ -471,13 +469,12 @@ export default function InvoiceSummary({
                               (window.location.href = "/pricing?upgrade=sme")
                             }
                           >
-                            Upgrade to SME
+                            View plans
                           </Button>{" "}
-                          for unlimited invoices
+                          to keep invoicing
                         </li>
                       </>
                     )}
-
                     <li>You will receive notifications when payment is made</li>
                   </ul>
                 </div>
@@ -505,7 +502,7 @@ export default function InvoiceSummary({
                 ) : (
                   <Button
                     onClick={onConfirm}
-                    className={`px-8 text-white ${
+                    className={`px-8 ${
                       hasUnlimited
                         ? colors.btn
                         : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"

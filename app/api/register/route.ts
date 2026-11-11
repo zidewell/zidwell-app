@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
           html: `
             <div style="background: #f4f4f4; padding: 40px 20px; font-family: Arial, sans-serif;">
               <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb;">
-                <div style="background: #FDC020; padding: 32px; text-align: center;">
+                <div style="background: #F5B800; padding: 32px; text-align: center;">
                   <h1 style="margin: 0; font-size: 30px; color: #191919;">Zidwell</h1>
                   <p style="margin: 10px 0 0; color: #333333; font-size: 16px;">Secure Business Banking & Payments</p>
                 </div>
@@ -272,7 +272,7 @@ export async function POST(req: NextRequest) {
                   </p>
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin: 40px auto;">
                     <tr>
-                      <td bgcolor="#FDC020" style="border-radius: 6px;">
+                      <td bgcolor="#F5B800" style="border-radius: 6px;">
                         <a href="${verificationLink}" style="display: inline-block; padding: 16px 36px; font-size: 16px; font-weight: bold; color: #191919; text-decoration: none;">
                           Verify Email Address
                         </a>

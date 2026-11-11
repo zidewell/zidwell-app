@@ -1,3 +1,4 @@
+// lib/saved-accounts.ts
 import { SupabaseClient } from "@supabase/supabase-js";
 
 const MAX_SAVED = 20;
@@ -15,17 +16,11 @@ export interface P2PBeneficiaryInput {
   account_name: string;
 }
 
-/**
- * Idempotent upsert for a saved bank account.
- * - If exists: bump last_used_at, increment use_count, refresh name
- * - If new: insert with auto_saved=true
- * - Then evict oldest non-default if user exceeds MAX_SAVED
- */
 export async function upsertSavedBankAccount(
   supabase: SupabaseClient,
   userId: string,
   account: BankAccountInput,
-  opts: { isDefault?: boolean; autoSaved?: boolean } = {}
+  opts: { isDefault?: boolean; autoSaved?: boolean } = {},
 ) {
   if (!userId || !account.account_number || !account.bank_code) return null;
 
@@ -69,7 +64,6 @@ export async function upsertSavedBankAccount(
     .single();
 
   if (error) {
-    // 23505 = unique violation (race) → fetch existing
     if (error.code === "23505") {
       const { data: raced } = await supabase
         .from("saved_accounts")
@@ -88,19 +82,17 @@ export async function upsertSavedBankAccount(
   return inserted?.id ?? null;
 }
 
-/**
- * Idempotent upsert for a saved P2P beneficiary.
- */
 export async function upsertSavedP2PBeneficiary(
   supabase: SupabaseClient,
   userId: string,
   beneficiary: P2PBeneficiaryInput,
-  opts: { isDefault?: boolean; autoSaved?: boolean } = {}
+  opts: { isDefault?: boolean; autoSaved?: boolean } = {},
 ) {
   if (!userId || !beneficiary.wallet_id) return null;
 
   const now = new Date().toISOString();
 
+  // ✅ Table is saved_p2p_beneficiaries — matching the schema
   const { data: existing } = await supabase
     .from("saved_p2p_beneficiaries")
     .select("id, use_count")
@@ -157,7 +149,7 @@ export async function upsertSavedP2PBeneficiary(
     supabase,
     "saved_p2p_beneficiaries",
     userId,
-    "last_used_at"
+    "last_used_at",
   );
   return inserted?.id ?? null;
 }
@@ -166,7 +158,7 @@ async function evictOldestIfOverCap(
   supabase: SupabaseClient,
   table: "saved_accounts" | "saved_p2p_beneficiaries",
   userId: string,
-  orderCol: string
+  orderCol: string,
 ) {
   const { data: rows } = await supabase
     .from(table)

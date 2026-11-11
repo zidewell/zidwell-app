@@ -2,9 +2,15 @@
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
-import { Crown, Zap, Sparkles, Star, AlertCircle, Clock } from "lucide-react";
+import {
+  Crown,
+  Zap,
+  AlertCircle,
+  Clock,
+  Briefcase,
+  Star,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { TIER_DISPLAY_NAMES } from "@/lib/subscription-features";
 
 const tierConfig = {
   free: {
@@ -13,15 +19,15 @@ const tierConfig = {
     bg: "bg-gray-100",
     darkBg: "dark:bg-gray-800",
     darkColor: "dark:text-gray-300",
-    label: TIER_DISPLAY_NAMES.free,
+    label: "Free",
   },
-  solopreneur: {
-    icon: Zap,
+  starter: {
+    icon: Briefcase,
     color: "text-blue-600",
     bg: "bg-blue-100",
     darkBg: "dark:bg-blue-900/30",
     darkColor: "dark:text-blue-300",
-    label: TIER_DISPLAY_NAMES.solopreneur,
+    label: "Free", // starter IS the free plan
   },
   sme: {
     icon: Zap,
@@ -29,7 +35,7 @@ const tierConfig = {
     bg: "bg-green-100",
     darkBg: "dark:bg-green-900/30",
     darkColor: "dark:text-green-300",
-    label: TIER_DISPLAY_NAMES.sme,
+    label: "SME",
   },
   enterprise: {
     icon: Crown,
@@ -37,17 +43,11 @@ const tierConfig = {
     bg: "bg-(--color-accent-yellow)/10",
     darkBg: "dark:bg-(--color-accent-yellow)/20",
     darkColor: "dark:text-(--color-accent-yellow)",
-    label: TIER_DISPLAY_NAMES.enterprise,
-  },
-  corporation: {
-    icon: Sparkles,
-    color: "text-purple-600",
-    bg: "bg-purple-100",
-    darkBg: "dark:bg-purple-900/30",
-    darkColor: "dark:text-purple-300",
-    label: TIER_DISPLAY_NAMES.corporation,
+    label: "Enterprise",
   },
 };
+
+const fallbackConfig = tierConfig.starter;
 
 interface SubscriptionBadgeProps {
   className?: string;
@@ -64,10 +64,12 @@ export function SubscriptionBadge({
   showTrial = false,
   featureKey = "bookkeeping_access",
 }: SubscriptionBadgeProps) {
-  const { subscription, isActive } = useSubscription();
+  const { subscription, isActive, userTier } = useSubscription();
   const [trialInfo, setTrialInfo] = useState<any>(null);
-  const tier = subscription?.tier || "free";
-  const config = tierConfig[tier as keyof typeof tierConfig];
+
+  // useSubscription already normalizes booster/console → starter
+  const tier = (userTier ?? "starter") as keyof typeof tierConfig;
+  const config = tierConfig[tier] ?? fallbackConfig;
   const Icon = config.icon;
 
   useEffect(() => {
@@ -75,9 +77,7 @@ export function SubscriptionBadge({
       fetch(`/api/trials/check?feature=${featureKey}`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.isActive) {
-            setTrialInfo(data);
-          }
+          if (data.isActive) setTrialInfo(data);
         })
         .catch(() => setTrialInfo(null));
     }
@@ -89,12 +89,10 @@ export function SubscriptionBadge({
     lg: "text-base px-4 py-1.5",
   };
 
-  if (showTrial && tier === "free" && trialInfo?.isActive) {
+  if (showTrial && tier === "starter" && trialInfo?.isActive) {
     return (
       <div
-        className={`inline-flex items-center gap-1 rounded-full font-medium 
-        bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300
-        ${sizeClasses[size]} ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full font-medium bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300 ${sizeClasses[size]} ${className}`}
       >
         <Clock
           className={
@@ -106,12 +104,10 @@ export function SubscriptionBadge({
     );
   }
 
-  if (!isActive && tier !== "free") {
+  if (!isActive && tier !== "starter" && tier !== "free") {
     return (
       <div
-        className={`inline-flex items-center gap-1 rounded-full font-medium 
-        bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 
-        ${sizeClasses[size]} ${className}`}
+        className={`inline-flex items-center gap-1 rounded-full font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 ${sizeClasses[size]} ${className}`}
       >
         <AlertCircle
           className={
@@ -125,9 +121,7 @@ export function SubscriptionBadge({
 
   return (
     <div
-      className={`inline-flex items-center gap-1 rounded-full font-medium 
-      ${config.bg} ${config.color} ${config.darkBg} ${config.darkColor} 
-      ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-full font-medium ${config.bg} ${config.color} ${config.darkBg} ${config.darkColor} ${sizeClasses[size]} ${className}`}
     >
       {showIcon && (
         <Icon

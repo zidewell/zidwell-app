@@ -31,7 +31,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   const [isLoadingSignature, setIsLoadingSignature] = useState(false);
   
   // Resolve CSS variable to actual color value
-  const penColor = "#FDC020"; // Zidwell accent yellow
+  const penColor = "#F5B800"; // Zidwell accent yellow
 
   // Ensure component is mounted to avoid hydration issues
   useEffect(() => {

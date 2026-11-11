@@ -171,7 +171,7 @@ function generateContractHTML(
         
         .contract-title {
             color: #191919;
-            background-color: #FDC020;
+            background-color: #F5B800;
             font-size: 24px;
             font-weight: bold;
             padding: 12px 0;
@@ -222,7 +222,7 @@ function generateContractHTML(
         .divider-line {
             flex: 1;
             height: 2px;
-            background-color: #FDC020;
+            background-color: #F5B800;
         }
         
         .section-title {
@@ -363,7 +363,7 @@ function generateContractHTML(
         .lawyer-check {
             width: 24px;
             height: 24px;
-            background-color: #FDC020;
+            background-color: #F5B800;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -380,7 +380,7 @@ function generateContractHTML(
         .lawyer-title {
             font-size: 14px;
             font-weight: 600;
-            color: #FDC020;
+            color: #F5B800;
         }
         
         .lawyer-signature-line {
@@ -420,7 +420,7 @@ function generateContractHTML(
             display: inline-block;
             padding: 4px 12px;
             background-color: rgba(253, 192, 32, 0.1);
-            color: #FDC020;
+            color: #F5B800;
             border-radius: 16px;
             font-size: 12px;
             font-weight: 500;
@@ -840,11 +840,11 @@ export async function POST(request: Request) {
     <style>
         body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
         .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 28px; overflow: hidden; }
-        .header { background: #FDC020; padding: 30px; text-align: center; }
+        .header { background: #F5B800; padding: 30px; text-align: center; }
         .content { padding: 30px; }
         .success-icon { font-size: 48px; text-align: center; margin-bottom: 20px; }
         .info-box { background: #F5F5F5; padding: 20px; border-radius: 16px; margin: 20px 0; }
-        .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
+        .btn { background: #F5B800; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
     </style>
 </head>
 <body>

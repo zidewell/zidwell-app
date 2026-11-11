@@ -1,3 +1,4 @@
+// app/components/subscription-components/SubscriptionDashboard.tsx
 "use client";
 
 import { useSubscription } from "@/app/hooks/useSubscripion";
@@ -9,13 +10,12 @@ import {
   CreditCard,
   Zap,
   Crown,
-  Sparkles,
   Clock,
   Star,
+  Briefcase,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
-import { SubscriptionBadge } from "./subscriptionBadges";
 
 export function SubscriptionDashboard() {
   const {
@@ -29,7 +29,6 @@ export function SubscriptionDashboard() {
     isFree,
     isSME,
     isEnterprise,
-    isCorporation,
   } = useSubscription();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -68,7 +67,7 @@ export function SubscriptionDashboard() {
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           Get started by choosing a plan that fits your business.
         </p>
-        <Button2 onClick={() => (window.location.href = "/#pricing")}>
+        <Button2 onClick={() => (window.location.href = "/pricing")}>
           View Plans
         </Button2>
       </div>
@@ -106,14 +105,14 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return <Star className="w-5 h-5 text-gray-600" />;
+      case "starter":
+        return <Briefcase className="w-5 h-5 text-blue-600" />;
       case "sme":
         return <Zap className="w-5 h-5 text-green-600" />;
       case "enterprise":
         return <Crown className="w-5 h-5 text-(--color-accent-yellow)" />;
-      case "corporation":
-        return <Sparkles className="w-5 h-5 text-purple-600" />;
       default:
-        return null;
+        return <Star className="w-5 h-5 text-gray-600" />;
     }
   };
 
@@ -121,18 +120,25 @@ export function SubscriptionDashboard() {
     switch (tier) {
       case "free":
         return "Free";
+      case "starter":
+        return "Free"; // starter is the free plan
       case "sme":
         return "SME";
       case "enterprise":
         return "Enterprise";
-      case "corporation":
-        return "Corporation";
       default:
         return tier;
     }
   };
 
   const limits = getPlanLimits();
+
+  // Safe formatter — handles number | "unlimited"
+  const formatLimit = (value: unknown): string => {
+    if (value === "unlimited") return "Unlimited";
+    if (typeof value === "number") return String(value);
+    return "—";
+  };
 
   const isFeatureIncluded = (featureName: string): boolean => {
     return (limits as any)[featureName] === true;
@@ -174,7 +180,8 @@ export function SubscriptionDashboard() {
             {isFree && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  You're on the Free plan. Upgrade to access more features and higher limits.
+                  You&apos;re on the Free plan. Upgrade to access more features
+                  and higher limits.
                 </p>
 
                 <div className="space-y-2 mt-3">
@@ -225,9 +232,7 @@ export function SubscriptionDashboard() {
                       Invoice limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.invoices === "unlimited"
-                        ? "Unlimited"
-                        : limits.invoices}
+                      {formatLimit(limits.invoices)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -235,9 +240,7 @@ export function SubscriptionDashboard() {
                       Receipt limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.receipts === "unlimited"
-                        ? "Unlimited"
-                        : limits.receipts}
+                      {formatLimit(limits.receipts)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -245,9 +248,7 @@ export function SubscriptionDashboard() {
                       Contract limit:
                     </span>
                     <span className="ml-2 font-semibold text-gray-900 dark:text-gray-50">
-                      {limits.contracts === "unlimited"
-                        ? "Unlimited"
-                        : limits.contracts}
+                      {formatLimit(limits.contracts)}
                     </span>
                   </div>
                   <div className="text-sm">
@@ -305,26 +306,6 @@ export function SubscriptionDashboard() {
                         )}
                       </span>
                     </div>
-                    {isFeatureIncluded("whatsappCommunity") && (
-                      <div className="text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          WhatsApp Community:
-                        </span>
-                        <span className="ml-2 font-semibold text-green-600 dark:text-green-400">
-                          ✓ Included
-                        </span>
-                      </div>
-                    )}
-                    {isFeatureIncluded("prioritySupport") && (
-                      <div className="text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">
-                          Priority Support:
-                        </span>
-                        <span className="ml-2 font-semibold text-green-600 dark:text-green-400">
-                          ✓ Included
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -343,21 +324,22 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Receipts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Contracts:</span> 1 total
+                    <span className="font-medium">International payments:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Bank Accounts:</span> 3
+                    <span className="font-medium">Extra Users:</span> 1
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Bookkeeping:</span> Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Tax Calculator:</span>{" "}
+                    <span className="font-medium">Online Storefront:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Financial Statements:</span>{" "}
-                    View only
+                    <span className="font-medium">Document Vault:</span>{" "}
+                    Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Support:</span> WhatsApp
@@ -379,61 +361,29 @@ export function SubscriptionDashboard() {
                     <span className="font-medium">Receipts:</span> Unlimited
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Contracts:</span> 10 total
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Bank Accounts:</span> 5
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Multi-user Access:</span> Full
-                    team
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Role Permissions:</span>{" "}
+                    <span className="font-medium">
+                      Increased transaction limits:
+                    </span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Approval System:</span>{" "}
+                    <span className="font-medium">Connect Bank Accounts:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Support:</span> Dedicated
-                    Onboarding
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {isCorporation && (
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <h4 className="font-semibold text-gray-900 dark:text-gray-50 mb-2">
-                  Corporation Plan Benefits
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Everything in Enterprise, plus:</span>
+                    <span className="font-medium">Extra Users:</span> 3
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Transfer Fee:</span> ₦0
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Unlimited Contracts:</span>{" "}
+                    <span className="font-medium">International payments:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Department Access:</span> HR,
-                    Finance, Ops
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Payroll System:</span> Simple
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Advanced Reporting:</span>{" "}
+                    <span className="font-medium">Online Storefront:</span>{" "}
                     Included
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-medium">Support:</span> Dedicated
-                    Account Manager
+                    support team
                   </div>
                 </div>
               </div>
@@ -516,7 +466,7 @@ export function SubscriptionDashboard() {
           </div>
         )}
 
-      {/* Payment History - Placeholder */}
+      {/* Payment History */}
       {!isFree && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 mb-8">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
@@ -530,16 +480,16 @@ export function SubscriptionDashboard() {
         </div>
       )}
 
-      {/* Upgrade Options */}
-      {!isCorporation && (
+      {/* Upgrade Options — real tiers only */}
+      {!isEnterprise && (
         <div className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6">
           <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-gray-50">
             Upgrade Your Plan
           </h3>
           <div className="space-y-4">
-            {["sme", "enterprise", "corporation"]
+            {(["starter", "sme", "enterprise"] as const)
               .filter((tier) => {
-                const tiers = ["free", "sme", "enterprise", "corporation"];
+                const tiers = ["free", "starter", "sme", "enterprise"];
                 const currentIndex = tiers.indexOf(subscription.tier);
                 const targetIndex = tiers.indexOf(tier);
                 return targetIndex > currentIndex;
@@ -578,7 +528,7 @@ export function SubscriptionDashboard() {
                       </ul>
                     </div>
                     <Button2
-                      onClick={() => (window.location.href = "/#pricing")}
+                      onClick={() => (window.location.href = "/pricing")}
                       className="md:ml-4 mt-4 md:mt-0"
                     >
                       Upgrade to {getPlanDisplayName(tier)}

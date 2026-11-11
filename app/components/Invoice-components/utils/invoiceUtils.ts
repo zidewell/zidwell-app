@@ -2,6 +2,10 @@
 
 import { InvoiceForm } from "../types";
 
+// ============================================================================
+// ID generators
+// ============================================================================
+
 export const generateInvoiceId = () => {
   const randomToken = crypto
     .randomUUID()
@@ -15,36 +19,55 @@ export const generateItemId = () => {
   return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// FIXED: Removed 2% fee calculation
-export const calculateTotals = (invoice_items: InvoiceForm["invoice_items"], fee_option: InvoiceForm["fee_option"]) => {
+// ============================================================================
+// Totals
+// ============================================================================
+
+// Subscription-based — no processing fee is added to the invoice.
+// The total is simply the sum of quantity × unitPrice across all items.
+export const calculateTotals = (
+  invoice_items: InvoiceForm["invoice_items"],
+  _fee_option: InvoiceForm["fee_option"],
+) => {
   const subtotal = invoice_items.reduce(
     (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
-    0
+    0,
   );
 
-  // NO FEE - subscription based
   const feeAmount = 0;
-  const totalAmount = subtotal; // Total is just subtotal, no fee added
+  const totalAmount = subtotal;
 
   return { subtotal, feeAmount, totalAmount };
 };
 
-// FIXED: Updated to use new calculateTotals
+// ============================================================================
+// Preview transformation
+// ============================================================================
+
 export const convertToInvoicePreview = (form: InvoiceForm) => {
-  const { subtotal, totalAmount } = calculateTotals(form.invoice_items, form.fee_option);
+  const { subtotal, totalAmount } = calculateTotals(
+    form.invoice_items,
+    form.fee_option,
+  );
 
   return {
     id: form.invoice_id,
     invoiceNumber: form.invoice_id,
     businessName: form.business_name,
     businessLogo: form.business_logo || "",
+    // Sender details
+    fromName: form.senderName?.trim() || form.business_name,
+    fromEmail: form.from || "",
+    fromPhone: form.senderPhone || "",
+    // Client details
     clientName: form.name,
     clientEmail: form.email,
     clientPhone: form.clientPhone || "",
+    billTo: form.bill_to || "",
     items: form.invoice_items,
     subtotal,
-    tax: 0, // No tax
-    total: totalAmount, // This is now just subtotal
+    tax: 0,
+    total: totalAmount,
     allowPartialPayment: false,
     allowMultiplePayments: form.allowMultiplePayments,
     targetQuantity: form.allowMultiplePayments
@@ -58,156 +81,119 @@ export const convertToInvoicePreview = (form: InvoiceForm) => {
   };
 };
 
-// Helper to check if user can create invoice based on tier
+// ============================================================================
+// Tier helpers
+// ============================================================================
+// Zidwell invoice tiers: starter (= free), sme, enterprise.
+// Any other raw tier (booster / console) is normalized to starter by
+// useSubscription before it reaches these helpers, so only the three real
+// tiers below need to be handled explicitly.
+
+const UNLIMITED_TIERS = ["sme", "enterprise"];
+const STARTER_INVOICE_LIMIT = 5;
+const STARTER_RECEIPT_LIMIT = 5;
+const ENTERPRISE_CONTRACT_LIMIT = 10;
+
 export const canCreateInvoice = (
-  tier: string,
+  _tier: string,
   usedCount: number,
-  limit: number | "unlimited"
+  limit: number | "unlimited",
 ): boolean => {
   if (limit === "unlimited") return true;
   return usedCount < limit;
 };
 
-// Get remaining invoices based on tier (UPDATED with real plan names)
 export const getRemainingInvoices = (
   tier: string,
-  usedCount: number
+  usedCount: number,
 ): number | "unlimited" => {
-  // Updated tier names: sme, enterprise, corporation have unlimited
-  if (tier === "sme" || tier === "enterprise" || tier === "corporation") {
-    return "unlimited";
-  }
-  if (tier === "solopreneur") {
-    return Math.max(0, 10 - usedCount);
-  }
-  // Free tier
-  return Math.max(0, 5 - usedCount);
+  if (UNLIMITED_TIERS.includes(tier)) return "unlimited";
+  return Math.max(0, STARTER_INVOICE_LIMIT - usedCount);
 };
 
-// Get remaining receipts based on tier (UPDATED with real plan names)
 export const getRemainingReceipts = (
   tier: string,
-  usedCount: number
+  usedCount: number,
 ): number | "unlimited" => {
-  if (tier === "sme" || tier === "enterprise" || tier === "corporation") {
-    return "unlimited";
-  }
-  if (tier === "solopreneur") {
-    return "unlimited"; // Solopreneur has unlimited receipts
-  }
-  // Free tier
-  return Math.max(0, 5 - usedCount);
+  if (UNLIMITED_TIERS.includes(tier)) return "unlimited";
+  return Math.max(0, STARTER_RECEIPT_LIMIT - usedCount);
 };
 
-// Get remaining contracts based on tier (UPDATED with real plan names)
 export const getRemainingContracts = (
   tier: string,
-  usedCount: number
+  usedCount: number,
 ): number | "unlimited" => {
-  if (tier === "corporation") {
-    return "unlimited";
-  }
   if (tier === "enterprise") {
-    return Math.max(0, 10 - usedCount);
+    return Math.max(0, ENTERPRISE_CONTRACT_LIMIT - usedCount);
   }
-  if (tier === "sme") {
-    return Math.max(0, 1 - usedCount);
-  }
-  // Solopreneur and Free have no contracts
   return 0;
 };
 
-// Get invoice limit based on tier (UPDATED with real plan names)
 export const getInvoiceLimit = (tier: string): number | "unlimited" => {
-  switch (tier) {
-    case "corporation":
-    case "enterprise":
-    case "sme":
-      return "unlimited";
-    case "solopreneur":
-      return 10;
-    case "free":
-    default:
-      return 5;
-  }
+  if (UNLIMITED_TIERS.includes(tier)) return "unlimited";
+  return STARTER_INVOICE_LIMIT;
 };
 
-// Get receipt limit based on tier (UPDATED with real plan names)
 export const getReceiptLimit = (tier: string): number | "unlimited" => {
-  switch (tier) {
-    case "corporation":
-    case "enterprise":
-    case "sme":
-      return "unlimited";
-    case "solopreneur":
-      return "unlimited";
-    case "free":
-    default:
-      return 5;
-  }
+  if (UNLIMITED_TIERS.includes(tier)) return "unlimited";
+  return STARTER_RECEIPT_LIMIT;
 };
 
-// Get contract limit based on tier (UPDATED with real plan names)
 export const getContractLimit = (tier: string): number | "unlimited" => {
-  switch (tier) {
-    case "corporation":
-      return "unlimited";
-    case "enterprise":
-      return 10;
-    case "sme":
-      return 1;
-    case "solopreneur":
-    case "free":
-    default:
-      return 0;
-  }
+  if (tier === "enterprise") return ENTERPRISE_CONTRACT_LIMIT;
+  return 0;
 };
 
-// Get tier display name (UPDATED with real plan names)
 export const getTierDisplayName = (tier: string): string => {
   const tierMap: Record<string, string> = {
     free: "Free",
-    solopreneur: "Solopreneur",
+    starter: "Free",
     sme: "SME",
     enterprise: "Enterprise",
-    corporation: "Corporation",
   };
   return tierMap[tier] || tier;
 };
 
-// Check if feature is included in tier (UPDATED with real plan names)
 export const isFeatureIncluded = (tier: string, feature: string): boolean => {
   const features: Record<string, string[]> = {
-    free: ["manual_bookkeeping", "basic_financial_overview"],
-    solopreneur: [
+    starter: [
       "manual_bookkeeping",
       "branded_invoices",
       "expense_tracking",
-      "basic_financial_insights"
+      "basic_financial_insights",
     ],
     sme: [
+      "manual_bookkeeping",
+      "branded_invoices",
+      "expense_tracking",
+      "basic_financial_insights",
       "bank_statement_upload",
       "vault",
       "tax_calculator",
       "financial_statements",
-      "bookkeeping_access"
+      "bookkeeping_access",
+      "international_payments",
     ],
     enterprise: [
+      "manual_bookkeeping",
+      "branded_invoices",
+      "expense_tracking",
+      "basic_financial_insights",
+      "bank_statement_upload",
+      "vault",
+      "tax_calculator",
+      "financial_statements",
+      "bookkeeping_access",
+      "international_payments",
       "multi_user_access",
       "role_permissions",
       "approval_system",
       "downloadable_reports",
-      "dedicated_onboarding"
-    ],
-    corporation: [
-      "department_access",
-      "payroll_system",
-      "advanced_reporting",
-      "custom_financial_structure",
-      "priority_onboarding",
-      "dedicated_account_manager"
+      "dedicated_onboarding",
+      "connect_bank_accounts",
+      "increased_transaction_limits",
     ],
   };
-  
+
   return (features[tier] || []).includes(feature);
 };

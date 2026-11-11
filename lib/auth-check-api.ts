@@ -22,10 +22,10 @@ export interface AuthenticatedUser {
   email: string;
   subscription_tier?:
     | "free"
-    | "solopreneur"
+    | "starter"
     | "sme"
     | "enterprise"
-    | "corporation";
+    | "console";
   subscription_expires_at?: string | null;
   is_subscription_active?: boolean;
 }
@@ -357,13 +357,12 @@ export async function requireAuth(req: NextRequest) {
   return { authenticated: true as const, user, newTokens };
 }
 
-// ─── Tier hierarchy ───
 const TIER_HIERARCHY = [
   "free",
-  "solopreneur",
+  "starter",
   "sme",
   "enterprise",
-  "corporation",
+  "console",
 ] as const;
 
 export async function hasRequiredTier(

@@ -12,13 +12,14 @@ import {
   useRef,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 export type SubscriptionTier =
   | "free"
-  | "solopreneur"
+  | "starter"
   | "sme"
   | "enterprise"
-  | "corporation";
+  | "console";
 
 export interface SupabaseUser {
   id: string;
@@ -232,13 +233,15 @@ class SubscriptionCache {
 const subscriptionCache = new SubscriptionCache();
 
 const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
-  manual_bookkeeping: "free",
-  auto_bookkeeping: "free",
-  payment_links: "free",
   business_bank_account: "free",
+  business_plan_template: "free",
+  automatic_bookkeeping: "free",
+  online_storefront: "free",
+  document_vault: "free",
   basic_financial_overview: "free",
   invoices_5: "free",
   receipts_5: "free",
+<<<<<<< HEAD
   invoices_10: "solopreneur",
   unlimited_receipts: "solopreneur",
   branded_invoices: "solopreneur",
@@ -255,9 +258,28 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   multi_user_access: "enterprise",
   role_permissions: "enterprise",
   approval_system: "enterprise",
+=======
+
+  invoices_10: "starter",
+  unlimited_invoices: "starter",
+  unlimited_receipts: "starter",
+  branded_invoices: "starter",
+  expense_tracking: "starter",
+
+  international_payments: "sme",
+  connect_bank_accounts: "sme",
+  team_member_1: "sme",
+  tax_calculator: "sme",
+  bank_statement_upload: "sme",
+
+  increased_transaction_limits: "enterprise",
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   connect_5_bank_accounts: "enterprise",
+  team_member_3: "enterprise",
+  dedicated_support_team: "enterprise",
   downloadable_reports: "enterprise",
   contracts_10: "enterprise",
+<<<<<<< HEAD
   dedicated_onboarding: "enterprise",
   unlimited_contracts: "corporation",
   department_access: "corporation",
@@ -267,14 +289,25 @@ const FEATURE_TIER_MAP: Record<string, SubscriptionTier> = {
   custom_financial_structure: "corporation",
   priority_onboarding: "corporation",
   dedicated_account_manager: "corporation",
+=======
+
+  sub_accounts: "console",
+  roles_permissions: "console",
+  approval_system: "console",
+  unlimited_team: "console",
+  payroll_system: "console",
+  advanced_reporting: "console",
+  custom_financial_structure: "console",
+  dedicated_account_manager: "console",
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
 };
 
 const TIER_HIERARCHY: SubscriptionTier[] = [
   "free",
-  "solopreneur",
+  "starter",
   "sme",
   "enterprise",
-  "corporation",
+  "console",
 ];
 
 const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
@@ -285,169 +318,163 @@ const PLAN_LIMITS: Record<SubscriptionTier, Record<string, any>> = {
     teamMembers: 0,
     bankAccounts: 0,
     transferFee: 50,
-    manualBookkeeping: true,
-    autoBookkeeping: true,
-    paymentLinks: true,
     businessBankAccount: true,
+    businessPlanTemplate: true,
+    automaticBookkeeping: true,
+    onlineStorefront: true,
+    documentVault: true,
     basicFinancialOverview: true,
   },
-  solopreneur: {
-    invoices: 10,
+  starter: {
+    invoices: "unlimited",
     receipts: "unlimited",
     contracts: 0,
     teamMembers: 0,
     bankAccounts: 0,
     transferFee: 50,
-    manualBookkeeping: true,
-    autoBookkeeping: true,
-    brandedInvoices: true,
-    expenseTracking: true,
-    financialInsights: true,
+    businessBankAccount: true,
+    businessPlanTemplate: true,
+    automaticBookkeeping: true,
+    onlineStorefront: true,
+    documentVault: true,
   },
   sme: {
     invoices: "unlimited",
     receipts: "unlimited",
     contracts: 0,
     teamMembers: 1,
-    bankAccounts: 3,
+    bankAccounts: 1,
     transferFee: 50,
-    manualBookkeeping: true,
-    autoBookkeeping: true,
-    bankStatementUpload: true,
-    vault: true,
-    taxCalculator: true,
-    financialStatements: true,
+    businessBankAccount: true,
+    businessPlanTemplate: true,
+    automaticBookkeeping: true,
+    onlineStorefront: true,
+    documentVault: true,
+    internationalPayments: true,
   },
   enterprise: {
     invoices: "unlimited",
     receipts: "unlimited",
     contracts: 10,
-    teamMembers: "unlimited",
-    bankAccounts: 5,
+    teamMembers: 3,
+    bankAccounts: "multiple",
     transferFee: 50,
-    manualBookkeeping: true,
-    autoBookkeeping: true,
-    multiUserAccess: true,
-    rolePermissions: true,
-    approvalSystem: true,
-    downloadableReports: true,
-    dedicatedOnboarding: true,
+    businessBankAccount: true,
+    businessPlanTemplate: true,
+    automaticBookkeeping: true,
+    onlineStorefront: true,
+    documentVault: true,
+    internationalPayments: true,
+    connectBankAccounts: true,
+    increasedTransactionLimits: true,
+    dedicatedSupportTeam: true,
   },
-  corporation: {
+  console: {
     invoices: "unlimited",
     receipts: "unlimited",
     contracts: "unlimited",
     teamMembers: "unlimited",
     bankAccounts: "unlimited",
-    transferFee: 50,
-    manualBookkeeping: true,
-    autoBookkeeping: true,
-    departmentAccess: true,
+    transferFee: 0,
+    businessBankAccount: true,
+    businessPlanTemplate: true,
+    automaticBookkeeping: true,
+    onlineStorefront: true,
+    documentVault: true,
+    internationalPayments: true,
+    connectBankAccounts: true,
+    increasedTransactionLimits: true,
+    dedicatedSupportTeam: true,
+    subAccounts: true,
+    rolesPermissions: true,
+    approvalSystem: true,
     payrollSystem: true,
     advancedReporting: true,
     customFinancialStructure: true,
-    priorityOnboarding: true,
     dedicatedAccountManager: true,
   },
 };
 
 const UPGRADE_BENEFITS: Record<string, string[]> = {
-  free_to_solopreneur: [
-    "Up to 10 invoices (up from 5)",
-    "Unlimited receipts (up from 5)",
-    "Branded invoices",
-    "Better expense tracking",
-    "Basic financial insights",
+  free_to_starter: [
+    "Unlimited invoices & receipts",
+    "Business bank account",
+    "Business Plan Template",
+    "Automatic Bookkeeping",
+    "Invoice Tool",
+    "Receipt Tool",
+    "Online storefront",
+    "Document Vault",
   ],
   free_to_sme: [
-    "Upload bank statements (PDF/Excel/CSV)",
-    "Connect up to 3 bank accounts",
-    "Unlimited invoices",
-    "Unlimited receipts",
-    "Vault for financial documents",
-    "Tax calculator",
-    "Financial statements (P&L, Cash Flow, Balance Sheet)",
-    "1 extra team member access",
+    "Everything in Starter, plus:",
+    "International payments",
+    "One Extra User",
+    "Add-ons: Payroll, HMO, Tax Filing Support",
   ],
   free_to_enterprise: [
-    "Multi-user access (full team)",
-    "Role-based permissions",
-    "Request & approval system",
-    "Connect 5 bank accounts",
-    "Downloadable financial reports",
-    "10 contracts",
-    "Dedicated onboarding support",
+    "Everything in SME, plus:",
+    "Increased transaction limits",
+    "Connect Your Bank Accounts",
+    "Three Extra Users",
+    "Dedicated support team",
   ],
-  free_to_corporation: [
-    "Unlimited contracts",
-    "Department-based access",
-    "Connect unlimited bank accounts",
-    "Simple payroll system",
-    "Advanced financial reporting",
-    "Custom financial structure setup",
-    "Priority onboarding support",
-    "Dedicated account manager",
+  free_to_console: [
+    "Everything in Enterprise, plus:",
+    "Sub Accounts",
+    "Roles & Permissions",
+    "Approvals",
+    "Unlimited users",
+    "Custom pricing",
   ],
-  solopreneur_to_sme: [
-    "Upload bank statements (PDF/Excel/CSV)",
-    "Connect up to 3 bank accounts",
-    "Unlimited invoices (up from 10)",
-    "Unlimited receipts",
-    "Vault for financial documents",
-    "Tax calculator",
-    "Financial statements (P&L, Cash Flow, Balance Sheet)",
-    "1 extra team member access",
+  starter_to_sme: [
+    "International payments",
+    "One Extra User",
+    "Add-ons: Payroll, HMO, Tax Filing Support",
   ],
-  solopreneur_to_enterprise: [
-    "Multi-user access (full team)",
-    "Role-based permissions",
-    "Request & approval system",
-    "Connect 5 bank accounts",
-    "Downloadable financial reports",
-    "10 contracts",
-    "Dedicated onboarding support",
+  starter_to_enterprise: [
+    "International payments",
+    "Connect Your Bank Accounts",
+    "Increased transaction limits",
+    "Three Extra Users",
+    "Dedicated support team",
   ],
-  solopreneur_to_corporation: [
-    "Unlimited contracts",
-    "Department-based access",
-    "Connect unlimited bank accounts",
-    "Simple payroll system",
-    "Advanced financial reporting",
-    "Custom financial structure setup",
-    "Priority onboarding support",
-    "Dedicated account manager",
+  starter_to_console: [
+    "Everything in Enterprise, plus:",
+    "Sub Accounts",
+    "Roles & Permissions",
+    "Approvals",
+    "Unlimited users",
   ],
   sme_to_enterprise: [
-    "Multi-user access (full team) - unlimited team members",
-    "Role-based permissions (owner, staff, finance, viewer)",
-    "Request & approval system",
-    "Connect 5 bank accounts (up from 3)",
-    "Downloadable financial reports",
-    "10 contracts",
-    "Dedicated onboarding support",
+    "Increased transaction limits",
+    "Connect Your Bank Accounts",
+    "Three Extra Users (up from 1)",
+    "Dedicated support team",
   ],
-  sme_to_corporation: [
-    "Unlimited contracts",
-    "Department-based access - HR, Finance, Operations, etc",
-    "Connect unlimited bank accounts (up from 3)",
-    "Simple payroll system",
-    "Advanced financial reporting",
-    "Custom financial structure setup",
-    "Priority onboarding support",
-    "Dedicated account manager",
+  sme_to_console: [
+    "Everything in Enterprise, plus:",
+    "Sub Accounts",
+    "Roles & Permissions",
+    "Approvals",
+    "Unlimited users",
   ],
-  enterprise_to_corporation: [
-    "Unlimited contracts (up from 10)",
-    "Department-based access - HR, Finance, Operations, etc",
-    "Connect unlimited bank accounts (up from 5)",
-    "Simple payroll system",
-    "Advanced financial reporting",
-    "Custom financial structure setup",
-    "Priority onboarding support (up from dedicated)",
-    "Dedicated account manager",
+  enterprise_to_console: [
+    "Sub Accounts",
+    "Roles & Permissions",
+    "Approvals",
+    "Unlimited users",
+    "Custom pricing",
   ],
 };
 
+<<<<<<< HEAD
+=======
+// ═══════════════════════════════════════════════════════════════════════════
+// Cookie / storage helpers — LOGOUT SINGLE SOURCE OF TRUTH
+// ═══════════════════════════════════════════════════════════════════════════
+
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
 const CLIENT_CLEARABLE_COOKIES = [
   "sb-client-session",
   "sb-login-time",
@@ -455,6 +482,15 @@ const CLIENT_CLEARABLE_COOKIES = [
   "sb-user-data",
   "payment_processed",
 ];
+
+/**
+ * Keys we want to PRESERVE across logout.
+ * A deny-list is safer than an allow-list because it guarantees every
+ * current *and future* app key is wiped on logout automatically.
+ */
+const PRESERVED_LOCAL_KEYS = new Set<string>([
+  "theme", // user's light/dark preference — not auth data
+]);
 
 function clearClientCookies() {
   if (typeof document === "undefined") return;
@@ -468,15 +504,44 @@ function clearClientCookies() {
 function clearClientStorage() {
   if (typeof window === "undefined") return;
 
+  // ── localStorage: clear EVERYTHING except preserved UX prefs ──
   try {
-    localStorage.removeItem("userData");
-    localStorage.removeItem("zidwell_store_data");
-    localStorage.removeItem("zidwell_store_timestamp");
-    sessionStorage.removeItem("userData");
-    sessionStorage.removeItem("pendingStoreCheckout");
-    localStorage.removeItem("pendingStoreCheckout");
+    const preserved: Record<string, string> = {};
+    PRESERVED_LOCAL_KEYS.forEach((k) => {
+      const v = localStorage.getItem(k);
+      if (v !== null) preserved[k] = v;
+    });
+
+    localStorage.clear();
+
+    Object.entries(preserved).forEach(([k, v]) => {
+      localStorage.setItem(k, v);
+    });
   } catch (e) {
-    console.error("Failed to clear storage:", e);
+    console.error("Failed to clear localStorage:", e);
+  }
+
+  // ── sessionStorage: clear entirely ──
+  try {
+    sessionStorage.clear();
+  } catch (e) {
+    console.error("Failed to clear sessionStorage:", e);
+  }
+
+  // ── IndexedDB: drop any app-owned DBs (best-effort) ──
+  if (typeof indexedDB !== "undefined") {
+    try {
+      indexedDB
+        .databases?.()
+        .then((dbs) => {
+          dbs.forEach((db) => {
+            if (db.name) indexedDB.deleteDatabase(db.name);
+          });
+        })
+        .catch(() => {});
+    } catch {
+      /* non-fatal */
+    }
   }
 }
 
@@ -522,6 +587,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   const sessionExpiredRef = useRef(false);
+  const identifiedUserIdRef = useRef<string | null>(null);
 
   // ─── WRAPPER: every setUserData call persists to localStorage ───
   const setUserData = useCallback(
@@ -550,11 +616,20 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return false;
   }, [pathname]);
 
+<<<<<<< HEAD
+=======
+  // ─── ⭐ THE ONE AND ONLY LOGOUT FUNCTION ⭐ ───
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   const handleSessionExpired = useCallback(
     async (redirectTo: string = "/auth/login") => {
       if (sessionExpiredRef.current) return;
       sessionExpiredRef.current = true;
 
+<<<<<<< HEAD
+=======
+      // 1. Ask the server to invalidate the session cookie.
+      //    Fire-and-forget — even if the network fails, we still clear client state.
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
       try {
         await fetch("/api/logout", {
           method: "POST",
@@ -562,11 +637,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           headers: { "Content-Type": "application/json" },
         }).catch(() => {});
       } catch {}
+<<<<<<< HEAD
 
       clearClientCookies();
       clearClientStorage();
       sessionStorage.removeItem("lastActivity");
 
+=======
+  
+      posthog.reset();
+      identifiedUserIdRef.current = null;
+      clearClientCookies();
+      clearClientStorage();
+
+      // 3. Reset all in-memory state.
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
       setUser(null);
       setUserData(null);
       setShouldFetchData(false);
@@ -577,11 +662,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       setTotalOutflow(0);
       setTotalTransactions(0);
       setSubscription(null);
+      setSearchTerm("");
+
+      // 4. Bust caches.
       subscriptionCache.clear();
       notificationCache.clear();
 
+<<<<<<< HEAD
       router.replace(redirectTo);
 
+=======
+      // 5. Navigate away (replace so back-button can't return to a protected page).
+      router.replace(redirectTo);
+
+      // 6. Release the guard after the redirect settles.
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
       setTimeout(() => {
         sessionExpiredRef.current = false;
       }, 2000);
@@ -589,6 +684,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     [router, setUserData],
   );
 
+<<<<<<< HEAD
+=======
+  // ─── Restore session from cookies (via /api/user/me) ───
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   const restoreSessionFromCookies = useCallback(async () => {
     try {
       const response = await fetch("/api/user/me", {
@@ -620,6 +719,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+<<<<<<< HEAD
+=======
+  // ─── Refresh user profile ───
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   const refreshUserProfile = useCallback(async () => {
     if (!userDataState?.id) return;
 
@@ -636,6 +739,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setUser(fresh);
           setUserData(fresh); // wrapper persists automatically
 
+<<<<<<< HEAD
+=======
+          try {
+            localStorage.setItem("userData", JSON.stringify(fresh));
+          } catch {
+            /* quota — non-fatal */
+          }
+
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
           subscriptionCache.delete(`subscription_${fresh.id}`);
         }
         return;
@@ -704,6 +816,30 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    if (!sessionRestored || !userData?.id) return;
+    if (identifiedUserIdRef.current === userData.id) return;
+
+    if (identifiedUserIdRef.current) {
+      posthog.reset();
+    }
+
+    const personProperties: Record<string, string> = {};
+    if (typeof userData.email === "string") personProperties.email = userData.email;
+    if (typeof userData.fullName === "string") personProperties.name = userData.fullName;
+    if (typeof userData.role === "string") personProperties.role = userData.role;
+    if (typeof userData.subscription_tier === "string") {
+      personProperties.subscription_tier = userData.subscription_tier;
+    }
+
+    posthog.identify(userData.id, personProperties);
+    identifiedUserIdRef.current = userData.id;
+  }, [sessionRestored, userData]);
+
+  // ─── Theme initialization - LIGHT MODE DEFAULT ───
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme");
     if (storedTheme === "dark") {
@@ -728,6 +864,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+<<<<<<< HEAD
+=======
+  // ─── React to pathname / auth state changes ───
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   useEffect(() => {
     if (!initialCheckDone) return;
 
@@ -752,6 +892,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     notificationCache.clear();
   }, []);
 
+<<<<<<< HEAD
+=======
+  // ⚠️ NOTIFICATIONS API CALLS DISABLED ⚠️
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
   const fetchNotifications = useCallback(
     async (filter: string = "all", limit: number = 50) => {
       console.log(
@@ -804,7 +948,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         headers: { "Content-Type": "application/json" },
       });
 
+<<<<<<< HEAD
       if (response.status === 401) return;
+=======
+      if (response.status === 401) {
+        return;
+      }
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
 
       if (response.ok) {
         const data = await response.json();
@@ -1044,7 +1194,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify({ userId: userDataState.id }),
         });
 
+<<<<<<< HEAD
         if (res.status === 401) return;
+=======
+        if (res.status === 401) {
+          return;
+        }
+
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
         const data = await res.json();
@@ -1081,7 +1238,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify({ userId: userDataState.id }),
         });
 
+<<<<<<< HEAD
         if (res.status === 401) return;
+=======
+        if (res.status === 401) {
+          return;
+        }
+>>>>>>> 99ce893ff767696abfe1d4ced95064a061765be2
 
         const data = await res.json();
         if (data.success) {

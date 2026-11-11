@@ -90,7 +90,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
   object-fit: contain;
 }
     .header {
-      background: linear-gradient(90deg, #FDC020, #937108);
+      background: linear-gradient(90deg, #F5B800, #937108);
       color: #fff;
       padding: 30px;
       display: flex;
@@ -160,7 +160,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
     }
 
     .message {
-      border-left: 4px solid #FDC020;
+      border-left: 4px solid #F5B800;
       padding: 15px 20px;
       margin-bottom: 30px;
       background: #f0f4ff;
@@ -235,7 +235,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
       margin-top: 10px;
       border-top: 1px solid #e5e7eb;
       padding-top: 10px;
-      color: #FDC020;
+      color: #F5B800;
     }
 
     .signatures {

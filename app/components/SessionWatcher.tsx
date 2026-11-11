@@ -28,11 +28,6 @@ const PUBLIC_ROUTE_PATTERNS: RegExp[] = [
   /^\/payment-page-success/,
 ];
 
-/**
- * Events that count as "the user is genuinely active."
- * Deliberately excludes mousemove and scroll — those fire during
- * passive reading and would keep the session alive indefinitely.
- */
 const ACTIVITY_EVENTS = [
   "mousedown",
   "keydown",
@@ -49,7 +44,6 @@ export default function SessionWatcher({
   const router = useRouter();
   const { userData, loading, handleSessionExpired } = useUserContextData();
 
-  // Synchronous flag: once true, every user interaction is intercepted.
   const sessionExpiredRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,7 +52,6 @@ export default function SessionWatcher({
   const logoutInProgress = useRef(false);
   const [isOnline, setIsOnline] = useState(true);
 
-  // Banner state
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
   const [warningDismissed, setWarningDismissed] = useState(false);
 
@@ -80,7 +73,7 @@ export default function SessionWatcher({
     );
   }, [userData, isPublicRoute, loading]);
 
-  // ─── Redirect to the dedicated timeout page ───
+  // ─── Redirect to /auth/session-timeout ───
   const redirectToTimeout = useCallback(
     async (reason: "idle" | "invalidated" = "idle") => {
       if (logoutInProgress.current) return;
@@ -103,38 +96,19 @@ export default function SessionWatcher({
         extendTimerRef.current = null;
       }
 
-      // Capture the current URL so the login page can send the user back.
       const current = resolvePath();
       const callback = current && !isPublicRoute() ? current : "/dashboard";
 
-      // Server-side logout (best-effort).
-      try {
-        await fetch("/api/logout", {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch {
-        // Non-fatal.
-      }
-
-      // Clear client-side state via shared context. Pass the timeout
-      // page as the redirect target so UserProvider doesn't send the
-      // user to /auth/login instead.
-      try {
-        await handleSessionExpired(
-          `/auth/session-timeout?callbackUrl=${encodeURIComponent(
-            callback,
-          )}&reason=${reason}`,
-        );
-      } catch {
-        // Last-resort fallback.
-        router.replace("/auth/session-timeout");
-      }
+      await handleSessionExpired(
+        `/auth/session-timeout?callbackUrl=${encodeURIComponent(
+          callback,
+        )}&reason=${reason}`,
+      );
     },
-    [resolvePath, isPublicRoute, handleSessionExpired, router],
+    [resolvePath, isPublicRoute, handleSessionExpired],
   );
 
-  // ─── Countdown for the banner ───
+  // ─── Banner countdown ───
   const startWarningCountdown = useCallback(() => {
     setWarningDismissed(false);
 
@@ -151,7 +125,6 @@ export default function SessionWatcher({
     const tick = () => {
       const remaining = Math.max(0, expiresAt - Date.now());
       setSecondsRemaining(Math.ceil(remaining / 1000));
-
       if (remaining <= 0) {
         if (countdownIntervalRef.current) {
           clearInterval(countdownIntervalRef.current);
@@ -174,7 +147,6 @@ export default function SessionWatcher({
     setWarningDismissed(false);
   }, []);
 
-  // ─── Schedule expiry + warning ───
   const scheduleExpiry = useCallback(
     (delayMs: number) => {
       if (SESSION_TIMEOUT_DISABLED) return;
@@ -184,9 +156,7 @@ export default function SessionWatcher({
 
       const warningDelay = Math.max(0, delayMs - WARNING_THRESHOLD_MS);
       warningTimerRef.current = setTimeout(() => {
-        if (!sessionExpiredRef.current) {
-          startWarningCountdown();
-        }
+        if (!sessionExpiredRef.current) startWarningCountdown();
       }, warningDelay);
 
       timerRef.current = setTimeout(() => {
@@ -198,7 +168,6 @@ export default function SessionWatcher({
     [redirectToTimeout, startWarningCountdown, stopWarningCountdown],
   );
 
-  // ─── "Stay Logged In" from banner ───
   const handleExtendFromBanner = useCallback(async () => {
     const now = Date.now();
     try {
@@ -207,7 +176,6 @@ export default function SessionWatcher({
       // ignore
     }
 
-    // Explicit user request → extend immediately, not debounced.
     try {
       await fetch("/api/auth/extend-session", {
         method: "POST",
@@ -223,10 +191,8 @@ export default function SessionWatcher({
 
   const handleDismissWarning = useCallback(() => {
     setWarningDismissed(true);
-    // The timer keeps running. Dismiss just hides the banner.
   }, []);
 
-  // ─── Activity handler ───
   const onActivity = useCallback(() => {
     if (!canCheckSession()) return;
 
@@ -275,14 +241,26 @@ export default function SessionWatcher({
     const elapsed = now - last;
     const remaining = Math.max(0, SESSION_TIMEOUT_MS - elapsed);
 
+    // Fresh window from "now" — either continuing or starting over.
+    sessionStorage.setItem("lastActivity", now.toString());
+
     if (remaining === 0) {
-      sessionExpiredRef.current = true;
-      redirectToTimeout("idle");
-      return;
+      // Stale lastActivity — reset silently instead of expiring.
+      scheduleExpiry(SESSION_TIMEOUT_MS);
+    } else {
+      scheduleExpiry(remaining);
     }
 
-    sessionStorage.setItem("lastActivity", now.toString());
-    scheduleExpiry(remaining);
+    // ✅ Fire ONE immediate extend POST so the server's DB expiry
+    //    matches the client's fresh countdown. Without this, the
+    //    very first extend wouldn't happen until the user interacts,
+    //    and the DB expiry could lag behind the client timer.
+    void fetch("/api/auth/extend-session", {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {
+      // Non-fatal.
+    });
 
     ACTIVITY_EVENTS.forEach((evt) =>
       window.addEventListener(evt, onActivity, {
@@ -311,11 +289,9 @@ export default function SessionWatcher({
 
     const interceptor = (e: Event) => {
       if (!sessionExpiredRef.current) return;
-
       e.preventDefault();
       e.stopPropagation();
       (e as any).stopImmediatePropagation?.();
-
       redirectToTimeout("idle");
     };
 
@@ -378,25 +354,36 @@ export default function SessionWatcher({
     if (SESSION_TIMEOUT_DISABLED) return;
     if (!canCheckSession()) return;
 
-    const interval = setInterval(async () => {
-      if (document.hidden) return;
-      if (sessionExpiredRef.current) return;
+    const interval = setInterval(
+      async () => {
+        if (document.hidden) return;
+        if (sessionExpiredRef.current) return;
 
-      try {
-        const res = await fetch("/api/auth/validate-session", {
-          credentials: "include",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        const data = await res.json().catch(() => ({ valid: false }));
+        try {
+          const res = await fetch("/api/auth/validate-session", {
+            credentials: "include",
+            headers: { "Cache-Control": "no-cache" },
+          });
+          const data = await res.json().catch(() => ({ valid: false }));
 
-        if (!data.valid && !isPublicRoute()) {
-          sessionExpiredRef.current = true;
-          redirectToTimeout("invalidated");
+          if (!data.valid && !isPublicRoute()) {
+            console.warn(
+              "[session] validate-session returned invalid:",
+              data.reason,
+            );
+            sessionExpiredRef.current = true;
+            redirectToTimeout(
+              data.reason === "session_id_mismatch"
+                ? "invalidated"
+                : "idle",
+            );
+          }
+        } catch {
+          // Network error — do not log out.
         }
-      } catch {
-        // Network error — do not log out.
-      }
-    }, 2 * 60 * 1000);
+      },
+      2 * 60 * 1000,
+    );
 
     return () => clearInterval(interval);
   }, [canCheckSession, isPublicRoute, redirectToTimeout]);

@@ -223,7 +223,7 @@ export function TransactionsTab() {
             onClick={() => window.location.reload()}
             size="sm"
             className="dark:bg-(--color-accent-yellow)"
-            style={{ backgroundColor: "#FDC020", color: "#ffffff" }}
+            style={{ backgroundColor: "#F5B800", color: "#ffffff" }}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
@@ -428,7 +428,7 @@ export function TransactionsTab() {
                         style={{
                           borderColor: "#e6dfd6",
                           backgroundColor: "#fcfbf9",
-                          color: "#FDC020",
+                          color: "#F5B800",
                         }}
                       >
                         <Edit2 className="h-4 w-4 mr-1" />
@@ -533,7 +533,7 @@ export function TransactionsTab() {
                       )}
                       style={{
                         borderColor:
-                          selectedCategory === cat.id ? "#FDC020" : "#e6dfd6",
+                          selectedCategory === cat.id ? "#F5B800" : "#e6dfd6",
                         backgroundColor:
                           selectedCategory === cat.id
                             ? "rgba(43, 130, 91, 0.1)"
@@ -558,7 +558,7 @@ export function TransactionsTab() {
                 className="w-full font-semibold h-12"
                 style={{
                   background:
-                    !selectedCategory || updating ? "#e6dfd6" : "#FDC020",
+                    !selectedCategory || updating ? "#e6dfd6" : "#F5B800",
                   color: !selectedCategory || updating ? "#80746e" : "#ffffff",
                 }}
               >

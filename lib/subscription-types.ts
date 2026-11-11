@@ -1,90 +1,97 @@
-// app/lib/subscription/subscription-types.ts (UPDATED with real plan names)
+// lib/subscription-types.ts
 
 export interface SubscriptionPlan {
-  tier: 'free' | 'solopreneur' | 'sme' | 'enterprise' | 'corporation';
+  tier: "free" | "starter" | "sme" | "enterprise" | "console";
   name: string;
-  monthlyAmount: number;
   yearlyAmount: number;
   features: string[];
+  addons?: string[];
 }
 
 export const PLANS: SubscriptionPlan[] = [
   {
-    tier: 'free',
-    name: 'Free',
-    monthlyAmount: 0,
+    tier: "free",
+    name: "Free",
     yearlyAmount: 0,
     features: [
-      'Manual bookkeeping — Global',
-      'Auto-bookkeeping (Wallet users, Nigeria)',
-      'Payment Links & Sales pages (Nigeria)',
-      'Free business bank account (Nigeria)',
-      'Up to 5 invoices — Global',
-      'Up to 5 receipts — Global',
-      'Basic financial overview',
+      "Up to 5 invoices",
+      "Up to 5 receipts",
+      "Business Plan Template",
+      "Basic financial overview",
     ],
   },
   {
-    tier: 'solopreneur',
-    name: 'Solopreneur',
-    monthlyAmount: 4900,
-    yearlyAmount: 49000,
+    tier: "starter",
+    name: "Starter",
+    yearlyAmount: 99900,
     features: [
-      'Everything in Free, plus:',
-      'Up to 10 invoices',
-      'Unlimited receipts',
-      'Branded invoices',
-      'Better expense tracking',
-      'Basic financial insights',
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "Online storefront",
+      "Document Vault",
     ],
   },
   {
-    tier: 'sme',
-    name: 'SME',
-    monthlyAmount: 29900,
-    yearlyAmount: 299000,
+    tier: "sme",
+    name: "SME",
+    yearlyAmount: 199900,
     features: [
-      'Everything in Solopreneur, plus:',
-      'Upload bank statements (PDF / Excel / CSV)',
-      'Connect up to 3 bank accounts — Nigeria',
-      'Auto-bookkeeping from connected accounts — Nigeria',
-      'Unlimited invoices & receipts',
-      'Vault — store financial documents safely',
-      'Tax calculator',
-      'Financial statements (view): P&L · Cashflow · Balance Sheet',
-      '1 extra team member',
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "One Extra User",
+    ],
+    addons: [
+      "Payroll",
+      "HMO",
+      "Tax Filing Support",
+      "Virtual office/mailing address",
     ],
   },
   {
-    tier: 'enterprise',
-    name: 'Enterprise',
-    monthlyAmount: 100000,
-    yearlyAmount: 1000000,
+    tier: "enterprise",
+    name: "Enterprise",
+    yearlyAmount: 599900,
     features: [
-      'Everything in SME, plus:',
-      'Multi-user access (full team)',
-      'Role-based permissions',
-      'Approvals for payments, invoices, receipts, transfers',
-      'Connect up to 5 bank accounts — Nigeria',
-      'Downloadable financial reports',
-      '10 contracts',
-      'Dedicated onboarding support',
+      "Business bank account",
+      "Increased transaction limits",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Connect Your Bank Accounts",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "Three Extra Users",
+      "Dedicated support team",
+    ],
+    addons: [
+      "Payroll",
+      "HMO",
+      "Tax Filing Support",
+      "Virtual office/mailing address",
     ],
   },
   {
-    tier: 'corporation',
-    name: 'Corporation',
-    monthlyAmount: 300000,
-    yearlyAmount: 3000000,
+    tier: "console",
+    name: "Console",
+    yearlyAmount: 0,
     features: [
-      'Everything in Enterprise, plus:',
-      'Unlimited contracts',
-      'Department-based access (HR, Finance, Ops…)',
-      'Connect unlimited bank accounts — Nigeria',
-      'Simple payroll system',
-      'Advanced financial reporting',
-      'Custom financial structure setup',
-      'Priority onboarding & dedicated account manager',
+      "Everything in Enterprise",
+      "Sub Accounts",
+      "Roles & Permissions",
+      "Approvals",
+      "Unlimited users",
+      "Custom pricing",
     ],
   },
 ];
@@ -93,13 +100,13 @@ export interface SubscriptionPayment {
   id: string;
   user_id: string;
   amount: number;
-  payment_method: 'card' | 'bank_transfer';
-  status: 'pending' | 'completed' | 'failed';
+  payment_method: "card" | "bank_transfer";
+  status: "pending" | "completed" | "failed";
   reference: string;
   nomba_transaction_id?: string;
   metadata: {
     planTier: string;
-    billingPeriod: 'monthly' | 'yearly';
+    billingPeriod: "yearly";
     [key: string]: any;
   };
   subscription_id?: string;
@@ -111,7 +118,7 @@ export interface SubscriptionRecord {
   id: string;
   user_id: string;
   tier: string;
-  status: 'active' | 'cancelled' | 'expired';
+  status: "active" | "cancelled" | "expired";
   expires_at: string;
   auto_renew: boolean;
   payment_method: string;
@@ -132,24 +139,20 @@ export interface BankTransferSubscriptionParams {
   tx: any;
 }
 
-// Helper to get plan by tier
 export const getPlanByTier = (tier: string): SubscriptionPlan | undefined => {
-  return PLANS.find(plan => plan.tier === tier);
+  return PLANS.find((plan) => plan.tier === tier);
 };
 
-// Helper to get plan price
-export const getPlanPrice = (tier: string, billingPeriod: 'monthly' | 'yearly'): number => {
+export const getPlanPrice = (tier: string): number => {
   const plan = getPlanByTier(tier);
   if (!plan) return 0;
-  return billingPeriod === 'monthly' ? plan.monthlyAmount : plan.yearlyAmount;
+  return plan.yearlyAmount;
 };
 
-// Helper to check if tier has unlimited invoices
 export const hasUnlimitedInvoices = (tier: string): boolean => {
-  return ['sme', 'enterprise', 'corporation'].includes(tier);
+  return ["starter", "sme", "enterprise", "console"].includes(tier);
 };
 
-// Helper to check if tier has unlimited receipts
 export const hasUnlimitedReceipts = (tier: string): boolean => {
-  return ['solopreneur', 'sme', 'enterprise', 'corporation'].includes(tier);
+  return ["starter", "sme", "enterprise", "console"].includes(tier);
 };

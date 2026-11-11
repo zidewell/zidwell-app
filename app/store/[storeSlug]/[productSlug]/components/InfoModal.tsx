@@ -1,4 +1,3 @@
-// app/store/[storeSlug]/[productSlug]/components/InfoModal.tsx
 "use client";
 
 import { motion } from "framer-motion";
@@ -6,14 +5,12 @@ import { format } from "date-fns";
 import {
   X,
   Truck,
-  Store,
   CalendarIcon,
   Clock,
   MessageSquare,
   CreditCard,
   Loader2,
   CircleCheck,
-  MapPin,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -26,12 +23,8 @@ import {
 } from "@/app/components/ui/popover";
 import { Calendar as DateCalendar } from "@/app/components/ui/calendar";
 import { TimePicker } from "./TimePicker";
-import {
-  PRIMARY_BG,
-  PRIMARY_BG_HOVER,
-  PRIMARY_TEXT,
-} from "../utils/helpers";
-import type { FulfillmentSelection } from "../hooks/useProductCheckout";
+import { PRIMARY_BG, PRIMARY_BG_HOVER, PRIMARY_TEXT } from "../utils/helpers";
+import type { FulfillmentSelection } from "@/lib/delivery-utils";
 
 interface Props {
   isDonation: boolean;
@@ -154,8 +147,7 @@ export function InfoModal({
   const showDeliveryBlock =
     showFulfillmentBlock && fulfillment!.method === "delivery";
 
-  const showFulfillmentError =
-    requiresShipping && errors.fulfillment != null;
+  const showFulfillmentError = requiresShipping && errors.fulfillment != null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -165,12 +157,12 @@ export function InfoModal({
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-background p-6"
       >
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold">
+          <h3 className="text-lg font-semibold text-foreground">
             {isDonation ? "Your donation" : "Your information"}
           </h3>
           <button
             onClick={onClose}
-            className="text-foreground/50 hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
@@ -179,7 +171,7 @@ export function InfoModal({
         <div className="space-y-4">
           {(!isDonation || requireDonorName) && (
             <div>
-              <Label className="mb-1.5 block text-sm font-medium">
+              <Label className="mb-1.5 block text-sm font-medium text-foreground">
                 Full name *
               </Label>
               <Input
@@ -198,7 +190,7 @@ export function InfoModal({
           )}
 
           <div>
-            <Label className="mb-1.5 block text-sm font-medium">
+            <Label className="mb-1.5 block text-sm font-medium text-foreground">
               Email {!isDonation && "*"}
             </Label>
             <Input
@@ -217,111 +209,70 @@ export function InfoModal({
           </div>
 
           <div>
-            <Label className="mb-1.5 block text-sm font-medium">
-              Phone number
+            <Label className="mb-1.5 block text-sm font-medium text-foreground">
+              Phone number{" "}
+              {requiresShipping && fulfillment?.method === "delivery"
+                ? "*"
+                : ""}
             </Label>
             <Input
               type="tel"
               value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
+              onChange={(e) => {
+                setCustomerPhone(e.target.value);
+                if (errors.phone) setErrors({ ...errors, phone: "" });
+              }}
+              className={errors.phone ? "border-red-500" : ""}
               placeholder="08012345678"
             />
+            {errors.phone && (
+              <p className="mt-1 text-xs text-red-500">{errors.phone}</p>
+            )}
           </div>
 
-          {requiresShipping && showFulfillmentBlock && (
-            <div className="border-t border-border pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="flex items-center gap-2 text-sm font-medium">
-                  {showDeliveryBlock ? (
-                    <>
-                      <Truck className="h-4 w-4 text-foreground/60" />
-                      Delivery details
-                    </>
-                  ) : (
-                    <>
-                      <Store className="h-4 w-4 text-foreground/60" />
-                      Pickup details
-                    </>
-                  )}
-                </p>
-                <span className="rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
-                  {showDeliveryBlock ? "Delivery" : "Pickup"}
-                </span>
-              </div>
-
-              {showDeliveryBlock && fulfillment!.address && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        {fulfillment!.address.label}
-                      </p>
-                      {fulfillment!.address.contact_name && (
-                        <p className="mt-0.5 text-xs text-foreground/70">
-                          {fulfillment!.address.contact_name}
-                          {fulfillment!.address.contact_phone
-                            ? ` · ${fulfillment!.address.contact_phone}`
-                            : ""}
-                        </p>
-                      )}
-                      <p className="mt-1 text-xs text-foreground/60">
-                        {fulfillment!.address.street_address},{" "}
-                        {fulfillment!.address.city},{" "}
-                        {fulfillment!.address.state}
-                      </p>
-                      {fulfillment!.address.estimated_days > 0 && (
-                        <p className="mt-1 text-xs text-foreground/50">
-                          Estimated delivery: ~
-                          {fulfillment!.address.estimated_days} day(s)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showDeliveryBlock && !fulfillment!.address && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                  <p className="text-xs text-red-700">
-                    No delivery address selected. Please go back and choose one.
+          {requiresShipping && fulfillment && fulfillment.method && (
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1">
+              {fulfillment.method === "delivery" &&
+              fulfillment.delivery?.customer_address ? (
+                <>
+                  <p className="text-xs font-medium text-foreground/80">
+                    Delivering to:{" "}
+                    <span className="font-normal text-muted-foreground">
+                      {fulfillment.delivery.customer_address.street_address},{" "}
+                      {fulfillment.delivery.customer_address.city},{" "}
+                      {fulfillment.delivery.customer_address.state}
+                    </span>
                   </p>
-                </div>
-              )}
-
-              {showPickupBlock && (
-                <div className="rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-start gap-2">
-                    <Store className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        You'll pick up your order from the seller
-                      </p>
-                      <p className="mt-1 text-xs text-foreground/60">
-                        The seller will contact you with pickup instructions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showFulfillmentError && (
-                <p className="mt-2 text-xs text-red-500">
-                  {errors.fulfillment}
+                  {fulfillment.delivery.selected_zone && (
+                    <p className="text-xs text-muted-foreground">
+                      Zone:{" "}
+                      <strong>
+                        {fulfillment.delivery.selected_zone.label}
+                      </strong>
+                    </p>
+                  )}
+                </>
+              ) : fulfillment.method === "pickup" ? (
+                <p className="text-xs font-medium text-foreground/80">
+                  Picking up from:{" "}
+                  <span className="font-normal text-muted-foreground">
+                    {fulfillment.pickup?.label || "Pickup location"}
+                  </span>
                 </p>
-              )}
+              ) : null}
             </div>
           )}
-
           {bookingEnabled && (
             <div className="border-t border-border pt-5">
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FDC020]/15">
-                  <CalendarIcon className="h-4 w-4 text-[#191919] dark:text-[#FDC020]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F5B800]/15">
+                  <CalendarIcon className="h-4 w-4 text-[#191919] dark:text-[#F5B800]" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Is This An Appointment</p>
-                  <p className="text-xs text-foreground/50">
+                  <p className="text-sm font-semibold text-foreground">
+                    Is This An Appointment
+                  </p>
+                  <p className="text-xs text-muted-foreground">
                     Pick a date and time that works for you
                   </p>
                 </div>
@@ -332,17 +283,17 @@ export function InfoModal({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#FDC020]/60 ${
+                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#F5B800]/60 ${
                         errors.bookingDate ? "border-red-500" : ""
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <CalendarIcon className="h-4 w-4 text-foreground/60" />
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="text-xs text-foreground/50">
+                          <p className="text-xs text-muted-foreground">
                             Preferred date
                           </p>
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-medium text-foreground">
                             {bookingDate
                               ? format(
                                   new Date(bookingDate),
@@ -383,17 +334,17 @@ export function InfoModal({
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#FDC020]/60 ${
+                      className={`flex w-full items-center justify-between rounded-xl border border-border bg-muted/20 px-4 py-3 text-left transition hover:border-[#F5B800]/60 ${
                         errors.bookingTime ? "border-red-500" : ""
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Clock className="h-4 w-4 text-foreground/60" />
+                        <Clock className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <p className="text-xs text-foreground/50">
+                          <p className="text-xs text-muted-foreground">
                             Preferred time
                           </p>
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-medium text-foreground">
                             {bookingTime
                               ? format(
                                   new Date(`2000-01-01T${bookingTime}`),
@@ -419,8 +370,8 @@ export function InfoModal({
               </div>
 
               {bookingDate && bookingTime && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#FDC020]/40 bg-[#FDC020]/5 px-3 py-2">
-                  <CircleCheck className="h-3.5 w-3.5 shrink-0 text-[#191919] dark:text-[#FDC020]" />
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-[#F5B800]/40 bg-[#F5B800]/5 px-3 py-2">
+                  <CircleCheck className="h-3.5 w-3.5 shrink-0 text-[#191919] dark:text-[#F5B800]" />
                   <p className="text-xs text-foreground/80">
                     Booking for{" "}
                     <strong>
@@ -437,8 +388,8 @@ export function InfoModal({
 
           {customerNoteEnabled && (
             <div>
-              <Label className="mb-1.5 flex items-center gap-2 text-sm font-medium">
-                <MessageSquare className="h-3.5 w-3.5 text-foreground/60" />
+              <Label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-foreground">
+                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
                 Note (optional)
               </Label>
               <Textarea
@@ -446,13 +397,14 @@ export function InfoModal({
                 onChange={(e) => setCustomerNote(e.target.value)}
                 placeholder="Describe your request"
                 rows={3}
+                className="text-foreground"
               />
             </div>
           )}
 
           {isDonation && allowDonorMessage && (
             <div>
-              <Label className="mb-1.5 block text-sm font-medium">
+              <Label className="mb-1.5 block text-sm font-medium text-foreground">
                 Message (optional)
               </Label>
               <Textarea
@@ -460,20 +412,20 @@ export function InfoModal({
                 onChange={(e) => setDonorMessage(e.target.value)}
                 placeholder="Leave a message"
                 rows={3}
-                className="resize-none"
+                className="resize-none text-foreground"
               />
             </div>
           )}
 
           {isPaymentLink && customFields.length > 0 && (
             <div className="border-t border-border pt-4">
-              <p className="mb-3 text-sm font-medium">
+              <p className="mb-3 text-sm font-medium text-foreground">
                 Additional information
               </p>
               <div className="space-y-3">
                 {linkConfig.amountMode === "variable" && (
                   <div>
-                    <Label className="mb-1.5 block text-sm font-medium">
+                    <Label className="mb-1.5 block text-sm font-medium text-foreground">
                       Amount *
                     </Label>
                     <Input
@@ -491,7 +443,7 @@ export function InfoModal({
                 )}
                 {customFields.map((field: any) => (
                   <div key={field.id}>
-                    <Label className="mb-1.5 block text-sm font-medium">
+                    <Label className="mb-1.5 block text-sm font-medium text-foreground">
                       {field.label}
                       {field.required ? " *" : ""}
                     </Label>
@@ -505,7 +457,7 @@ export function InfoModal({
                           })
                         }
                         rows={3}
-                        className="resize-none"
+                        className="resize-none text-foreground"
                       />
                     ) : field.type === "dropdown" ? (
                       <select
@@ -519,16 +471,14 @@ export function InfoModal({
                         className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-foreground"
                       >
                         <option value="">Select {field.label}</option>
-                        {(field.options || []).map(
-                          (opt: string, i: number) => (
-                            <option key={i} value={opt}>
-                              {opt}
-                            </option>
-                          ),
-                        )}
+                        {(field.options || []).map((opt: string, i: number) => (
+                          <option key={i} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
                       </select>
                     ) : field.type === "checkbox" ? (
-                      <label className="flex items-center gap-2 text-sm">
+                      <label className="flex items-center gap-2 text-sm text-foreground">
                         <input
                           type="checkbox"
                           checked={!!customFieldValues[field.id]}
@@ -568,13 +518,13 @@ export function InfoModal({
 
           {isSchoolPage && schoolRequiredFields.length > 0 && (
             <div className="border-t border-border pt-4">
-              <p className="mb-3 text-sm font-medium">
+              <p className="mb-3 text-sm font-medium text-foreground">
                 Additional information
               </p>
               <div className="space-y-3">
                 {schoolRequiredFields.map((field: string, i: number) => (
                   <div key={i}>
-                    <Label className="mb-1.5 block text-sm font-medium">
+                    <Label className="mb-1.5 block text-sm font-medium text-foreground">
                       {field}
                     </Label>
                     <Input
@@ -595,7 +545,7 @@ export function InfoModal({
           <div className="rounded-lg border border-border bg-muted/20 p-3">
             {showQuantity && quantity > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-foreground/60">
+                <span className="text-muted-foreground">
                   {quantity} × ₦
                   {(resolvedBase / Math.max(quantity, 1)).toLocaleString(
                     undefined,
@@ -605,7 +555,7 @@ export function InfoModal({
                     },
                   )}
                 </span>
-                <span className="font-medium">
+                <span className="font-medium text-foreground">
                   ₦{resolvedBase.toLocaleString()}
                 </span>
               </div>
@@ -615,8 +565,8 @@ export function InfoModal({
               <>
                 {showQuantity && quantity > 0 ? null : (
                   <div className="flex justify-between text-sm">
-                    <span className="text-foreground/60">Subtotal</span>
-                    <span className="font-medium">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="font-medium text-foreground">
                       ₦{resolvedBase.toLocaleString()}
                     </span>
                   </div>
@@ -624,8 +574,10 @@ export function InfoModal({
 
                 {hasFee && (
                   <div className="flex justify-between text-sm mt-2">
-                    <span className="text-foreground/60">Processing fee</span>
-                    <span className="font-medium">
+                    <span className="text-muted-foreground">
+                      Processing fee
+                    </span>
+                    <span className="font-medium text-foreground">
                       ₦{feeAmount!.toLocaleString()}
                     </span>
                   </div>
@@ -633,11 +585,11 @@ export function InfoModal({
 
                 {hasDelivery && (
                   <div className="flex justify-between text-sm mt-2">
-                    <span className="flex items-center gap-1.5 text-foreground/60">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
                       <Truck className="h-3.5 w-3.5" />
                       Delivery fee
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium text-foreground">
                       ₦{deliveryFee.toLocaleString()}
                     </span>
                   </div>
@@ -646,10 +598,10 @@ export function InfoModal({
             )}
 
             <div className="mt-2 flex justify-between border-t border-border pt-2">
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium text-foreground">
                 {hasFee || hasDelivery ? "Total" : "Amount"}
               </span>
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-semibold text-foreground">
                 ₦{currentTotalAmount.toLocaleString()}
               </span>
             </div>

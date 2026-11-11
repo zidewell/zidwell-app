@@ -68,13 +68,13 @@ export async function POST(req: NextRequest) {
             font-size: 36px; 
             font-weight: bold; 
             letter-spacing: 8px; 
-            color: #FDC020;
+            color: #F5B800;
             text-align: center;
             margin: 30px 0;
             padding: 20px;
             background: rgba(253, 192, 32, 0.1);
             border-radius: 12px;
-            border: 2px dashed #FDC020;
+            border: 2px dashed #F5B800;
         }
         .security-note { 
             background: rgba(0, 182, 79, 0.1);

@@ -45,6 +45,7 @@ import DashboardSidebar from "@/app/components/dashboard-component/DashboardSide
 import DashboardHeader from "@/app/components/dashboard-component/DashboardHeader";
 import RichTextArea from "@/app/components/payment-page-components/RichTextArea";
 import { CustomerPreview } from "@/app/components/payment-page-components/CustomerPreview"; // ← ADDED
+import posthog from "posthog-js";
 
 // ============================================================
 // CONSTANTS
@@ -921,6 +922,13 @@ export default function CreatePage() {
       setCreatedSlug(pageSlug);
       if (result.page) addPage(result.page);
 
+      posthog.capture("payment_page_created", {
+        page_type: pageType,
+        price_type: pageData.priceType,
+        price_amount: pageData.price,
+        has_installments: pageData.installmentCount !== undefined,
+        fee_payer: form.feePayer,
+      });
       triggerConfetti();
       setShowSuccess(true);
     } catch (err: any) {
@@ -1612,7 +1620,7 @@ export default function CreatePage() {
               <Button
                 variant="default"
                 size="lg"
-                className="flex-1 py-6 text-base bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
+                className="flex-1 py-6 text-base bg-[#F5B800] text-[#191919] hover:bg-[#e6a800]"
                 onClick={handleCreate}
                 disabled={!canCreate() || isCreating}
               >
@@ -1705,7 +1713,7 @@ export default function CreatePage() {
                 </Button>
                 <Button
                   variant="default"
-                  className="flex-1 bg-[#FDC020] text-[#191919] hover:bg-[#e6a800]"
+                  className="flex-1 bg-[#F5B800] text-[#191919] hover:bg-[#e6a800]"
                   onClick={() => {
                     setShowSuccess(false);
                     router.push("/dashboard/services/payment/dashboard");
@@ -1760,7 +1768,7 @@ export default function CreatePage() {
                   : pageType === "services"
                     ? "Book Now"
                     : "Pay Now",
-            buttonColor: "#FDC020",
+            buttonColor: "#F5B800",
           },
           pageType: pageType,
           // ── extras

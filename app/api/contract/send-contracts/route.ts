@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
     body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
     .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; }
     .content { padding: 40px; }
-    .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
+    .btn { background: #F5B800; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
       <p style="color: #4b5563;">Hello ${receiverName},</p>
       <p style="color: #4b5563;">You have received a contract from ${creatorName || "the contract creator"}.</p>
       <div style="margin: 20px 0;">
-        <a href="${signingLink}" class="btn" style="background-color: #FDC020; color: #191919;">Review & Sign Contract</a>
+        <a href="${signingLink}" class="btn" style="background-color: #F5B800; color: #191919;">Review & Sign Contract</a>
       </div>
     </div>
     <img src="${footerImageUrl}" style="width: 100%;" />

@@ -26,14 +26,12 @@ import {
 import { useVerificationModal } from "@/app/context/verificationModalContext";
 import { useUserContextData } from "@/app/context/userData";
 
-import { canAccessPaymentPage } from "@/lib/constants";
-
 interface FeatureCardsProps {
   onActionComplete?: () => void;
   usage?: any;
 }
 
-const getFeatures = (userEmail?: string | null) => {
+const getFeatures = () => {
   const baseFeatures = [
     {
       id: 1,
@@ -223,22 +221,21 @@ const getFeatures = (userEmail?: string | null) => {
     },
   ];
 
-  if (canAccessPaymentPage(userEmail)) {
-    baseFeatures.push({
-      id: 1.5,
-      title: "Online Store",
-      desc: "Buy products online",
-      icon: Store,
-      gradient: "from-fuchsia-500 to-purple-600",
-      iconBg: "bg-fuchsia-50 dark:bg-fuchsia-950/30",
-      iconColor: "text-fuchsia-600 dark:text-fuchsia-400",
-      link: "/dashboard/services/payment/dashboard",
-      requiredTier: "growth",
-      featureKey: "online_store",
-      type: "payment",
-      isNew: true,
-    } as any);
-  }
+  // Online Store — now available to everyone.
+  baseFeatures.push({
+    id: 1.5,
+    title: "Online Store",
+    desc: "Sell products online",
+    icon: Store,
+    gradient: "from-fuchsia-500 to-purple-600",
+    iconBg: "bg-fuchsia-50 dark:bg-fuchsia-950/30",
+    iconColor: "text-fuchsia-600 dark:text-fuchsia-400",
+    link: "/dashboard/services/payment/dashboard",
+    requiredTier: "growth",
+    featureKey: "online_store",
+    type: "payment",
+    isNew: true,
+  } as any);
 
   return baseFeatures.sort((a: any, b: any) => a.id - b.id);
 };
@@ -249,7 +246,7 @@ const FeatureCards = ({ onActionComplete, usage }: FeatureCardsProps) => {
   const { userData } = useUserContextData();
   const { openVerificationModal } = useVerificationModal();
 
-  const features = getFeatures(userData?.email);
+  const features = getFeatures();
 
   const bvnRequiredServices = [
     "/dashboard/fund-account",
