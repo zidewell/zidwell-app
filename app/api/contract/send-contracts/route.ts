@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
 import { isAuthenticatedWithRefresh, createAuthResponse } from "@/lib/auth-check-api";
+import { emailShell, ui, esc } from "@/lib/email/ui";
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -202,33 +204,30 @@ export async function POST(req: NextRequest) {
         await transporter.sendMail({
           from: process.env.EMAIL_FROM,
           to: receiverEmail,
-          subject: `Contract for Signature: ${contractTitle}`,
-          html: `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; }
-    .content { padding: 40px; }
-    .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <img src="${headerImageUrl}" style="width: 100%;" />
-    <div class="content">
-      <h2 style="color: #111827;">Contract for Signature: ${contractTitle}</h2>
-      <p style="color: #4b5563;">Hello ${receiverName},</p>
-      <p style="color: #4b5563;">You have received a contract from ${creatorName || "the contract creator"}.</p>
-      <div style="margin: 20px 0;">
-        <a href="${signingLink}" class="btn" style="background-color: #FDC020; color: #191919;">Review & Sign Contract</a>
-      </div>
-    </div>
-    <img src="${footerImageUrl}" style="width: 100%;" />
-  </div>
-</body>
-</html>`,
+          subject: `Contract for signature — ${contractTitle}`,
+          html: emailShell({
+            title: contractTitle,
+            preheader: `${creatorName || "Someone"} sent you a contract to sign on Zidwell.`,
+            content: `
+              ${ui.h1("📄 Contract for signature")}
+              ${ui.p(`Hi ${esc(receiverName || "there")},`)}
+              ${ui.p(
+                `You've received a contract from <strong>${esc(
+                  creatorName || "the contract creator"
+                )}</strong>.`
+              )}
+              ${ui.kvCard([
+                { label: "Contract", value: esc(contractTitle) },
+                ...(contractDate ? [{ label: "Date", value: esc(contractDate) }] : []),
+                { label: "From", value: esc(creatorName || "—") },
+              ])}
+              ${ui.cta("Review & sign contract", signingLink!)}
+              ${ui.muted(
+                "If you're not the intended recipient, you can ignore this email."
+              )}
+              ${ui.signature()}
+            `,
+          }),
         });
       } catch (emailError) {
         console.error("Failed to send email:", emailError);

@@ -37,7 +37,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   const isPublicRoute = pathname?.includes("/sign-receipt/") || pathname?.includes("/sign-contract/");
   
   // Resolve CSS variable to actual color value
-  const penColor = "#FDC020"; // Zidwell accent yellow
+  const penColor = "#F5B800"; // Zidwell accent yellow
 
   // Ensure component is mounted to avoid hydration issues
   useEffect(() => {

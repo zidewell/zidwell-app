@@ -1,59 +1,75 @@
 // app/api/payment-page/status/route.ts
 
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { paystackVerify } from "@/lib/paystack";
+import { processPaymentPageFromPaystack } from "../../paystack/webhook/services/payment-page.service"
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const reference = searchParams.get("reference");
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const reference = searchParams.get("reference");
 
-    if (!reference) {
-      return NextResponse.json({ error: "Reference is required" }, { status: 400 });
-    }
+  if (!reference) {
+    return NextResponse.json({ error: "reference required" }, { status: 400 });
+  }
 
-    const { data: payment, error } = await supabase
+  const supabase = getSupabaseAdmin();
+
+  const fetchPayment = async () => {
+    const { data } = await supabase
       .from("payment_page_payments")
-      .select("*, payment_pages(*)")
+      .select("*")
       .eq("order_reference", reference)
       .maybeSingle();
+    return data;
+  };
 
-    if (error) {
-      console.error("Error fetching payment:", error);
-      return NextResponse.json({ error: "Failed to fetch payment" }, { status: 500 });
-    }
-
-    if (!payment) {
-      return NextResponse.json({ success: false, error: "Payment not found" }, { status: 404 });
-    }
-
-    // ✅ Get redirect URL from payment or page metadata
-    let redirectUrl = payment.metadata?.redirectUrl || 
-                     payment.payment_pages?.metadata?.linkConfig?.redirectUrl ||
-                     payment.payment_pages?.metadata?.redirectUrl ||
-                     null;
-
-    // If no redirect URL, build from store slug and page slug
-    if (!redirectUrl && payment.payment_pages) {
-      const storeSlug = payment.payment_pages?.metadata?.storeSlug || '';
-      const pageSlug = payment.payment_pages?.slug;
-      redirectUrl = `/store/${storeSlug}/${pageSlug}`;
-    }
-
-    return NextResponse.json({
-      success: true,
-      payment: {
-        ...payment,
-        redirectUrl: redirectUrl,
-      },
-    });
-  } catch (error: any) {
-    console.error("Status API error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  let payment = await fetchPayment();
+  if (!payment) {
+    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
   }
+
+  // Verify with Paystack if still pending and >30s old
+  if (payment.status === "pending") {
+    const age = Date.now() - new Date(payment.created_at).getTime();
+    if (age > 30_000) {
+      try {
+        const tx = await paystackVerify(reference);
+        if (tx.status === "success") {
+          const syntheticPayload = {
+            event: "charge.success",
+            data: {
+              id: tx.transactionId,
+              reference: tx.reference,
+              amount: tx.amount,
+              currency: tx.currency,
+              status: "success",
+              paid_at: tx.paid_at,
+              channel: tx.channel,
+              fees: tx.fees,
+              customer: tx.customer,
+              metadata: tx.metadata || {},
+              gateway_response: tx.gateway_response,
+            },
+          };
+          await processPaymentPageFromPaystack(syntheticPayload);
+          payment = await fetchPayment();
+        }
+      } catch (err) {
+        console.error("[status] verify failed:", err);
+      }
+    }
+  }
+
+  const meta = (payment?.metadata as Record<string, any>) || {};
+
+  return NextResponse.json({
+    payment: {
+      status: payment?.status || "pending",
+      amount: payment?.amount,
+      redirectUrl: meta.redirectUrl || null,
+      metadata: meta,
+    },
+  });
 }

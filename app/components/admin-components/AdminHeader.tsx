@@ -94,7 +94,7 @@ export default function AdminHeader() {
     });
 
     try {
-      await fetch("/api/auth/logout", {
+      await fetch("/api/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

@@ -34,7 +34,7 @@ export function DescriptionBlock({ html }: Props) {
   return (
     <div className="mt-8 border-t border-border pt-6">
       <h2 className="text-sm font-semibold mb-4">
-        <span className="inline-block pb-2 border-b-2 border-[#FDC020]">
+        <span className="inline-block pb-2 border-b-2 border-[#F5B800]">
           Details
         </span>
       </h2>

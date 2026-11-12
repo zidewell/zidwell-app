@@ -84,7 +84,7 @@ export async function sendTransactionReceipt(
             overflow: hidden;
           }
           .receipt-header {
-            background: linear-gradient(135deg, #FDC020 0%, #1a5c40 100%);
+            background: linear-gradient(135deg, #F5B800 0%, #1a5c40 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -115,11 +115,11 @@ export async function sendTransactionReceipt(
             padding: 15px;
             background: #f8fafc;
             border-radius: 8px;
-            border-left: 4px solid #FDC020;
+            border-left: 4px solid #F5B800;
           }
           .info-section h3 {
             margin: 0 0 10px 0;
-            color: #FDC020;
+            color: #F5B800;
             font-size: 16px;
           }
           .info-row {
@@ -167,10 +167,10 @@ export async function sendTransactionReceipt(
           .grand-total {
             font-size: 20px;
             font-weight: bold;
-            color: #FDC020;
+            color: #F5B800;
             margin-top: 10px;
             padding-top: 10px;
-            border-top: 2px solid #FDC020;
+            border-top: 2px solid #F5B800;
           }
           .payment-summary {
             background: #f0fdf4;
@@ -283,7 +283,7 @@ export async function sendTransactionReceipt(
             ${
               invoiceItems.length > 0
                 ? `
-              <h3 style="margin: 20px 0 10px; color: #FDC020;">Items Purchased</h3>
+              <h3 style="margin: 20px 0 10px; color: #F5B800;">Items Purchased</h3>
               <table class="items-table">
                 <thead>
                   <tr>

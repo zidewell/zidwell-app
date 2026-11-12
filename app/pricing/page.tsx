@@ -1,279 +1,190 @@
+// app/pricing/page.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import {
-  Check,
-  Sparkles,
-  Loader2,
-  ArrowLeft,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Check, Loader2, ArrowLeft, Crown, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { useSubscription } from "../hooks/useSubscripion";
 import { useUserContextData } from "../context/userData";
 import { SubscriptionBadge } from "../components/subscription-components/subscriptionBadges";
-import Footer from "../components/home-component/Footer"; 
-import { Button } from "../components/ui/button";
+import Footer from "../components/home-component/Footer";
 import { Nav } from "../components/home-component/Nav";
-
-
-const plans = [
-  {
-    name: "Free",
-    tier: "free",
-    tagline: "Start Managing Your Money",
-    price: "₦0",
-    altPrice: "$0",
-    suffix: "/month",
-    note: "For individuals and early-stage freelancers.",
-    region: "global",
-    features: [
-      "Manual bookkeeping — Global",
-      "Auto-bookkeeping (Wallet users, Nigeria)",
-      "Payment Links & Sales pages (Nigeria)",
-      "Free business bank account (Nigeria)",
-      "Up to 5 invoices — Global",
-      "Up to 5 receipts — Global",
-      "Basic financial overview",
-    ],
-    cta: "Start Free",
-    featured: false,
-    amount: 0,
-  },
-
-  {
-    name: "SME",
-    tier: "sme",
-    tagline: "Run Your Business Properly",
-    price: "₦29,900",
-    altPrice: "$21.99",
-    suffix: "/month",
-    yearlyPrice: "₦299,000/year (save ₦59,800)",
-    yearlyAmount: 299000,
-    note: "For growing small businesses.",
-    region: "global",
-    features: [
-      "Everything in Solopreneur, plus:",
-      "Upload bank statements (PDF / Excel / CSV)",
-      "Connect up to 3 bank accounts — Nigeria",
-      "Auto-bookkeeping from connected accounts — Nigeria",
-      "Unlimited invoices & receipts",
-      "Vault — store financial documents safely",
-      "Tax calculator",
-      "Financial statements (view): P&L · Cashflow · Balance Sheet",
-      "1 extra team member",
-    ],
-    cta: "Go SME",
-    featured: true,
-    amount: 29900,
-  },
-  {
-    name: "Enterprise",
-    tier: "enterprise",
-    tagline: "Team Business Management",
-    price: "₦100,000",
-    altPrice: "$75",
-    suffix: "/month",
-    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
-    yearlyAmount: 1000000,
-    note: "For teams that need structure.",
-    region: "global",
-    features: [
-      "Everything in SME, plus:",
-      "Multi-user access (full team)",
-      "Role-based permissions",
-      "Approvals for payments, invoices, receipts, transfers",
-      "Connect up to 5 bank accounts — Nigeria",
-      "Downloadable financial reports",
-      "10 contracts",
-      "Dedicated onboarding support",
-    ],
-    cta: "Go Enterprise",
-    featured: false,
-    amount: 100000,
-  },
-  {
-    name: "Corporation",
-    tier: "corporation",
-    tagline: "Full Business Finance System",
-    price: "₦300,000",
-    altPrice: "$220",
-    suffix: "/month",
-    yearlyPrice: "₦3,000,000/year (save ₦600,000)",
-    yearlyAmount: 3000000,
-    note: "For large organizations and structured companies.",
-    region: "global",
-    features: [
-      "Everything in Enterprise, plus:",
-      "Unlimited contracts",
-      "Department-based access (HR, Finance, Ops…)",
-      "Connect unlimited bank accounts — Nigeria",
-      "Simple payroll system",
-      "Advanced financial reporting",
-      "Custom financial structure setup",
-      "Priority onboarding & dedicated account manager",
-    ],
-    cta: "Talk to Sales",
-    featured: false,
-    amount: 300000,
-  },
-];
+import {
+  ZIDWELL_PLANS,
+  type BillingPeriod,
+  type Plan,
+  formatNaira,
+} from "../components/home-component/plans";
 
 function PricingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { subscription, loading } = useSubscription();
-  const { userData } = useUserContextData();
+  const { subscription, loading: subLoading, refetch: refetchSubscription } =
+    useSubscription();
+  const { userData, loading: userLoading } = useUserContextData();
 
-  const [selectedBilling, setSelectedBilling] = useState<"monthly" | "yearly">(
-    "monthly",
-  );
-  const [processingTier, setProcessingTier] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedBilling, setSelectedBilling] =
+    useState<BillingPeriod>("monthly");
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(false);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
-  const upgradeParam = searchParams?.get("upgrade");
+  const activeTier = subscription?.tier;
+  const isActivePaid =
+    subscription?.status === "active" &&
+    !!activeTier &&
+    activeTier !== "starter";
 
-  useEffect(() => {
-    const paymentStatus = searchParams?.get("payment");
-    if (paymentStatus === "success") {
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
-    } else if (paymentStatus === "failed") {
-      setError("Payment failed. Please try again.");
-      setTimeout(() => setError(null), 5000);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (upgradeParam && plans.some((p) => p.tier === upgradeParam)) {
-      const element = document.getElementById("pricing");
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [upgradeParam]);
-
-  // Handle callback after login
-  useEffect(() => {
-    const upgradePlan = searchParams?.get("upgrade");
-    const billingParam = searchParams?.get("billing");
-
-    if (upgradePlan && userData?.id) {
-      if (billingParam === "yearly") {
-        setSelectedBilling("yearly");
-      }
-
-      const plan = plans.find((p) => p.tier === upgradePlan);
-      if (plan && plan.tier !== "free" && plan.tier !== "corporation") {
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, "", newUrl);
-        handleSubscribe(plan);
-      }
-    }
-  }, [searchParams, userData?.id]);
-
-  const handleSubscribe = async (plan: (typeof plans)[0]) => {
-    if (plan.tier === "free") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (plan.tier === "corporation") {
-      window.location.href =
-        "mailto:sales@zidwell.com?subject=Corporation%20Plan%20Inquiry";
-      return;
-    }
-
-    if (!userData?.id) {
-      const callbackUrl = `/pricing?upgrade=${plan.tier}&billing=${selectedBilling}`;
-      router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-      return;
-    }
-
-    setProcessingTier(plan.tier);
-    setError(null);
-
+  const activeUntilLabel = useMemo(() => {
+    if (!subscription?.expires_at) return null;
     try {
-      const amount =
-        selectedBilling === "yearly" && plan.yearlyAmount
-          ? plan.yearlyAmount
-          : plan.amount;
+      return new Date(subscription.expires_at).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return null;
+    }
+  }, [subscription?.expires_at]);
 
-      const response = await fetch("/api/subscription/checkout", {
+  const redirectToLogin = () => {
+    const cb = encodeURIComponent(
+      `/pricing?scroll=pricing&billing=${selectedBilling}`,
+    );
+    window.location.href = `/auth/login?callbackUrl=${cb}`;
+  };
+
+  const handleSubscribe = async (plan: Plan) => {
+    if (plan.mailto) {
+      window.location.href =
+        "mailto:sales@zidwell.com?subject=Zidwell%20Subscription";
+      return;
+    }
+    if (plan.id === "starter") {
+      if (userLoading) return;
+      if (!userData?.id) {
+        const cb = encodeURIComponent("/dashboard/services/payment/dashboard");
+        window.location.href = `/auth/login?callbackUrl=${cb}`;
+        return;
+      }
+      router.push("/dashboard/services/payment/dashboard");
+      return;
+    }
+    if (userLoading) return;
+    if (!userData?.id) {
+      redirectToLogin();
+      return;
+    }
+    if (isActivePaid) {
+      toast.info("You already have an active subscription", {
+        description: activeUntilLabel
+          ? `Active until ${activeUntilLabel}`
+          : undefined,
+      });
+      return;
+    }
+
+    setProcessing(plan.id);
+    try {
+      const res = await fetch("/api/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          planTier: plan.tier,
-          amount,
+          planTier: plan.id,
+          amount: selectedBilling === "yearly" ? plan.yearly : plan.monthly,
           billingPeriod: selectedBilling,
-          userEmail: userData.email,
-          userId: userData.id,
         }),
       });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to create checkout");
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        toast.info("Session expired — please log in again");
+        setTimeout(redirectToLogin, 900);
+        return;
       }
-
+      if (res.status === 400 && data?.code === "ALREADY_SUBSCRIBED") {
+        toast.info("You already have an active subscription");
+        return;
+      }
+      if (!res.ok || !data?.checkoutLink) {
+        throw new Error(data?.error || `Checkout failed (${res.status}).`);
+      }
       window.location.href = data.checkoutLink;
-    } catch (error: any) {
-      console.error("Subscription error:", error);
-      setError(error.message || "An error occurred. Please try again.");
-      setProcessingTier(null);
+    } catch (err: any) {
+      toast.error("Subscription failed", { description: err?.message });
+    } finally {
+      setProcessing(null);
     }
   };
 
-  const isCurrentPlan = (tier: string) => {
-    return subscription?.tier === tier && subscription?.status === "active";
-  };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payment = searchParams?.get("payment");
+    if (payment === "success") {
+      toast.success("Subscription activated!");
+      refetchSubscription?.();
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      window.history.replaceState({}, "", url.toString());
+    } else if (payment === "failed") {
+      toast.error("Payment failed. Please try again.");
+      const url = new URL(window.location.href);
+      url.searchParams.delete("payment");
+      window.history.replaceState({}, "", url.toString());
+    }
+    const billingParam = searchParams?.get("billing");
+    if (billingParam === "yearly" || billingParam === "monthly") {
+      setSelectedBilling(billingParam);
+    }
+    const shouldScroll =
+      searchParams?.get("scroll") === "pricing" ||
+      !!searchParams?.get("upgrade");
+    if (shouldScroll && sectionRef.current) {
+      requestAnimationFrame(() => {
+        sectionRef.current?.scrollIntoView({ behavior: "smooth" });
+        setHighlight(true);
+        setTimeout(() => setHighlight(false), 1600);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const isLoading = userLoading || subLoading;
 
   return (
     <>
       <Nav />
-      <section id="pricing" className="py-20 md:py-32 bg-(--bg-primary)">
+      <section
+        id="pricing"
+        ref={sectionRef}
+        className={`relative py-20 md:py-32 bg-(--bg-primary) overflow-hidden transition-all duration-700 ${
+          highlight ? "pricing-highlight" : ""
+        }`}
+      >
         <div className="container mx-auto px-4">
-          {/* Success Message */}
-          {showSuccess && (
-            <div className="fixed top-4 right-4 z-50 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] px-6 py-3 rounded-xl shadow-pop animate-slideIn">
-              <p className="font-bold">✓ Payment successful!</p>
-              <p className="text-sm">Your subscription has been activated.</p>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="fixed top-4 right-4 z-50 bg-[#EF4444] text-white px-6 py-3 rounded-xl shadow-pop animate-slideIn">
-              <p className="font-bold">✗ Error</p>
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Section Header */}
           <div className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
+            <h2 className="font-narrow-display text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-(--text-primary)">
               Simple plans that{" "}
-              <span className="text-[var(--color-accent-yellow)]">grow</span> with you
+              <span className="text-[var(--color-accent-yellow)]">grow</span>{" "}
+              with you
             </h2>
             <p className="text-lg text-(--text-secondary)">
-              Choose the plan that matches your business goals. Each plan is a
-              clear upgrade in capability, not just more limits.
+              Start free on Starter. Upgrade as you grow. Cancel anytime.
             </p>
 
-            {/* Back Button */}
             <div className="mt-4">
               <button
                 onClick={() => router.back()}
-                className="inline-flex items-start gap-2 text-[var(--color-accent-yellow)] hover:underline"
+                className="inline-flex items-center gap-2 text-[var(--color-accent-yellow)] hover:underline"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
               </button>
             </div>
 
-            {/* Current Plan Display */}
-            {subscription && subscription.tier !== "free" && (
+            {subscription && subscription.tier !== "starter" && (
               <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-[var(--color-accent-yellow)]/10 rounded-full">
                 <span className="text-sm text-(--text-primary)">
                   Current Plan:
@@ -281,63 +192,82 @@ function PricingPage() {
                 <SubscriptionBadge />
               </div>
             )}
+          </div>
 
-            {/* Billing Toggle */}
-            <div className="flex items-center justify-center mt-8">
-              <div className="bg-[var(--bg-secondary)] p-1 rounded-full border-2 border-(--border-color)">
-                <button
-                  onClick={() => setSelectedBilling("monthly")}
-                  disabled={processingTier !== null}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedBilling === "monthly"
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-(--text-primary) hover:text-(--text-primary)/80"
-                  } disabled:opacity-50`}
-                >
-                  Monthly
-                </button>
-                <button
-                  onClick={() => setSelectedBilling("yearly")}
-                  disabled={processingTier !== null}
-                  className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                    selectedBilling === "yearly"
-                      ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
-                      : "text-(--text-primary) hover:text-(--text-primary)/80"
-                  } disabled:opacity-50`}
-                >
-                  Yearly <span className="text-xs ml-1">Save up to 20%</span>
-                </button>
-              </div>
+          <div className="mb-12 flex items-center justify-center">
+            <div className="inline-flex items-center p-1 rounded-full bg-(--bg-primary) border-2 border-(--border-color)">
+              <button
+                type="button"
+                onClick={() => setSelectedBilling("monthly")}
+                disabled={processing !== null}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                  selectedBilling === "monthly"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedBilling("yearly")}
+                disabled={processing !== null}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+                  selectedBilling === "yearly"
+                    ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)]"
+                    : "text-(--text-secondary) hover:text-(--text-primary)"
+                }`}
+              >
+                Yearly{" "}
+                <span className="text-[10px] ml-1 opacity-80">
+                  Save up to 20%
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* Pricing Grid */}
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
-            {plans.map((plan) => {
-              const currentPlan = isCurrentPlan(plan.tier);
-              const isUpgrade = upgradeParam === plan.tier;
-              const isProcessing = processingTier === plan.tier;
-              const isFeatured = plan.featured;
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {ZIDWELL_PLANS.map((plan) => {
+              const isProcessing = processing === plan.id;
+              const isCurrent =
+                activeTier === plan.id && subscription?.status === "active";
+              const isLocked =
+                isActivePaid && plan.id !== "starter" && activeTier !== plan.id;
+              const isFeatured = plan.highlighted;
+
+              const priceNum =
+                selectedBilling === "yearly" ? plan.yearly : plan.monthly;
+              const periodLabel =
+                plan.id === "starter"
+                  ? "forever"
+                  : selectedBilling === "yearly"
+                    ? "per year"
+                    : "per month";
+              const ctaLabel = isCurrent
+                ? "Current Plan"
+                : isLocked
+                  ? "Subscription active"
+                  : plan.cta;
 
               return (
                 <div
-                  key={plan.tier}
-                  id={`plan-${plan.tier}`}
-                  className={`relative flex flex-col p-6 hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150 rounded-2xl ${
+                  key={plan.id}
+                  id={`plan-${plan.id}`}
+                  className={`relative flex flex-col p-6 rounded-2xl transition-all duration-150 ${
                     isFeatured
                       ? "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] border-2 border-(--border-color) shadow-[6px_6px_0px_var(--border-color)]"
                       : "bg-(--bg-primary) border-2 border-(--border-color) shadow-[4px_4px_0px_var(--border-color)]"
-                  } ${isUpgrade ? "ring-4 ring-[var(--color-accent-yellow)] ring-opacity-50" : ""}`}
+                  } ${isCurrent ? "ring-4 ring-[var(--color-ink)]/20" : ""}`}
                 >
-                  {isFeatured && (
+                  {isFeatured && !isCurrent && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--border-color)] text-(--text-primary) text-xs font-bold flex items-center gap-1 rounded-full">
                       <Sparkles className="w-3 h-3" />
                       POPULAR
                     </div>
                   )}
-
-                  {currentPlan && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold whitespace-nowrap rounded-full">
+                  {isCurrent && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--color-accent-yellow)] text-[var(--color-ink)] text-xs font-bold whitespace-nowrap rounded-full flex items-center gap-1">
+                      <Crown className="w-3 h-3" />
                       CURRENT PLAN
                     </div>
                   )}
@@ -345,93 +275,119 @@ function PricingPage() {
                   <div className="mb-6">
                     <h3
                       className={`text-xl font-bold mb-2 ${
-                        isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
+                        isFeatured
+                          ? "text-[var(--color-ink)]"
+                          : "text-(--text-primary)"
                       }`}
                     >
                       {plan.name}
                     </h3>
+                    <p
+                      className={`text-xs mb-3 ${
+                        isFeatured
+                          ? "text-[var(--color-ink)]/70"
+                          : "text-(--text-secondary)"
+                      }`}
+                    >
+                      {plan.tagline}
+                    </p>
                     <div className="flex items-baseline gap-1">
                       <span
                         className={`text-3xl font-black ${
-                          isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
+                          isFeatured
+                            ? "text-[var(--color-ink)]"
+                            : "text-(--text-primary)"
                         }`}
                       >
-                        {selectedBilling === "yearly" && plan.yearlyAmount
-                          ? `₦${plan.yearlyAmount.toLocaleString()}`
-                          : plan.price}
+                        {plan.id === "starter"
+                          ? "Free"
+                          : formatNaira(priceNum)}
                       </span>
                       <span
                         className={`text-sm ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
+                          isFeatured
+                            ? "text-[var(--color-ink)]/70"
+                            : "text-(--text-secondary)"
                         }`}
                       >
-                        {selectedBilling === "yearly" ? "/year" : plan.suffix}
+                        /{periodLabel}
                       </span>
                     </div>
-                    {selectedBilling === "yearly" && plan.yearlyPrice && (
-                      <p
-                        className={`text-xs mt-1 ${
-                          isFeatured ? "text-[var(--color-ink)]/70" : "text-(--text-secondary)"
-                        }`}
-                      >
-                        {plan.yearlyPrice}
+                    {selectedBilling === "yearly" && plan.id !== "starter" && (
+                      <p className="text-xs mt-1 text-green-600 dark:text-green-400 font-semibold">
+                        Save {formatNaira(plan.monthly * 12 - plan.yearly)}
                       </p>
                     )}
-                    <p
-                      className={`text-sm mt-3 ${
-                        isFeatured ? "text-[var(--color-ink)]/80" : "text-(--text-secondary)"
-                      }`}
-                    >
-                      {plan.note}
-                    </p>
+                    {plan.note && (
+                      <p
+                        className={`text-sm mt-3 ${
+                          isFeatured
+                            ? "text-[var(--color-ink)]/80"
+                            : "text-(--text-secondary)"
+                        }`}
+                      >
+                        {plan.note}
+                      </p>
+                    )}
                   </div>
 
-                  <ul className="space-y-2 mb-8 grow">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2 text-sm">
-                        {!feature.startsWith("Everything in") && (
+                  {plan.features && (
+                    <ul className="space-y-2 mb-8 grow">
+                      {plan.features.map((feature) => (
+                        <li
+                          key={feature}
+                          className="flex items-start gap-2 text-sm"
+                        >
                           <Check
                             className={`w-4 h-4 shrink-0 mt-0.5 ${
-                              isFeatured ? "text-[var(--color-ink)]" : "text-[var(--color-accent-yellow)]"
+                              isFeatured
+                                ? "text-[var(--color-ink)]"
+                                : "text-[var(--color-accent-yellow)]"
                             }`}
                           />
-                        )}
-                        <span
-                          className={`${
-                            isFeatured ? "text-[var(--color-ink)]" : "text-(--text-primary)"
-                          } ${feature.startsWith("Everything in") ? "font-medium" : ""}`}
-                        >
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                          <span
+                            className={
+                              isFeatured
+                                ? "text-[var(--color-ink)]"
+                                : "text-(--text-primary)"
+                            }
+                          >
+                            {feature}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
 
-                  <Button
-                    variant={isFeatured ? "outline" : "default"}
-                    className={`w-full rounded-xl ${
+                  <button
+                    onClick={() => handleSubscribe(plan)}
+                    disabled={
+                      isLoading || isProcessing || isCurrent || isLocked
+                    }
+                    className={`w-full rounded-xl px-4 py-3 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                       isFeatured
                         ? "bg-(--bg-primary) text-(--text-primary) hover:bg-[var(--bg-secondary)] border-2 border-(--border-color)"
                         : "bg-[var(--color-accent-yellow)] text-[var(--color-ink)] hover:bg-[var(--color-accent-yellow)]/90"
                     }`}
-                    onClick={() => handleSubscribe(plan)}
-                    disabled={loading || isProcessing || currentPlan}
                   >
                     {isProcessing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
                         Processing...
-                      </>
-                    ) : currentPlan ? (
-                      "Current Plan"
+                      </span>
                     ) : (
-                      plan.cta
+                      ctaLabel
                     )}
-                  </Button>
+                  </button>
                 </div>
               );
             })}
           </div>
+
+          <p className="mt-10 text-center text-xs text-(--text-secondary)">
+            Prices in Naira. Card or bank transfer. Subscribe anytime, cancel
+            anytime. A 3.5% fee applies to successful payments.
+          </p>
         </div>
       </section>
       <Footer />

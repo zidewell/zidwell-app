@@ -13,6 +13,9 @@ import { Button } from "@/app/components/ui/button";
 import fetcher from "@/app/lib/fetcher";
 import { formatCurrency, formatNumber } from "@/app/lib/dashboard-utils";
 import Swal from "sweetalert2";
+import AddUserModal from "@/app/components/admin-components/AddUserModal";
+import Link from "next/link";
+import { Users } from "lucide-react";
 
 type UserCategory = "all" | "verified" | "unverified" | "pending_kyc";
 
@@ -21,6 +24,12 @@ const CATEGORY_LABELS: Record<UserCategory, string> = {
   verified: "Verified",
   unverified: "Unverified",
   pending_kyc: "Pending KYC",
+};
+
+const TIER_LABELS: Record<string, string> = {
+  tier_1: "Tier 1 — Enterprise",
+  tier_2: "Tier 2 — Business",
+  tier_3: "Tier 3 — Standard",
 };
 
 function resolveFullName(row: any): string {
@@ -33,16 +42,18 @@ function resolveFullName(row: any): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// OTP EDIT MODAL
+// OTP EDIT MODAL — with tier + custom fee support
 // ═══════════════════════════════════════════════════════════════════
 function EditUserModal({
   user,
   onClose,
   onSaved,
+  canAssignSuperAdmin,
 }: {
   user: any;
   onClose: () => void;
   onSaved: () => void;
+  canAssignSuperAdmin: boolean;
 }) {
   const [step, setStep] = useState<"verify" | "form">("verify");
   const [otpCode, setOtpCode] = useState("");
@@ -52,12 +63,23 @@ function EditUserModal({
   const [saving, setSaving] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [showCustomFees, setShowCustomFees] = useState(
+    user.custom_outflow_percent != null || user.custom_outflow_min != null,
+  );
 
   const [form, setForm] = useState({
     full_name: user.full_name ?? "",
     phone: user.phone ?? "",
     email: user.email ?? "",
     admin_role: user.admin_role ?? "",
+    account_tier: user.account_tier ?? "tier_3",
+    custom_outflow_percent:
+      user.custom_outflow_percent != null
+        ? String(Number(user.custom_outflow_percent) * 100)
+        : "",
+    custom_outflow_min:
+      user.custom_outflow_min != null ? String(user.custom_outflow_min) : "",
+    custom_fee_note: user.custom_fee_note ?? "",
   });
 
   useEffect(() => {
@@ -135,13 +157,31 @@ function EditUserModal({
     }
     setSaving(true);
     try {
+      const payload: any = {
+        full_name: form.full_name,
+        phone: form.phone,
+        email: form.email,
+        admin_role: form.admin_role || null,
+        account_tier: form.account_tier,
+        custom_outflow_percent:
+          showCustomFees && form.custom_outflow_percent
+            ? Number(form.custom_outflow_percent) / 100
+            : null,
+        custom_outflow_min:
+          showCustomFees && form.custom_outflow_min
+            ? Number(form.custom_outflow_min)
+            : null,
+        custom_fee_note:
+          showCustomFees && form.custom_fee_note ? form.custom_fee_note : null,
+      };
+
       const res = await fetch(`/api/admin-apis/users/${user.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "x-edit-token": editToken,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -296,13 +336,128 @@ function EditUserModal({
                   className="w-full h-11 squircle-md border border-(--border-color) bg-(--bg-secondary) text-(--text-primary) text-sm px-3"
                 >
                   <option value="">User (no admin role)</option>
-                  <option value="super_admin">Super Admin</option>
                   <option value="operations_admin">Operations Admin</option>
                   <option value="finance_admin">Finance Admin</option>
                   <option value="support_admin">Support Admin</option>
                   <option value="legal_admin">Legal Admin</option>
                   <option value="blog_admin">Blog Admin</option>
+                  {canAssignSuperAdmin && (
+                    <option value="super_admin">Super Admin</option>
+                  )}
                 </select>
+              </div>
+
+              {/* ═══ Account Tier ═══ */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5">
+                  Account Tier
+                </label>
+                <select
+                  value={form.account_tier}
+                  onChange={(e) =>
+                    setForm({ ...form, account_tier: e.target.value })
+                  }
+                  className="w-full h-11 squircle-md border border-(--border-color) bg-(--bg-secondary) text-(--text-primary) text-sm px-3"
+                >
+                  <option value="tier_3">
+                    Tier 3 — Standard (₦100K/txn, ₦500K daily)
+                  </option>
+                  <option value="tier_2">
+                    Tier 2 — Business (₦5M/txn, ₦50M daily)
+                  </option>
+                  <option value="tier_1">
+                    Tier 1 — Enterprise (₦10M/txn, ₦100M daily)
+                  </option>
+                </select>
+              </div>
+
+              {/* ═══ Custom fee override ═══ */}
+              <div className="squircle-md border border-(--border-color) bg-(--bg-secondary)/40 p-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showCustomFees}
+                    onChange={(e) => {
+                      setShowCustomFees(e.target.checked);
+                      if (!e.target.checked) {
+                        setForm({
+                          ...form,
+                          custom_outflow_percent: "",
+                          custom_outflow_min: "",
+                          custom_fee_note: "",
+                        });
+                      }
+                    }}
+                    className="mt-0.5 w-4 h-4 accent-[--color-accent-yellow]"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-(--text-primary)">
+                      Override outflow fee
+                    </span>
+                    <p className="text-xs text-(--text-secondary) mt-0.5">
+                      Custom rate for this user
+                    </p>
+                  </div>
+                </label>
+
+                {showCustomFees && (
+                  <div className="mt-3 pl-6 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5">
+                          Percent (%)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={form.custom_outflow_percent}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              custom_outflow_percent: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. 0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5">
+                          Min Fee (₦)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={form.custom_outflow_min}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              custom_outflow_min: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. 50"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-widest text-(--text-secondary) mb-1.5">
+                        Note (admin only)
+                      </label>
+                      <Input
+                        value={form.custom_fee_note}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            custom_fee_note: e.target.value,
+                          })
+                        }
+                        placeholder="Reason for custom rate"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -340,8 +495,67 @@ export default function UsersPage() {
   const [category, setCategory] = useState<UserCategory>("all");
   const [roleFilter, setRoleFilter] = useState("");
   const [editUser, setEditUser] = useState<any>(null);
+  const [showAddUser, setShowAddUser] = useState(false);
 
-  // Reset page to 1 when search or category changes
+  // Fetch current admin's role
+  const { data: meData } = useSWR("/api/user/me", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupeOnMount: true,
+  });
+
+  const currentRole: string | null =
+    (meData as any)?.role ??
+    (meData as any)?.admin_role ??
+    (meData as any)?.user?.role ??
+    (meData as any)?.user?.admin_role ??
+    null;
+
+  // Permission flags
+  const canCreateUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canEditUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canDeleteUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canBlockUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canSuspendUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canFlagUser =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canFreezeWallet =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "finance_admin";
+  const canAdjustWallet =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "finance_admin";
+  const canApproveKyc =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "support_admin";
+  const canResetPassword =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "support_admin";
+  const canVerifyEmail =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "support_admin";
+  const canResetPin =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "support_admin";
+  const canViewLoginHistory =
+    currentRole === "super_admin" || currentRole === "operations_admin";
+  const canForceLogout =
+    currentRole === "super_admin" ||
+    currentRole === "operations_admin" ||
+    currentRole === "support_admin";
+  const canAssignSuperAdmin = currentRole === "super_admin";
+
   const filterKey = `${appliedSearch}|${category}|${roleFilter}`;
 
   useEffect(() => {
@@ -349,7 +563,6 @@ export default function UsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
 
-  // Build API URL — sends BOTH "search" and "q" to match backend
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -385,7 +598,6 @@ export default function UsersPage() {
   const runSearch = () => {
     const trimmed = searchInput.trim();
     if (trimmed === appliedSearch) {
-      // Same search — force refetch
       mutate();
       return;
     }
@@ -833,9 +1045,12 @@ export default function UsersPage() {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch(`/api/admin-apis/users/${row.id}/password-reset`, {
-        method: "POST",
-      });
+      const res = await fetch(
+        `/api/admin-apis/users/${row.id}/password-reset`,
+        {
+          method: "POST",
+        },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       Swal.fire(
@@ -970,6 +1185,7 @@ export default function UsersPage() {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed");
+      Swal.fire("Deleted", "User has been deleted.", "success");
       mutate();
     } catch {
       Swal.fire("Error", "Failed to delete user", "error");
@@ -1025,9 +1241,7 @@ export default function UsersPage() {
     {
       key: "phone",
       label: "Phone",
-      render: (v: any) => (
-        <span className="whitespace-nowrap">{v ?? "—"}</span>
-      ),
+      render: (v: any) => <span className="whitespace-nowrap">{v ?? "—"}</span>,
     },
     {
       key: "wallet_balance",
@@ -1037,6 +1251,26 @@ export default function UsersPage() {
           {formatCurrency(Number(v) || 0)}
         </span>
       ),
+    },
+    {
+      key: "account_tier",
+      label: "Tier",
+      render: (v: any) => {
+        const tier = String(v || "tier_3");
+        const cls =
+          tier === "tier_1"
+            ? "bg-purple-500/15 text-purple-400"
+            : tier === "tier_2"
+              ? "bg-blue-500/15 text-blue-400"
+              : "bg-(--bg-secondary) text-(--text-secondary)";
+        return (
+          <span
+            className={`squircle-sm px-2 py-1 text-xs ${cls} whitespace-nowrap`}
+          >
+            {TIER_LABELS[tier] || tier}
+          </span>
+        );
+      },
     },
     {
       key: "email_verified",
@@ -1150,9 +1384,22 @@ export default function UsersPage() {
           <h2 className="text-xl sm:text-2xl font-semibold font-(--font-space-grotesk) text-(--text-primary)">
             Users
           </h2>
-          <Button variant="outline" onClick={() => mutate()}>
-            🔄 Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => mutate()}>
+              🔄 Refresh
+            </Button>
+            {canCreateUser && (
+              <Button onClick={() => setShowAddUser(true)}>➕ Add User</Button>
+            )}
+
+            <Link
+              href="/admin/users/multiple-accounts"
+              className="px-4 py-2 bg-amber-100 text-amber-800 rounded-md text-sm font-medium inline-flex items-center gap-2 hover:bg-amber-200"
+            >
+              <Users className="w-4 h-4" />
+              Users with Multiple Accounts
+            </Link>
+          </div>
         </div>
 
         {/* KPI cards */}
@@ -1313,74 +1560,110 @@ export default function UsersPage() {
         <AdminTable
           columns={columns}
           rows={users}
-          onEdit={(row: any) => setEditUser(row)}
-          onBlockToggle={handleBlockToggle}
-          onDelete={handleDelete}
-          onForceLogout={handleForceLogout}
+          onEdit={canEditUser ? (row: any) => setEditUser(row) : undefined}
+          onBlockToggle={canBlockUser ? handleBlockToggle : undefined}
+          onDelete={canDeleteUser ? handleDelete : undefined}
+          onForceLogout={canForceLogout ? handleForceLogout : undefined}
           onViewDetails={(row: any) => {
-            window.location.href = `/admin/transactions/user/${row.id}`;
+            window.location.href = `/admin/users/${row.id}`;
           }}
           customActions={[
-            {
-              label: "Suspend (with duration)",
-              onClick: handleSuspend,
-              className: "text-orange-500",
-              icon: "⏸",
-            },
-            {
-              label: "Flag / Unflag",
-              onClick: handleFlag,
-              className: "text-[--color-accent-yellow]",
-              icon: "🚩",
-            },
-            {
-              label: "Freeze / Unfreeze Wallet",
-              onClick: handleFreezeWallet,
-              className: "text-blue-500",
-              icon: "❄️",
-            },
-            {
-              label: "Adjust Wallet Balance",
-              onClick: handleAdjustBalance,
-              className: "text-purple-500",
-              icon: "₦",
-            },
-            {
-              label: "Approve KYC",
-              onClick: (row: any) => handleKycAction(row, "approve"),
-              className: "text-[--color-lemon-green]",
-              icon: "✓",
-            },
-            {
-              label: "Reject KYC",
-              onClick: (row: any) => handleKycAction(row, "reject"),
-              className: "text-destructive",
-              icon: "✗",
-            },
-            {
-              label: "Send Password Reset",
-              onClick: handlePasswordReset,
-              className: "text-[--color-accent-yellow]",
-              icon: "🔑",
-            },
-            {
-              label: "Verify Email",
-              onClick: handleVerifyEmail,
-              className: "text-[--color-lemon-green]",
-              icon: "📧",
-            },
-            {
-              label: "Reset Transaction PIN",
-              onClick: handleResetPin,
-              className: "text-orange-500",
-              icon: "🔒",
-            },
-            {
-              label: "View Login History",
-              onClick: handleViewLoginHistory,
-              className: "text-blue-500",
-              icon: "🕒",
-            },
+            ...(canSuspendUser
+              ? [
+                  {
+                    label: "Suspend (with duration)",
+                    onClick: handleSuspend,
+                    className: "text-orange-500",
+                    icon: "⏸",
+                  },
+                ]
+              : []),
+            ...(canFlagUser
+              ? [
+                  {
+                    label: "Flag / Unflag",
+                    onClick: handleFlag,
+                    className: "text-[--color-accent-yellow]",
+                    icon: "🚩",
+                  },
+                ]
+              : []),
+            ...(canFreezeWallet
+              ? [
+                  {
+                    label: "Freeze / Unfreeze Wallet",
+                    onClick: handleFreezeWallet,
+                    className: "text-blue-500",
+                    icon: "❄️",
+                  },
+                ]
+              : []),
+            ...(canAdjustWallet
+              ? [
+                  {
+                    label: "Adjust Wallet Balance",
+                    onClick: handleAdjustBalance,
+                    className: "text-purple-500",
+                    icon: "₦",
+                  },
+                ]
+              : []),
+            ...(canApproveKyc
+              ? [
+                  {
+                    label: "Approve KYC",
+                    onClick: (row: any) => handleKycAction(row, "approve"),
+                    className: "text-[--color-lemon-green]",
+                    icon: "✓",
+                  },
+                  {
+                    label: "Reject KYC",
+                    onClick: (row: any) => handleKycAction(row, "reject"),
+                    className: "text-destructive",
+                    icon: "✗",
+                  },
+                ]
+              : []),
+            ...(canResetPassword
+              ? [
+                  {
+                    label: "Send Password Reset",
+                    onClick: handlePasswordReset,
+                    className: "text-[--color-accent-yellow]",
+                    icon: "🔑",
+                  },
+                ]
+              : []),
+            ...(canVerifyEmail
+              ? [
+                  {
+                    label: "Verify Email",
+                    onClick: handleVerifyEmail,
+                    className: "text-[--color-lemon-green]",
+                    icon: "📧",
+                  },
+                ]
+              : []),
+            ...(canResetPin
+              ? [
+                  {
+                    label: "Reset Transaction PIN",
+                    onClick: handleResetPin,
+                    className: "text-orange-500",
+                    icon: "🔒",
+                  },
+                ]
+              : []),
+            ...(canViewLoginHistory
+              ? [
+                  {
+                    label: "View Login History",
+                    onClick: handleViewLoginHistory,
+                    className: "text-blue-500",
+                    icon: "🕒",
+                  },
+                ]
+              : []),
           ]}
           emptyMessage={
             appliedSearch
@@ -1415,6 +1698,14 @@ export default function UsersPage() {
           <EditUserModal
             user={editUser}
             onClose={() => setEditUser(null)}
+            onSaved={() => mutate()}
+            canAssignSuperAdmin={canAssignSuperAdmin}
+          />
+        )}
+
+        {showAddUser && (
+          <AddUserModal
+            onClose={() => setShowAddUser(false)}
             onSaved={() => mutate()}
           />
         )}

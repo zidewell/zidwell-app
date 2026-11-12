@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const adminUser = await requireAdmin(req);

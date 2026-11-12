@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -44,13 +44,20 @@ interface InvoiceForm {
   target_quantity: number;
 }
 
+// Subscription-based — no fee is added to the invoice total.
+const recalcTotals = (items: InvoiceItem[]) => {
+  const subtotal = items.reduce((s, it) => s + Number(it.total), 0);
+  const fee_amount = 0;
+  const total_amount = subtotal;
+  return { subtotal, fee_amount, total_amount };
+};
+
 export default function Page() {
   const { id } = useParams();
   const router = useRouter();
   const [form, setForm] = useState<InvoiceForm | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const firstErrorRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -62,7 +69,6 @@ export default function Page() {
         }
         const data = await res.json();
 
-        // Transform the data to match our form structure
         const transformedData: InvoiceForm = {
           client_name: data.client_name || "",
           client_email: data.client_email || "",
@@ -125,7 +131,6 @@ export default function Page() {
 
     const updatedItems = [...form.invoice_items];
     const updatedItem: any = { ...updatedItems[index] };
-
     updatedItem[field] = value;
 
     if (field === "quantity" || field === "unitPrice") {
@@ -134,27 +139,17 @@ export default function Page() {
     }
 
     updatedItems[index] = updatedItem;
-
-    const subtotal = updatedItems.reduce(
-      (sum, item) => sum + Number(item.total),
-      0,
-    );
-    const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
-    const totalAmount =
-      form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
+    const totals = recalcTotals(updatedItems);
 
     setForm({
       ...form,
       invoice_items: updatedItems,
-      subtotal,
-      fee_amount: feeAmount,
-      total_amount: totalAmount,
+      ...totals,
     });
   };
 
   const addItem = () => {
     if (!form) return;
-
     const newItem: InvoiceItem = {
       id: `temp-${Date.now()}`,
       description: "",
@@ -162,7 +157,6 @@ export default function Page() {
       unitPrice: 0,
       total: 0,
     };
-
     setForm({
       ...form,
       invoice_items: [...form.invoice_items, newItem],
@@ -171,23 +165,12 @@ export default function Page() {
 
   const removeItem = (index: number) => {
     if (!form) return;
-
     const updatedItems = form.invoice_items.filter((_, i) => i !== index);
-
-    const subtotal = updatedItems.reduce(
-      (sum, item) => sum + Number(item.total),
-      0,
-    );
-    const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
-    const totalAmount =
-      form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
-
+    const totals = recalcTotals(updatedItems);
     setForm({
       ...form,
       invoice_items: updatedItems,
-      subtotal,
-      fee_amount: feeAmount,
-      total_amount: totalAmount,
+      ...totals,
     });
   };
 
@@ -575,17 +558,6 @@ export default function Page() {
                       ₦{form.subtotal.toLocaleString()}
                     </span>
                   </div>
-                  {form.fee_amount > 0 && (
-                    <div className="flex justify-between text-sm mt-1">
-                      <span className="text-(--text-secondary)">
-                        Processing Fee (
-                        {form.fee_option === "customer" ? "2%" : "Absorbed"}):
-                      </span>
-                      <span className="text-(--text-primary)">
-                        ₦{form.fee_amount.toLocaleString()}
-                      </span>
-                    </div>
-                  )}
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t border-(--border-color)">
                     <span className="text-(--text-secondary)">
                       Total Amount:
@@ -634,7 +606,7 @@ export default function Page() {
                   value={form.redirect_url || ""}
                   onChange={handleChange}
                   placeholder="https://example.com/thankyou"
-                  className="border-(--border-color) bg-(--bg-primary)text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
+                  className="border-(--border-color) bg-(--bg-primary) text-(--text-primary) focus:ring-(--color-accent-yellow) focus:border-(--color-accent-yellow)"
                   style={{ outline: "none", boxShadow: "none" }}
                 />
                 <p className="text-sm text-(--text-secondary) mt-1">

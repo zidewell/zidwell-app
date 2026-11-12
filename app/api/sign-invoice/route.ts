@@ -5,6 +5,13 @@ import path from "path";
 
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
+import {
+  emailShell,
+  ui,
+  esc,
+  naira,
+  EMAIL_BRAND,
+} from "@/lib/email/ui";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -16,7 +23,7 @@ const baseUrl =
     ? process.env.NEXT_PUBLIC_DEV_URL
     : process.env.NEXT_PUBLIC_BASE_URL;
 
-// Convert logo to base64
+// Convert logo to base64 — used inside the PDF renderer only
 function getLogoBase64() {
   try {
     const logoPath = path.join(process.cwd(), "public", "logo.png");
@@ -40,12 +47,13 @@ function parseInvoiceItems(invoice: any): any[] {
   return [];
 }
 
-// Generate the Invoice HTML
+// ── PDF HTML (unchanged, kept for attachment) ────────────────
 function generateInvoiceHTML(invoice: any, logo: string): string {
   const items = parseInvoiceItems(invoice);
 
   const total = items.reduce(
-    (sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0),
+    (sum: number, item: any) =>
+      sum + (item.quantity || 0) * (item.price || 0),
     0,
   );
 
@@ -53,6 +61,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
     style: "currency",
     currency: "NGN",
   }).format(total);
+
   return `
 
 <!DOCTYPE html>
@@ -90,7 +99,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
   object-fit: contain;
 }
     .header {
-      background: linear-gradient(90deg, #FDC020, #937108);
+      background: linear-gradient(90deg, #F5B800, #937108);
       color: #fff;
       padding: 30px;
       display: flex;
@@ -160,7 +169,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
     }
 
     .message {
-      border-left: 4px solid #FDC020;
+      border-left: 4px solid #F5B800;
       padding: 15px 20px;
       margin-bottom: 30px;
       background: #f0f4ff;
@@ -235,7 +244,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
       margin-top: 10px;
       border-top: 1px solid #e5e7eb;
       padding-top: 10px;
-      color: #FDC020;
+      color: #F5B800;
     }
 
     .signatures {
@@ -401,13 +410,17 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
 }
 
 async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: "domcontentloaded" });
   const pdf = await page.pdf({ format: "A4", printBackground: true });
   await browser.close();
   return Buffer.from(pdf);
 }
+
 export async function POST(request: Request) {
   try {
     const { invoiceId, sendPaymentConfirmation } = await request.json();
@@ -425,8 +438,6 @@ export async function POST(request: Request) {
       .eq("invoice_id", invoiceId)
       .single();
 
-    console.log("from signing", invoice);
-
     if (error || !invoice) {
       return NextResponse.json(
         { message: "Invoice not found" },
@@ -434,41 +445,64 @@ export async function POST(request: Request) {
       );
     }
 
-    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
-    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
-
     const logo = getLogoBase64();
     const html = generateInvoiceHTML(invoice, logo);
     const pdfBuffer = await generatePdfBufferFromHtml(html);
 
-    let subject = "Invoice Generated Successfully";
-    let bodyHtml = `<p>The invoice has been generated successfully. See attached PDF.</p>`;
+    const isPayment = Boolean(sendPaymentConfirmation);
 
-    if (sendPaymentConfirmation) {
-      subject = `Payment Confirmation - Invoice #${invoice.invoice_id}`;
-      bodyHtml = `
-  <div style="font-family: Arial, sans-serif;">
-    <!-- Header -->
-    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
-    
-    <h2 style="color: green;">Payment Confirmed</h2>
-    <p>Hello ${invoice.signee_name},</p>
-    <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString(
-      "en-NG",
-    )}</b> for invoice <b>#${invoice.invoice_id}</b> has been received.</p>
-    <p>You can now sign your invoice using the link below:</p>
-    
-    <!-- Footer -->
-    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px;" />
-  </div>
-`;
-    }
+    const subject = isPayment
+      ? `Payment confirmation — Invoice #${invoice.invoice_id}`
+      : `Invoice #${invoice.invoice_id} generated`;
+
+    const emailHtml = emailShell({
+      title: subject,
+      preheader: isPayment
+        ? `Payment of ${naira(invoice.total_amount)} confirmed for invoice #${invoice.invoice_id}.`
+        : `Invoice #${invoice.invoice_id} has been generated and attached as a PDF.`,
+      content: `
+        ${ui.h1(isPayment ? "✅ Payment confirmed" : "🧾 Invoice generated")}
+        ${ui.p(`Hi ${esc(invoice.signee_name || "there")},`)}
+        ${
+          isPayment
+            ? ui.p(
+                `Your payment of <strong>${naira(
+                  invoice.total_amount
+                )}</strong> for invoice <strong>#${esc(
+                  invoice.invoice_id
+                )}</strong> has been received.`
+              )
+            : ui.p(
+                `Invoice <strong>#${esc(
+                  invoice.invoice_id
+                )}</strong> has been generated and is attached as a PDF.`
+              )
+        }
+        ${ui.kvCard([
+          { label: "Invoice number", value: esc(invoice.invoice_id) },
+          ...(invoice.issue_date
+            ? [{ label: "Issue date", value: esc(invoice.issue_date) }]
+            : []),
+          ...(invoice.due_date
+            ? [{ label: "Due date", value: esc(invoice.due_date) }]
+            : []),
+          {
+            label: "Amount",
+            value: naira(invoice.total_amount || 0),
+            bold: true,
+            color: isPayment ? EMAIL_BRAND.green : EMAIL_BRAND.gold,
+          },
+        ])}
+        ${ui.muted("A PDF copy of the invoice is attached to this email.")}
+        ${ui.signature()}
+      `,
+    });
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: `${invoice.signee_email}, ${invoice.initiator_email}`,
       subject,
-      html: bodyHtml,
+      html: emailHtml,
       attachments: [
         {
           filename: `${invoice.invoice_id || "invoice"}.pdf`,
@@ -481,7 +515,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: "Invoice email sent",
-        sendPaymentConfirmation: !!sendPaymentConfirmation,
+        sendPaymentConfirmation: isPayment,
       },
       { status: 200 },
     );

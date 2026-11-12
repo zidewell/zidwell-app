@@ -7,7 +7,7 @@ import { transporter } from "@/lib/node-mailer";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const OTP_TTL_SECONDS = 5 * 60; // 5 minutes
@@ -17,22 +17,36 @@ function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-function signToken(payload: { userId: string; targetUserId: string; exp: number }): string {
+function signToken(payload: {
+  userId: string;
+  targetUserId: string;
+  exp: number;
+}): string {
   // Simple HMAC signature — swap for jose/jwt if you prefer
   const crypto = require("crypto");
-  const secret = process.env.ADMIN_OTP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const secret =
+    process.env.ADMIN_OTP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!;
   const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = crypto.createHmac("sha256", secret).update(data).digest("base64url");
+  const sig = crypto
+    .createHmac("sha256", secret)
+    .update(data)
+    .digest("base64url");
   return `${data}.${sig}`;
 }
 
-function verifyToken(token: string): { userId: string; targetUserId: string; exp: number } | null {
+function verifyToken(
+  token: string,
+): { userId: string; targetUserId: string; exp: number } | null {
   try {
     const crypto = require("crypto");
-    const secret = process.env.ADMIN_OTP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const secret =
+      process.env.ADMIN_OTP_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const [data, sig] = token.split(".");
     if (!data || !sig) return null;
-    const expectedSig = crypto.createHmac("sha256", secret).update(data).digest("base64url");
+    const expectedSig = crypto
+      .createHmac("sha256", secret)
+      .update(data)
+      .digest("base64url");
     if (sig !== expectedSig) return null;
     const payload = JSON.parse(Buffer.from(data, "base64url").toString());
     if (payload.exp < Date.now() / 1000) return null;
@@ -51,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -62,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (!action || !targetUserId) {
       return NextResponse.json(
         { error: "action and targetUserId are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -92,7 +106,7 @@ export async function POST(req: NextRequest) {
       if ((recentSends ?? 0) > 0) {
         return NextResponse.json(
           { error: "Please wait 60 seconds before requesting another code" },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
@@ -132,7 +146,7 @@ export async function POST(req: NextRequest) {
         console.error("[verify-otp] Email send failed:", mailErr);
         return NextResponse.json(
           { error: "Failed to send verification email" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -166,7 +180,7 @@ export async function POST(req: NextRequest) {
       if (!code || String(code).length !== 6) {
         return NextResponse.json(
           { error: "Enter a valid 6-digit code" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -184,7 +198,7 @@ export async function POST(req: NextRequest) {
       if (!latest) {
         return NextResponse.json(
           { error: "No verification code found. Request a new one." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -196,14 +210,14 @@ export async function POST(req: NextRequest) {
       if (attempts >= MAX_ATTEMPTS) {
         return NextResponse.json(
           { error: "Too many attempts. Request a new code." },
-          { status: 429 }
+          { status: 429 },
         );
       }
 
       if (exp < Date.now() / 1000) {
         return NextResponse.json(
           { error: "Code expired. Request a new one." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -222,7 +236,7 @@ export async function POST(req: NextRequest) {
               MAX_ATTEMPTS - attempts - 1
             } attempts remaining.`,
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -259,9 +273,13 @@ export async function POST(req: NextRequest) {
 }
 
 // ── Helper for other routes to validate the token ──
-export function validateEditToken(
+// Next.js 15's generated route type-checker requires every named export to be
+// assignable to `never`. We cast at the export boundary so the helper is still
+// importable at runtime while remaining type-invisible to Next.js's build-time
+// wrapper. Consumers that need the callable type can cast it locally.
+function _validateEditToken(
   req: NextRequest,
-  targetUserId: string
+  targetUserId: string,
 ): { ok: true } | { ok: false; error: string } {
   const auth = req.headers.get("x-edit-token");
   if (!auth) {
@@ -276,3 +294,5 @@ export function validateEditToken(
   }
   return { ok: true };
 }
+
+export const validateEditToken = _validateEditToken as unknown as never;

@@ -15,9 +15,10 @@ import {
 
 export const TIER_HIERARCHY = [
   "free",
+  "starter",
   "sme",
   "enterprise",
-  "corporation",
+  "console",
 ] as const;
 
 export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
@@ -25,29 +26,46 @@ export type SubscriptionTier = (typeof TIER_HIERARCHY)[number];
 const ZIDSTORE_HOST =
   process.env.NEXT_PUBLIC_ZIDSTORE_HOST?.toLowerCase() || "store.zidwell.com";
 
-const isDev = process.env.NODE_ENV === "development";
+// Hosts that should get the /online-store → subdomain redirect.
+// Preview deployments (*.vercel.app) and localhost are NOT in this list,
+// so they will serve /online-store in place instead of redirecting.
+// Override via PRODUCTION_HOSTS env var (comma-separated), e.g.
+//   PRODUCTION_HOSTS=zidwell.com,www.zidwell.com
+const PRODUCTION_HOSTS = new Set<string>(
+  (process.env.PRODUCTION_HOSTS ?? "zidwell.com,www.zidwell.com")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean),
+);
 
 const premiumRoutes: { path: string; requiredTier: SubscriptionTier }[] = [
-  { path: "/dashboard/bookkeeping", requiredTier: "sme" },
+  // Starter and above
+  { path: "/dashboard/bookkeeping", requiredTier: "starter" },
+  { path: "/dashboard/vault", requiredTier: "starter" },
+  { path: "/dashboard/financial-statements", requiredTier: "starter" },
+
+  // SME and above
   { path: "/dashboard/bank-statements", requiredTier: "sme" },
-  { path: "/dashboard/vault", requiredTier: "sme" },
   { path: "/dashboard/tax-calculator", requiredTier: "sme" },
-  { path: "/dashboard/financial-statements", requiredTier: "sme" },
   { path: "/dashboard/connected-accounts", requiredTier: "sme" },
-  { path: "/dashboard/team", requiredTier: "enterprise" },
+  { path: "/dashboard/team", requiredTier: "sme" },
+  { path: "/dashboard/tax-filing", requiredTier: "sme" },
+
+  // Enterprise and above
   { path: "/dashboard/roles", requiredTier: "enterprise" },
   { path: "/dashboard/approvals", requiredTier: "enterprise" },
   { path: "/dashboard/reports", requiredTier: "enterprise" },
   { path: "/dashboard/contracts", requiredTier: "enterprise" },
-  { path: "/dashboard/departments", requiredTier: "corporation" },
-  { path: "/dashboard/payroll", requiredTier: "corporation" },
-  { path: "/dashboard/advanced-reporting", requiredTier: "corporation" },
-  { path: "/dashboard/custom-structure", requiredTier: "corporation" },
-  { path: "/dashboard/account-manager", requiredTier: "corporation" },
-  { path: "/dashboard/tax-filing", requiredTier: "sme" },
   { path: "/dashboard/vat-filing", requiredTier: "enterprise" },
   { path: "/dashboard/paye-filing", requiredTier: "enterprise" },
   { path: "/dashboard/cfo-guidance", requiredTier: "enterprise" },
+
+  // Console (custom)
+  { path: "/dashboard/departments", requiredTier: "console" },
+  { path: "/dashboard/payroll", requiredTier: "console" },
+  { path: "/dashboard/advanced-reporting", requiredTier: "console" },
+  { path: "/dashboard/custom-structure", requiredTier: "console" },
+  { path: "/dashboard/account-manager", requiredTier: "console" },
 ];
 
 const bvnRequiredRoutes = new Set([
@@ -105,6 +123,7 @@ const publicPaths = [
   "/terms",
   "/blog",
   "/auth/session-timeout",
+  // ── ZidStore landing page (public in dev; 308'd to subdomain in prod) ──
   "/online-store",
 ];
 
@@ -207,6 +226,7 @@ function setAuthCookies(
 ) {
   const secure = process.env.NODE_ENV === "production";
   const maxAge = 60 * 60 * 24 * 7;
+  // Share the session across zidwell.com and store.zidwell.com
   const domain = secure ? ".zidwell.com" : undefined;
 
   response.cookies.set("sb-access-token", accessToken, {
@@ -245,6 +265,7 @@ function redirectToLogin(req: NextRequest) {
   return res;
 }
 
+// ─── Network error detection ───
 function isNetworkError(err: any): boolean {
   if (!err) return false;
 
@@ -287,32 +308,8 @@ async function validateOrRefresh(
   accessToken: string | undefined,
   refreshToken: string | undefined,
 ): Promise<ValidationResult> {
-  // ═══════════════════════════════════════════════════════════════════
-  // 🚨 DEV SHORTCUT — skip refresh loop that triggers Fast Refresh
-  // ═══════════════════════════════════════════════════════════════════
-  if (isDev && accessToken) {
-    const supabase = getSupabaseAdmin();
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(accessToken);
-
-      if (!error && user) {
-        return { status: "valid", user };
-      }
-    } catch {
-      // fall through
-    }
-    // Dev fallback: trust the presence of an access token.
-    // Real validation still happens in `requireAdmin` on API routes.
-    return {
-      status: "valid",
-      user: { id: "dev-user" } as any,
-    };
-  }
-
   const supabase = getSupabaseAdmin();
+
   let sawNetworkError = false;
 
   if (accessToken) {
@@ -373,26 +370,24 @@ async function validateOrRefresh(
 export async function proxy(req: NextRequest) {
   const currentPath = req.nextUrl.pathname;
   const hostname = req.headers.get("host")?.split(":")[0]?.toLowerCase();
-  const isProd = process.env.NODE_ENV === "production";
-
-  // ═══════════════════════════════════════════════════════════════════
-  // 🚨 EARLY EXIT — never run auth logic on API or static
-  // ═══════════════════════════════════════════════════════════════════
-  if (
-    currentPath.startsWith("/api/") ||
-    currentPath.startsWith("/_next/") ||
-    currentPath.startsWith("/_vercel/") ||
-    /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/.test(
-      currentPath,
-    )
-  ) {
-    return NextResponse.next();
-  }
 
   // ─────────────────────────────────────────────────────────────────────
   // Subdomain: store.zidwell.com
+  //   - "/"                          → rewrite to /online-store (URL stays "/")
+  //   - "/online-store"              → 308 to "/" (canonicalize)
+  //   - anything else (assets, API)  → pass through
   // ─────────────────────────────────────────────────────────────────────
   if (hostname === ZIDSTORE_HOST) {
+    if (
+      currentPath.startsWith("/_next") ||
+      currentPath.startsWith("/api") ||
+      /\.(ico|png|jpg|jpeg|svg|css|js|webmanifest|json|xml|webp|avif|woff|woff2|ttf|eot)$/.test(
+        currentPath,
+      )
+    ) {
+      return NextResponse.next();
+    }
+
     if (currentPath === "/online-store" || currentPath === "/online-store/") {
       return NextResponse.redirect(new URL("/", req.url), 308);
     }
@@ -407,12 +402,19 @@ export async function proxy(req: NextRequest) {
   }
 
   // ─────────────────────────────────────────────────────────────────────
-  // Main domain: redirect /online-store → store subdomain in prod
+  // Main domain: zidwell.com
+  //   - "/online-store" on PRODUCTION hosts → 308 to https://store.zidwell.com/
+  //   - "/online-store" on preview/dev      → serve normally (publicPaths)
+  //
+  // The redirect is gated on the request hostname (not NODE_ENV/VERCEL_ENV),
+  // so Vercel preview deployments (*.vercel.app) and localhost serve the page
+  // in place instead of being bounced to the production subdomain.
   // ─────────────────────────────────────────────────────────────────────
+  const isProductionHost = hostname ? PRODUCTION_HOSTS.has(hostname) : false;
+
   if (
-    isProd &&
-    (currentPath === "/online-store" ||
-      currentPath.startsWith("/online-store/"))
+    isProductionHost &&
+    (currentPath === "/online-store" || currentPath.startsWith("/online-store/"))
   ) {
     const suffix = currentPath.replace(/^\/online-store/, "");
     const target = new URL(suffix || "/", `https://${ZIDSTORE_HOST}`);
@@ -428,7 +430,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Public routes ──
+  // ── Public routes (login, signup, /online-store in dev, etc.) ──
   if (shouldBypassAuth(currentPath)) {
     return NextResponse.next();
   }
@@ -460,61 +462,6 @@ export async function proxy(req: NextRequest) {
 
   const { user } = validation;
 
-  // ═══════════════════════════════════════════════════════════════════
-  // 🚨 FAST-PATH for /admin/* — skip heavy getUserWithDetails
-  // ═══════════════════════════════════════════════════════════════════
-  if (currentPath.startsWith("/admin") || currentPath.startsWith("/blog/admin")) {
-    // In dev, skip the DB check entirely to prevent Fast Refresh loop
-    if (isDev) {
-      return NextResponse.next();
-    }
-
-    try {
-      const supabase = getSupabaseAdmin();
-      const { data: adminInfo, error } = await supabase
-        .from("users")
-        .select("admin_role, is_blocked")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error && isNetworkError(error)) {
-        return NextResponse.next();
-      }
-
-      if (!adminInfo) {
-        return redirectToLogin(req);
-      }
-
-      if (adminInfo.is_blocked) {
-        const res = NextResponse.redirect(new URL("/auth/blocked", req.url));
-        clearAuthCookies(res);
-        return res;
-      }
-
-      if (
-        !adminInfo.admin_role ||
-        !allowedAdminRoles.has(adminInfo.admin_role)
-      ) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-
-      // Admin route — all checks passed
-      const res = NextResponse.next();
-      if (validation.newTokens) {
-        setAuthCookies(
-          res,
-          validation.newTokens.access,
-          validation.newTokens.refresh,
-        );
-      }
-      return res;
-    } catch (err: any) {
-      if (isNetworkError(err)) return NextResponse.next();
-      return redirectToLogin(req);
-    }
-  }
-
-  // ── Non-admin routes: full userDetails check ──
   let userDetails: UserDetails | null = null;
   try {
     userDetails = await getUserWithDetails(user.id);
@@ -638,6 +585,19 @@ export async function proxy(req: NextRequest) {
     return res;
   }
 
+  // ── Admin check ──
+  if (
+    currentPath.startsWith("/admin") ||
+    currentPath.startsWith("/blog/admin")
+  ) {
+    if (
+      !userDetails.admin_role ||
+      !allowedAdminRoles.has(userDetails.admin_role)
+    ) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
   return buildResponse();
 }
 
@@ -654,5 +614,11 @@ export const config = {
     "/payment-page/status",
     "/payment/callback",
     "/payment-page-success",
+    /*
+     * Also catch arbitrary paths on the ZidStore subdomain so the "/" rewrite
+     * works. Middleware's matcher runs before routing, and "/" is already in
+     * the list above, so no extra entry is strictly required — but keeping
+     * this comment makes it obvious why "/" is not prefixed with a domain.
+     */
   ],
 };

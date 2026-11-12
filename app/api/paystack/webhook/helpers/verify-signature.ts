@@ -2,7 +2,7 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY!;
+const DIGITAL_PAYSTACK_SECRET_KEY = process.env.DIGITAL_PAYSTACK_SECRET_KEY!;
 
 export function verifyPaystackSignature(
   rawBody: string,
@@ -10,7 +10,7 @@ export function verifyPaystackSignature(
 ): boolean {
   if (!signature) return false;
 
-  const expected = createHmac("sha512", PAYSTACK_SECRET_KEY)
+  const expected = createHmac("sha512", DIGITAL_PAYSTACK_SECRET_KEY)
     .update(rawBody)
     .digest("hex");
 

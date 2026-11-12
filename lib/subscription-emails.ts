@@ -1,4 +1,4 @@
-// app/lib/subscription-emails.ts (UPDATED with real plan names)
+// lib/subscription-emails.ts
 
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
@@ -8,60 +8,67 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const baseUrl = process.env.NODE_ENV === "development"
-  ? process.env.NEXT_PUBLIC_DEV_URL
-  : process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.NEXT_PUBLIC_DEV_URL
+    : process.env.NEXT_PUBLIC_BASE_URL;
 
 const headerImageUrl = `${baseUrl}/zidwell-header.png`;
 const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-// Get plan display name (UPDATED with real plan names)
 const getPlanDisplayName = (tier: string): string => {
   const planNames: Record<string, string> = {
-    solopreneur: "Solopreneur",
+    starter: "Starter",
     sme: "SME",
     enterprise: "Enterprise",
-    corporation: "Corporation"
+    console: "Console",
   };
   return planNames[tier] || tier.charAt(0).toUpperCase() + tier.slice(1);
 };
 
-// Get plan features for email (UPDATED with real plan names)
 const getPlanFeatures = (tier: string): string[] => {
   const features: Record<string, string[]> = {
-    solopreneur: [
-      '10 Invoices',
-      'Unlimited Receipts',
-      'Branded Invoices',
-      'Better expense tracking',
-      'Basic financial insights'
+    starter: [
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "Online storefront",
+      "Document Vault",
     ],
     sme: [
-      'Unlimited Invoices & Receipts',
-      'Bank statement upload (PDF/Excel/CSV)',
-      'Connect up to 3 bank accounts',
-      'Vault for financial documents',
-      'Tax calculator',
-      'Financial statements (P&L, Cash Flow, Balance Sheet)',
-      '1 extra team member'
+      "Business bank account",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "One Extra User",
     ],
     enterprise: [
-      'Multi-user access (full team)',
-      'Role-based permissions',
-      'Approval system for payments, invoices, receipts',
-      'Connect up to 5 bank accounts',
-      'Downloadable financial reports',
-      '10 contracts',
-      'Dedicated onboarding support'
+      "Business bank account",
+      "Increased transaction limits",
+      "Business Plan Template",
+      "Automatic Bookkeeping",
+      "Connect Your Bank Accounts",
+      "Invoice Tool",
+      "Receipt Tool",
+      "International payments",
+      "Online storefront",
+      "Document Vault",
+      "Three Extra Users",
+      "Dedicated support team",
     ],
-    corporation: [
-      'Unlimited contracts',
-      'Department-based access (HR, Finance, Ops…)',
-      'Connect unlimited bank accounts',
-      'Simple payroll system',
-      'Advanced financial reporting',
-      'Custom financial structure setup',
-      'Priority onboarding & dedicated account manager'
+    console: [
+      "Everything in Enterprise",
+      "Sub Accounts",
+      "Roles & Permissions",
+      "Approvals",
+      "Unlimited users",
+      "Custom pricing",
     ],
   };
   return features[tier] || [];
@@ -73,8 +80,8 @@ export async function sendSubscriptionReceiptWithPDF(
   planTier: string,
   amount: number,
   transactionId: string,
-  billingPeriod: 'monthly' | 'yearly',
-  expiresAt: Date
+  billingPeriod: "monthly" | "yearly",
+  expiresAt: Date,
 ): Promise<void> {
   try {
     const planName = getPlanDisplayName(planTier);
@@ -111,8 +118,8 @@ export async function sendSubscriptionActivationEmail(
   email: string,
   customerName: string,
   planTier: string,
-  billingPeriod: 'monthly' | 'yearly',
-  expiresAt: Date
+  billingPeriod: "monthly" | "yearly",
+  expiresAt: Date,
 ): Promise<void> {
   try {
     const planName = getPlanDisplayName(planTier);
@@ -134,7 +141,7 @@ export async function sendSubscriptionActivationEmail(
           </div>
           <p>You can now enjoy premium features:</p>
           <ul>
-            ${features.map(f => `<li>${f}</li>`).join('')}
+            ${features.map((f) => `<li>${f}</li>`).join("")}
           </ul>
           <p><a href="${baseUrl}/dashboard" style="background: #e1bf46; color: #023528; padding: 10px 20px; text-decoration: none; border-radius: 8px;">Start Using Zidwell</a></p>
           <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
@@ -146,11 +153,10 @@ export async function sendSubscriptionActivationEmail(
   }
 }
 
-// Send cancellation email
 export async function sendSubscriptionCancellationEmail(
   email: string,
   customerName: string,
-  planTier: string
+  planTier: string,
 ): Promise<void> {
   try {
     const planName = getPlanDisplayName(planTier);

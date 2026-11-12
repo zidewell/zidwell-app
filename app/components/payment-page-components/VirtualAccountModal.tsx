@@ -112,7 +112,7 @@ export const VirtualAccountModal = ({
         className="max-w-md w-full bg-white rounded-2xl overflow-hidden shadow-2xl"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#FDC020] to-[#1a5c40] p-6 text-white relative">
+        <div className="bg-gradient-to-r from-[#F5B800] to-[#1a5c40] p-6 text-white relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-white/80 hover:text-white"

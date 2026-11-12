@@ -5,6 +5,7 @@ import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
+import { emailShell, ui, esc, naira, niceDate, EMAIL_BRAND } from "@/lib/email/ui";
 
 const baseUrl =
   process.env.NODE_ENV === "development"
@@ -62,21 +63,22 @@ async function sendInvoiceCreatorNotificationEmail(
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: creatorEmail,
-      subject: `💰 Payment Received - ${formatNaira(amount)}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Payment Received!</h3>
-          <p>You've received a payment for invoice <strong>${invoiceId}</strong>.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ${formatNaira(amount)}</p>
-            <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Status:</strong> <span style="color: #22c55e;">Completed</span></p>
-          </div>
-          <p>Your wallet has been credited with the full amount.</p>
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+      subject: `💰 Payment received — ${naira(amount)}`,
+      html: emailShell({
+        title: "Payment received",
+        preheader: `You received ${naira(amount)} for invoice ${invoiceId}.`,
+        content: `
+          ${ui.h1("💰 Payment received")}
+          ${ui.p(`You received a payment for invoice <strong>${esc(invoiceId)}</strong>.`)}
+          ${ui.kvCard([
+            { label: "Amount", value: naira(amount), bold: true, color: EMAIL_BRAND.green },
+            { label: "Customer", value: esc(customerName) },
+            { label: "Status", value: "Completed" },
+          ])}
+          ${ui.muted("The net amount has been credited to your Zidwell wallet.")}
+          ${ui.signature()}
+        `,
+      }),
     });
   } catch (error) {
     console.error("Failed to send invoice notification:", error);
@@ -110,84 +112,45 @@ async function sendVirtualAccountDepositEmail(
       .eq("id", userId)
       .single();
 
-    if (error || !user) {
+    if (error || !user?.email) {
       console.error("❌ Cannot find user for deposit email:", userId, error);
       return;
     }
 
-    if (!user.email) {
-      console.error("❌ User has no email address:", userId);
-      return;
-    }
-
     const netCredit = amount - inflowFee;
-    const feeRowHtml =
-      inflowFee > 0
-        ? `
-          <tr>
-            <td style="padding: 6px 0; color: #444;"><strong>Fee:</strong></td>
-            <td style="padding: 6px 0; text-align: right;">${formatNaira(inflowFee)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 6px 0; color: #444;"><strong>Net Credit:</strong></td>
-            <td style="padding: 6px 0; text-align: right; color: #16a34a; font-weight: 700;">${formatNaira(netCredit)}</td>
-          </tr>
-        `
-        : `
-          <tr>
-            <td style="padding: 6px 0; color: #444;"><strong>Net Credit:</strong></td>
-            <td style="padding: 6px 0; text-align: right; color: #16a34a; font-weight: 700;">${formatNaira(netCredit)}</td>
-          </tr>
-        `;
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: `💰 Account Deposit Received - ${formatNaira(amount)}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #22c55e;">✅ Credit Alert</h3>
-          <p>Hi ${user.first_name || "there"},</p>
-          <img src="${cheersImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
-          <div style="background: #f8fafc; padding: 15px 20px; border-radius: 8px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <tr>
-                <td style="padding: 6px 0; color: #444;"><strong>Amount Received:</strong></td>
-                <td style="padding: 6px 0; text-align: right;">${formatNaira(amount)}</td>
-              </tr>
-              ${feeRowHtml}
-              <tr>
-                <td style="padding: 6px 0; color: #444;"><strong>Bank:</strong></td>
-                <td style="padding: 6px 0; text-align: right;">${bankName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #444;"><strong>Sender:</strong></td>
-                <td style="padding: 6px 0; text-align: right;">${senderName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #444;"><strong>Narration:</strong></td>
-                <td style="padding: 6px 0; text-align: right;">${narration || "N/A"}</td>
-              </tr>
-              <tr>
-                <td style="padding: 6px 0; color: #444;"><strong>Reference:</strong></td>
-                <td style="padding: 6px 0; text-align: right; font-size: 12px;">${transactionId}</td>
-              </tr>
-            </table>
-          </div>
-          <p style="margin-top: 15px; color: #16a34a; font-weight: 600;">
-            ${formatNaira(netCredit)} has been credited to your Zidwell wallet.
-          </p>
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+      subject: `💰 Deposit received — ${naira(amount)}`,
+      html: emailShell({
+        title: "Deposit received",
+        preheader: `${naira(netCredit)} has been credited to your Zidwell wallet.`,
+        content: `
+          ${ui.h1("✅ Credit alert")}
+          ${ui.p(`Hi ${esc(user.first_name || "there")},`)}
+          ${ui.p("Your virtual account deposit was successful.")}
+          ${ui.kvCard([
+            { label: "Amount received", value: naira(amount) },
+            ...(inflowFee > 0
+              ? [{ label: "Fee", value: naira(inflowFee) }]
+              : []),
+            { label: "Net credit", value: naira(netCredit), bold: true, color: EMAIL_BRAND.green },
+            { label: "Bank", value: esc(bankName) },
+            { label: "Sender", value: esc(senderName) },
+            { label: "Narration", value: esc(narration || "—") },
+            { label: "Reference", value: esc(transactionId) },
+          ])}
+          ${ui.muted(`${naira(netCredit)} is now available in your Zidwell wallet.`)}
+          ${ui.signature()}
+        `,
+      }),
     });
-
-    console.log(`✅ Deposit email sent to ${user.email}`);
   } catch (error) {
     console.error("Failed to send deposit email:", error);
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WITHDRAWAL EMAIL — unchanged (already handles fee correctly)
@@ -205,82 +168,67 @@ async function sendWithdrawalEmail(
   receiptHtml?: string,
 ) {
   try {
-    console.log(
-      `📧 Attempting to send ${status} withdrawal email for user ${userId}`,
-    );
-    console.log(`📧 Receipt HTML provided: ${!!receiptHtml}`);
-
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
       .eq("id", userId)
       .single();
 
-    if (error) {
-      console.error("❌ Failed to fetch user for email:", error);
+    if (error || !user?.email) {
+      console.error("❌ User not found for email:", userId);
       return;
     }
 
-    if (!user) {
-      console.error("❌ User not found for ID:", userId);
-      return;
-    }
-
-    if (!user.email) {
-      console.error("❌ User has no email address:", userId);
-      return;
-    }
-
-    console.log(`📧 Sending email to: ${user.email}`);
+    const isSuccess = status === "success";
 
     const mailOptions: any = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject:
-        status === "success"
-          ? `✅ Transfer Successful - ${formatNaira(amount)}`
-          : `❌ Transfer Failed - ${formatNaira(amount)}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">
-            ${status === "success" ? "✅ Transfer Successful" : "❌ Transfer Failed"}
-          </h3>
-          <p>Hi ${user.first_name || "there"},</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Amount:</strong> ${formatNaira(amount)}</p>
-            ${fee ? `<p><strong>Fee:</strong> ${formatNaira(fee)}</p>` : ""}
-            <p><strong>Recipient:</strong> ${recipientName}</p>
-            <p><strong>Account:</strong> ${recipientAccount}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            ${status === "failed" ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>` : ""}
-          </div>
-          ${status === "failed" ? '<p style="color: #22c55e;">✅ Your wallet was never charged for this transaction.</p>' : ""}
-          ${status === "success" ? '<p style="margin-top: 15px;">📎 Please find your receipt attached to this email.</p>' : ""}
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+      subject: isSuccess
+        ? `✅ Transfer successful — ${naira(amount)}`
+        : `❌ Transfer failed — ${naira(amount)}`,
+      html: emailShell({
+        title: isSuccess ? "Transfer successful" : "Transfer failed",
+        preheader: isSuccess
+          ? `${naira(amount)} sent to ${recipientName}.`
+          : `Your transfer to ${recipientName} failed.`,
+        content: `
+          ${ui.h1(isSuccess ? "✅ Transfer successful" : "❌ Transfer failed")}
+          ${ui.p(`Hi ${esc(user.first_name || "there")},`)}
+          ${ui.kvCard([
+            { label: "Amount", value: naira(amount) },
+            ...(fee ? [{ label: "Fee", value: naira(fee) }] : []),
+            { label: "Recipient", value: esc(recipientName) },
+            { label: "Account", value: esc(recipientAccount) },
+            { label: "Bank", value: esc(bankName) },
+            ...(!isSuccess
+              ? [{ label: "Reason", value: esc(errorDetail || "Transaction failed") }]
+              : []),
+          ])}
+          ${
+            isSuccess
+              ? ui.muted("A PDF receipt is attached to this email.")
+              : ui.alert(
+                  "Your wallet was <strong>never charged</strong> for this transfer.",
+                  "success"
+                )
+          }
+          ${ui.signature()}
+        `,
+      }),
     };
 
-    if (status === "success" && receiptHtml && transactionId) {
-      console.log(
-        `📎 Attempting to attach receipt for transaction ${transactionId}`,
-      );
-
+    if (isSuccess && receiptHtml && transactionId) {
       try {
         const logo = getLogoBase64();
         let finalHtml = receiptHtml;
         if (logo) {
           finalHtml = receiptHtml.replace(
             /src="[^"]*\/logo\.png"/g,
-            `src="${logo}"`,
+            `src="${logo}"`
           );
         }
-
-        console.log("🔄 Generating PDF with Puppeteer...");
         const pdfBuffer = await generatePdfBufferFromHtml(finalHtml);
-        console.log(`✅ PDF generated! Size: ${pdfBuffer.length} bytes`);
-
         mailOptions.attachments = [
           {
             filename: `zidwell-receipt-${transactionId}.pdf`,
@@ -288,22 +236,14 @@ async function sendWithdrawalEmail(
             contentType: "application/pdf",
           },
         ];
-        console.log(`✅ PDF receipt attached for transaction ${transactionId}`);
       } catch (pdfError) {
         console.error("❌ Failed to generate PDF for email:", pdfError);
-        console.log(`⚠️ Email sent without PDF attachment`);
       }
     }
 
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent successfully to ${user.email}!`);
   } catch (error) {
     console.error("❌ Failed to send withdrawal email:", error);
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
   }
 }
 
@@ -314,6 +254,7 @@ async function sendWithdrawalEmail(
 // wallet, and we credit the user's wallet back. Mirrors the visual format
 // of sendWithdrawalEmail so the user experience is consistent.
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── sendRefundEmail ───
 async function sendRefundEmail(
   userId: string,
   amount: number,
@@ -325,69 +266,48 @@ async function sendRefundEmail(
   originalFee?: number,
 ) {
   try {
-    console.log(`📧 Attempting to send refund email for user ${userId}`);
-
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
       .eq("id", userId)
       .single();
 
-    if (error) {
-      console.error("❌ Failed to fetch user for refund email:", error);
+    if (error || !user?.email) {
+      console.error("❌ User not found for refund email:", userId);
       return;
     }
-
-    if (!user) {
-      console.error("❌ User not found for ID:", userId);
-      return;
-    }
-
-    if (!user.email) {
-      console.error("❌ User has no email address:", userId);
-      return;
-    }
-
-    console.log(`📧 Sending refund email to: ${user.email}`);
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: `🔄 Refund Processed - ${formatNaira(refundAmount)}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #3b82f6;">🔄 Refund Processed</h3>
-          <p>Hi ${user.first_name || "there"},</p>
-          <p>Your recent transfer could not be completed by the bank. The funds have been returned to your Zidwell wallet.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Refund Amount:</strong> ${formatNaira(refundAmount)}</p>
-            ${originalFee && originalFee > 0 ? `<p><strong>Fee Refunded:</strong> ${formatNaira(originalFee)}</p>` : ""}
-            <p><strong>Original Transfer:</strong> ${formatNaira(amount)}</p>
-            <p><strong>Recipient:</strong> ${recipientName}</p>
-            <p><strong>Account:</strong> ${recipientAccount}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            ${transactionId ? `<p><strong>Transaction ID:</strong> ${transactionId}</p>` : ""}
-          </div>
-          <p style="margin-top: 15px; color: #16a34a; font-weight: 600;">
-            ✅ ${formatNaira(refundAmount)} has been credited back to your wallet.
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            The transfer failed due to a bank-side issue. You can try the transfer again or contact support if the problem persists.
-          </p>
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+      subject: `🔄 Refund processed — ${naira(refundAmount)}`,
+      html: emailShell({
+        title: "Refund processed",
+        preheader: `${naira(refundAmount)} has been returned to your wallet.`,
+        content: `
+          ${ui.h1("🔄 Refund processed")}
+          ${ui.p(`Hi ${esc(user.first_name || "there")},`)}
+          ${ui.p(
+            "Your recent transfer couldn't be completed by the bank. The funds have been returned to your Zidwell wallet."
+          )}
+          ${ui.kvCard([
+            { label: "Refund amount", value: naira(refundAmount), bold: true, color: EMAIL_BRAND.green },
+            ...(originalFee && originalFee > 0
+              ? [{ label: "Fee refunded", value: naira(originalFee) }]
+              : []),
+            { label: "Original transfer", value: naira(amount) },
+            { label: "Recipient", value: esc(recipientName) },
+            { label: "Account", value: esc(recipientAccount) },
+            { label: "Bank", value: esc(bankName) },
+            ...(transactionId ? [{ label: "Transaction ID", value: esc(transactionId) }] : []),
+          ])}
+          ${ui.alert(`${naira(refundAmount)} is back in your Zidwell wallet.`, "success")}
+          ${ui.signature()}
+        `,
+      }),
     });
-
-    console.log(`✅ Refund email sent successfully to ${user.email}!`);
   } catch (error) {
     console.error("❌ Failed to send refund email:", error);
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
   }
 }
 
@@ -402,6 +322,7 @@ async function sendRefundEmail(
 //   (userId, reversedAmount, walletDebited, balanceBefore, balanceAfter,
 //    transactionReference, description?, shortfall?)
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── sendReversalEmail ───
 async function sendReversalEmail(
   userId: string,
   reversedAmount: number,
@@ -413,86 +334,58 @@ async function sendReversalEmail(
   shortfall: boolean = false,
 ) {
   try {
-    console.log(`📧 Attempting to send reversal email for user ${userId}`);
-
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
       .eq("id", userId)
       .single();
 
-    if (error) {
-      console.error("❌ Failed to fetch user for reversal email:", error);
+    if (error || !user?.email) {
+      console.error("❌ User not found for reversal email:", userId);
       return;
     }
 
-    if (!user) {
-      console.error("❌ User not found for ID:", userId);
-      return;
-    }
-
-    if (!user.email) {
-      console.error("❌ User has no email address:", userId);
-      return;
-    }
-
-    console.log(`📧 Sending reversal email to: ${user.email}`);
-
-    const shortfallAmount = shortfall
-      ? Math.max(0, reversedAmount - walletDebited)
-      : 0;
-
-    const shortfallBlock = shortfall
-      ? `
-        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 15px; border-left: 4px solid #f59e0b;">
-          <p style="margin: 0; color: #92400e; font-size: 14px;">
-            <strong>⚠️ Insufficient balance:</strong>
-            Only ${formatNaira(walletDebited)} could be recovered from your wallet.
-            The remaining ${formatNaira(shortfallAmount)} has been recorded against your account.
-            Please top up your wallet or contact support.
-          </p>
-        </div>
-      `
-      : "";
+    const shortfallAmount = shortfall ? Math.max(0, reversedAmount - walletDebited) : 0;
 
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
-      subject: `⚠️ Payment Reversal - ${formatNaira(reversedAmount)}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-          <h3 style="color: #ef4444;">⚠️ Payment Reversal</h3>
-          <p>Hi ${user.first_name || "there"},</p>
-          <p>A payment that was previously credited to your wallet has been reversed by the bank. This typically happens when the sender's bank recalls the funds.</p>
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
-            <p><strong>Reversed Amount:</strong> ${formatNaira(reversedAmount)}</p>
-            <p><strong>Debited From Wallet:</strong> ${formatNaira(walletDebited)}</p>
-            <p><strong>Balance Before:</strong> ${formatNaira(balanceBefore)}</p>
-            <p><strong>New Wallet Balance:</strong> ${formatNaira(balanceAfter)}</p>
-            ${description ? `<p><strong>Description:</strong> ${description}</p>` : ""}
-            <p><strong>Reference:</strong> ${transactionReference}</p>
-          </div>
-          ${shortfallBlock}
-          <p style="margin-top: 15px; color: #ef4444; font-weight: 600;">
-            ❌ ${formatNaira(walletDebited)} has been deducted from your wallet.
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            If you believe this reversal is an error, please contact support with the reference above.
-          </p>
-          <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-        </div>
-      `,
+      subject: `⚠️ Payment reversal — ${naira(reversedAmount)}`,
+      html: emailShell({
+        title: "Payment reversal",
+        preheader: `A previously credited payment was reversed.`,
+        content: `
+          ${ui.h1("⚠️ Payment reversal")}
+          ${ui.p(`Hi ${esc(user.first_name || "there")},`)}
+          ${ui.p(
+            "A payment that was previously credited to your wallet has been reversed by the bank."
+          )}
+          ${ui.kvCard([
+            { label: "Reversed amount", value: naira(reversedAmount), bold: true, color: EMAIL_BRAND.red },
+            { label: "Debited from wallet", value: naira(walletDebited) },
+            { label: "Balance before", value: naira(balanceBefore) },
+            { label: "New balance", value: naira(balanceAfter) },
+            ...(description ? [{ label: "Description", value: esc(description) }] : []),
+            { label: "Reference", value: esc(transactionReference) },
+          ])}
+          ${
+            shortfall
+              ? ui.alert(
+                  `<strong>Insufficient balance:</strong> only ${naira(
+                    walletDebited
+                  )} could be recovered. The remaining ${naira(
+                    shortfallAmount
+                  )} is recorded against your account.`,
+                  "warning"
+                )
+              : ""
+          }
+          ${ui.signature()}
+        `,
+      }),
     });
-
-    console.log(`✅ Reversal email sent successfully to ${user.email}!`);
   } catch (error) {
     console.error("❌ Failed to send reversal email:", error);
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
   }
 }
 

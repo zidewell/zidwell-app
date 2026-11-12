@@ -9,7 +9,6 @@ import {
   Loader2,
   Crown,
   Zap,
-  Sparkles,
   Star,
   Play,
 } from "lucide-react";
@@ -21,12 +20,10 @@ import { useRouter } from "next/navigation";
 import Swal from "sweetalert2";
 import Loader from "../Loader";
 import ContractsPreview from "../previews/ContractsPreview";
-import Link from "next/link";
 
 type Props = {
   contracts: any[];
   loading: boolean;
-  userTier?: "free" | "solopreneur" | "sme" | "enterprise" | "corporation";
   isPremium?: boolean;
   hasReachedLimit?: boolean;
   onRefresh?: () => void;
@@ -37,7 +34,6 @@ type ContractStatus = "signed" | "pending" | "draft";
 const ContractList: React.FC<Props> = ({
   contracts,
   loading,
-  userTier = "free",
   isPremium = false,
   hasReachedLimit = false,
 }) => {
@@ -45,37 +41,6 @@ const ContractList: React.FC<Props> = ({
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const router = useRouter();
-
-  // Get tier icon
-  const getTierIcon = (tier: string) => {
-    switch (tier) {
-      case "corporation":
-        return <Sparkles className="w-3 h-3" />;
-      case "enterprise":
-        return <Crown className="w-3 h-3" />;
-      case "sme":
-        return <Star className="w-3 h-3" />;
-      case "solopreneur":
-        return <Zap className="w-3 h-3" />;
-      default:
-        return <Star className="w-3 h-3" />;
-    }
-  };
-
-  const getTierLabel = (tier: string) => {
-    switch (tier) {
-      case "corporation":
-        return "Corporation";
-      case "enterprise":
-        return "Enterprise";
-      case "sme":
-        return "SME";
-      case "solopreneur":
-        return "Solopreneur";
-      default:
-        return "Free";
-    }
-  };
 
   const statusColors: Record<ContractStatus, string> = useMemo(
     () => ({
@@ -262,16 +227,6 @@ const ContractList: React.FC<Props> = ({
                         👨‍⚖️ Lawyer Signed
                       </Badge>
                     )}
-
-                    <Badge
-                      variant="outline"
-                      className="bg-(--bg-secondary) border-(--border-color) text-(--text-secondary)"
-                    >
-                      {getTierIcon(userTier)}
-                      <span className="ml-1 text-xs capitalize">
-                        {getTierLabel(userTier)}
-                      </span>
-                    </Badge>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-(--text-secondary)">
                     <span>Issue Date: {createdAt.toLocaleDateString()}</span>
@@ -305,21 +260,20 @@ const ContractList: React.FC<Props> = ({
                     </Button>
                   )}
 
-                  {(status === "draft" || status === "pending") &&
-                    status !== "draft" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          router.push(
-                            `/dashboard/services/contract/edit/${contract.id}`,
-                          )
-                        }
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
-                      </Button>
-                    )}
+                  {status === "pending" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/services/contract/edit/${contract.id}`,
+                        )
+                      }
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
 
                   {status !== "draft" && (
                     <Button

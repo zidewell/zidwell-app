@@ -1,19 +1,9 @@
-// app/components/subscription-components/SubscriptionModal.tsx
+// app/components/dashboard-component/SubscriptionModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  X,
-  Sparkles,
-  Check,
-  Zap,
-  Star,
-  Crown,
-  Rocket,
-  Target,
-  Gem,
-} from "lucide-react";
+import { X, Check, Zap, Crown, Rocket, Briefcase } from "lucide-react";
 import { Button } from "../ui/button";
 import { useRouter } from "next/navigation";
 import { useSubscription } from "@/app/hooks/useSubscripion";
@@ -30,69 +20,48 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
   );
   const { userTier } = useSubscription();
 
-  if (userTier === "corporation") return null;
+  // Enterprise is the highest real tier — nothing to upgrade to.
+  if (userTier === "enterprise") return null;
+
+  const getNextTier = (): string => {
+    switch (userTier) {
+      case "free":
+      case "starter":
+        return "sme";
+      case "sme":
+        return "enterprise";
+      default:
+        return "sme";
+    }
+  };
 
   const handleViewPricing = () => {
     onClose();
     navigate.push("/pricing?upgrade=" + getNextTier());
   };
 
-  const getNextTier = () => {
-    switch (userTier) {
-      case "free":
-        return "solopreneur";
-      case "solopreneur":
-        return "sme";
-      case "sme":
-        return "enterprise";
-      case "enterprise":
-        return "corporation";
-      default:
-        return "solopreneur";
-    }
-  };
-
   const getNextTierInfo = () => {
     switch (userTier) {
       case "free":
+      case "starter":
         return {
           currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
-          features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
-          ],
-        };
-      case "solopreneur":
-        return {
-          currentTier: "Solopreneur",
           nextTier: "SME",
           title: "Upgrade to SME",
           description: "Run your business properly",
           icon: <Rocket className="h-6 w-6 text-white" />,
           badge: "RUN YOUR BUSINESS",
           primaryCta: "Go SME",
-          monthlyPrice: "₦29,900",
-          annualPrice: "₦299,000",
-          annualSavings: "save ₦59,800",
+          monthlyPrice: "₦16,658",
+          annualPrice: "₦199,900",
+          annualSavings: "one annual payment",
           features: [
-            "Unlimited Invoices & Receipts",
-            "Upload bank statements",
-            "Connect up to 3 bank accounts",
-            "Vault for financial documents",
-            "Tax calculator included",
-            "Financial statements (P&L, Cash Flow)",
-            "1 extra team member",
+            "Unlimited invoices & receipts",
+            "International payments",
+            "One Extra User",
+            "Tax calculator",
+            "Financial statements",
+            "1 Contract",
           ],
         };
       case "sme":
@@ -100,69 +69,48 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
           currentTier: "SME",
           nextTier: "Enterprise",
           title: "Upgrade to Enterprise",
-          description: "Team business management",
+          description: "Full business finance system",
           icon: <Crown className="h-6 w-6 text-white" />,
           badge: "GO ENTERPRISE",
           primaryCta: "Upgrade to Enterprise",
-          monthlyPrice: "₦100,000",
-          annualPrice: "₦1,000,000",
-          annualSavings: "save ₦200,000",
+          monthlyPrice: "₦49,992",
+          annualPrice: "₦599,900",
+          annualSavings: "one annual payment",
           features: [
-            "Multi-user access (full team)",
-            "Role-based permissions",
-            "Approvals for payments, invoices, receipts",
-            "Connect up to 5 bank accounts",
-            "Downloadable financial reports",
-            "10 contracts",
-            "Dedicated onboarding support",
-          ],
-        };
-      case "enterprise":
-        return {
-          currentTier: "Enterprise",
-          nextTier: "Corporation",
-          title: "Upgrade to Corporation",
-          description: "Full business finance system",
-          icon: <Gem className="h-6 w-6 text-white" />,
-          badge: "GO CORPORATION",
-          primaryCta: "Talk to Sales",
-          monthlyPrice: "₦300,000",
-          annualPrice: "₦3,000,000",
-          annualSavings: "save ₦600,000",
-          features: [
-            "Unlimited contracts",
-            "Department-based access",
-            "Connect unlimited bank accounts",
-            "Simple payroll system",
-            "Advanced financial reporting",
-            "Custom financial structure setup",
-            "Priority onboarding & dedicated account manager",
+            "Everything in SME, plus:",
+            "Increased transaction limits",
+            "Connect Bank Accounts",
+            "Three Extra Users",
+            "Lawyer Signature on Contracts",
+            "10 Contracts",
+            "Dedicated support team",
           ],
         };
       default:
         return {
           currentTier: "Free",
-          nextTier: "Solopreneur",
-          title: "Upgrade to Solopreneur",
-          description: "Get organized with better tools",
-          icon: <Zap className="h-6 w-6 text-white" />,
-          badge: "GET ORGANIZED",
-          primaryCta: "Go Solopreneur",
-          monthlyPrice: "₦4,900",
-          annualPrice: "₦49,000",
-          annualSavings: "save ₦9,800",
+          nextTier: "SME",
+          title: "Upgrade to SME",
+          description: "Run your business properly",
+          icon: <Rocket className="h-6 w-6 text-white" />,
+          badge: "RUN YOUR BUSINESS",
+          primaryCta: "Go SME",
+          monthlyPrice: "₦16,658",
+          annualPrice: "₦199,900",
+          annualSavings: "one annual payment",
           features: [
-            "10 Invoices • Unlimited Receipts",
-            "Branded Invoices",
-            "Better expense tracking",
-            "Basic financial insights",
+            "Unlimited invoices & receipts",
+            "International payments",
+            "One Extra User",
+            "Tax calculator",
+            "Financial statements",
+            "1 Contract",
           ],
         };
     }
   };
 
   const tierInfo = getNextTierInfo();
-  const nextTier = getNextTier();
 
   return (
     <AnimatePresence>
@@ -236,12 +184,6 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   ))}
                 </ul>
               </div>
-
-              <div className="relative z-10 mt-3 pt-3 border-t border-white/20">
-                <p className="text-(--color-ink)/60 text-[10px]">
-                  ✦ Earn ZidCoins (1 ZC = ₦1) on every transaction
-                </p>
-              </div>
             </div>
 
             {/* Right Column - Pricing & CTA */}
@@ -255,48 +197,38 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                 </span>
               </div>
 
-              {userTier !== "enterprise" && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => setSelectedPlan("monthly")}
-                      className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === "monthly"
-                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      onClick={() => setSelectedPlan("annual")}
-                      className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                        selectedPlan === "annual"
-                          ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
-                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                      }`}
-                    >
-                      Annual
-                      <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-yellow-900 text-[8px] font-bold px-1 py-0.5 rounded-full">
-                        -20%
-                      </span>
-                    </button>
-                  </div>
+              <div className="mb-4">
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setSelectedPlan("monthly")}
+                    className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      selectedPlan === "monthly"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    Monthly equivalent
+                  </button>
+                  <button
+                    onClick={() => setSelectedPlan("annual")}
+                    className={`relative px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      selectedPlan === "annual"
+                        ? "bg-(--color-accent-yellow) text-(--color-ink) shadow-lg shadow-(--color-accent-yellow)/25"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    Annual
+                    <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-yellow-900 text-[8px] font-bold px-1 py-0.5 rounded-full">
+                      BEST
+                    </span>
+                  </button>
                 </div>
-              )}
+              </div>
 
-              <div
-                className={`relative rounded-xl ${
-                  userTier === "enterprise"
-                    ? "bg-linear-to-br from-purple-50 to-transparent border-2 border-purple-500"
-                    : "bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow)"
-                } p-4 shadow-lg mb-4`}
-              >
-                {userTier !== "enterprise" && (
-                  <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    RECOMMENDED
-                  </div>
-                )}
+              <div className="relative rounded-xl bg-linear-to-br from-(--color-accent-yellow)/5 to-transparent border-2 border-(--color-accent-yellow) p-4 shadow-lg mb-4">
+                <div className="absolute -top-2 left-4 bg-(--color-accent-yellow) text-(--color-ink) text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  RECOMMENDED
+                </div>
 
                 <div className="flex items-center gap-2 mb-2">
                   {tierInfo.icon}
@@ -307,20 +239,14 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
 
                 <div className="mb-2">
                   <span className="text-2xl font-bold">
-                    {userTier === "enterprise"
-                      ? tierInfo.monthlyPrice
-                      : selectedPlan === "annual"
-                        ? tierInfo.annualPrice
-                        : tierInfo.monthlyPrice}
+                    {selectedPlan === "annual"
+                      ? tierInfo.annualPrice
+                      : tierInfo.monthlyPrice}
                   </span>
                   <span className="text-gray-500 dark:text-gray-400 text-xs ml-1">
-                    {userTier === "enterprise"
-                      ? "/mo"
-                      : selectedPlan === "annual"
-                        ? "/yr"
-                        : "/mo"}
+                    {selectedPlan === "annual" ? "/year" : "/mo"}
                   </span>
-                  {selectedPlan === "annual" && userTier !== "enterprise" && (
+                  {selectedPlan === "annual" && (
                     <p className="text-[10px] text-(--color-accent-yellow)">
                       {tierInfo.annualSavings}
                     </p>
@@ -333,38 +259,17 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                       key={index}
                       className="flex items-start gap-1.5 text-xs"
                     >
-                      <Check
-                        className={`h-3 w-3 shrink-0 mt-0.5 ${
-                          userTier === "enterprise"
-                            ? "text-purple-500"
-                            : "text-(--color-accent-yellow)"
-                        }`}
-                      />
+                      <Check className="h-3 w-3 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
                       <span>{feature}</span>
                     </li>
                   ))}
                 </ul>
-
-                {userTier !== "free" && userTier !== "enterprise" && (
-                  <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                      vs {tierInfo.currentTier}:{" "}
-                      {selectedPlan === "annual"
-                        ? tierInfo.annualSavings
-                        : "More features"}
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col items-center gap-2">
                 <Button
                   onClick={handleViewPricing}
-                  className={`w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] ${
-                    userTier === "enterprise"
-                      ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/25"
-                      : "bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
-                  }`}
+                  className="w-full rounded-lg py-3 text-sm font-semibold shadow-lg transition-all hover:scale-[1.02] bg-(--color-accent-yellow) hover:bg-[#e0a800] text-(--color-ink) shadow-(--color-accent-yellow)/25"
                 >
                   {tierInfo.primaryCta}
                   <Zap className="ml-1.5 h-3.5 w-3.5" />
@@ -376,9 +281,7 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
                   Maybe later
                 </button>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500">
-                  {userTier === "enterprise"
-                    ? "Contact sales for custom pricing"
-                    : "14-day trials available on select features"}
+                  7-day free trial on all plans
                 </p>
               </div>
             </div>
@@ -388,3 +291,5 @@ export function SubscriptionModal({ isOpen, onClose }: SubscriptionModalProps) {
     </AnimatePresence>
   );
 }
+
+export default SubscriptionModal;

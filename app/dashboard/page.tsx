@@ -1,3 +1,4 @@
+// app/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -115,18 +116,17 @@ function DashboardPage() {
   }, [userTier]);
 
   // Format plan name for display
- const formatPlanName = (plan: string) => {
-  if (!plan) return "";
-  const planMap: Record<string, string> = {
-    free: "Free",
-    solopreneur: "Solopreneur",
-    sme: "SME",
-    enterprise: "Enterprise",
-    corporation: "Corporation",
+  const formatPlanName = (plan: string) => {
+    if (!plan) return "";
+    const planMap: Record<string, string> = {
+      free: "Free",
+      starter: "Starter",
+      sme: "SME",
+      enterprise: "Enterprise",
+      console: "Console",
+    };
+    return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
   };
-  return planMap[plan] || plan.charAt(0).toUpperCase() + plan.slice(1);
-};
-
 
   // Get free tier limits
   const getFreeTierLimits = () => {

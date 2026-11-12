@@ -1,4 +1,4 @@
-// app/api/paystack/webhook/services/payment-page.service.ts
+﻿// app/api/paystack/webhook/services/payment-page.service.ts
 
 import { createClient } from "@supabase/supabase-js";
 import { processCardPaymentWebhook } from "@/app/api/webhook/services/card-payment.service";
@@ -56,7 +56,6 @@ export async function processPaymentPageFromPaystack(
     return { error: "Payment not found", status: 404 };
   }
 
-  // Amount sanity check
   if (Math.abs(Number(payment.amount) - amountNaira) > 0.01) {
     console.error("[paystack webhook] amount mismatch", {
       orderReference,
@@ -66,7 +65,6 @@ export async function processPaymentPageFromPaystack(
     return { error: "Amount mismatch — refusing to credit", status: 400 };
   }
 
-  // Normalize label (keep "card_payment" for downstream compatibility)
   payment.payment_method = "card_payment";
 
   return processCardPaymentWebhook(payload, {

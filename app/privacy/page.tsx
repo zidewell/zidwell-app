@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default function PrivacyPolicy() {
   const router = useRouter();
-  const primaryColor = "#FDC020";
+  const primaryColor = "#F5B800";
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

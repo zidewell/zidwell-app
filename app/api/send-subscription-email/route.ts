@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
+import { emailShell, ui, esc, naira } from "@/lib/email/ui";
 import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
@@ -17,13 +17,20 @@ async function sendConfirmationEmail(
   await transporter.sendMail({
     from: `"Subscription Team" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Payment Successful ✅",
-    html: `
-      <h2>Hello ${fullName},</h2>
-      <p>Your payment of <strong>₦${amount}</strong> was successful ✅</p>
-      <p>Your subscription is now active.</p>
-      <p>Thank you for your business!</p>
-    `,
+    subject: "Payment successful — subscription active",
+    html: emailShell({
+      title: "Subscription active",
+      preheader: `Your payment of ${naira(amount)} was successful.`,
+      content: `
+        ${ui.h1("✅ Payment successful")}
+        ${ui.p(`Hi ${esc(fullName)},`)}
+        ${ui.p(
+          `Your payment of <strong>${naira(amount)}</strong> was successful and your subscription is now active.`
+        )}
+        ${ui.cta("Go to dashboard", `${process.env.NEXT_PUBLIC_BASE_URL || "https://zidwell.com"}/dashboard`)}
+        ${ui.signature("The Zidwell Subscription Team")}
+      `,
+    }),
   });
 }
 

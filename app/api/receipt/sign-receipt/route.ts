@@ -4,6 +4,13 @@ import { transporter } from "@/lib/node-mailer";
 import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
+import {
+  emailShell,
+  ui,
+  esc,
+  naira,
+  niceDate,
+} from "@/lib/email/ui";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -135,7 +142,7 @@ function generateReceiptHTML(
     }
     
     .header {
-      background: #FDC020;
+      background: #F5B800;
       padding: 32px;
       color: #191919;
       position: relative;
@@ -180,7 +187,7 @@ function generateReceiptHTML(
       display: inline-block;
       padding: 4px 12px;
       background: #191919;
-      color: #FDC020;
+      color: #F5B800;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 600;
@@ -287,7 +294,7 @@ function generateReceiptHTML(
     
     .grand-total .totals-value {
       font-weight: 700;
-      color: #FDC020;
+      color: #F5B800;
       font-size: 20px;
     }
     
@@ -657,54 +664,29 @@ export async function POST(req: NextRequest) {
       const clientEmailPromise = transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: signeeEmail || updatedReceipt.client_email,
-        subject: `Receipt #${updatedReceipt.receipt_id} Signed Successfully`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 28px; overflow: hidden; border: 1px solid #E5E5E5; }
-        .header { background: #FDC020; padding: 24px; text-align: center; }
-        .content { padding: 32px; }
-        .btn { background: #FDC020; color: #191919; padding: 12px 24px; text-decoration: none; border-radius: 12px; display: inline-block; font-weight: 600; }
-        .receipt-details { background: #F5F5F5; padding: 20px; border-radius: 16px; margin: 20px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1 style="color: #191919; margin: 0;">Zidwell Receipt</h1>
-        </div>
-        <div class="content">
-            <h2 style="color: #191919; margin-bottom: 20px;">Receipt Successfully Signed!</h2>
-            <p>Hello ${signeeName},</p>
-            <p>You have successfully signed and acknowledged receipt #${updatedReceipt.receipt_id}.</p>
-            
-            <div class="receipt-details">
-                <p><strong>Receipt ID:</strong> ${updatedReceipt.receipt_id}</p>
-                <p><strong>From:</strong> ${updatedReceipt.business_name || updatedReceipt.initiator_name}</p>
-                <p><strong>Amount:</strong> ${formatCurrency(updatedReceipt.total || 0)}</p>
-                <p><strong>Signed Date:</strong> ${new Date(now).toLocaleDateString("en-NG", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}</p>
-            </div>
-            
-            <p>A signed PDF copy of this receipt is attached to this email.</p>
-            
-            <p style="margin-top: 30px;">
-                Best regards,<br>
-                <strong>The Zidwell Team</strong>
-            </p>
-        </div>
-    </div>
-</body>
-</html>
-        `,
+        subject: `Receipt #${updatedReceipt.receipt_id} signed successfully`,
+        html: emailShell({
+          title: `Receipt #${updatedReceipt.receipt_id} signed`,
+          preheader: "Your signed receipt is attached as a PDF.",
+          content: `
+            ${ui.h1("✅ Receipt signed")}
+            ${ui.p(`Hi ${esc(signeeName)},`)}
+            ${ui.p(
+              `You've successfully signed and acknowledged receipt <strong>#${esc(updatedReceipt.receipt_id)}</strong>.`
+            )}
+            ${ui.kvCard([
+              { label: "Receipt ID", value: esc(updatedReceipt.receipt_id) },
+              {
+                label: "From",
+                value: esc(updatedReceipt.business_name || updatedReceipt.initiator_name || "—"),
+              },
+              { label: "Amount", value: naira(updatedReceipt.total || 0) },
+              { label: "Signed", value: niceDate(now) },
+            ])}
+            ${ui.muted("A signed PDF copy is attached to this email.")}
+            ${ui.signature()}
+          `,
+        }),
         attachments: [
           {
             filename: `receipt_${updatedReceipt.receipt_id}_signed.pdf`,
@@ -715,58 +697,31 @@ export async function POST(req: NextRequest) {
       });
       emailPromises.push(clientEmailPromise);
     }
-
+    
     if (updatedReceipt.initiator_email) {
       const businessEmailPromise = transporter.sendMail({
         from: process.env.EMAIL_FROM,
         to: updatedReceipt.initiator_email,
-        subject: `Receipt #${updatedReceipt.receipt_id} Signed by ${signeeName}`,
-        html: `
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body { font-family: 'Inter', Arial, sans-serif; background-color: #f9fafb; margin: 0; padding: 0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 28px; overflow: hidden; border: 1px solid #E5E5E5; }
-        .header { background: #FDC020; padding: 24px; text-align: center; }
-        .content { padding: 32px; }
-        .receipt-details { background: #F5F5F5; padding: 20px; border-radius: 16px; margin: 20px 0; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1 style="color: #191919; margin: 0;">Zidwell Receipt</h1>
-        </div>
-        <div class="content">
-            <h2 style="color: #191919; margin-bottom: 20px;">Receipt Acknowledged!</h2>
-            <p>Good news! Your receipt has been signed and acknowledged by the client.</p>
-            
-            <div class="receipt-details">
-                <p><strong>Receipt ID:</strong> ${updatedReceipt.receipt_id}</p>
-                <p><strong>Client Name:</strong> ${signeeName}</p>
-                <p><strong>Client Email:</strong> ${signeeEmail || updatedReceipt.client_email}</p>
-                <p><strong>Amount:</strong> ${formatCurrency(updatedReceipt.total || 0)}</p>
-                <p><strong>Signed Date:</strong> ${new Date(now).toLocaleDateString("en-NG", {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}</p>
-            </div>
-            
-            <p>A signed PDF copy of this receipt is attached to this email.</p>
-            
-            <p style="margin-top: 30px;">
-                Best regards,<br>
-                <strong>The Zidwell Team</strong>
-            </p>
-        </div>
-    </div>
-</body>
-</html>
-        `,
+        subject: `Receipt #${updatedReceipt.receipt_id} signed by ${signeeName}`,
+        html: emailShell({
+          title: `Receipt #${updatedReceipt.receipt_id} signed`,
+          preheader: `${signeeName} has signed your receipt.`,
+          content: `
+            ${ui.h1("📝 Receipt acknowledged")}
+            ${ui.p(
+              `Good news — receipt <strong>#${esc(updatedReceipt.receipt_id)}</strong> has been signed by your client.`
+            )}
+            ${ui.kvCard([
+              { label: "Receipt ID", value: esc(updatedReceipt.receipt_id) },
+              { label: "Client", value: esc(signeeName) },
+              { label: "Client email", value: esc(signeeEmail || updatedReceipt.client_email || "—") },
+              { label: "Amount", value: naira(updatedReceipt.total || 0) },
+              { label: "Signed", value: niceDate(now) },
+            ])}
+            ${ui.muted("A signed PDF copy is attached to this email.")}
+            ${ui.signature()}
+          `,
+        }),
         attachments: [
           {
             filename: `receipt_${updatedReceipt.receipt_id}_client_signed.pdf`,
@@ -778,6 +733,7 @@ export async function POST(req: NextRequest) {
       emailPromises.push(businessEmailPromise);
     }
 
+    
     await Promise.all(emailPromises);
 
     return NextResponse.json({

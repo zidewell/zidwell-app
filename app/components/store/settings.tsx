@@ -1,6 +1,6 @@
 // app/components/store/settings.tsx
 "use client";
-
+import { DeliveryZoneList } from "./DeliveryZoneList";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "@/app/context/StoreContext";
 import {
@@ -52,8 +52,7 @@ interface StoreSettingsShape {
   localPickupEnabled: boolean;
 
   deliveryEnabled: boolean;
-  deliveryFee: string;
-  deliveryFreeThreshold: string;
+
   deliveryNotes: string;
 }
 
@@ -75,8 +74,6 @@ const DEFAULT_STORE: StoreSettingsShape = {
   localPickupEnabled: false,
 
   deliveryEnabled: false,
-  deliveryFee: "0",
-  deliveryFreeThreshold: "0",
   deliveryNotes: "",
 };
 
@@ -140,7 +137,10 @@ function Field({
 }) {
   return (
     <div>
-      <Label htmlFor={htmlFor} className="block text-sm font-bold text-foreground">
+      <Label
+        htmlFor={htmlFor}
+        className="block text-sm font-bold text-foreground"
+      >
         {label}
         {required && <span className="text-destructive ml-1">*</span>}
       </Label>
@@ -180,7 +180,7 @@ function Toggle({
         disabled={disabled}
         className="sr-only peer"
       />
-      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#FDC020] transition-colors duration-200 relative">
+      <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-[#F5B800] transition-colors duration-200 relative">
         <div
           className={cn(
             "absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200",
@@ -230,7 +230,8 @@ export function StoreSettings() {
         setLoading(true);
         const res = await fetch("/api/store/settings", { cache: "no-store" });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load store settings");
+        if (!res.ok)
+          throw new Error(data.error || "Failed to load store settings");
         const s = data.store;
 
         const shape: StoreSettingsShape = {
@@ -251,8 +252,6 @@ export function StoreSettings() {
           localPickupEnabled: s.local_pickup_enabled === true,
 
           deliveryEnabled: s.delivery_enabled === true,
-          deliveryFee: String(s.delivery_fee ?? "0"),
-          deliveryFreeThreshold: String(s.delivery_free_threshold ?? "0"),
           deliveryNotes: s.delivery_notes || "",
         };
 
@@ -312,8 +311,6 @@ export function StoreSettings() {
       original.whatsappNumber !== form.whatsappNumber ||
       original.localPickupEnabled !== form.localPickupEnabled ||
       original.deliveryEnabled !== form.deliveryEnabled ||
-      original.deliveryFee !== form.deliveryFee ||
-      original.deliveryFreeThreshold !== form.deliveryFreeThreshold ||
       original.deliveryNotes !== form.deliveryNotes ||
       original.keywords.join("|").toLowerCase() !==
         form.keywords.join("|").toLowerCase()
@@ -351,7 +348,10 @@ export function StoreSettings() {
 
   const handleKeywordsBlur = useCallback(
     (raw: string) => {
-      const parts = raw.split(",").map((k) => k.trim()).filter(Boolean);
+      const parts = raw
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
       const seen = new Set<string>();
       const clean: string[] = [];
       for (const k of parts) {
@@ -441,7 +441,8 @@ export function StoreSettings() {
             msg = "Location permission denied.";
           else if (err.code === err.POSITION_UNAVAILABLE)
             msg = "Location information is unavailable.";
-          else if (err.code === err.TIMEOUT) msg = "Location request timed out.";
+          else if (err.code === err.TIMEOUT)
+            msg = "Location request timed out.";
           setLocationError(msg);
           toast.error("Location unavailable", { description: msg });
           resolve(null);
@@ -548,15 +549,7 @@ export function StoreSettings() {
       }
     }
 
-    if (form.deliveryEnabled) {
-      const fee = Number(form.deliveryFee);
-      if (!Number.isFinite(fee) || fee < 0)
-        errs.deliveryFee = "Delivery fee must be a valid number";
-      const threshold = Number(form.deliveryFreeThreshold);
-      if (!Number.isFinite(threshold) || threshold < 0)
-        errs.deliveryFreeThreshold = "Threshold must be a valid number";
-    }
-
+    
     setErrors(errs);
     if (Object.keys(errs).length > 0) {
       const first = Object.values(errs)[0];
@@ -600,8 +593,6 @@ export function StoreSettings() {
           localPickupEnabled: form.localPickupEnabled,
 
           deliveryEnabled: form.deliveryEnabled,
-          deliveryFee: Number(form.deliveryFee) || 0,
-          deliveryFreeThreshold: Number(form.deliveryFreeThreshold) || 0,
           deliveryNotes: form.deliveryNotes.trim() || null,
         }),
       });
@@ -640,8 +631,7 @@ export function StoreSettings() {
         localPickupEnabled: data.store.local_pickup_enabled === true,
 
         deliveryEnabled: data.store.delivery_enabled === true,
-        deliveryFee: String(data.store.delivery_fee ?? "0"),
-        deliveryFreeThreshold: String(data.store.delivery_free_threshold ?? "0"),
+    
         deliveryNotes: data.store.delivery_notes || "",
       };
 
@@ -789,7 +779,10 @@ export function StoreSettings() {
                 />
               </Field>
 
-              <Field label="Store URL" hint="Can't be changed after activation.">
+              <Field
+                label="Store URL"
+                hint="Can't be changed after activation."
+              >
                 <div className="flex items-center rounded-2xl border border-border bg-background pr-3 overflow-hidden">
                   <span className="px-4 py-3.5 text-sm font-bold text-muted-foreground bg-muted whitespace-nowrap">
                     zidwell.com/store/
@@ -1087,7 +1080,7 @@ export function StoreSettings() {
                         type="button"
                         onClick={openAddLocation}
                         disabled={saving || !storeId}
-                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#FDC020] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 shrink-0 rounded-2xl bg-[#F5B800] text-black px-4 py-2.5 text-sm font-bold hover:bg-[#eab308] transition-colors disabled:opacity-50"
                       >
                         <Plus className="size-4" />
                         Add Location
@@ -1126,7 +1119,7 @@ export function StoreSettings() {
                                   {loc.label}
                                 </span>
                                 {loc.is_default && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FDC020]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#FDC020]">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#F5B800]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#191919] dark:text-[#F5B800]">
                                     <Star className="size-3" /> Default
                                   </span>
                                 )}
@@ -1213,7 +1206,7 @@ export function StoreSettings() {
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Customers enter their delivery address at checkout.
+                      Customers choose a delivery zone at checkout.
                     </p>
                   </div>
                   <Toggle
@@ -1224,56 +1217,11 @@ export function StoreSettings() {
                 </div>
 
                 {form.deliveryEnabled && (
-                  <div className="p-5 space-y-4 border-t border-border">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field
-                        label="Delivery Fee (₦)"
-                        hint="Flat fee charged per order."
-                        error={errors.deliveryFee}
-                      >
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          inputMode="decimal"
-                          value={form.deliveryFee}
-                          onChange={(e) =>
-                            setField("deliveryFee", e.target.value)
-                          }
-                          disabled={saving}
-                          className={cn(
-                            "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
-                            errors.deliveryFee
-                              ? "border-destructive"
-                              : "border-border",
-                          )}
-                        />
-                      </Field>
-
-                      <Field
-                        label="Free Above (₦)"
-                        hint="Optional. Set 0 to disable."
-                        error={errors.deliveryFreeThreshold}
-                      >
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          inputMode="decimal"
-                          value={form.deliveryFreeThreshold}
-                          onChange={(e) =>
-                            setField("deliveryFreeThreshold", e.target.value)
-                          }
-                          disabled={saving}
-                          className={cn(
-                            "w-full px-4 py-3.5 text-[15px] font-semibold rounded-2xl border bg-background",
-                            errors.deliveryFreeThreshold
-                              ? "border-destructive"
-                              : "border-border",
-                          )}
-                        />
-                      </Field>
-                    </div>
+                  <div className="p-5 border-t border-border space-y-4">
+                    <DeliveryZoneList
+                      storeId={storeId ?? ""}
+                      disabled={saving}
+                    />
 
                     <Field
                       label="Delivery Notes (optional)"
@@ -1311,7 +1259,7 @@ export function StoreSettings() {
             "inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-colors",
             saving || !isDirty
               ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-[#FDC020] text-black hover:bg-[#eab308]",
+              : "bg-[#F5B800] text-black hover:bg-[#eab308]",
           )}
         >
           {saving ? (

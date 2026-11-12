@@ -164,7 +164,7 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
     }
     @media (min-width: 768px) { .container { max-width: 800px; } }
     .header { 
-      background: #FDC020; 
+      background: #F5B800; 
       padding: 20px; 
       color: #191919; 
     }
@@ -183,7 +183,7 @@ export const GenerateReceiptModal: React.FC<GenerateReceiptModalProps> = ({
       margin-top: 16px; 
       padding-top: 12px; 
       border-top: 2px solid #E5E5E5; 
-      color: #FDC020;
+      color: #F5B800;
     }
     @media (min-width: 640px) { .total { font-size: 20px; margin-top: 24px; padding-top: 16px; } }
     .section { margin-bottom: 16px; }

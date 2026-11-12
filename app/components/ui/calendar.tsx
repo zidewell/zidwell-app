@@ -36,7 +36,7 @@ function Calendar({
         day_button:
           "inline-flex h-9 w-9 items-center justify-center rounded-md font-normal hover:bg-muted transition aria-selected:opacity-100",
         selected:
-          "bg-[#FDC020] text-[#191919] hover:bg-[#FDC020] focus:bg-[#FDC020] font-semibold",
+          "bg-[#F5B800] text-[#191919] hover:bg-[#F5B800] focus:bg-[#F5B800] font-semibold",
         today: "bg-muted text-foreground",
         outside: "text-foreground/30",
         disabled: "text-foreground/20",
@@ -44,7 +44,7 @@ function Calendar({
         range_start: "rounded-l-md",
         range_end: "rounded-r-md",
         range_middle:
-          "aria-selected:bg-[#FDC020]/20 aria-selected:text-foreground",
+          "aria-selected:bg-[#F5B800]/20 aria-selected:text-foreground",
         ...classNames,
       }}
       components={{

@@ -1,7 +1,6 @@
-// app/store/[storeSlug]/[productSlug]/client.tsx
 "use client";
 
-import { Shield, Truck, Store as StoreIcon, ChevronRight } from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useProductCheckout } from "./hooks/useProductCheckout";
 import type { StoreProductClientProps } from "./utils/types";
@@ -63,11 +62,8 @@ export default function StoreProductClient(props: StoreProductClientProps) {
     );
   }
 
-  // Compute a fake "original price" for display (20% higher) - remove if you have real compare-at prices
   const originalPrice =
-    c.displayPrice > 0
-      ? Math.round(c.displayPrice * 1.2)
-      : 0;
+    c.displayPrice > 0 ? Math.round(c.displayPrice * 1.2) : 0;
 
   const discountPercent =
     originalPrice > 0
@@ -75,8 +71,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
       : 0;
 
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      {/* ─── Jumia-style top header ─── */}
+    <div className="min-h-screen bg-background text-foreground">
       <ProductHeader
         store={store}
         storeNameUpper={c.storeNameUpper}
@@ -89,28 +84,25 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         }
       />
 
-      {/* ─── Breadcrumb ─── */}
       <div className="mx-auto max-w-[1180px] px-4 lg:px-6">
-        <nav className="flex items-center gap-1.5 py-3 text-xs text-gray-500">
-          <Link href="/" className="hover:text-[#FDC020]">
+        <nav className="flex items-center gap-1.5 py-3 text-xs text-muted-foreground">
+          <Link href="/" className="hover:text-[#F5B800]">
             Home
           </Link>
           <ChevronRight className="h-3 w-3" />
           <Link
             href={`/store/${store.slug}`}
-            className="hover:text-[#FDC020]"
+            className="hover:text-[#F5B800]"
           >
             {store.name}
           </Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="line-clamp-1 text-gray-700">{page.title}</span>
+          <span className="line-clamp-1 text-foreground/80">{page.title}</span>
         </nav>
       </div>
 
-      {/* ─── Main product section ─── */}
       <section className="mx-auto max-w-[1180px] px-4 pb-10 lg:px-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-8">
-          {/* ─── LEFT COLUMN: Images ─── */}
           <div className="lg:sticky lg:top-4 lg:self-start">
             <ProductImageGallery
               productImages={c.productImages}
@@ -118,65 +110,57 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               setCurrentImage={c.setCurrentImage}
               title={page.title}
             />
-
-          
           </div>
 
-          {/* ─── RIGHT COLUMN: Product Info ─── */}
           <div className="flex flex-col">
-            {/* Category tag */}
-            <span className="w-fit text-[11px] font-medium uppercase tracking-wider text-gray-500">
+            <span className="w-fit text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               {c.isPaymentLink
                 ? "Payment Link"
                 : TYPE_LABELS[page.pageType] || "Product"}
             </span>
 
-            {/* Title */}
-            <h1 className="mt-1 text-lg font-medium leading-snug text-gray-900 sm:text-xl">
+            <h1 className="mt-1 text-lg font-medium leading-snug text-foreground sm:text-xl">
               {page.title}
             </h1>
 
-            {/* Rating placeholder (Jumia shows stars) */}
-            <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-0.5">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <span key={i} className="text-[#FDC020]">
+                  <span key={i} className="text-[#F5B800]">
                     ★
                   </span>
                 ))}
               </div>
-              <span className="text-gray-400">|</span>
+              <span className="text-muted-foreground/60">|</span>
               <span>{store.name}</span>
             </div>
 
-            {/* Stock badge */}
             <StockBadge
               showQuantity={c.showQuantity}
               productStock={c.productStock}
               isOutOfStock={c.isOutOfStock}
             />
 
-            {/* ─── Price block ─── */}
             {!c.isDonation && !c.isPlanComplete && (
-              <div className="mt-3 border-y border-gray-100 py-3">
+              <div className="mt-3 border-y border-border py-3">
                 {c.isPhysical &&
                 c.variants.length > 0 &&
                 selectedVariantSkus.size === 0 ? (
-                  <span className="text-xl font-medium text-gray-400">
+                  <span className="text-xl font-medium text-muted-foreground">
                     Select a variant
                   </span>
                 ) : (
                   <div className="flex flex-wrap items-baseline gap-3">
-                    <span className="text-2xl font-bold text-gray-900 sm:text-3xl">
+                    <span className="text-2xl font-bold text-foreground sm:text-3xl">
                       ₦{c.displayPrice.toLocaleString()}
                     </span>
 
                     {originalPrice > 0 && discountPercent > 0 && (
                       <>
-                        <span className="text-sm text-gray-400 line-through">
+                        <span className="text-sm text-muted-foreground/70 line-through">
                           ₦{originalPrice.toLocaleString()}
                         </span>
-                        <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-600">
+                        <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-xs font-semibold text-red-600 dark:text-red-400">
                           -{discountPercent}%
                         </span>
                       </>
@@ -184,19 +168,19 @@ export default function StoreProductClient(props: StoreProductClientProps) {
 
                     {c.selectedPaymentOption === "installment" &&
                     c.installmentPlan ? (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         per payment ·{" "}
                         {c.existingAccount?.installment_count ||
                           c.installmentPlan.installmentCount}{" "}
                         payments
                       </span>
                     ) : c.isPhysical && selectedVariantLines.length > 0 ? (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         × {totalPhysicalUnits}{" "}
                         {totalPhysicalUnits === 1 ? "unit" : "units"}
                       </span>
                     ) : c.showQuantity && c.quantity > 1 ? (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         × {c.quantity}
                       </span>
                     ) : null}
@@ -205,12 +189,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </div>
             )}
 
-            {/* ─── Returning buyer CTAs ─── */}
             {c.isSchoolPage && !c.isPlanComplete && (
               <button
                 type="button"
                 onClick={() => c.setShowContinueModal(true)}
-                className="mt-3 w-fit text-xs font-medium text-[#FDC020] underline hover:no-underline"
+                className="mt-3 w-fit text-xs font-medium text-[#F5B800] underline hover:no-underline"
               >
                 Paid before? Find my payments
               </button>
@@ -224,30 +207,28 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 <button
                   type="button"
                   onClick={() => c.setShowContinueModal(true)}
-                  className="mt-3 w-fit text-xs font-medium text-[#FDC020] underline hover:no-underline"
+                  className="mt-3 w-fit text-xs font-medium text-[#F5B800] underline hover:no-underline"
                 >
                   Already paid before? Continue your plan
                 </button>
               )}
 
-            {/* ─── School welcome card ─── */}
             {c.isSchoolPage &&
               c.myPaidStudents &&
               Object.keys(c.myPaidStudents).length > 0 && (
-                <div className="mt-3 rounded-lg border border-[#FDC020] bg-[#FDC020]/5 p-3">
-                  <p className="text-sm font-semibold">
+                <div className="mt-3 rounded-lg border border-[#F5B800] bg-[#F5B800]/5 p-3">
+                  <p className="text-sm font-semibold text-foreground">
                     {c.myBuyerName
                       ? `Welcome back, ${c.myBuyerName}`
                       : "Your payments"}
                   </p>
-                  <p className="mt-1 text-xs text-gray-600">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     You've paid for {Object.keys(c.myPaidStudents).length}{" "}
                     student(s).
                   </p>
                 </div>
               )}
 
-            {/* ─── Completed / Active plan cards ─── */}
             {c.existingAccount &&
               (c.isPlanComplete || c.isAccountFullyPaid) && (
                 <CompletedPlanCard
@@ -269,7 +250,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               />
             )}
 
-            {/* ─── Quantity (non-physical) ─── */}
             {c.canPickQuantity &&
               !c.isPhysical &&
               !c.isOutOfStock &&
@@ -283,30 +263,28 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               )}
 
             {c.showQuantity && c.isOutOfStock && !c.isPhysical && (
-              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-sm font-medium text-gray-700">
+              <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-sm font-medium text-foreground/80">
                   This item is currently out of stock
                 </p>
               </div>
             )}
 
-            {/* ─── Delivery fee line ─── */}
             {c.requiresShipping &&
               c.deliveryFee > 0 &&
               !c.isPlanComplete && (
-                <div className="mt-3 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                  <span className="text-xs text-gray-600">
+                <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
+                  <span className="text-xs text-muted-foreground">
                     {c.fulfillment.method === "delivery"
                       ? "Delivery fee"
                       : "Pickup"}
                   </span>
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium text-foreground">
                     ₦{c.deliveryFee.toLocaleString()}
                   </span>
                 </div>
               )}
 
-            {/* ─── Installment toggle ─── */}
             {c.canDoInstallments &&
               !c.existingAccount &&
               !c.isPlanComplete && (
@@ -321,7 +299,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               c.installmentPlan &&
               !c.existingAccount &&
               !c.isPlanComplete && (
-                <p className="mt-2 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   {c.selectedPaymentOption === "installment"
                     ? `${c.installmentPlan.installmentCount} payments of ₦${(
                         (c.installmentPlan.totalAmount *
@@ -332,7 +310,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                 </p>
               )}
 
-            {/* ─── Donation fields ─── */}
             {c.isDonation && !c.isPlanComplete && (
               <DonationFields
                 suggestedAmounts={c.suggestedAmounts}
@@ -343,7 +320,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               />
             )}
 
-            {/* ─── Physical variants ─── */}
             {c.isPhysical && !c.isPlanComplete && (
               <PhysicalFields
                 variants={c.variants}
@@ -359,14 +335,11 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               />
             )}
 
-            {/* ─── Fulfillment (delivery/pickup) ─── */}
             {c.requiresShipping && !c.isPlanComplete && (
               <FulfillmentFields
                 storeId={store.id}
                 pickupEnabled={c.storePickupEnabled}
                 deliveryEnabled={c.storeDeliveryEnabled}
-                deliveryFee={c.storeDeliveryFee}
-                deliveryFreeThreshold={c.storeDeliveryFreeThreshold}
                 deliveryNotes={c.storeDeliveryNotes}
                 cartSubtotal={c.currentTotalAmount}
                 value={c.fulfillment}
@@ -378,10 +351,9 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               />
             )}
 
-            {/* ─── Digital info ─── */}
             {c.isDigital && !c.isPlanComplete && (
-              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-xs text-gray-600">
+              <div className="mt-4 rounded-lg border border-border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">
                   {c.emailDelivery
                     ? "Download link will be sent to your email"
                     : "Access will be granted after payment"}
@@ -389,7 +361,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </div>
             )}
 
-            {/* ─── School fields ─── */}
             {c.isSchoolPage && (
               <SchoolFields
                 entities={c.entities}
@@ -406,15 +377,14 @@ export default function StoreProductClient(props: StoreProductClientProps) {
             )}
 
             {c.isSchoolPage && c.feeBreakdown.length > 0 && (
-              <div className="mt-4 border-t border-gray-100 pt-3">
-                <h3 className="mb-2 text-sm font-semibold">Fee breakdown</h3>
+              <div className="mt-4 border-t border-border pt-3">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">
+                  Fee breakdown
+                </h3>
                 {c.feeBreakdown.map((item: any, i: number) => (
-                  <div
-                    key={i}
-                    className="flex justify-between py-1 text-sm"
-                  >
-                    <span className="text-gray-500">{item.label}</span>
-                    <span className="font-medium">
+                  <div key={i} className="flex justify-between py-1 text-sm">
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <span className="font-medium text-foreground">
                       ₦{Number(item.amount).toLocaleString()}
                     </span>
                   </div>
@@ -422,33 +392,29 @@ export default function StoreProductClient(props: StoreProductClientProps) {
               </div>
             )}
 
-            {/* ─── Locked fields notice ─── */}
             {c.lockedFields && !c.isPlanComplete && !c.isSchoolPage && (
-              <div className="mt-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="flex-1 text-xs text-gray-600">
+              <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-3">
+                <p className="flex-1 text-xs text-muted-foreground">
                   Details locked from your previous payment
                 </p>
                 <button
                   type="button"
                   onClick={c.handleUnlockForEdit}
-                  className="text-xs font-medium text-[#FDC020] underline"
+                  className="text-xs font-medium text-[#F5B800] underline"
                 >
                   Unlock to edit
                 </button>
               </div>
             )}
 
-            {/* ─── CTA buttons (Jumia style: side-by-side) ─── */}
             {!c.isPlanComplete && (
-              <div className="mt-5 border-t border-gray-100 pt-5">
+              <div className="mt-5 border-t border-border pt-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <div className="flex-1">
                     <CheckoutButton
                       onClick={c.openInfoModal}
                       disabled={c.isPayButtonDisabled()}
-                      processing={
-                        c.processingCardPayment || c.submissionLock
-                      }
+                      processing={c.processingCardPayment || c.submissionLock}
                       isOutOfStock={c.isOutOfStock}
                       isDonation={c.isDonation}
                       donorAmount={c.donorAmount}
@@ -467,7 +433,7 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto"
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-5 text-sm font-semibold text-foreground/80 transition-colors hover:bg-muted sm:w-auto"
                       title="Contact store owner on WhatsApp"
                     >
                       <WhatsAppIcon className="h-4 w-4 shrink-0 text-green-500" />
@@ -476,14 +442,13 @@ export default function StoreProductClient(props: StoreProductClientProps) {
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-400">
+                <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground/70">
                   <Shield className="h-3.5 w-3.5" />
                   Secured checkout
                 </div>
               </div>
             )}
 
-            {/* ─── Description (moved into right column, Jumia style) ─── */}
             {page.description && (
               <DescriptionBlock html={page.description} />
             )}
@@ -491,7 +456,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         </div>
       </section>
 
-      {/* ─── More from store ─── */}
       <MoreFromStore
         products={moreProducts}
         storeSlug={store.slug}
@@ -499,7 +463,6 @@ export default function StoreProductClient(props: StoreProductClientProps) {
         currentProductId={page.id}
       />
 
-      {/* ─── Modals ─── */}
       {c.showInfoModal && (
         <InfoModal
           isDonation={c.isDonation}

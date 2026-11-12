@@ -3,13 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import { isAuthenticated } from "@/lib/auth-check-api";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { STORE_ACTIVATION_CONFIG } from "@/lib/store-activation";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ACTIVATION_FEE_NAIRA = 500;
+const ACTIVATION_FEE_NAIRA = STORE_ACTIVATION_CONFIG.ORIGINAL_FEE;
 
 export async function POST(req: NextRequest) {
   const user = await isAuthenticated(req);
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
       if (lockUntil > now) {
         const remainingMinutes = Math.ceil((lockUntil.getTime() - now.getTime()) / 60000);
         return NextResponse.json(
-          { 
+          {
             error: `PIN is locked. Please wait ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''} or reset your PIN.`,
             locked: true,
             lockedUntil: lockUntil.toISOString()
@@ -67,11 +68,11 @@ export async function POST(req: NextRequest) {
     // Verify PIN
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isPinValid = await bcrypt.compare(plainPin, dbUser.transaction_pin);
-    
+
     if (!isPinValid) {
       // Increment failed attempts
       const newAttempts = (dbUser.pin_attempts || 0) + 1;
-      
+
       // Lock after 3 failed attempts
       if (newAttempts >= 3) {
         const lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes lock
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
 
       // Validate store data
       const { name, slug, description, country, state, city, streetAddress } = storeData;
-      
+
       if (!name?.trim() || !slug?.trim() || !description?.trim()) {
         return NextResponse.json(
           { error: "Name, slug and description are required" },
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
         .replace(/[^a-z0-9-]/g, "")
         .replace(/\s/g, "-")
         .replace(/-+/g, "-");
-      
+
       if (cleanSlug.length < 3) {
         return NextResponse.json(
           { error: "Store URL must be at least 3 characters" },
@@ -232,7 +233,7 @@ export async function POST(req: NextRequest) {
 
     // ✅ Atomic: deduct activation fee from wallet using RPC
     const reference = `STORE_ACT_${Date.now()}_${user.id}`;
-    
+
     const { data: deductionResult, error: deductionError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
@@ -269,7 +270,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         amt: ACTIVATION_FEE_NAIRA,
       });
-      
+
       return NextResponse.json(
         { error: "Failed to activate store. Funds have been refunded." },
         { status: 500 }
@@ -304,9 +305,9 @@ export async function POST(req: NextRequest) {
       await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user/wallet/balance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userId: user.id,
-          forceBalance: currentBalance - ACTIVATION_FEE_NAIRA 
+          forceBalance: currentBalance - ACTIVATION_FEE_NAIRA
         }),
       });
     } catch (cacheError) {

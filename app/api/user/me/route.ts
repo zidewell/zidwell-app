@@ -46,6 +46,41 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // ─── Resolve effective subscription tier from zidstore_subscriptions ───
+    // NOTE: zidstore_subscriptions is not yet present in generated Supabase
+    // types. Cast the client for these two queries only — the runtime works.
+    // Remove the cast once types are regenerated.
+    const zidstoreDb = supabase as any;
+
+    const { data: activeSub } = await zidstoreDb
+      .from("zidstore_subscriptions")
+      .select("plan_tier, current_period_end, billing_period, status")
+      .eq("user_id", profile.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    let effectiveSubscriptionTier = "free";
+    let effectiveSubscriptionExpiresAt: string | null = null;
+
+    if (activeSub && activeSub.status === "active") {
+      const periodEnd = new Date(activeSub.current_period_end);
+      if (periodEnd.getTime() > Date.now()) {
+        effectiveSubscriptionTier = activeSub.plan_tier;
+        effectiveSubscriptionExpiresAt = activeSub.current_period_end;
+      } else {
+        // Subscription technically active but expired — mark it
+        await zidstoreDb
+          .from("zidstore_subscriptions")
+          .update({
+            status: "expired",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", profile.id)
+          .eq("status", "active");
+      }
+    }
+
     const userProfile = {
       id: profile.id,
       fullName: profile.full_name,
@@ -62,14 +97,17 @@ export async function GET(req: NextRequest) {
       dateOfBirth: profile.date_of_birth,
       profilePicture: profile.profile_picture,
       currentLoginSession: profile.current_login_session,
-      subscriptionTier: profile.subscription_tier || "free",
-      subscriptionExpiresAt: profile.subscription_expires_at,
+
+      // ✅ NOW resolved from zidstore_subscriptions
+      subscriptionTier: effectiveSubscriptionTier,
+      subscriptionExpiresAt: effectiveSubscriptionExpiresAt,
+
       isBlocked: profile.is_blocked,
       blockedAt: profile.blocked_at,
       blockReason: profile.block_reason,
       pinSet: profile.pin_set,
 
-      // ✅ Account tier
+      // ✅ Account tier (unrelated to subscription)
       accountTier: (profile.account_tier as string) || "tier_3",
 
       // ✅ Custom fee overrides
@@ -88,7 +126,6 @@ export async function GET(req: NextRequest) {
       ? createAuthResponse(userProfile, newTokens)
       : NextResponse.json(userProfile);
 
-    // Prevent caching layers from serving stale data
     response.headers.set(
       "Cache-Control",
       "no-store, no-cache, must-revalidate, max-age=0"

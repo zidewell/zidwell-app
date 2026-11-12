@@ -53,6 +53,9 @@ interface BankAccountFieldsProps {
   filteredBanks: Bank[];
   handleSelectBank: (bank: Bank) => void;
   getAllBeneficiaries: () => any[];
+  userId?: string;                             // 👈 new
+  onSavedAccountDeleted?: (id: string) => void;   // 👈 new
+  onSavedAccountDefaultChanged?: (id: string) => void; // 👈 new
 }
 
 export default function BankAccountFields({
@@ -87,6 +90,9 @@ export default function BankAccountFields({
   filteredBanks,
   handleSelectBank,
   getAllBeneficiaries,
+  userId,
+  onSavedAccountDeleted,
+  onSavedAccountDefaultChanged,
 }: BankAccountFieldsProps) {
   return (
     <>
@@ -106,6 +112,9 @@ export default function BankAccountFields({
         onToggle={() => setShowSavedAccounts(!showSavedAccounts)}
         onSelect={setSelectedSavedAccount}
         selectedId={selectedSavedAccount?.id}
+        userId={userId}
+        onDeleted={onSavedAccountDeleted}
+        onDefaultChanged={onSavedAccountDefaultChanged}
       />
 
       <div className="space-y-1">

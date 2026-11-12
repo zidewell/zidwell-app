@@ -24,13 +24,13 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json(
       { error: "Please login to access transactions", logout: true },
-      { status: 401 }
+      { status: 401 },
     );
   }
 
   const supabase = createClient(
     process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
   try {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       console.error(`User ID mismatch: ${userId} vs ${user.id}`);
       return NextResponse.json(
         { error: "Unauthorized: User ID mismatch" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -70,15 +70,14 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { message: "Missing or invalid required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // ─── Fetch user ───
     const { data: userData, error: userError } = await supabase
       .from("users")
       .select(
-        "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name, account_tier, custom_outflow_percent, custom_outflow_min"
+        "id, transaction_pin, wallet_balance, pin_attempts, pin_locked_until, email, first_name, last_name, full_name, account_tier, custom_outflow_percent, custom_outflow_min , wallet_frozen,wallet_freeze_reason",
       )
       .eq("id", userId)
       .single();
@@ -87,14 +86,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // ─── PIN lock check ───
+    if (userData.wallet_frozen) {
+      const response = NextResponse.json(
+        {
+          message:
+            userData.wallet_freeze_reason ||
+            "Your wallet is frozen. Please contact support.",
+          walletFrozen: true,
+        },
+        { status: 403 },
+      );
+      if (newTokens) return createAuthResponse(await response.json(), newTokens);
+      return response;
+    }
+
     if (
       userData.pin_locked_until &&
       new Date(userData.pin_locked_until) > new Date()
     ) {
       const lockedUntil = new Date(userData.pin_locked_until);
       const minutesLeft = Math.ceil(
-        (lockedUntil.getTime() - Date.now()) / 60000
+        (lockedUntil.getTime() - Date.now()) / 60000,
       );
 
       const response = NextResponse.json(
@@ -103,14 +115,13 @@ export async function POST(req: NextRequest) {
           locked: true,
           lockedUntil: userData.pin_locked_until,
         },
-        { status: 401 }
+        { status: 401 },
       );
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ─── PIN validation ───
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, userData.transaction_pin);
 
@@ -141,7 +152,7 @@ export async function POST(req: NextRequest) {
           userData.email,
           updateData.pin_reset_token,
           userId,
-          userName
+          userName,
         );
 
         const response = NextResponse.json(
@@ -151,7 +162,7 @@ export async function POST(req: NextRequest) {
             remainingAttempts: 0,
             resetEmailSent: true,
           },
-          { status: 401 }
+          { status: 401 },
         );
 
         if (newTokens)
@@ -168,14 +179,13 @@ export async function POST(req: NextRequest) {
           remainingAttempts,
           attempts: newAttempts,
         },
-        { status: 401 }
+        { status: 401 },
       );
 
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ✅ PIN valid — reset attempts
     await supabase
       .from("users")
       .update({
@@ -186,11 +196,8 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", userId);
 
-    // ───────────────────────────────────────────────────────────
-    // TIER + LIMIT CHECK
-    // ───────────────────────────────────────────────────────────
     const tier: AccountTier =
-      ((userData.account_tier as AccountTier) || "tier_3");
+      (userData.account_tier as AccountTier) || "tier_3";
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -207,7 +214,7 @@ export async function POST(req: NextRequest) {
       console.error("❌ Failed to fetch today's transactions:", todayError);
       const response = NextResponse.json(
         { message: "Could not verify daily transfer limit. Please try again." },
-        { status: 500 }
+        { status: 500 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
@@ -215,18 +222,18 @@ export async function POST(req: NextRequest) {
 
     const dailyTotalSoFar = (todayTx || []).reduce(
       (sum, t) => sum + Number(t.amount || 0),
-      0
+      0,
     );
 
     const limitCheck = checkTransferLimits(
       Number(amount),
       tier,
-      dailyTotalSoFar
+      dailyTotalSoFar,
     );
 
     if (!limitCheck.allowed) {
       console.log(
-        `🚫 Limit exceeded for user ${userId} (${tier}): ${limitCheck.reason}`
+        `🚫 Limit exceeded for user ${userId} (${tier}): ${limitCheck.reason}`,
       );
       const response = NextResponse.json(
         {
@@ -238,15 +245,12 @@ export async function POST(req: NextRequest) {
           dailyUsed: limitCheck.dailyUsed,
           dailyRemaining: limitCheck.dailyRemaining,
         },
-        { status: 400 }
+        { status: 400 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ───────────────────────────────────────────────────────────
-    // SERVER-SIDE FEE CALCULATION (with custom overrides)
-    // ───────────────────────────────────────────────────────────
     const feeResult = calculateFees(
       Number(amount),
       "transfer",
@@ -256,7 +260,7 @@ export async function POST(req: NextRequest) {
       {
         custom_outflow_percent: userData.custom_outflow_percent,
         custom_outflow_min: userData.custom_outflow_min,
-      }
+      },
     );
 
     const serverFee = feeResult.totalFee;
@@ -267,10 +271,9 @@ export async function POST(req: NextRequest) {
         feeResult.usedCustomRate ? " + custom rate" : ""
       }): amount=₦${amount}, fee=₦${serverFee}, total=₦${totalDeduction} [${
         feeResult.feeLabel
-      }]`
+      }]`,
     );
 
-    // ─── Balance check ───
     if (userData.wallet_balance < totalDeduction) {
       const response = NextResponse.json(
         {
@@ -279,18 +282,17 @@ export async function POST(req: NextRequest) {
           required: totalDeduction,
           fee: serverFee,
         },
-        { status: 400 }
+        { status: 400 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
-    // ─── Nomba token ───
     const token = await getNombaToken();
     if (!token) {
       const response = NextResponse.json(
         { message: "Unable to process transfer at this time" },
-        { status: 503 }
+        { status: 503 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
@@ -298,7 +300,6 @@ export async function POST(req: NextRequest) {
 
     const merchantTxRef = `WD_${Date.now()}_${userId.slice(0, 8)}`;
 
-    // ─── Build metadata ───
     const pendingMetadata = {
       initiated_at: new Date().toISOString(),
       initiated_by: userId,
@@ -330,7 +331,9 @@ export async function POST(req: NextRequest) {
       per_transfer_limit: limitCheck.perTransferLimit,
     };
 
-    // ─── Create PENDING transaction ───
+    // ============================================================
+    // BUG FIX #1: set `reference` on insert so it always exists
+    // ============================================================
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -350,6 +353,7 @@ export async function POST(req: NextRequest) {
         fee: serverFee,
         total_deduction: totalDeduction,
         status: "pending",
+        reference: merchantTxRef, // ✅ SET NOW
         narration: narration || "N/A",
         merchant_tx_ref: merchantTxRef,
         created_at: new Date().toISOString(),
@@ -365,17 +369,16 @@ export async function POST(req: NextRequest) {
       console.error("Transaction creation error:", txError);
       const response = NextResponse.json(
         { error: "Could not create transaction record" },
-        { status: 500 }
+        { status: 500 },
       );
       if (newTokens) return createAuthResponse(await response.json(), newTokens);
       return response;
     }
 
     console.log(
-      `📝 Created pending transaction ${pendingTx.id} for user ${userId} (${tier})`
+      `📝 Created pending transaction ${pendingTx.id} for user ${userId} (${tier})`,
     );
 
-    // ─── Call Nomba API ───
     const nombaResponse = await fetch(
       `${process.env.NOMBA_URL}/v1/transfers/bank`,
       {
@@ -394,7 +397,7 @@ export async function POST(req: NextRequest) {
           merchantTxRef,
           narration,
         }),
-      }
+      },
     );
 
     const nombaData = await nombaResponse.json();
@@ -402,41 +405,27 @@ export async function POST(req: NextRequest) {
       status: nombaResponse.status,
       merchantTxRef,
       nombaId: nombaData?.data?.id,
+      nombaStatus: nombaData?.data?.status,
     });
 
+    // ============================================================
+    // BUG FIX #2: Nomba sends UPPERCASE "SUCCESS" — normalize
+    // ============================================================
+    const nombaStatusUpper = String(
+      nombaData?.data?.status || "",
+    ).toUpperCase();
     const isSuccess =
-      nombaResponse.ok && nombaData?.data?.status === "success";
+      nombaResponse.ok && nombaStatusUpper === "SUCCESS";
     const finalStatus = isSuccess ? "success" : "processing";
     const nombaTransactionId = nombaData?.data?.id || null;
 
-    // ─── Update transaction with Nomba response ───
-    await supabase
-      .from("transactions")
-      .update({
-        status: finalStatus,
-        description: `Transfer of ₦${amount} to ${accountName}`,
-        metadata: {
-          ...pendingMetadata,
-          nomba_status: nombaData?.data?.status || null,
-          nomba_description: nombaData?.description || null,
-          nomba_requested_at: new Date().toISOString(),
-        },
-        external_response: {
-          nomba_request: nombaData,
-          requested_at: new Date().toISOString(),
-          merchant_tx_ref: merchantTxRef,
-          nomba_transaction_id: nombaTransactionId,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", pendingTx.id);
+    // ============================================================
+    // BUG FIX #3: Deduct wallet ATOMICALLY before/with status update
+    //             so no retroactive-deduction path is needed
+    // ============================================================
+    let deductedNewBalance: number | null = null;
 
-    // ─── If immediately successful — mutate wallet ───
     if (isSuccess) {
-      console.log(
-        `✅ Transfer immediately successful for transaction ${pendingTx.id}`
-      );
-
       const { data: newBalance, error: deductError } = await supabase.rpc(
         "mutate_wallet_balance",
         {
@@ -444,104 +433,163 @@ export async function POST(req: NextRequest) {
           p_amount: -totalDeduction,
           p_transaction_id: pendingTx.id,
           p_reason: "withdrawal_immediate_success",
-        }
+          p_idempotency_key: `withdrawal_deduct_${pendingTx.id}`,
+        },
       );
 
       if (deductError) {
-        console.error("❌ Failed to deduct wallet balance:", deductError);
-        await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", pendingTx.id);
-      } else {
-        console.log(
-          `✅ Deducted ₦${totalDeduction} — new balance ₦${newBalance}`
+        console.error(
+          "❌ CRITICAL: Wallet deduction failed after Nomba succeeded:",
+          deductError,
         );
 
-        await supabase
-          .from("transactions")
-          .update({
-            reference: nombaTransactionId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", pendingTx.id);
+        // Nomba already sent money — user MUST be debited or you lose funds.
+        // Fall back to a direct balance update (still bounded by user's row).
+        const { data: freshUser } = await supabase
+          .from("users")
+          .select("wallet_balance")
+          .eq("id", userId)
+          .single();
 
-        const receiptHtml = generateTransferReceipt({
-          transactionId: pendingTx.id,
-          amount: Number(amount),
-          date: new Date().toISOString(),
-          recipientName: accountName,
-          recipientAccount: accountNumber,
-          recipientBank: bankName,
-          senderName: senderName || userData.full_name || "Zidwell User",
-          senderAccount: senderAccountNumber,
-          narration: narration || "N/A",
-          fee: serverFee,
-          type: "bank_transfer",
-        });
+        if (freshUser) {
+          const before = Number(freshUser.wallet_balance);
+          const after = before - totalDeduction;
 
-        if (receiptHtml && receiptHtml.length > 0) {
+          await supabase
+            .from("users")
+            .update({
+              wallet_balance: after,
+              wallet_updated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
+
+          await supabase
+            .from("transactions")
+            .update({
+              balance_before: before,
+              balance_after: after,
+              deducted_at: new Date().toISOString(),
+            })
+            .eq("id", pendingTx.id);
+
+          deductedNewBalance = after;
           console.log(
-            `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`
-          );
-          await sendWithdrawalEmail(
-            userId,
-            "success",
-            Number(amount),
-            accountName,
-            accountNumber,
-            bankName,
-            pendingTx.id,
-            undefined,
-            serverFee,
-            receiptHtml
-          ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err)
-          );
-        } else {
-          console.warn(
-            `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`
-          );
-          await sendWithdrawalEmail(
-            userId,
-            "success",
-            Number(amount),
-            accountName,
-            accountNumber,
-            bankName,
-            pendingTx.id,
-            undefined,
-            serverFee
-          ).catch((err) =>
-            console.error("Failed to send withdrawal email:", err)
+            `✅ Fallback deduction applied: ₦${before} → ₦${after}`,
           );
         }
+      } else {
+        deductedNewBalance = newBalance as number;
+        console.log(
+          `✅ Deducted ₦${totalDeduction} — new balance ₦${deductedNewBalance}`,
+        );
+      }
+    }
 
-        // ✅ AUTO-SAVE BENEFICIARY (server-side, non-fatal)
-        try {
-          await upsertSavedBankAccount(
-            supabase,
-            userId,
-            {
-              account_number: accountNumber,
-              account_name: accountName,
-              bank_code: bankCode,
-              bank_name: bankName,
-            },
-            { autoSaved: true }
-          );
-          console.log(
-            `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`
-          );
-        } catch (saveErr) {
-          console.error(
-            "Auto-save bank beneficiary failed (non-fatal):",
-            saveErr
-          );
-        }
+    // ============================================================
+    // Persist Nomba response, status, reference
+    // ============================================================
+    const externalResponse = {
+      nomba_request: nombaData,
+      requested_at: new Date().toISOString(),
+      merchant_tx_ref: merchantTxRef,
+      nomba_transaction_id: nombaTransactionId,
+      nomba_fee: feeResult.nombaFee,
+      finalized_at: isSuccess ? new Date().toISOString() : undefined,
+    };
+
+    await supabase
+      .from("transactions")
+      .update({
+        status: finalStatus,
+        description: `Transfer of ₦${amount} to ${accountName}`,
+        reference: nombaTransactionId || merchantTxRef, // ✅ always set
+        metadata: {
+          ...pendingMetadata,
+          nomba_status: nombaData?.data?.status || null,
+          nomba_description: nombaData?.description || null,
+          nomba_requested_at: new Date().toISOString(),
+        },
+        external_response: externalResponse,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", pendingTx.id);
+
+    // ============================================================
+    // Post-success side effects (email, receipt, saved account)
+    // ============================================================
+    if (isSuccess) {
+      const receiptHtml = generateTransferReceipt({
+        transactionId: pendingTx.id,
+        amount: Number(amount),
+        date: new Date().toISOString(),
+        recipientName: accountName,
+        recipientAccount: accountNumber,
+        recipientBank: bankName,
+        senderName: senderName || userData.full_name || "Zidwell User",
+        senderAccount: senderAccountNumber,
+        narration: narration || "N/A",
+        fee: serverFee,
+        type: "bank_transfer",
+      });
+
+      if (receiptHtml && receiptHtml.length > 0) {
+        console.log(
+          `📧 Sending withdrawal email with PDF receipt for transaction ${pendingTx.id}`,
+        );
+        await sendWithdrawalEmail(
+          userId,
+          "success",
+          Number(amount),
+          accountName,
+          accountNumber,
+          bankName,
+          pendingTx.id,
+          undefined,
+          serverFee,
+          receiptHtml,
+        ).catch((err) =>
+          console.error("Failed to send withdrawal email:", err),
+        );
+      } else {
+        console.warn(
+          `⚠️ No receipt HTML generated for transaction ${pendingTx.id}`,
+        );
+        await sendWithdrawalEmail(
+          userId,
+          "success",
+          Number(amount),
+          accountName,
+          accountNumber,
+          bankName,
+          pendingTx.id,
+          undefined,
+          serverFee,
+        ).catch((err) =>
+          console.error("Failed to send withdrawal email:", err),
+        );
+      }
+
+      try {
+        await upsertSavedBankAccount(
+          supabase,
+          userId,
+          {
+            account_number: accountNumber,
+            account_name: accountName,
+            bank_code: bankCode,
+            bank_name: bankName,
+          },
+          { autoSaved: true },
+        );
+        console.log(
+          `💾 Auto-saved bank beneficiary ${accountNumber} for user ${userId}`,
+        );
+      } catch (saveErr) {
+        console.error(
+          "Auto-save bank beneficiary failed (non-fatal):",
+          saveErr,
+        );
       }
     }
 
@@ -569,11 +617,14 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
-      { status: 500 }
+      { status: 500 },
     );
 
     if ((error as any).newTokens) {
-      return createAuthResponse(await response.json(), (error as any).newTokens);
+      return createAuthResponse(
+        await response.json(),
+        (error as any).newTokens,
+      );
     }
 
     return response;

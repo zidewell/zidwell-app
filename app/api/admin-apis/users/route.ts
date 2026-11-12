@@ -16,6 +16,61 @@ const supabaseAdmin = createClient(
 
 type Category = "all" | "verified" | "unverified" | "pending_kyc";
 
+// ═════════════════════════════════════════════════════════════
+// SELF-HEAL: reconcile public.users.email_verified against
+// auth.users.email_confirmed_at for a set of user IDs.
+//
+// This fixes the bug where a user confirmed their email via a
+// Supabase magic link → auth.users.email_confirmed_at is set,
+// but public.users.email_verified stayed false → admin UI shows
+// them as "unverified" while login works fine.
+//
+// Best-effort: never throws, never blocks the list response.
+// ═════════════════════════════════════════════════════════════
+async function reconcileEmailVerified(userIds: string[]) {
+  if (!userIds.length) return;
+  // Cap to keep the list endpoint snappy (drop the rest to next visit)
+  const ids = userIds.slice(0, 100);
+
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const { data: authUser } =
+          await supabaseAdmin.auth.admin.getUserById(id);
+
+        const confirmed = !!authUser?.user?.email_confirmed_at;
+
+        const { data: dbUser } = await supabaseAdmin
+          .from("users")
+          .select("email_verified")
+          .eq("id", id)
+          .maybeSingle();
+
+        if (!dbUser) return;
+        if (dbUser.email_verified === confirmed) return; // no drift
+
+        await supabaseAdmin
+          .from("users")
+          .update({
+            email_verified: confirmed,
+            ...(confirmed
+              ? {
+                  email_verification_token: null,
+                  email_verification_token_expires: null,
+                }
+              : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        console.log(`🩹 Reconciled email_verified=${confirmed} for ${id}`);
+      } catch (e: any) {
+        console.warn(`[reconcile] skipped ${id}:`, e?.message);
+      }
+    }),
+  );
+}
+
 async function fetchAdminUsers(query: AdminUsersQuery) {
   const {
     q,
@@ -49,7 +104,6 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
     if (cleaned.length > 0) {
       console.log("🔍 Search cleaned:", JSON.stringify(cleaned));
 
-      // Query 1: Get matching IDs (limit 5000 for safety)
       const { data: matches, error: matchError } = await supabaseAdmin
         .from("users")
         .select("id")
@@ -76,7 +130,6 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
         );
       }
 
-      // If 0 matches — return empty immediately
       if (matchedUserIds.length === 0) {
         console.log("❌ Search matched 0 users — returning empty");
 
@@ -86,7 +139,9 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
           { count: unverifiedCount },
           { count: pendingKycCount },
         ] = await Promise.all([
-          supabaseAdmin.from("users").select("*", { count: "exact", head: true }),
+          supabaseAdmin
+            .from("users")
+            .select("*", { count: "exact", head: true }),
           supabaseAdmin
             .from("users")
             .select("*", { count: "exact", head: true })
@@ -133,13 +188,10 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
     { count: "exact" },
   );
 
-  // Apply search via IDs
   if (matchedUserIds !== null) {
-    console.log("🔍 Applying .in('id', [", matchedUserIds.length, "IDs])");
     baseQuery = baseQuery.in("id", matchedUserIds);
   }
 
-  // Category filters
   if (category === "verified") {
     baseQuery = baseQuery
       .eq("email_verified", true)
@@ -150,7 +202,6 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
     baseQuery = baseQuery.is("bank_account_number", null);
   }
 
-  // Role filter
   if (role && role !== "all") {
     if (role === "user") {
       baseQuery = baseQuery.is("admin_role", null);
@@ -167,19 +218,35 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
     .order(sortBy, { ascending: sortOrder === "asc" })
     .range(from, to);
 
-  console.log("📊 Query result:", {
-    usersCount: usersData?.length ?? 0,
-    totalCount: usersCount,
-    error: usersError?.message,
-    sampleEmails: usersData?.slice(0, 3).map((u: any) => u.email),
-  });
-
   if (usersError) {
     throw new Error(`Users fetch error: ${usersError.message}`);
   }
 
+  // ✅ NEW: self-heal email_verified against Supabase Auth
+  // Runs only for the page of users being returned — cheap.
+  await reconcileEmailVerified((usersData || []).map((u: any) => u.id));
+
+  // Re-fetch those same IDs so the response reflects the corrected flags
+  let finalUsers = usersData || [];
+  if (finalUsers.length > 0) {
+    const ids = finalUsers.map((u: any) => u.id);
+    const { data: refreshed } = await supabaseAdmin
+      .from("users")
+      .select(
+        "id, email, first_name, last_name, full_name, phone, wallet_balance, zidcoin_balance, admin_role, bvn_verification, nin_verification, is_blocked, bank_account_name, bank_account_number, email_verified, created_at, last_login",
+      )
+      .in("id", ids);
+
+    if (refreshed && refreshed.length > 0) {
+      const map = new Map(refreshed.map((u: any) => [u.id, u]));
+      finalUsers = finalUsers.map(
+        (u: any) => map.get(u.id) ?? u,
+      );
+    }
+  }
+
   // Normalize
-  const normalizedUsers = (usersData || []).map((u: any) => {
+  const normalizedUsers = finalUsers.map((u: any) => {
     const kycStatus =
       u.bvn_verification === "verified" || u.bvn_verification === "approved"
         ? "verified"
@@ -221,7 +288,12 @@ async function fetchAdminUsers(query: AdminUsersQuery) {
       .is("bank_account_number", null),
   ]);
 
-  console.log("✅ Returning", normalizedUsers.length, "users, total:", usersCount);
+  console.log(
+    "✅ Returning",
+    normalizedUsers.length,
+    "users, total:",
+    usersCount,
+  );
   console.log("━━━━━━━━━━━━━━━━━━━━━━━");
 
   return {
@@ -256,9 +328,6 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
 
-    // ═════════════════════════════════════════════════════════════
-    // 🚨 FIX: Read BOTH "q" AND "search" — support both param names
-    // ═════════════════════════════════════════════════════════════
     const searchFromQuery =
       url.searchParams.get("search") || url.searchParams.get("q") || null;
 
@@ -272,19 +341,7 @@ export async function GET(req: NextRequest) {
       role: url.searchParams.get("role") ?? "all",
     } as AdminUsersQuery & { category?: Category };
 
-    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log("📥 RAW URL:", url.toString());
-    console.log("📥 search param:", JSON.stringify(searchFromQuery));
-    console.log("📥 final q:", JSON.stringify(query.q));
-
-    // ═════════════════════════════════════════════════════════════
-    // 🚨 FIX: Disable cache for searches — never cache filtered results
-    // ═════════════════════════════════════════════════════════════
     const shouldBypassCache = !!searchFromQuery;
-
-    if (shouldBypassCache) {
-      console.log("🔓 Bypassing cache (search active)");
-    }
 
     const nocache =
       url.searchParams.get("nocache") === "true" || shouldBypassCache;
@@ -298,7 +355,6 @@ export async function GET(req: NextRequest) {
       result = await fetchAdminUsers(query);
       fromCache = false;
 
-      // Only cache non-search results
       if (!shouldBypassCache) {
         const cacheKey = `admin_users_${query.q || "all"}_${query.page}_${
           query.limit

@@ -73,7 +73,7 @@ export const ReceiptSignaturePanel = ({
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ["#FDC020", "#191919", "#00B64F", "#ffffff"],
+      colors: ["#F5B800", "#191919", "#00B64F", "#ffffff"],
     });
 
     setTimeout(() => {
@@ -82,14 +82,14 @@ export const ReceiptSignaturePanel = ({
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ["#FDC020", "#191919", "#00B64F"],
+        colors: ["#F5B800", "#191919", "#00B64F"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ["#FDC020", "#191919", "#00B64F"],
+        colors: ["#F5B800", "#191919", "#00B64F"],
       });
     }, 150);
 
@@ -98,7 +98,7 @@ export const ReceiptSignaturePanel = ({
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ["#FDC020", "#191919", "#00B64F"],
+        colors: ["#F5B800", "#191919", "#00B64F"],
       });
     }, 300);
   };
@@ -130,9 +130,9 @@ export const ReceiptSignaturePanel = ({
       text,
       icon: "success",
       confirmButtonText: "OK",
-      confirmButtonColor: "#FDC020",
+      confirmButtonColor: "#F5B800",
       background: "var(--bg-primary)",
-      iconColor: "#FDC020",
+      iconColor: "#F5B800",
       timer: 3000,
       timerProgressBar: true,
       customClass: {

@@ -274,7 +274,7 @@ function StorePreviewContent({
                   onClick={() => setCurrentImage(i)}
                   className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
                     i === currentImage
-                      ? "border-[#FDC020]"
+                      ? "border-[#F5B800]"
                       : "border-border hover:border-foreground/40"
                   }`}
                 >
@@ -376,7 +376,7 @@ function StorePreviewContent({
                       entity.isFullyPaid
                         ? "border-green-500 bg-green-500/10"
                         : entity.isPartiallyPaid
-                          ? "border-[#FDC020] bg-[#FDC020]/5"
+                          ? "border-[#F5B800] bg-[#F5B800]/5"
                           : "border-border"
                     }`}
                   >
@@ -417,7 +417,7 @@ function StorePreviewContent({
             totalPrice > 0 && (
               <div className="mt-5">
                 <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#FDC020]">
+                  <span className="text-3xl font-semibold tracking-tight text-[#191919] dark:text-[#F5B800]">
                     {formatNaira(isInstallment ? perInstallment : totalPrice)}
                   </span>
                   {isInstallment && (
@@ -540,8 +540,8 @@ function StorePreviewContent({
 
           {/* ─── SERVICES booking notice ─── */}
           {isServices && data.bookingEnabled && (
-            <div className="mt-5 flex items-center gap-2 rounded-lg border border-[#FDC020]/40 bg-[#FDC020]/5 p-3">
-              <Clock className="h-3.5 w-3.5 text-[#FDC020] shrink-0" />
+            <div className="mt-5 flex items-center gap-2 rounded-lg border border-[#F5B800]/40 bg-[#F5B800]/5 p-3">
+              <Clock className="h-3.5 w-3.5 text-[#F5B800] shrink-0" />
               <p className="text-xs text-foreground/80">
                 Booking required — customer will pick a date & time
               </p>
@@ -560,9 +560,9 @@ function StorePreviewContent({
 
           {/* ─── INVESTMENT details ─── */}
           {isInvestment && (
-            <div className="mt-6 rounded-xl border border-[#FDC020]/30 bg-[#FDC020]/5 p-4 space-y-2">
+            <div className="mt-6 rounded-xl border border-[#F5B800]/30 bg-[#F5B800]/5 p-4 space-y-2">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-[#FDC020]" />
+                <TrendingUp className="h-4 w-4 text-[#F5B800]" />
                 <p className="text-sm font-bold">Investment Details</p>
               </div>
               {data.minimumAmount && (
@@ -592,7 +592,7 @@ function StorePreviewContent({
           {data.description && (
             <div className="mt-8 border-t border-border pt-6">
               <h2 className="mb-4 text-sm font-semibold">
-                <span className="inline-block border-b-2 border-[#FDC020] pb-2">
+                <span className="inline-block border-b-2 border-[#F5B800] pb-2">
                   Details
                 </span>
               </h2>
@@ -612,7 +612,7 @@ function StorePreviewContent({
               disabled={isOutOfStock}
               className="flex-1 rounded-lg py-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                backgroundColor: data.config?.buttonColor || "#FDC020",
+                backgroundColor: data.config?.buttonColor || "#F5B800",
                 color: "#191919",
               }}
             >

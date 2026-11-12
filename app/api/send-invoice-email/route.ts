@@ -5,7 +5,13 @@ import puppeteer from "puppeteer";
 import fs from "fs";
 import path from "path";
 import { transporter } from "@/lib/node-mailer";
-
+import {
+  emailShell,
+  ui,
+  esc,
+  naira,
+  EMAIL_BRAND,
+} from "@/lib/email/ui";
 const logoPath = path.join(process.cwd(), "public", "logo.png");
 const logoBuffer = fs.readFileSync(logoPath);
 const base64Logo = `data:image/png;base64,${logoBuffer.toString("base64")}`;

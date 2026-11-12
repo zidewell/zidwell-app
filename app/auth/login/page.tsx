@@ -2,13 +2,7 @@
 "use client";
 
 import Swal from "sweetalert2";
-import {
-  useState,
-  FormEvent,
-  useEffect,
-  Suspense,
-  useRef,
-} from "react";
+import { useState, FormEvent, useEffect, Suspense, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import logo from "@/public/logo.png";
@@ -166,10 +160,43 @@ const LoginForm = () => {
   const submittingRef = useRef(false);
   const slowHintTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const rawCallbackUrl = searchParams.get("callbackUrl");
-  const callbackUrl = rawCallbackUrl
-    ? fixDoubleEncodedUrl(rawCallbackUrl)
-    : "/dashboard";
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ FIX #1: Accept BOTH `callbackUrl` (existing flows) and `redirect`
+  //    (new subscribe flow). Whichever is present wins; `callbackUrl`
+  //    takes precedence for backward compatibility.
+  //
+  //    Then preserve any `#hash` fragment (e.g. `#zidstore-pricing`)
+  //    that was encoded inside the redirect value. We split off the
+  //    hash BEFORE running fixDoubleEncodedUrl (which only validates
+  //    the path portion), then re-append it.
+  // ─────────────────────────────────────────────────────────────────────
+  const rawCallbackUrl =
+    searchParams.get("callbackUrl") ?? searchParams.get("redirect");
+
+  const callbackUrl = (() => {
+    if (!rawCallbackUrl) return "/dashboard";
+
+    // Decode once so `%2Fonline-store%23zidstore-pricing` becomes
+    // `/online-store#zidstore-pricing`. fixDoubleEncodedUrl will
+    // decode again if it's double-encoded.
+    const decodedRaw = (() => {
+      try {
+        return decodeURIComponent(rawCallbackUrl);
+      } catch {
+        return rawCallbackUrl;
+      }
+    })();
+
+    // Split path from hash. `#` inside a URL is never part of the path.
+    const hashIndex = decodedRaw.indexOf("#");
+    const pathPart =
+      hashIndex >= 0 ? decodedRaw.slice(0, hashIndex) : decodedRaw;
+    const hashPart = hashIndex >= 0 ? decodedRaw.slice(hashIndex + 1) : "";
+
+    const safePath = fixDoubleEncodedUrl(pathPart);
+    return hashPart ? `${safePath}#${hashPart}` : safePath;
+  })();
+
   const fromLogin = searchParams.get("fromLogin");
   const scrollToPricing = searchParams.get("scrollToPricing");
 
@@ -271,10 +298,7 @@ const LoginForm = () => {
     }, SLOW_HINT_AFTER_MS);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      LOGIN_TIMEOUT_MS,
-    );
+    const timeoutId = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
 
     try {
       // ✅ Non-blocking modal. No `didOpen`/`showLoading` — those can get
@@ -543,7 +567,7 @@ const LoginForm = () => {
 
       // ─── Fire-and-forget side effects ───
       void (async () => {
-           sessionStorage.removeItem("lastActivity")
+        sessionStorage.removeItem("lastActivity");
         try {
           await fetch("/api/activity/last-login", {
             method: "POST",
@@ -567,10 +591,29 @@ const LoginForm = () => {
         }
       })();
 
-      // ─── Navigate ───
+      // ─────────────────────────────────────────────────────────────────
+      // ✅ FIX #2: Build the final URL correctly.
+      //
+      //    Problem: appending `?fromLogin=true` to a URL that already
+      //    contains `#zidstore-pricing` produces
+      //      /online-store#zidstore-pricing?fromLogin=true
+      //    which puts the query INSIDE the hash. Browsers then treat
+      //    the hash as "zidstore-pricing?fromLogin=true", so
+      //    document.getElementById() fails and the scroll never fires.
+      //
+      //    Solution: split off the hash, append query params to the
+      //    path portion, then re-attach the hash at the very end.
+      // ─────────────────────────────────────────────────────────────────
       let targetUrl = callbackUrl;
+
       if (fromLogin === "true" && scrollToPricing === "true") {
-        targetUrl = `${callbackUrl}?fromLogin=true&scrollToPricing=true`;
+        const hashIndex = targetUrl.indexOf("#");
+        const pathAndQuery =
+          hashIndex >= 0 ? targetUrl.slice(0, hashIndex) : targetUrl;
+        const hashPart = hashIndex >= 0 ? targetUrl.slice(hashIndex) : ""; // includes "#"
+        const separator = pathAndQuery.includes("?") ? "&" : "?";
+        const withQuery = `${pathAndQuery}${separator}fromLogin=true&scrollToPricing=true`;
+        targetUrl = `${withQuery}${hashPart}`;
       }
 
       // In production use window.location.replace to force a fresh request

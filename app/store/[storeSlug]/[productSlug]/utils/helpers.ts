@@ -9,7 +9,7 @@ export const QUANTITY_PAGE_TYPES = [
   "crypto",
 ];
 
-export const PRIMARY_BG = "bg-[#FDC020]";
+export const PRIMARY_BG = "bg-[#F5B800]";
 export const PRIMARY_BG_HOVER = "hover:bg-[#e6a800]";
 export const PRIMARY_TEXT = "text-[#191919]";
 

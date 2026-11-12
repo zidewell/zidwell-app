@@ -27,12 +27,15 @@ interface TaxCalculatorProps {
 const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
   const [showModal, setShowModal] = useState(false);
 
-  // ALL users now have access to the tax calculator
-  const hasTaxCalculatorAccess = true;
-  
-  // Filing support is still restricted (Enterprise+)
+  // Define tier-based access
+  const isFree = userTier === "free";
+  const isStarterUser = userTier === "solopreneur";
+  const isSMEUser = userTier === "sme";
   const isEnterpriseUser = userTier === "enterprise";
   const isCorporationUser = userTier === "corporation";
+
+  const hasTaxCalculatorAccess =
+    isSMEUser || isEnterpriseUser || isCorporationUser;
   const hasTaxSupport = isEnterpriseUser || isCorporationUser;
   const hasFullTaxFiling = isCorporationUser;
 
@@ -64,7 +67,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
 
   const openModal = () => setShowModal(true);
 
-  // Tier info banner — now only about filing support, not calculator access
+  // Tier info banner
   const getTierInfo = () => {
     if (isCorporationUser) {
       return {
@@ -92,17 +95,43 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           "You have access to tax filing support. Upgrade to Corporation for full VAT, PAYE & WHT filing.",
       };
     }
-    // Free, Solopreneur, SME — calculator is free, only filing is locked
+    if (isSMEUser) {
+      return {
+        icon: Star,
+        text: "SME Plan - Basic Tax Calculator",
+        bgColor: "bg-(--color-accent-yellow)/10",
+        textColor: "text-(--color-accent-yellow)",
+        borderColor: "border-(--color-accent-yellow)/30",
+        action: "Upgrade to Enterprise",
+        actionLink: "/pricing?upgrade=enterprise",
+        subtext:
+          "You have access to basic tax calculations. Upgrade to Enterprise for tax filing support.",
+      };
+    }
+    if (isStarterUser) {
+      return {
+        icon: Zap,
+        text: "Solopreneur Plan - Tax Calculator requires SME",
+        bgColor: "bg-blue-100 dark:bg-blue-900/20",
+        textColor: "text-blue-700 dark:text-blue-400",
+        borderColor: "border-blue-200 dark:border-blue-800",
+        action: "Upgrade to SME",
+        actionLink: "/pricing?upgrade=sme",
+        subtext:
+          "Get accurate tax estimates and filing support with our SME plan and above.",
+      };
+    }
+    // Free
     return {
-      icon: Lock,
-      text: "Tax Calculator is Free for Everyone",
-      bgColor: "bg-gray-100 dark:bg-gray-800/50",
+      icon: Star,
+      text: "Tax Calculator requires SME plan",
+      bgColor: "bg-gray-100 dark:bg-gray-800",
       textColor: "text-gray-700 dark:text-gray-300",
       borderColor: "border-gray-200 dark:border-gray-700",
-      action: "Unlock Tax Filing",
-      actionLink: "/pricing?upgrade=enterprise",
+      action: "Upgrade to SME",
+      actionLink: "/pricing?upgrade=sme",
       subtext:
-        "Upgrade to Enterprise for professional tax filing support and consultation.",
+        "Get accurate tax estimates and filing support with our SME plan and above.",
     };
   };
 
@@ -110,7 +139,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
 
   return (
     <div className="space-y-12">
-      {/* Tier Status Banner — now about filing, not calculator */}
+      {/* Tier Status Banner */}
       {tierInfo && (
         <div
           className={`p-4 rounded-lg border-2 ${tierInfo.borderColor} ${tierInfo.bgColor} flex items-center justify-between flex-wrap gap-4`}
@@ -129,8 +158,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           {tierInfo.action && tierInfo.actionLink && (
             <Link href={tierInfo.actionLink}>
               <button
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors
-                ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                   isEnterpriseUser
                     ? "bg-amber-600 text-white hover:bg-amber-700"
                     : "bg-(--color-accent-yellow) text-(--color-ink) hover:bg-(--color-accent-yellow)/90"
@@ -152,7 +180,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
           Estimate your business taxes in minutes. Free for everyone.
         </p>
         <p className="mt-3 text-xs text-(--text-secondary)/70 italic">
-          Answer accurately. You can't lie to the government.
+          Answer accurately. You can&apos;t lie to the government.
         </p>
       </div>
 
@@ -415,7 +443,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         />
       </TaxCard>
 
-      {/* Filing Integration Notice — still restricted */}
+      {/* Filing Integration Notice */}
       <div className="rounded-2xl border border-(--border-color) bg-(--bg-primary) p-6 space-y-3">
         <h4 className="font-subheading text-(--text-primary) flex items-center gap-2">
           🔗 Tax Filing Integration
@@ -432,10 +460,10 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         </h4>
         <p className="text-sm text-(--text-secondary) leading-relaxed">
           Zidwell Finance provides tax estimates based on user inputs. These
-          calculations are not legally binding.
+          calculations are not legally binding.{" "}
           {hasTaxSupport
-            ? " As an Enterprise/Corporation user, you can proceed to file your taxes with our assistance."
-            : " Upgrade to Enterprise for tax filing support and professional assistance."}
+            ? "As an Enterprise/Corporation user, you can proceed to file your taxes with our assistance."
+            : "Upgrade to Enterprise for tax filing support and professional assistance."}
         </p>
         {hasTaxSupport ? (
           <div className="mt-4 flex gap-3">
@@ -461,7 +489,7 @@ const TaxCalculator = ({ userTier = "free" }: TaxCalculatorProps) => {
         )}
       </div>
 
-      {/* Premium Modal — still useful for filing upsell */}
+      {/* Premium Modal */}
       <PremiumModal
         open={showModal}
         onClose={() => setShowModal(false)}

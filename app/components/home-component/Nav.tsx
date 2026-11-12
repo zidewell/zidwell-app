@@ -1,259 +1,637 @@
 // app/components/home-component/Nav.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Sun, Moon } from "lucide-react";
+import {
+  Menu,
+  X,
+  Sun,
+  Moon,
+  LayoutDashboard,
+  LogOut,
+  ChevronDown,
+  BookOpen,
+  FileText,
+  Receipt,
+  FileSignature,
+  FileSpreadsheet,
+  Wallet,
+  Store,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useUserContextData } from "@/app/context/userData";
 
+/* ------------------------------------------------------------------ */
+/*  ZidStore host                                                     */
+/* ------------------------------------------------------------------ */
 const ZIDSTORE_HOST = process.env.NEXT_PUBLIC_ZIDSTORE_HOST;
+const zidStore =
+  process.env.NODE_ENV === "development" || !ZIDSTORE_HOST
+    ? { href: "/online-store", external: false }
+    : { href: `https://${ZIDSTORE_HOST}`, external: true };
 
-/**
- * In dev (or if NEXT_PUBLIC_ZIDSTORE_HOST is unset), fall back to the
- * internal /online-store route so local development works.
- * In production, this resolves to https://store.zidwell.com.
- */
-const getZidStoreHref = (): { href: string; external: boolean } => {
-  if (process.env.NODE_ENV === "development" || !ZIDSTORE_HOST) {
-    return { href: "/online-store", external: false };
-  }
-  return { href: `https://${ZIDSTORE_HOST}`, external: true };
+/* ------------------------------------------------------------------ */
+/*  Nav model                                                         */
+/* ------------------------------------------------------------------ */
+
+type SimpleLink = { name: string; href: string; external?: boolean };
+
+type ProductItem = {
+  name: string;
+  href: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
 };
+
+const productItems: ProductItem[] = [
+  {
+    name: "Bookkeeping",
+    href: "/features/bookkeeping",
+    desc: "Daily income & expenses, categorised.",
+    icon: BookOpen,
+  },
+  {
+    name: "Invoices",
+    href: "/features/invoice",
+    desc: "Branded invoices with live payment status.",
+    icon: FileText,
+  },
+  {
+    name: "Receipts",
+    href: "/features/receipt",
+    desc: "Instant digital receipts on every sale.",
+    icon: Receipt,
+  },
+  {
+    name: "Contracts",
+    href: "/features/contracts",
+    desc: "Draft, sign and store agreements.",
+    icon: FileSignature,
+  },
+  {
+    name: "Tax Manager",
+    href: "/features/tax",
+    desc: "Tax-ready summaries, filed on time.",
+    icon: FileSpreadsheet,
+  },
+  {
+    name: "Business Account",
+    href: "/features/wallet",
+    desc: "A real account, powered by our partners.",
+    icon: Wallet,
+  },
+];
+
+const simpleLinks: SimpleLink[] = [
+  { name: "Schools", href: "/schools" },
+  { name: "Pricing", href: "/pricing" },
+  { name: "ZidStore", href: zidStore.href, external: zidStore.external },
+  { name: "Blog", href: "/blog" },
+  { name: "Contact", href: "/contact" },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
 
 export function Nav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [dark, setDark] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [productMenuOpen, setProductMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
   const pathname = usePathname();
   const router = useRouter();
+  const { userData, loading, handleSessionExpired } = useUserContextData();
 
-  // Theme handling
+  const isAuthenticated = !!userData?.id;
+
+  const productMenuRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  /* --- mark client mounted (for portals) --- */
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setMounted(true);
+  }, []);
+
+  /* --- theme (unified key with layout.tsx) --- */
+  useEffect(() => {
+    const stored = localStorage.getItem("zidwell-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)")
+      .matches;
     const isDark = stored === "dark" || (stored === null && prefersDark);
     setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
-  const toggleTheme = () => {
-    const newDark = !dark;
-    setDark(newDark);
-    const root = document.documentElement;
-    if (newDark) {
-      root.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
+  const setTheme = (isDark: boolean) => {
+    setDark(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+    localStorage.setItem("zidwell-theme", isDark ? "dark" : "light");
   };
 
+  /* --- scroll state --- */
   useEffect(() => {
-    const handleScroll = () => setHasScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const onScroll = () => setHasScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  /* --- close everything on route change --- */
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setProfileMenuOpen(false);
+    setProductMenuOpen(false);
+  }, [pathname]);
+
+  /* --- lock body scroll when mobile sheet is open --- */
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isMenuOpen);
     return () => document.body.classList.remove("overflow-hidden");
   }, [isMenuOpen]);
 
-  const handleNavigation = (href: string, external = false) => {
+  /* --- outside-click for dropdowns --- */
+  useEffect(() => {
+    if (!profileMenuOpen && !productMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (productMenuRef.current && !productMenuRef.current.contains(t)) {
+        setProductMenuOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(t)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setProductMenuOpen(false);
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [profileMenuOpen, productMenuOpen]);
+
+  /* --- navigation helpers --- */
+  const go = (href: string, external?: boolean) => {
     if (external) {
       window.open(href, "_blank", "noopener,noreferrer");
-      setIsMenuOpen(false);
-      return;
-    }
-    if (href.startsWith("/")) {
-      router.push(href);
     } else {
-      if (window.location.pathname === "/") {
-        const el = document.getElementById(href);
-        if (el) {
-          const yOffset = -96;
-          const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-          window.scrollTo({ top: y, behavior: "smooth" });
-        }
-      } else {
-        router.push(`/#${href}`);
-      }
+      router.push(href);
     }
     setIsMenuOpen(false);
+    setProductMenuOpen(false);
   };
 
-  const zidStore = getZidStoreHref();
+  const handleLogout = async () => {
+    try {
+      await handleSessionExpired("/auth/login");
+    } catch (err) {
+      console.error("Logout failed:", err);
+      router.replace("/auth/login");
+    }
+    setIsMenuOpen(false);
+    setProfileMenuOpen(false);
+  };
 
-  const navLinks = [
-    { name: "Invoice", href: "/features/invoice", external: false },
-    { name: "Receipt", href: "/features/receipt", external: false },
-    { name: "Schools", href: "/schools", external: false },
-    { name: "ZidStore", href: zidStore.href, external: zidStore.external },
-    { name: "Blog", href: "/blog", external: false },
-    { name: "Contact", href: "contact", external: false },
-  ];
+  const firstName = userData?.full_name?.split(" ")[0] || "Account";
+  const initials =
+    userData?.full_name
+      ?.split(" ")
+      .map((n: string) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U";
+
+  /* ------------------------------------------------------------------ */
 
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        hasScrolled
-          ? "bg-[oklch(1_0_0)]/80 dark:bg-[oklch(0.14_0_0)]/80 backdrop-blur-md border-b border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.08)]"
-          : "bg-[oklch(1_0_0)] dark:bg-[oklch(0.14_0_0)] border-b border-transparent"
-      }`}
-    >
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <Image
-              src="/logo.png"
-              alt="Zidwell Logo"
-              width={49}
-              height={40}
-              className="w-10 object-contain transition-transform group-hover:scale-105"
-            />
-            <span className="text-xl font-bold tracking-tight text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] font-['Space_Grotesk','Cy_Grotesk_Key',system-ui,sans-serif] uppercase">
-              Zidwell
-            </span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => handleNavigation(link.href, link.external)}
-                className="font-medium text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:text-[oklch(0.17_0_0)] dark:hover:text-[oklch(0.98_0_0)] transition-colors relative group font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-              >
-                {link.name}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[oklch(0.84_0.16_88)] transition-all duration-300 group-hover:w-full" />
-              </button>
-            ))}
-          </nav>
-
-          {/* Right Section - Theme Toggle & Auth Buttons */}
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-xl">
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-lg transition-all ${
-                  !dark
-                    ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                    : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)]"
-                }`}
-                aria-label="Light mode"
-              >
-                <Sun size={18} />
-              </button>
-              <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-lg transition-all ${
-                  dark
-                    ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                    : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)]"
-                }`}
-                aria-label="Dark mode"
-              >
-                <Moon size={18} />
-              </button>
-            </div>
-
-            {/* Auth Buttons */}
-            <div className="hidden md:flex items-center gap-3">
-              <button
-                onClick={() => router.push("/auth/login")}
-                className="px-4 py-2 text-sm font-semibold text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)] rounded-xl transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => router.push("/auth/signup")}
-                className="px-4 py-2 text-sm font-semibold bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)] hover:bg-[oklch(0.84_0.16_88)]/90 rounded-xl transition font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-              >
-                Get Started Free
-              </button>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-xl border border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)]"
+    <>
+      <header
+        className={[
+          "fixed inset-x-0 top-0 z-50 transition-[background,box-shadow,border-color] duration-200",
+          hasScrolled
+            ? "bg-background/85 backdrop-blur-md border-b border-border"
+            : "bg-background border-b border-transparent",
+        ].join(" ")}
+      >
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="flex h-16 md:h-[72px] items-center justify-between gap-6">
+            {/* ---------- Logo ---------- */}
+            <Link
+              href="/"
+              className="flex items-center gap-2 group shrink-0"
+              aria-label="Zidwell home"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-        </div>
+              <Image
+                src="/logo.png"
+                alt=""
+                width={40}
+                height={32}
+                className="w-9 object-contain transition-transform group-hover:scale-[1.03]"
+              />
+              <span className="text-[17px] font-bold tracking-tight text-ink uppercase font-['Space_Grotesk',system-ui,sans-serif]">
+                Zidwell
+              </span>
+            </Link>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%] animate-slide-in">
-            <nav className="flex flex-col gap-4">
-              {navLinks.map((link) => (
+            {/* ---------- Desktop nav ---------- */}
+            <nav className="hidden lg:flex items-center gap-1">
+              {/* Product dropdown */}
+              <div ref={productMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProductMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={productMenuOpen}
+                  className={[
+                    "flex items-center gap-1 px-3 py-2 text-[14px] font-medium rounded-lg transition-colors",
+                    productMenuOpen
+                      ? "text-ink bg-surface"
+                      : "text-muted-foreground hover:text-ink hover:bg-surface",
+                  ].join(" ")}
+                >
+                  Product
+                  <ChevronDown
+                    size={14}
+                    className={[
+                      "transition-transform duration-200",
+                      productMenuOpen ? "rotate-180" : "",
+                    ].join(" ")}
+                  />
+                </button>
+
+                {productMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full mt-2 w-[540px] rounded-2xl border border-border bg-background shadow-xl p-3 grid grid-cols-2 gap-1"
+                  >
+                    {productItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.name}
+                          role="menuitem"
+                          onClick={() => go(item.href)}
+                          className="group flex items-start gap-3 rounded-xl px-3 py-3 text-left hover:bg-surface transition-colors"
+                        >
+                          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-(--color-accent-yellow)/12 text-primary-custom">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[13.5px] font-semibold text-ink leading-tight">
+                              {item.name}
+                            </span>
+                            <span className="mt-0.5 block text-[12px] text-muted-foreground leading-snug">
+                              {item.desc}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {simpleLinks.map((link) => (
                 <button
                   key={link.name}
-                  onClick={() => handleNavigation(link.href, link.external)}
-                  className="w-full text-left font-medium text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:text-[oklch(0.17_0_0)] dark:hover:text-[oklch(0.98_0_0)] transition-colors py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
+                  type="button"
+                  onClick={() => go(link.href, link.external)}
+                  className="px-3 py-2 text-[14px] font-medium rounded-lg text-muted-foreground hover:text-ink hover:bg-surface transition-colors"
                 >
                   {link.name}
                 </button>
               ))}
+            </nav>
 
-              {/* Mobile Theme Toggle */}
-              <div className="flex items-center gap-2 pt-4 border-t border-[oklch(0.85_0_0)] dark:border-[oklch(1_0_0)_/_12%]">
-                <span className="text-sm text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] font-['Be_Vietnam_Pro',system-ui,sans-serif]">
-                  Theme:
+            {/* ---------- Right cluster ---------- */}
+            <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <button
+                type="button"
+                onClick={() => setTheme(!dark)}
+                aria-label={
+                  dark ? "Switch to light theme" : "Switch to dark theme"
+                }
+                className="hidden lg:inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-ink hover:bg-surface transition-colors"
+              >
+                {dark ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+
+              {/* Desktop auth zone */}
+              <div className="hidden lg:flex items-center gap-2">
+                {loading ? (
+                  <div className="h-9 w-40 rounded-lg bg-surface animate-pulse" />
+                ) : isAuthenticated ? (
+                  <div ref={profileMenuRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setProfileMenuOpen((v) => !v)}
+                      aria-haspopup="menu"
+                      aria-expanded={profileMenuOpen}
+                      className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 border border-border bg-surface hover:bg-surface-2 transition-colors"
+                    >
+                      {userData?.profile_picture ? (
+                        <img
+                          src={userData.profile_picture}
+                          alt=""
+                          className="h-7 w-7 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-[11px] font-bold">
+                          {initials}
+                        </span>
+                      )}
+                      <span className="text-[13.5px] font-semibold text-ink max-w-[100px] truncate">
+                        {firstName}
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        className={[
+                          "text-muted-foreground transition-transform duration-200",
+                          profileMenuOpen ? "rotate-180" : "",
+                        ].join(" ")}
+                      />
+                    </button>
+
+                    {profileMenuOpen && (
+                      <div
+                        role="menu"
+                        className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-border bg-background shadow-xl overflow-hidden"
+                      >
+                        <div className="px-4 py-3 border-b border-border">
+                          <p className="text-[13.5px] font-semibold text-ink truncate">
+                            {userData?.full_name || "Account"}
+                          </p>
+                          <p className="text-[12px] text-muted-foreground truncate">
+                            {userData?.email || ""}
+                          </p>
+                        </div>
+
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            router.push("/dashboard");
+                          }}
+                          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-ink hover:bg-surface transition-colors"
+                        >
+                          <LayoutDashboard
+                            size={15}
+                            className="text-muted-foreground"
+                          />
+                          Dashboard
+                        </button>
+
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            router.push("/dashboard/settings");
+                          }}
+                          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-ink hover:bg-surface transition-colors"
+                        >
+                          <Settings
+                            size={15}
+                            className="text-muted-foreground"
+                          />
+                          Settings
+                        </button>
+
+                        <button
+                          role="menuitem"
+                          onClick={handleLogout}
+                          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[13.5px] font-medium text-destructive hover:bg-destructive/5 transition-colors border-t border-border"
+                        >
+                          <LogOut size={15} />
+                          Log out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/auth/login")}
+                      className="px-3 py-2 text-[14px] font-medium text-ink hover:bg-surface rounded-lg transition-colors"
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/auth/signup")}
+                      className="px-4 py-2 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 rounded-lg transition"
+                    >
+                      Get started
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile menu trigger */}
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen((v) => !v)}
+                aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={isMenuOpen}
+                className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-ink hover:bg-surface-2 transition-colors"
+              >
+                {isMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ------------------------------------------------------------------ */}
+      {/*  Mobile sheet — rendered via portal so it always escapes the       */}
+      {/*  header's `backdrop-blur` stacking context and stays visible.      */}
+      {/* ------------------------------------------------------------------ */}
+      {mounted &&
+        isMenuOpen &&
+        createPortal(
+          <div
+            className="lg:hidden fixed inset-x-0 top-16 bottom-0 z-[60] bg-background overflow-y-auto overscroll-contain animate-slide-in"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+          >
+            <div className="container mx-auto px-4 py-5 space-y-6">
+              {/* Theme row */}
+              <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2">
+                <span className="text-[13px] font-medium text-muted-foreground">
+                  Appearance
                 </span>
-                <div className="flex items-center gap-1 p-1 bg-[oklch(0.97_0_0)] dark:bg-[oklch(0.18_0_0)] rounded-xl">
+                <div className="flex items-center gap-1 p-0.5 rounded-lg bg-background border border-border">
                   <button
-                    onClick={toggleTheme}
-                    className={`p-2 rounded-lg transition-all ${
+                    type="button"
+                    onClick={() => setTheme(false)}
+                    aria-pressed={!dark}
+                    className={[
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors",
                       !dark
-                        ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                        : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)]"
-                    }`}
+                        ? "bg-gold text-[color:var(--primary-foreground)]"
+                        : "text-muted-foreground",
+                    ].join(" ")}
                   >
-                    <Sun size={16} />
+                    <Sun size={13} /> Light
                   </button>
                   <button
-                    onClick={toggleTheme}
-                    className={`p-2 rounded-lg transition-all ${
+                    type="button"
+                    onClick={() => setTheme(true)}
+                    aria-pressed={dark}
+                    className={[
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-semibold transition-colors",
                       dark
-                        ? "bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)]"
-                        : "text-[oklch(0.5_0_0)] dark:text-[oklch(0.7_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)]"
-                    }`}
+                        ? "bg-gold text-[color:var(--primary-foreground)]"
+                        : "text-muted-foreground",
+                    ].join(" ")}
                   >
-                    <Moon size={16} />
+                    <Moon size={13} /> Dark
                   </button>
                 </div>
               </div>
 
-              {/* Auth Section Mobile */}
-              <div className="flex flex-col gap-3 pt-4">
-                <button
-                  className="w-full justify-center text-[oklch(0.17_0_0)] dark:text-[oklch(0.98_0_0)] hover:bg-[oklch(0.97_0_0)] dark:hover:bg-[oklch(0.18_0_0)] rounded-xl py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                  onClick={() => {
-                    router.push("/auth/login");
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  Log In
-                </button>
-                <button
-                  className="w-full justify-center bg-[oklch(0.84_0.16_88)] text-[oklch(0.17_0_0)] hover:bg-[oklch(0.84_0.16_88)]/90 rounded-xl py-2 font-['Be_Vietnam_Pro',system-ui,sans-serif]"
-                  onClick={() => {
-                    router.push("/auth/signup");
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  Get Started Free
-                </button>
+              {/* Product */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+                  Product
+                </p>
+                <div className="grid grid-cols-2 gap-1">
+                  {productItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        onClick={() => go(item.href)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-left hover:bg-surface transition-colors"
+                      >
+                        <Icon className="h-4 w-4 text-primary-custom shrink-0" />
+                        <span className="text-[13.5px] font-medium text-ink truncate">
+                          {item.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </nav>
-          </div>
+
+              {/* Company */}
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+                  Company
+                </p>
+                <div className="flex flex-col">
+                  {simpleLinks.map((link) => (
+                    <button
+                      key={link.name}
+                      type="button"
+                      onClick={() => go(link.href, link.external)}
+                      className="flex items-center justify-between rounded-xl px-3 py-3 text-[14px] font-medium text-ink hover:bg-surface transition-colors"
+                    >
+                      <span>{link.name}</span>
+                      {link.external && (
+                        <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auth zone */}
+              <div className="pt-4 border-t border-border">
+                {loading ? (
+                  <div className="h-11 w-full rounded-xl bg-surface animate-pulse" />
+                ) : isAuthenticated ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 rounded-xl bg-surface px-3 py-3">
+                      {userData?.profile_picture ? (
+                        <img
+                          src={userData.profile_picture}
+                          alt=""
+                          className="h-9 w-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gold text-[color:var(--primary-foreground)] text-[12px] font-bold">
+                          {initials}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13.5px] font-semibold text-ink truncate">
+                          {userData?.full_name || "Account"}
+                        </p>
+                        <p className="text-[12px] text-muted-foreground truncate">
+                          {userData?.email || ""}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push("/dashboard");
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 transition"
+                    >
+                      <LayoutDashboard size={15} />
+                      Open dashboard
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[14px] font-semibold text-destructive hover:bg-destructive/5 transition"
+                    >
+                      <LogOut size={15} />
+                      Log out
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push("/auth/signup");
+                      }}
+                      className="w-full rounded-xl py-3 text-[14px] font-semibold bg-gold text-[color:var(--primary-foreground)] hover:opacity-90 transition"
+                    >
+                      Get started
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push("/auth/login");
+                      }}
+                      className="w-full rounded-xl py-3 text-[14px] font-medium text-ink border border-border hover:bg-surface transition"
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body,
         )}
-      </div>
-    </header>
+    </>
   );
 }

@@ -28,15 +28,25 @@ export function renderFulfillmentBlock(
   }
 
   if (d.method === "delivery") {
-    const a = d.snapshot ?? {};
-    if (!a.full_name && !a.street_address) return "";
-    const fee = Number(d.fee ?? 0);
+    // Snapshot may be { zone, customer } (new) or a flat customer address (legacy)
+    const snap = d.snapshot ?? {};
+    const zone = snap.zone ?? null;
+    const customer = snap.customer ?? snap;
+
+    if (!customer?.full_name && !customer?.street_address) return "";
+    const fee = Number(d.fee ?? zone?.fee ?? 0);
+
     return `
       <div style="margin: 24px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
         <p style="margin: 0 0 8px; font-weight: 600; font-size: 14px;">Delivery details</p>
-        <p style="margin: 0 0 4px; font-size: 14px;"><strong>${s(a.full_name)}</strong> — ${s(a.phone)}</p>
-        <p style="margin: 0 0 4px; font-size: 14px;">${s(a.street_address)}, ${s(a.city)}, ${s(a.state)}</p>
-        ${a.notes ? `<p style="margin: 4px 0 0; font-size: 13px; color: #666;">Notes: ${s(a.notes)}</p>` : ""}
+        ${
+          zone
+            ? `<p style="margin: 0 0 6px; font-size: 13px; color: #666;"><strong>Zone:</strong> ${s(zone.label)}</p>`
+            : ""
+        }
+        <p style="margin: 0 0 4px; font-size: 14px;"><strong>${s(customer.full_name)}</strong> — ${s(customer.phone)}</p>
+        <p style="margin: 0 0 4px; font-size: 14px;">${s(customer.street_address)}, ${s(customer.city)}, ${s(customer.state)}</p>
+        ${customer.notes ? `<p style="margin: 4px 0 0; font-size: 13px; color: #666;">Notes: ${s(customer.notes)}</p>` : ""}
         ${fee > 0 ? `<p style="margin: 8px 0 0; color: #666; font-size: 13px;">Delivery fee: ₦${fee.toLocaleString()}</p>` : ""}
       </div>
     `;

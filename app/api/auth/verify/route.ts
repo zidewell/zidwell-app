@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { transporter } from "@/lib/node-mailer";
+import { emailShell, esc, ui } from "@/lib/email/ui";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -259,25 +260,23 @@ export async function GET(request: NextRequest) {
           from: `"Zidwell" <${process.env.EMAIL_USER}>`,
           to: user.email,
           subject: "🎉 Welcome to Zidwell!",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <img src="${headerImageUrl}" style="width: 100%; margin-bottom: 20px;" />
-              <h3 style="color: #22c55e;">✅ Account Verified!</h3>
-              <p>Hi ${user.full_name},</p>
-              <p>Your account has been successfully verified and is now ready to use!</p>
-
-              <img src="${welcomeImageUrl}" style="width: 100%; margin: 10px 0; border-radius: 8px;" />
-
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${baseUrl}/dashboard"
-                   style="background: #FDC020; color: #191919; padding: 12px 24px; border-radius: 8px;
-                          text-decoration: none; display: inline-block; font-weight: bold;">
-                  Go to Dashboard
-                </a>
-              </div>
-              <img src="${footerImageUrl}" style="width: 100%; margin-top: 20px;" />
-            </div>
-          `,
+          html: emailShell({
+            title: "Welcome to Zidwell",
+            preheader: "Your Zidwell account is verified. Here's how to get started.",
+            content: `
+              ${ui.h1("✅ Account verified")}
+              ${ui.p(`Hi ${esc(user.full_name || "there")},`)}
+              ${ui.p(
+                "Your account has been successfully verified and is ready to use."
+              )}
+              ${ui.alert(
+                "You're all set. Sign in to your dashboard to start using Zidwell.",
+                "success"
+              )}
+              ${ui.cta("Go to dashboard", `${baseUrl}/dashboard`)}
+              ${ui.signature()}
+            `,
+          }),
         });
 
         console.log(`✅ Welcome email sent to ${user.email}`);

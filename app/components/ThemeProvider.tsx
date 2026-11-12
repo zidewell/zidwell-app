@@ -32,8 +32,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const applyTheme = (newTheme: Theme) => {
+    if (typeof document === 'undefined') return;
     const resolved = newTheme === 'system' ? getSystemTheme() : newTheme;
-    
+
     if (resolved === 'dark') {
       document.documentElement.classList.add('dark');
       setResolvedTheme('dark');
@@ -45,7 +46,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     setMounted(true);
-    
+
     try {
       const savedTheme = localStorage.getItem('zidwell-theme') as Theme | null;
       const initialTheme = savedTheme || 'system';
@@ -56,14 +57,15 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTheme('system');
       applyTheme('system');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
     if (theme !== 'system') return;
-    
+
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
+
     const handleSystemThemeChange = (e: MediaQueryListEvent) => {
       const newSystemTheme = e.matches ? 'dark' : 'light';
       if (newSystemTheme === 'dark') {
@@ -74,7 +76,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setResolvedTheme('light');
       }
     };
-    
+
     mediaQuery.addEventListener('change', handleSystemThemeChange);
     return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
   }, [theme, mounted]);
@@ -89,10 +91,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyTheme(newTheme);
   };
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // Always wrap children in the context provider so consumers (Nav, etc.)
+  // can call useTheme() during SSR/prerender without throwing.
   return (
     <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: updateTheme }}>
       {children}
