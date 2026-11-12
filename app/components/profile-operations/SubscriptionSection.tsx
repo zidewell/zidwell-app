@@ -1,299 +1,220 @@
 // app/components/profile-operations/SubscriptionSection.tsx
-import React from "react";
+import React, { useState } from "react";
 import { useUserContextData } from "@/app/context/userData";
 import { useSubscription } from "@/app/hooks/useSubscripion";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
-import { Crown, Star, Building2, Zap } from "lucide-react";
+import { Check, Crown, Building2, Zap } from "lucide-react";
+import {
+  ZIDWELL_PLANS,
+  formatNaira,
+  type BillingPeriod,
+  type PlanTier,
+} from "@/app/components/home-component/plans";
 
-type Tier = "free" | "starter" | "sme" | "enterprise";
+const tierIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  starter: Zap,
+  sme: Building2,
+  enterprise: Crown,
+};
 
 interface SubscriptionSectionProps {
-  currentTier?: Tier;
+  currentTier?: PlanTier;
 }
-
-const tiers: {
-  id: Tier;
-  name: string;
-  price: string;
-  yearlyPrice?: string;
-  features: string[];
-  icon?: any;
-}[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: "₦0/mo",
-    features: [
-      "Manual bookkeeping",
-      "Up to 5 invoices",
-      "Up to 5 receipts",
-      "Basic financial overview",
-      "Business Plan Template",
-    ],
-    icon: Star,
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    price: "₦0/mo",
-    yearlyPrice: "Free plan — no card required",
-    features: [
-      "Everything in Free, plus:",
-      "Business bank account",
-      "Automatic Bookkeeping",
-      "Invoice Tool (5/month)",
-      "Receipt Tool (5/month)",
-      "Online storefront",
-      "Document Vault",
-    ],
-    icon: Zap,
-  },
-  {
-    id: "sme",
-    name: "SME",
-    price: "₦29,900/mo",
-    yearlyPrice: "₦299,000/year (save ₦59,800)",
-    features: [
-      "Everything in Starter, plus:",
-      "Unlimited invoices",
-      "Unlimited receipts",
-      "Bank statement upload",
-      "Tax calculator",
-      "Financial statements",
-      "1 Contract",
-      "1 extra team member",
-    ],
-    icon: Building2,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: "₦100,000/mo",
-    yearlyPrice: "₦1,000,000/year (save ₦200,000)",
-    features: [
-      "Everything in SME, plus:",
-      "Multi-user access",
-      "Role-based permissions",
-      "Approval system",
-      "Downloadable reports",
-      "10 Contracts",
-      "Lawyer Signature on Contracts",
-      "Dedicated onboarding",
-    ],
-    icon: Crown,
-  },
-];
 
 const SubscriptionSection: React.FC<SubscriptionSectionProps> = ({
   currentTier: propTier,
 }) => {
-  const { refreshSubscription } = useUserContextData();
-  const { userTier } = useSubscription();
-
   const router = useRouter();
+  const { userData } = useUserContextData();
+  const { userTier } = useSubscription();
+  // Yearly default per your requirement
+  const [billing, setBilling] = useState<BillingPeriod>("yearly");
 
-  const currentTier: Tier = (userTier as Tier) || propTier || "free";
+  // Source of truth: DB → hook → prop → starter
+  const rawTier =
+    (userData?.subscription_tier as string | undefined) ||
+    (userTier as string | undefined) ||
+    propTier ||
+    "starter";
 
-  const getTierInfo = (tierId: Tier) => {
-    const tier = tiers.find((t) => t.id === tierId);
-    if (!tier) return null;
+  // "free" in the DB maps to the Starter plan (they're the same in plans.ts)
+  const currentTierId: PlanTier =
+    rawTier === "free" ? "starter" : (rawTier as PlanTier);
 
-    let bgColor = "";
-    let textColor = "";
+  const currentIndex = ZIDWELL_PLANS.findIndex((p) => p.id === currentTierId);
+  const safeCurrentIndex = currentIndex === -1 ? 0 : currentIndex;
+  const currentPlan = ZIDWELL_PLANS[safeCurrentIndex];
 
-    switch (tierId) {
-      case "enterprise":
-        bgColor = "bg-amber-100 dark:bg-amber-900/20";
-        textColor = "text-amber-600 dark:text-amber-400";
-        break;
-      case "sme":
-        bgColor = "bg-(--color-accent-yellow)/10";
-        textColor = "text-(--color-accent-yellow)";
-        break;
-      case "starter":
-        bgColor = "bg-blue-100 dark:bg-blue-900/20";
-        textColor = "text-blue-600 dark:text-blue-400";
-        break;
-      default:
-        bgColor = "bg-gray-100 dark:bg-gray-800";
-        textColor = "text-gray-600 dark:text-gray-400";
-    }
-
-    return { ...tier, bgColor, textColor };
-  };
-
-  const handleSubscribe = async (tierId: Tier) => {
-    if (tierId === "free" || tierId === "starter") return;
-
-    const tierName = tiers.find((t) => t.id === tierId)?.name || tierId;
-
+  const handleUpgrade = (tier: PlanTier, name: string) => {
+    if (tier === "starter") return;
     Swal.fire({
-      title: `Upgrade to ${tierName}`,
-      text: `You're about to upgrade to the ${tierName} plan. You'll be redirected to payment.`,
+      title: `Upgrade to ${name}`,
+      text: `You're about to upgrade to the ${name} plan. You'll be redirected to payment.`,
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "var(--color-accent-yellow)",
       confirmButtonText: "Proceed",
       cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        router.push(`/pricing?upgrade=${tierId}`);
-      }
+    }).then((r) => {
+      if (r.isConfirmed) router.push(`/pricing?upgrade=${tier}`);
     });
   };
 
-  const currentPlanInfo = getTierInfo(currentTier);
-
-  const getUpgradeTarget = (): { tierId: Tier; label: string } | null => {
-    if (currentTier === "free" || currentTier === "starter") {
-      return { tierId: "sme", label: "Upgrade to SME" };
-    }
-    if (currentTier === "sme") {
-      return { tierId: "enterprise", label: "Upgrade to Enterprise" };
-    }
-    return null;
-  };
-
-  const upgradeTarget = getUpgradeTarget();
+  const priceFor = (plan: (typeof ZIDWELL_PLANS)[number]) =>
+    billing === "yearly" ? plan.yearly : plan.monthly;
+  const suffix = billing === "yearly" ? "/yr" : "/mo";
 
   return (
-    <div className="neo-card bg-(--bg-primary) p-6 border border-(--border-color) rounded-xl shadow-soft">
-      {/* Current Plan Summary */}
-      <div className="mb-6 p-4 rounded-lg border-2 border-(--color-accent-yellow) bg-(--color-accent-yellow)/5">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            {currentPlanInfo?.icon && (
-              <div className={`p-2 rounded-full ${currentPlanInfo.bgColor}`}>
-                <currentPlanInfo.icon
-                  className={`w-5 h-5 ${currentPlanInfo.textColor}`}
-                />
-              </div>
-            )}
-            <div>
-              <h4 className="font-semibold text-(--text-primary)">
-                Current Plan: {currentPlanInfo?.name}
-              </h4>
-              <p className="text-sm text-(--text-secondary) mt-1">
-                {currentPlanInfo?.price}
-              </p>
-              {currentPlanInfo?.yearlyPrice && (
-                <p className="text-xs text-(--color-accent-yellow) mt-1">
-                  {currentPlanInfo.yearlyPrice}
-                </p>
-              )}
-            </div>
+    <div className="bg-(--bg-primary) border border-(--border-color) rounded-xl p-6 space-y-6 shadow-soft">
+      {/* Current plan summary */}
+      <div className="rounded-lg border border-(--border-color) bg-(--bg-secondary) p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-full bg-(--color-accent-yellow)/15">
+            {React.createElement(tierIcons[currentPlan.id] || Zap, {
+              className: "w-4 h-4 text-(--color-accent-yellow)",
+            })}
           </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-(--text-secondary) font-medium">
+              Current Plan
+            </p>
+            <p className="text-sm font-semibold text-(--text-primary)">
+              {currentPlan.name}
+              <span className="ml-2 font-normal text-(--text-secondary)">
+                {currentPlan.monthly === 0
+                  ? "Free"
+                  : `${formatNaira(currentPlan.monthly)}/mo`}
+              </span>
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-(--text-secondary) max-w-md">
+          {currentPlan.tagline}
+        </p>
+      </div>
 
-          {upgradeTarget && (
+      {/* Header + billing toggle (yearly default) */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-(--text-secondary)">
+          Available Plans
+        </h3>
+        <div
+          role="tablist"
+          aria-label="Billing period"
+          className="inline-flex rounded-lg border border-(--border-color) p-0.5 bg-(--bg-secondary)"
+        >
+          {(["yearly", "monthly"] as BillingPeriod[]).map((p) => (
             <button
-              onClick={() => handleSubscribe(upgradeTarget.tierId)}
-              className="bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+              key={p}
+              role="tab"
+              aria-selected={billing === p}
+              onClick={() => setBilling(p)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
+                billing === p
+                  ? "bg-(--color-accent-yellow) text-(--color-ink)"
+                  : "text-(--text-secondary) hover:text-(--text-primary)"
+              }`}
             >
-              <Crown className="w-4 h-4" />
-              {upgradeTarget.label}
+              {p}
+              {p === "yearly" && (
+                <span className="ml-1 text-[10px] opacity-80">(save)</span>
+              )}
             </button>
-          )}
-
-          {currentTier === "enterprise" && (
-            <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
-              🎉 You're on the highest plan!
-            </div>
-          )}
+          ))}
         </div>
       </div>
 
-      <h3 className="font-heading text-(--text-primary) text-sm mb-5">
-        AVAILABLE PLANS
-      </h3>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {tiers.map((tier) => {
-          const isCurrent = tier.id === currentTier;
-          const tierInfo = getTierInfo(tier.id);
-
-          const tierOrder: Tier[] = ["free", "starter", "sme", "enterprise"];
-          const currentIndex = tierOrder.indexOf(currentTier);
-          const tierIndex = tierOrder.indexOf(tier.id);
-          const isUpgrade = tierIndex > currentIndex;
+      {/* Plan grid — ZIDWELL_PLANS already excludes Booster */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {ZIDWELL_PLANS.map((plan, idx) => {
+          const isCurrent = plan.id === currentPlan.id;
+          const isUpgrade = idx > safeCurrentIndex;
+          const Icon = tierIcons[plan.id] || Zap;
+          const price = priceFor(plan);
 
           return (
             <div
-              key={tier.id}
-              className={`border-2 p-4 transition-all rounded-lg ${
+              key={plan.id}
+              className={`flex flex-col rounded-lg border p-5 transition-colors ${
                 isCurrent
-                  ? "border-(--color-accent-yellow) shadow-[4px_4px_0px_rgba(253,192,32,0.3)]"
-                  : "border-(--border-color) hover:shadow-[2px_2px_0px_rgba(253,192,32,0.2)]"
+                  ? "border-(--color-accent-yellow) bg-(--color-accent-yellow)/5"
+                  : "border-(--border-color) hover:border-(--text-secondary)/40"
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {tier.icon && (
-                    <tier.icon
-                      className={`w-4 h-4 ${
-                        isCurrent
-                          ? tierInfo?.textColor
-                          : "text-(--text-secondary)"
-                      }`}
-                    />
-                  )}
+                  <Icon
+                    className={`w-4 h-4 ${isCurrent ? "text-(--color-accent-yellow)" : "text-(--text-secondary)"}`}
+                  />
                   <span
-                    className={`text-sm ${
-                      isCurrent
-                        ? "text-(--text-primary) font-bold"
-                        : "text-(--text-secondary)"
-                    }`}
+                    className={`text-sm ${isCurrent ? "font-semibold text-(--text-primary)" : "text-(--text-secondary)"}`}
                   >
-                    {tier.name}
+                    {plan.name}
                   </span>
                 </div>
                 {isCurrent && (
-                  <span className="text-[10px] text-(--color-accent-yellow) border-2 border-(--color-accent-yellow) px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold text-(--color-accent-yellow) border border-(--color-accent-yellow) px-1.5 py-0.5 rounded">
                     CURRENT
                   </span>
                 )}
               </div>
 
-              <span className="text-lg font-heading text-(--text-primary) block mb-1">
-                {tier.price}
-              </span>
-              {tier.yearlyPrice && (
-                <span className="text-[10px] text-(--color-accent-yellow) block mb-3">
-                  {tier.yearlyPrice}
+              <div className="mb-1">
+                <span className="text-xl font-bold text-(--text-primary)">
+                  {price === 0 ? "Free" : formatNaira(price)}
                 </span>
+                {price !== 0 && (
+                  <span className="text-xs text-(--text-secondary)">
+                    {suffix}
+                  </span>
+                )}
+              </div>
+              {billing === "yearly" && plan.monthly > 0 && (
+                <p className="text-[11px] text-(--text-secondary) mb-3">
+                  or {formatNaira(plan.monthly)}/mo billed monthly
+                </p>
               )}
 
-              <ul className="space-y-1.5 min-h-[140px]">
-                {tier.features.map((f, index) => (
+              <p className="text-xs text-(--text-secondary) mb-4">
+                {plan.tagline}
+              </p>
+
+              <ul className="space-y-1.5 flex-1 mb-4">
+                {plan.features?.map((f, i) => (
                   <li
-                    key={index}
-                    className="text-xs font-body text-(--text-secondary) flex items-start gap-1"
+                    key={i}
+                    className="text-xs text-(--text-secondary) flex items-start gap-2"
                   >
-                    <span className="text-(--color-accent-yellow)">•</span>
+                    <Check className="w-3.5 h-3.5 shrink-0 mt-0.5 text-(--color-accent-yellow)" />
                     <span>{f}</span>
                   </li>
                 ))}
               </ul>
 
-              {!isCurrent && (
+              {isCurrent ? (
+                <div className="text-xs text-center py-2 text-(--text-secondary) border border-(--border-color) rounded-lg">
+                  Your current plan
+                </div>
+              ) : isUpgrade ? (
                 <button
                   type="button"
-                  onClick={() => handleSubscribe(tier.id)}
-                  className={`w-full mt-4 text-xs py-2 px-4 rounded-md transition-all font-medium ${
-                    isUpgrade
-                      ? "bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink)"
-                      : "bg-transparent text-(--text-primary) border-2 border-(--border-color) hover:bg-(--bg-secondary)"
-                  }`}
+                  onClick={() => handleUpgrade(plan.id, plan.name)}
+                  className="w-full bg-(--color-accent-yellow) hover:bg-(--color-accent-yellow)/90 text-(--color-ink) text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
-                  {isUpgrade ? "Upgrade" : "Switch to This Plan"}
+                  Upgrade to {plan.name}
                 </button>
+              ) : (
+                <div className="text-xs text-center py-2 text-(--text-secondary) border border-(--border-color) rounded-lg">
+                  Lower tier
+                </div>
               )}
             </div>
           );
         })}
       </div>
 
-      <p className="text-xs text-(--text-secondary) text-center mt-6">
+      <p className="text-xs text-(--text-secondary) text-center">
         Each plan is a clear upgrade in capability, not just more limits.
         <button
           onClick={() => router.push("/pricing")}
