@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -49,11 +49,62 @@ const preferenceItems = [
   { name: "My Profile", href: "/dashboard/profile", icon: User },
 ];
 
-const isPathActive = (pathname: string | null, href: string) => {
-  if (!pathname) return false;
-  if (pathname === href) return true;
-  if (pathname.startsWith(href + "/")) return true;
-  return false;
+/**
+ * Every navigable href in the sidebar. Used to compute the deepest match
+ * so that only ONE nav item is ever active for a given pathname.
+ */
+const ALL_NAV_HREFS = [
+  "/dashboard",
+  "/dashboard/fund-account",
+  "/dashboard/fund-account/transfer-page",
+  "/dashboard/transactions",
+  "/dashboard/services/payment/dashboard",
+  "/dashboard/store",
+  "/dashboard/services/bookkeeping",
+  "/dashboard/services/create-invoice",
+  "/dashboard/services/receipt",
+  "/dashboard/services/contract",
+  "/dashboard/services/tax-filing",
+  "/dashboard/services/buy-airtime",
+  "/dashboard/services/buy-data",
+  "/dashboard/services/buy-cable-tv",
+  "/blog",
+  "/dashboard/profile",
+  "/admin",
+  "/blog/admin",
+];
+
+/**
+ * A link is active only if it is the DEEPEST matching route.
+ *
+ *   pathname = /dashboard/fund-account/transfer-page
+ *     /dashboard/fund-account               -> NOT deepest -> false
+ *     /dashboard/fund-account/transfer-page -> deepest     -> true
+ *
+ *   pathname = /dashboard/fund-account
+ *     /dashboard/fund-account               -> deepest     -> true
+ *
+ *   pathname = /blog/admin
+ *     /blog                                 -> NOT deepest -> false
+ *     /blog/admin                           -> deepest     -> true
+ */
+const isPathActive = (
+  pathname: string | null,
+  href: string,
+  allHrefs: string[] = ALL_NAV_HREFS,
+) => {
+  if (!pathname || href === "#") return false;
+
+  const matches = (h: string) =>
+    pathname === h || pathname.startsWith(h + "/");
+
+  if (!matches(href)) return false;
+
+  const deepestMatch = allHrefs
+    .filter(matches)
+    .reduce((a, b) => (a.length >= b.length ? a : b), "");
+
+  return deepestMatch === href;
 };
 
 interface DashboardSidebarProps {
@@ -71,6 +122,48 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
   const { theme, setTheme } = useTheme();
 
   const effectiveCollapsed = !isMobile && collapsed;
+
+  // Centralised active flags — single source of truth
+  const active = useMemo(
+    () => ({
+      dashboard: isPathActive(pathname, "/dashboard"),
+      fundAccount: isPathActive(pathname, "/dashboard/fund-account"),
+      transfer: isPathActive(
+        pathname,
+        "/dashboard/fund-account/transfer-page",
+      ),
+      transactions: isPathActive(pathname, "/dashboard/transactions"),
+      onlineStore: isPathActive(
+        pathname,
+        "/dashboard/services/payment/dashboard",
+      ),
+      bookkeeping: isPathActive(
+        pathname,
+        "/dashboard/services/bookkeeping",
+      ),
+      invoices: isPathActive(
+        pathname,
+        "/dashboard/services/create-invoice",
+      ),
+      receipts: isPathActive(pathname, "/dashboard/services/receipt"),
+      contracts: isPathActive(pathname, "/dashboard/services/contract"),
+      tax: isPathActive(pathname, "/dashboard/services/tax-filing"),
+      airtime: isPathActive(
+        pathname,
+        "/dashboard/services/buy-airtime",
+      ),
+      data: isPathActive(pathname, "/dashboard/services/buy-data"),
+      cable: isPathActive(
+        pathname,
+        "/dashboard/services/buy-cable-tv",
+      ),
+      blog: isPathActive(pathname, "/blog"),
+      profile: isPathActive(pathname, "/dashboard/profile"),
+      admin: isPathActive(pathname, "/admin"),
+      blogAdmin: isPathActive(pathname, "/blog/admin"),
+    }),
+    [pathname],
+  );
 
   useEffect(() => {
     const checkMobile = () => {
@@ -310,7 +403,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard",
             icon: LayoutDashboard,
           }}
-          isActive={isPathActive(pathname, "/dashboard")}
+          isActive={active.dashboard}
           collapsed={effectiveCollapsed}
         />
       </div>
@@ -323,7 +416,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/fund-account",
             icon: Wallet,
           }}
-          isActive={isPathActive(pathname, "/dashboard/fund-account")}
+          isActive={active.fundAccount}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -332,10 +425,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/fund-account/transfer-page",
             icon: Send,
           }}
-          isActive={isPathActive(
-            pathname,
-            "/dashboard/fund-account/transfer-page",
-          )}
+          isActive={active.transfer}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -344,24 +434,20 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/transactions",
             icon: ArrowLeftRight,
           }}
-          isActive={isPathActive(pathname, "/dashboard/transactions")}
+          isActive={active.transactions}
           collapsed={effectiveCollapsed}
         />
       </div>
 
       <div className="space-y-1">
         <SectionLabel>Business Tools</SectionLabel>
-        {/* Online Store — now shown for everyone */}
         <NavItem
           item={{
             name: "Online Store",
             href: "/dashboard/services/payment/dashboard",
             icon: CreditCard,
           }}
-          isActive={
-            isPathActive(pathname, "/dashboard/services/payment/dashboard") ||
-            isPathActive(pathname, "/dashboard/store")
-          }
+          isActive={active.onlineStore}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -370,7 +456,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/bookkeeping",
             icon: BookOpen,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/bookkeeping")}
+          isActive={active.bookkeeping}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -379,10 +465,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/create-invoice",
             icon: FileText,
           }}
-          isActive={isPathActive(
-            pathname,
-            "/dashboard/services/create-invoice",
-          )}
+          isActive={active.invoices}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -391,7 +474,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/receipt",
             icon: Receipt,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/receipt")}
+          isActive={active.receipts}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -400,7 +483,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/contract",
             icon: FileSignature,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/contract")}
+          isActive={active.contracts}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -409,7 +492,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/tax-filing",
             icon: Calculator,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/tax-filing")}
+          isActive={active.tax}
           collapsed={effectiveCollapsed}
         />
       </div>
@@ -422,7 +505,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/buy-airtime",
             icon: Smartphone,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/buy-airtime")}
+          isActive={active.airtime}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -431,7 +514,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/buy-data",
             icon: Wifi,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/buy-data")}
+          isActive={active.data}
           collapsed={effectiveCollapsed}
         />
         <NavItem
@@ -440,7 +523,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
             href: "/dashboard/services/buy-cable-tv",
             icon: Tv,
           }}
-          isActive={isPathActive(pathname, "/dashboard/services/buy-cable-tv")}
+          isActive={active.cable}
           collapsed={effectiveCollapsed}
         />
       </div>
@@ -486,7 +569,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         <SectionLabel>More</SectionLabel>
         <NavItem
           item={{ name: "Blog / Articles", href: "/blog", icon: Newspaper }}
-          isActive={isPathActive(pathname, "/blog")}
+          isActive={active.blog}
           collapsed={effectiveCollapsed}
         />
       </div>
@@ -499,7 +582,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
         <NavItem
           key={item.name}
           item={item}
-          isActive={isPathActive(pathname, item.href)}
+          isActive={active.profile}
           collapsed={effectiveCollapsed}
         />
       ))}
@@ -532,7 +615,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           ].includes(userData?.role) && (
             <NavItem
               item={{ name: "Admin Panel", href: "/admin", icon: Settings }}
-              isActive={isPathActive(pathname, "/admin")}
+              isActive={active.admin}
               collapsed={effectiveCollapsed}
             />
           )}
@@ -541,7 +624,7 @@ const DashboardSidebar = ({ open, onClose }: DashboardSidebarProps) => {
           ) && (
             <NavItem
               item={{ name: "Blog Admin", href: "/blog/admin", icon: Captions }}
-              isActive={isPathActive(pathname, "/blog/admin")}
+              isActive={active.blogAdmin}
               collapsed={effectiveCollapsed}
             />
           )}
