@@ -48,9 +48,7 @@ export async function handlePayoutWebhook({
     // Nomba's fee is a platform cost — do NOT add it on top.
     // ============================================================
     const totalDeduction =
-      Number(pendingTx.total_deduction) ||
-      Number(pendingTx.amount) ||
-      0;
+      Number(pendingTx.total_deduction) || Number(pendingTx.amount) || 0;
 
     if (totalDeduction <= 0) {
       console.error(
@@ -76,6 +74,7 @@ export async function handlePayoutWebhook({
             p_transaction_id: pendingTx.id,
             p_reason: "payout_webhook_retroactive_deduction",
             p_idempotency_key: `payout_retro_deduct_${pendingTx.id}`,
+            p_bypass_freeze: true,
           },
         );
 
@@ -123,14 +122,10 @@ export async function handlePayoutWebhook({
           amount: totalDeduction,
           status: "pending",
           reference: `REFUND_${
-            pendingTx.reference ||
-            pendingTx.merchant_tx_ref ||
-            pendingTx.id
+            pendingTx.reference || pendingTx.merchant_tx_ref || pendingTx.id
           }`,
           description: `Refund for failed payout ${
-            pendingTx.reference ||
-            pendingTx.merchant_tx_ref ||
-            pendingTx.id
+            pendingTx.reference || pendingTx.merchant_tx_ref || pendingTx.id
           }`,
         })
         .select()
@@ -156,10 +151,7 @@ export async function handlePayoutWebhook({
       );
 
       if (refundError) {
-        console.error(
-          `[payout-webhook] Refund RPC failed:`,
-          refundError,
-        );
+        console.error(`[payout-webhook] Refund RPC failed:`, refundError);
         return { ok: false, message: refundError.message };
       }
 
